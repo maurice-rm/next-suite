@@ -47,9 +47,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # Provenance requires a public repo — flip back to true when the repo
-          # goes public for the stable 1.0.0.
-          NPM_CONFIG_PROVENANCE: false
+          NPM_CONFIG_PROVENANCE: true
       - name: Point the `latest` and `beta` dist-tags at the published version
         if: steps.changesets.outputs.published == 'true'
         run: |
