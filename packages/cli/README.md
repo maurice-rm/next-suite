@@ -19,8 +19,6 @@ npm create next-suite@latest my-app
 # or:  pnpm create next-suite@latest my-app  ·  yarn create next-suite@latest my-app  ·  bun create next-suite@latest my-app
 ```
 
-While the package is in beta, `@latest` is required — a bare name resolves to the semver range `*`, which excludes prereleases like the current `1.0.0-beta.x`. Drop it once `1.0.0` ships.
-
 Answer the guided wizard (with back-navigation) and the CLI generates the project, then optionally installs dependencies, formats it, and makes an initial commit. For CI, `--yes` builds from flags — see [Non-interactive / CI](#-non-interactive--ci).
 
 ## ✨ What you get

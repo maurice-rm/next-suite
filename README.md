@@ -23,8 +23,6 @@ npm create next-suite@latest my-app
 # or:  pnpm create next-suite@latest my-app  ·  yarn create next-suite@latest my-app  ·  bun create next-suite@latest my-app
 ```
 
-While the package is in beta, `@latest` is required — a bare name resolves to the semver range `*`, which excludes prereleases like the current `1.0.0-beta.x`. Drop it once `1.0.0` ships.
-
 Answer the guided wizard — it has back-navigation, so there's nothing to memorize — and you land in a ready-to-run project. Prefer a scripted run? Every choice is also a flag (see [Non-interactive](#-non-interactive--ci)).
 
 ## 🧩 What you get
