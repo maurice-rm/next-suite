@@ -1,0 +1,29 @@
+{{#if (eq database.engine "postgres")}}
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+import { migrate } from "drizzle-orm/mysql2/migrator";
+{{/if}}
+
+import { closeDatabase, database } from "@/lib/database";
+
+const runMigrations = async () => {
+  try {
+    await migrate(database, { migrationsFolder: "./drizzle" });
+    console.log("Database migrations completed successfully");
+  } finally {
+    await closeDatabase();
+  }
+};
+
+const main = async () => {
+  try {
+    await runMigrations();
+    process.exit(0);
+  } catch (error) {
+    console.error("Migration failed:", error);
+    process.exit(1);
+  }
+};
+
+void main();

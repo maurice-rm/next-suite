@@ -1,0 +1,144 @@
+# ============================================
+# Stage 1: Install dependencies
+# ============================================
+
+ARG NODE_VERSION=24-slim
+
+FROM node:${NODE_VERSION} AS dependencies
+
+WORKDIR /app
+
+{{#if (eq database.orm "prisma")}}
+# Prisma's postinstall (prisma generate) needs the schema + config at install time.
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+
+{{/if}}
+{{#if (eq packageManager "pnpm")}}
+COPY package.json pnpm-lock.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+  corepack enable pnpm && pnpm install --frozen-lockfile
+{{/if}}
+{{#if (eq packageManager "npm")}}
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci
+{{/if}}
+{{#if (eq packageManager "yarn")}}
+COPY package.json yarn.lock .yarnrc.yml ./
+RUN --mount=type=cache,target=/root/.yarn/berry/cache \
+  corepack enable && yarn install --immutable
+{{/if}}
+{{#if (eq packageManager "bun")}}
+COPY package.json bun.lock ./
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+  npm install -g bun && bun install --frozen-lockfile
+{{/if}}
+
+# ============================================
+# Stage 2: Build the Next.js application
+# ============================================
+
+FROM node:${NODE_VERSION} AS builder
+
+WORKDIR /app
+
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY . .
+{{#if (eq database.orm "prisma")}}
+# Reuse the client the deps stage generated (schema output: src/generated/prisma).
+COPY --from=dependencies /app/src/generated ./src/generated
+{{/if}}
+
+ENV SKIP_ENV_VALIDATION=true
+
+{{#if (or api (eq auth "better-auth"))}}
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+
+{{/if}}
+{{#if (eq packageManager "pnpm")}}
+RUN corepack enable pnpm && pnpm build
+{{/if}}
+{{#if (eq packageManager "npm")}}
+RUN npm run build
+{{/if}}
+{{#if (eq packageManager "yarn")}}
+RUN corepack enable && yarn build
+{{/if}}
+{{#if (eq packageManager "bun")}}
+RUN npm install -g bun && bun run build
+{{/if}}
+{{#if (eq database.orm "drizzle")}}
+# Bundle scripts/migrate.ts into a self-contained migrate.cjs — drizzle-orm and
+# the driver included — so the runner needs nothing from node_modules for it.
+RUN npx --no -- esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --alias:@=./src --outfile=migrate.cjs
+{{/if}}
+
+# ============================================
+# Stage 3: Run the Next.js application
+# ============================================
+
+FROM node:${NODE_VERSION} AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+{{#if (eq database.orm "prisma")}}
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false
+{{/if}}
+
+# curl for the app healthcheck{{#if database}}; the DB client for the entrypoint's readiness check{{/if}}{{#if (eq database.orm "prisma")}}; OpenSSL for Prisma's engines{{/if}} — node:slim omits these.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  curl \
+{{#if (eq database.engine "postgres")}}
+  postgresql-client \
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+  default-mysql-client \
+{{/if}}
+{{#if (eq database.orm "prisma")}}
+  openssl \
+{{/if}}
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy production assets
+COPY --from=builder --chown=node:node /app/public ./public
+
+# Set the correct permission for the prerender cache
+RUN mkdir .next && chown node:node .next
+
+# Copy standalone output and static files
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+{{#if database}}
+
+# Migration tooling (applied on start by entrypoint.sh)
+{{#if (eq database.orm "drizzle")}}
+# migrate.cjs is a self-contained esbuild bundle; it only needs the migrations.
+COPY --from=builder --chown=node:node /app/drizzle ./drizzle
+COPY --from=builder --chown=node:node /app/migrate.cjs ./migrate.cjs
+{{/if}}
+{{#if (eq database.orm "prisma")}}
+# prisma migrate deploy needs the full CLI + engines + transitive deps (not
+# traced into standalone), so the complete node_modules is copied, per the
+# Prisma Docker guide. The schema + config supply the connection URL.
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/prisma.config.ts ./prisma.config.ts
+COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
+{{/if}}
+COPY --from=builder --chown=node:node /app/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+{{/if}}
+
+USER node
+
+EXPOSE 3000
+
+{{#if database}}
+ENTRYPOINT ["./entrypoint.sh"]
+{{else}}
+CMD ["node", "server.js"]
+{{/if}}

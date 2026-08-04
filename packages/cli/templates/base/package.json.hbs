@@ -1,0 +1,32 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "check": "tsc --noEmit && eslint && prettier --check .",
+    "dev": "next dev",
+    "fix": "eslint --fix && prettier --write .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "prepare": "husky",
+    "setup": "bash scripts/setup.sh",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }{{#if (eq packageManager "pnpm")}},
+  "packageManager": "pnpm@10.34.3",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "sharp", "unrs-resolver"]
+  }{{/if}}{{#if (eq packageManager "yarn")}},
+  "packageManager": "yarn@4.17.1",
+  "dependenciesMeta": {
+    "esbuild": { "built": true },
+    "sharp": { "built": true },
+    "unrs-resolver": { "built": true }
+  }{{/if}}
+}

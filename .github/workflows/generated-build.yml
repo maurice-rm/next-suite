@@ -1,0 +1,70 @@
+name: Generated Build
+
+on:
+  pull_request:
+    paths:
+      - packages/cli/src/**
+      - packages/cli/templates/**
+      - packages/cli/scripts/**
+      - "**/package.json"
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/actions/setup/**
+      - .github/workflows/generated-build.yml
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  scenarios:
+    name: Resolve scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      include: ${{ steps.resolve.outputs.include }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - id: resolve
+        run: |
+          include="$(pnpm --silent --filter create-next-suite run matrix | tail -1)"
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
+  generated-build:
+    name: ${{ matrix.name }}
+    needs: scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.scenarios.outputs.include) }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - if: matrix.pm == 'bun'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Build the CLI
+        run: pnpm --filter create-next-suite build
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Scaffold via the CLI
+        working-directory: ${{ runner.temp }}
+        env:
+          HUSKY: "0"
+        run: node "$GITHUB_WORKSPACE/packages/cli/dist/index.js" app --yes ${{ matrix.flags }}
+      - name: Build and typecheck the output
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          ${{ matrix.pm }} run build
+          ${{ matrix.pm }} run typecheck

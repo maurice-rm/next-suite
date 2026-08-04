@@ -1,0 +1,7 @@
+import { publicProcedure } from "@/trpc";
+
+// The Date proves typed transport: superjson revives it on the client.
+export const status = publicProcedure.query(() => ({
+  status: "ok" as const,
+  time: new Date(),
+}));

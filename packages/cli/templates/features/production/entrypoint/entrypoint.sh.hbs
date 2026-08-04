@@ -1,0 +1,45 @@
+#!/bin/sh
+set -e
+
+# `migrate` migrates and exits, so a deploy can run it before touching the
+# stack — see DEPLOY.md.
+
+echo "Waiting for database..."
+RETRIES=30
+{{#if (eq database.engine "postgres")}}
+until pg_isready -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" >/dev/null 2>&1; do
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+until mysqladmin ping -h "${MYSQL_HOST}" -P "${MYSQL_PORT}" -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" --silent >/dev/null 2>&1; do
+{{/if}}
+  RETRIES=$((RETRIES - 1))
+  if [ "$RETRIES" -le 0 ]; then
+    echo "Database not reachable — exiting."
+    exit 1
+  fi
+  echo "Database not ready yet, retrying in 2s... (${RETRIES} left)"
+  sleep 2
+done
+echo "Database is ready."
+
+{{#if (eq database.orm "drizzle")}}
+if [ -f drizzle/meta/_journal.json ]; then
+  echo "Running database migrations..."
+  node migrate.cjs
+else
+  echo "No migrations found in drizzle/ — run 'db:generate' and redeploy." >&2
+  exit 1
+fi
+{{/if}}
+{{#if (eq database.orm "prisma")}}
+echo "Running database migrations..."
+npx --no -- prisma migrate deploy
+{{/if}}
+
+if [ "${1:-}" = "migrate" ]; then
+  echo "Migrations done."
+  exit 0
+fi
+
+echo "Starting the server..."
+exec node server.js

@@ -1,0 +1,74 @@
+"use client";
+
+import { type ReactNode } from "react";
+
+import {
+  type QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import {
+  createTRPCClient,
+  httpBatchLink,
+  httpLink,
+  isNonJsonSerializable,
+  splitLink,
+  type TRPCClient,
+} from "@trpc/client";
+import superjson from "superjson";
+
+import { env } from "@/env";
+import { TRPCProvider } from "@/trpc/client";
+import { createQueryClient } from "@/trpc/query-client";
+import type { AppRouter } from "@/trpc/routers/_app";
+
+let browserQueryClient: QueryClient | undefined;
+let browserTRPCClient: TRPCClient<AppRouter> | undefined;
+
+const getUrl = () => {
+  if (typeof window !== "undefined") return "/api/trpc";
+  return `${env.NEXT_PUBLIC_APP_URL}/api/trpc`;
+};
+
+const getQueryClient = () => {
+  if (typeof window === "undefined") return createQueryClient();
+  return (browserQueryClient ??= createQueryClient());
+};
+
+// FormData & friends bypass superjson serialization via the split link.
+const makeTRPCClient = () =>
+  createTRPCClient<AppRouter>({
+    links: [
+      splitLink({
+        condition: (op) => isNonJsonSerializable(op.input),
+        true: httpLink({
+          url: getUrl(),
+          transformer: {
+            serialize: (data) => data,
+            deserialize: superjson.deserialize,
+          },
+        }),
+        false: httpBatchLink({
+          url: getUrl(),
+          transformer: superjson,
+        }),
+      }),
+    ],
+  });
+
+const getTRPCClient = () => {
+  if (typeof window === "undefined") return makeTRPCClient();
+  return (browserTRPCClient ??= makeTRPCClient());
+};
+
+export const Providers = ({ children }: { children: ReactNode }) => {
+  const queryClient = getQueryClient();
+  const trpcClient = getTRPCClient();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
+        {children}
+      </TRPCProvider>
+    </QueryClientProvider>
+  );
+};

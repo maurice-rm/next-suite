@@ -1,0 +1,21 @@
+{{#if api.openapi}}
+import { z } from "zod";
+
+{{/if}}
+import { publicProcedure } from "@/orpc";
+
+// The Date proves typed transport: the RPC protocol carries it natively.
+{{#if api.openapi}}
+export const status = publicProcedure
+  .route({ method: "GET", path: "/health" })
+  .output(z.object({ status: z.literal("ok"), time: z.date() }))
+  .handler(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  }));
+{{else}}
+export const status = publicProcedure.handler(() => ({
+  status: "ok" as const,
+  time: new Date(),
+}));
+{{/if}}

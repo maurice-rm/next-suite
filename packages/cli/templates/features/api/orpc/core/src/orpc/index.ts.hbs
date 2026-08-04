@@ -1,0 +1,23 @@
+import { {{#if (eq auth "better-auth")}}ORPCError, {{/if}}os } from "@orpc/server";
+{{#if (eq auth "better-auth")}}
+
+import { auth } from "@/lib/auth";
+{{/if}}
+
+export const publicProcedure = os.$context<{ headers: Headers }>();
+{{#if (eq auth "better-auth")}}
+
+const authMiddleware = publicProcedure.middleware(async ({ context, next }) => {
+  const sessionData = await auth.api.getSession({ headers: context.headers });
+
+  if (!sessionData?.session || !sessionData?.user) {
+    throw new ORPCError("UNAUTHORIZED");
+  }
+
+  return next({
+    context: { session: sessionData.session, user: sessionData.user },
+  });
+});
+
+export const protectedProcedure = publicProcedure.use(authMiddleware);
+{{/if}}

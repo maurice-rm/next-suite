@@ -1,0 +1,11 @@
+// Add your models in per-domain files under prisma/models/*.prisma —
+// every .prisma file below prisma/ is part of the schema.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "{{#if (eq database.engine "postgres")}}postgresql{{else}}mysql{{/if}}"
+}

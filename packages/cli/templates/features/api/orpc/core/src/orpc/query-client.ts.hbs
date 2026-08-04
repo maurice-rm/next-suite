@@ -1,0 +1,36 @@
+import { StandardRPCJsonSerializer } from "@orpc/client/standard";
+import {
+  defaultShouldDehydrateQuery,
+  QueryClient,
+} from "@tanstack/react-query";
+
+// Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
+const serializer = new StandardRPCJsonSerializer();
+
+export const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        queryKeyHashFn: (queryKey) => {
+          const [json, meta] = serializer.serialize(queryKey);
+          return JSON.stringify({ json, meta });
+        },
+        staleTime: 1000 * 60 * 5,
+        gcTime: 1000 * 60 * 10,
+        refetchOnWindowFocus: false,
+      },
+      dehydrate: {
+        shouldDehydrateQuery: (query) =>
+          defaultShouldDehydrateQuery(query) ||
+          query.state.status === "pending",
+        shouldRedactErrors: () => false,
+        serializeData: (data) => {
+          const [json, meta] = serializer.serialize(data);
+          return { json, meta };
+        },
+      },
+      hydrate: {
+        deserializeData: (data) => serializer.deserialize(data.json, data.meta),
+      },
+    },
+  });

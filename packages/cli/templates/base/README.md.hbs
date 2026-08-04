@@ -1,0 +1,65 @@
+# {{projectName}}
+
+A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/next-suite).
+
+## 🧩 Stack
+
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 16 (App Router) |
+| UI | React 19 + React Compiler |
+| Language | TypeScript |
+{{#if tailwind}}
+| Styling | Tailwind CSS |
+{{/if}}
+{{#if (eq componentLibrary "shadcn")}}
+| Components | shadcn/ui |
+{{/if}}
+{{#if database}}
+| Database | {{#if (eq database.engine "postgres")}}PostgreSQL{{else}}MySQL{{/if}} |
+| ORM | {{#if (eq database.orm "drizzle")}}Drizzle{{else}}Prisma{{/if}} |
+{{/if}}
+{{#if api}}
+| API | {{#if (eq api.type "trpc")}}tRPC{{else}}oRPC{{/if}} |
+{{/if}}
+{{#if (eq auth "better-auth")}}
+| Auth | Better-Auth |
+{{/if}}
+{{#if (eq email "resend")}}
+| Email | Resend |
+{{/if}}
+{{#if production}}
+| Deployment | Docker + nginx |
+{{/if}}
+
+## 🚀 Getting started
+
+Fresh clone? The setup script creates `.env` (generating any secrets), installs dependencies{{#if database}}, and starts the database{{/if}}:
+
+```bash
+bash scripts/setup.sh          # interactive
+bash scripts/setup.sh --yes    # non-interactive
+```
+
+Then start the dev server:
+
+```bash
+{{packageManager}} run dev
+```
+
+## 📜 Scripts
+
+| Command | Description |
+| --- | --- |
+| `{{packageManager}} run dev` | Start the dev server |
+| `{{packageManager}} run build` | Build for production |
+| `{{packageManager}} run start` | Start the production server |
+| `{{packageManager}} run check` | Type-check, lint, and format-check |
+| `{{packageManager}} run lint` | Run ESLint |
+| `{{packageManager}} run typecheck` | Type-check |
+| `{{packageManager}} run format` | Format with Prettier |
+
+## ✅ Conventions
+
+- **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (`type(scope): description`), enforced by a `commit-msg` hook.
+- **Imports** — `@/` maps to `./src/`, e.g. `import { Button } from "@/components/ui/button"`.

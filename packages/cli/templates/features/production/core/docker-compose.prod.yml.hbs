@@ -1,0 +1,123 @@
+services:
+  app:
+    image: ${DOCKER_IMAGE:-{{projectName}}:latest}
+    build:
+      context: .
+      dockerfile: next.Dockerfile
+{{#if (or api (eq auth "better-auth"))}}
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+{{/if}}
+    env_file:
+      - .env
+{{#if (eq database.engine "postgres")}}
+    environment:
+      POSTGRES_HOST: postgres
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+    environment:
+      MYSQL_HOST: mysql
+{{/if}}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+{{#if database}}
+    depends_on:
+{{#if (eq database.engine "postgres")}}
+      postgres:
+        condition: service_healthy
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+      mysql:
+        condition: service_healthy
+{{/if}}
+{{/if}}
+    networks:
+      - app-network
+    restart: always
+
+  nginx:
+    image: nginx:1.29-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+{{#if (eq production.mode "standalone")}}
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+{{/if}}
+    ports:
+{{#if (eq production.mode "standalone")}}
+      - "80:80"
+      - "443:443"
+{{/if}}
+{{#if (eq production.mode "proxied")}}
+      - "127.0.0.1:${APP_PORT:?APP_PORT is required in .env — see DEPLOY.md}:80"
+{{/if}}
+    networks:
+      - app-network
+    restart: always
+{{#if (eq database.engine "postgres")}}
+
+  postgres:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required in .env — see DEPLOY.md}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required in .env — see DEPLOY.md}
+      POSTGRES_DB: ${POSTGRES_DATABASE:?POSTGRES_DATABASE is required in .env — see DEPLOY.md}
+    expose:
+      - "5432"
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app-network
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+
+  mysql:
+    image: mysql:8.4
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required in .env — see DEPLOY.md}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?MYSQL_DATABASE is required in .env — see DEPLOY.md}
+    expose:
+      - "3306"
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - app-network
+{{/if}}
+{{#if database}}
+
+volumes:
+{{#if (eq database.engine "postgres")}}
+  postgres:
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+  mysql:
+{{/if}}
+{{/if}}
+
+networks:
+  app-network:
+    driver: bridge

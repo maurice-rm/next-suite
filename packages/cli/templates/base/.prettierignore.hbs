@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+{{#if (eq database.orm "prisma")}}
+src/generated
+{{/if}}
+
+# Lockfiles (any package manager)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+next-env.d.ts
+AGENTS.md

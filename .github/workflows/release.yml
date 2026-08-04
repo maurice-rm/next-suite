@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release:
+    name: Release
+    if: github.repository == 'maurice-rm/next-suite'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          # commitMode github-api commits via the API token, not git push,
+          # so the checkout credentials don't need to persist.
+          persist-credentials: false
+      # Was pinned to 22.22 while Node 22.23.0's CVE-2026-48931 fix broke node-fetch
+      # keep-alive (changelog-github "Premature close", nodejs/node#63989). Now on the
+      # 24 LTS line — if that error resurfaces, pin to the last 24.x without the fix.
+      - uses: ./.github/actions/setup
+        with:
+          node-version: "24"
+      - name: Create the release PR or tag a GitHub release
+        id: changesets
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        with:
+          version: pnpm exec changeset version
+          # changesets forbids a custom dist-tag here, and does not move `beta`
+          # itself despite pre mode — both tags are set in the next step.
+          publish: pnpm exec changeset publish
+          commitMode: github-api
+          commit: "chore(release): version packages"
+          title: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Provenance requires a public repo — flip back to true when the repo
+          # goes public for the stable 1.0.0.
+          NPM_CONFIG_PROVENANCE: false
+      - name: Point the `latest` and `beta` dist-tags at the published version
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          npm config set //registry.npmjs.org/:_authToken "${NPM_TOKEN}"
+          version="$(node -p "require('./packages/cli/package.json').version")"
+          npm dist-tag add "create-next-suite@${version}" latest
+          npm dist-tag add "create-next-suite@${version}" beta
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

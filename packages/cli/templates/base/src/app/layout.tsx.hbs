@@ -1,0 +1,54 @@
+import "./globals.css";
+{{#if (eq api.type "orpc")}}
+import "@/orpc/client.server";
+{{/if}}
+
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+{{#if api}}
+
+import { Providers } from "@/app/providers";
+{{/if}}
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: {
+    default: "{{projectName}}",
+    template: "%s · {{projectName}}",
+  },
+  description: "A modern Next.js application built with TypeScript and React.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+{{#if api}}
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+{{else}}
+      <body>{children}</body>
+{{/if}}
+    </html>
+  );
+}

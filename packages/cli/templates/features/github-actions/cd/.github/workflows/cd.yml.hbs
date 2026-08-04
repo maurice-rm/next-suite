@@ -1,0 +1,175 @@
+{{{{raw}}}}
+name: CD
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+{{{{/raw}}}}
+{{#if (includes githubActions "deploy")}}
+{{{{raw}}}}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy (e.g. latest, v1.2.3)"
+        default: latest
+        required: false
+        type: string
+{{{{/raw}}}}
+{{/if}}
+{{{{raw}}}}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+{{{{/raw}}}}
+{{#if (includes githubActions "image")}}
+{{{{raw}}}}
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name != 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+{{{{/raw}}}}
+{{#if (or api (eq auth "better-auth"))}}
+{{{{raw}}}}
+      - name: Require NEXT_PUBLIC_APP_URL
+        env:
+          APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          [ -n "$APP_URL" ] || {
+            echo "Repository variable NEXT_PUBLIC_APP_URL is unset — run 'next-suite provision' before building." >&2
+            exit 1
+          }
+{{{{/raw}}}}
+{{/if}}
+{{{{raw}}}}
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: next.Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+{{{{/raw}}}}
+{{#if (or api (eq auth "better-auth"))}}
+{{{{raw}}}}
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+{{{{/raw}}}}
+{{/if}}
+{{/if}}
+{{#if (includes githubActions "deploy")}}
+{{{{raw}}}}
+  deploy:
+    needs: image
+    if: ${{ !cancelled() && !failure() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_SSH_HOST }}" >> ~/.ssh/known_hosts
+      - name: Ship compose, nginx, scripts
+        run: |
+          rsync -avzR \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            docker-compose.prod.yml nginx scripts \
+            "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}:${{ vars.DEPLOY_PATH }}/"
+      - name: Pull image and restart
+        env:
+          DEPLOY_TAG: ${{ inputs.tag || 'latest' }}
+        run: |
+          case "$DEPLOY_TAG" in
+            ''|*[!A-Za-z0-9._-]*) echo "Invalid image tag: $DEPLOY_TAG" >&2; exit 1 ;;
+          esac
+          IMAGE="${REGISTRY}/${GITHUB_REPOSITORY,,}:${DEPLOY_TAG}"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_SSH_HOST }}" \
+            "bash -s -- '$IMAGE' '${{ vars.DEPLOY_PATH }}'" <<'REMOTE'
+          set -eu
+          IMAGE=$1
+          cd "$2"
+          [ -f .env ] || { echo 'No .env found in the deploy directory — create it before the first deploy (see DEPLOY.md).' >&2; exit 1; }
+
+          printf '%s' '${{ secrets.GITHUB_TOKEN }}' \
+            | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+
+          PREV=$(grep '^DOCKER_IMAGE=' .env || true)
+
+          sed -i -e '$a\' .env
+          sed -i '/^DOCKER_IMAGE=/d' .env
+          printf 'DOCKER_IMAGE=%s\n' "$IMAGE" >> .env
+
+          docker compose -f docker-compose.prod.yml pull
+
+{{{{/raw}}}}
+{{#if database}}
+{{{{raw}}}}
+          if ! docker compose -f docker-compose.prod.yml run --rm app migrate </dev/null; then
+            echo 'Migration failed — the running release was left untouched.' >&2
+            sed -i '/^DOCKER_IMAGE=/d' .env
+            if [ -n "$PREV" ]; then printf '%s\n' "$PREV" >> .env; fi
+            docker logout ghcr.io >/dev/null 2>&1 || true
+            exit 1
+          fi
+{{{{/raw}}}}
+{{/if}}
+{{{{raw}}}}
+
+          if ! docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 180; then
+            echo 'Deploy did not come up healthy — rolling back.' >&2
+            sed -i '/^DOCKER_IMAGE=/d' .env
+            if [ -n "$PREV" ]; then printf '%s\n' "$PREV" >> .env; fi
+            docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 180 || true
+            docker logout ghcr.io >/dev/null 2>&1 || true
+            exit 1
+          fi
+
+          docker image prune -f --filter 'until=168h' || true
+          docker logout ghcr.io >/dev/null 2>&1 || true
+          REMOTE
+      - name: Remove SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+{{{{/raw}}}}
+{{/if}}

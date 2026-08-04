@@ -1,0 +1,41 @@
+import "server-only";
+
+import { cache, type ReactNode } from "react";
+
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  createTRPCOptionsProxy,
+  type TRPCQueryOptions,
+} from "@trpc/tanstack-react-query";
+
+import { createTRPCContext } from "@/trpc";
+import { createQueryClient } from "@/trpc/query-client";
+import { appRouter } from "@/trpc/routers/_app";
+
+export const getQueryClient = cache(createQueryClient);
+
+export const trpc = createTRPCOptionsProxy({
+  ctx: createTRPCContext,
+  router: appRouter,
+  queryClient: getQueryClient,
+});
+
+export const HydrateClient = ({ children }: { children: ReactNode }) => {
+  const state = dehydrate(getQueryClient());
+  return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+// Prefetch a procedure in a Server Component (pair with <HydrateClient>):
+//   prefetch(trpc.health.status.queryOptions());
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const prefetch = <T extends ReturnType<TRPCQueryOptions<any>>>(
+  queryOptions: T,
+) => {
+  const queryClient = getQueryClient();
+  if (queryOptions.queryKey[1]?.type === "infinite") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    void queryClient.prefetchInfiniteQuery(queryOptions as any);
+  } else {
+    void queryClient.prefetchQuery(queryOptions);
+  }
+};

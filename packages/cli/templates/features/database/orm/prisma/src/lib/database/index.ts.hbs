@@ -1,0 +1,44 @@
+{{#if (eq database.engine "postgres")}}
+import { PrismaPg } from "@prisma/adapter-pg";
+
+import { env } from "@/env";
+import { PrismaClient } from "@/generated/prisma/client";
+
+const adapter = new PrismaPg({
+  host: env.POSTGRES_HOST,
+  port: env.POSTGRES_PORT,
+  database: env.POSTGRES_DATABASE,
+  user: env.POSTGRES_USER,
+  password: env.POSTGRES_PASSWORD,
+  max: 20,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
+});
+{{else}}
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+
+import { env } from "@/env";
+import { PrismaClient } from "@/generated/prisma/client";
+
+const adapter = new PrismaMariaDb({
+  host: env.MYSQL_HOST,
+  port: env.MYSQL_PORT,
+  database: env.MYSQL_DATABASE,
+  user: env.MYSQL_USER,
+  password: env.MYSQL_PASSWORD,
+  connectionLimit: 20,
+  idleTimeout: 30,
+  connectTimeout: 5_000,
+});
+{{/if}}
+
+// Reuse one client across dev hot-reloads — fresh modules would leak connections.
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const database = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = database;
+
+export async function closeDatabase() {
+  await database.$disconnect();
+}

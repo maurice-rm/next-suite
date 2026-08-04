@@ -1,0 +1,30 @@
+import { onError } from "@orpc/server";
+import { RPCHandler } from "@orpc/server/fetch";
+
+import { appRouter } from "@/orpc/routers/_app";
+
+const handler = new RPCHandler(appRouter, {
+  interceptors: [
+    onError((error) => {
+      console.error("[oRPC]", error);
+    }),
+  ],
+});
+
+const handleRequest = async (request: Request) => {
+  const { response } = await handler.handle(request, {
+    prefix: "/api/rpc",
+    context: { headers: request.headers },
+  });
+
+  return response ?? new Response("Not found", { status: 404 });
+};
+
+export {
+  handleRequest as DELETE,
+  handleRequest as GET,
+  handleRequest as HEAD,
+  handleRequest as PATCH,
+  handleRequest as POST,
+  handleRequest as PUT,
+};

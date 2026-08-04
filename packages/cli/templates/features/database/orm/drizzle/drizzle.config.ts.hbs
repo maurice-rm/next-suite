@@ -1,0 +1,29 @@
+import "dotenv/config";
+
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+{{#if (eq database.engine "postgres")}}
+  dialect: "postgresql",
+{{else}}
+  dialect: "mysql",
+{{/if}}
+  schema: "./src/lib/database/schema/index.ts",
+  out: "./drizzle",
+  dbCredentials: {
+{{#if (eq database.engine "postgres")}}
+    host: process.env.POSTGRES_HOST!,
+    port: Number(process.env.POSTGRES_PORT),
+    user: process.env.POSTGRES_USER!,
+    password: process.env.POSTGRES_PASSWORD!,
+    database: process.env.POSTGRES_DATABASE!,
+    ssl: false,
+{{else}}
+    host: process.env.MYSQL_HOST!,
+    port: Number(process.env.MYSQL_PORT),
+    user: process.env.MYSQL_USER!,
+    password: process.env.MYSQL_PASSWORD!,
+    database: process.env.MYSQL_DATABASE!,
+{{/if}}
+  },
+});

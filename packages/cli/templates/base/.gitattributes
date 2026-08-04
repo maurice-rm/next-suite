@@ -1,0 +1,22 @@
+# Normalize line endings to LF on checkin and checkout.
+* text=auto eol=lf
+
+# Treat common binary assets as binary (no EOL or diff munging).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# Lockfiles — collapse in diffs + mark generated. Only the chosen package
+# manager's lockfile exists; entries for absent files are harmless no-ops.
+package-lock.json -diff linguist-generated
+pnpm-lock.yaml -diff linguist-generated
+yarn.lock -diff linguist-generated
+bun.lock -diff linguist-generated
+bun.lockb binary linguist-generated

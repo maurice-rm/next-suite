@@ -1,0 +1,34 @@
+{{#if (eq database.orm "drizzle")}}
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { betterAuth } from "better-auth/minimal";
+import { nextCookies } from "better-auth/next-js";
+
+import { env } from "@/env";
+import { database } from "@/lib/database";
+import { account, session, user, verification } from "@/lib/database/schema";
+
+export const auth = betterAuth({
+  baseURL: env.NEXT_PUBLIC_APP_URL,
+  database: drizzleAdapter(database, {
+    provider: "{{#if (eq database.engine "postgres")}}pg{{else}}mysql{{/if}}",
+    schema: { account, session, user, verification },
+  }),
+{{else}}
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { betterAuth } from "better-auth/minimal";
+import { nextCookies } from "better-auth/next-js";
+
+import { env } from "@/env";
+import { database } from "@/lib/database";
+
+export const auth = betterAuth({
+  baseURL: env.NEXT_PUBLIC_APP_URL,
+  database: prismaAdapter(database, {
+    provider: "{{#if (eq database.engine "postgres")}}postgresql{{else}}mysql{{/if}}",
+  }),
+{{/if}}
+  emailAndPassword: {
+    enabled: true,
+  },
+  plugins: [nextCookies()],
+});

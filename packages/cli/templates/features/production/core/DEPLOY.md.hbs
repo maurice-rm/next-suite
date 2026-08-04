@@ -1,0 +1,181 @@
+# 🚀 Deployment
+
+This project ships as a Docker image via `docker-compose.prod.yml`. The deploy pipeline only updates the `DOCKER_IMAGE` line in `.env` — it never creates `.env`. So before your **first** deploy, create `.env` on the server by hand, with the keys below.
+
+{{#if (eq production.mode "proxied")}}
+## 🤖 Automated setup (beta)
+
+> **⚠️ Beta** — `next-suite provision` is new and experimental: it changes a real server (creates a user, writes nginx config, obtains a certificate, sets the GitHub secrets below). Run `next-suite provision --dry-run` first to see the exact commands.
+
+`next-suite provision` comes from installing the CLI globally: `npm i -g create-next-suite@latest`. Run `next-suite provision` from this project directory to perform the server setup below automatically — server user, `.env`, nginx + TLS, and the GitHub secrets/variables. `next-suite deprovision` rolls it back. The manual steps below remain the fallback/reference.
+
+{{/if}}
+## 📋 Required `.env` keys
+
+```dotenv
+COMPOSE_PROJECT_NAME={{projectName}}
+{{#if (eq production.mode "proxied")}}
+APP_PORT=8100
+{{/if}}
+{{#if (eq database.engine "postgres")}}
+POSTGRES_PORT=5432
+POSTGRES_HOST=postgres
+POSTGRES_USER=next
+POSTGRES_PASSWORD=change-me-before-production
+POSTGRES_DATABASE={{projectName}}
+{{/if}}
+{{#if (eq database.engine "mysql")}}
+MYSQL_PORT=3306
+MYSQL_HOST=mysql
+MYSQL_USER=root
+MYSQL_PASSWORD=change-me-before-production
+MYSQL_DATABASE={{projectName}}
+{{/if}}
+{{#if (eq auth "better-auth")}}
+BETTER_AUTH_SECRET=generate-with-openssl-rand-base64-32
+{{/if}}
+{{#if (or api (eq auth "better-auth"))}}
+NEXT_PUBLIC_APP_URL=https://your-domain.example
+{{/if}}
+{{#if (eq email "resend")}}
+RESEND_API_KEY=from-https-resend-com
+EMAIL_FROM=App <onboarding@resend.dev>
+{{/if}}
+```
+
+Generate a secret with `openssl rand -base64 32`.
+
+{{#if (eq production.mode "proxied")}}
+`APP_PORT` is the loopback port the nginx sidecar publishes; it must match the `proxy_pass` port in the host's `/etc/nginx/conf.d/<name>.conf`. `next-suite provision` assigns and sets it for you. Compose refuses to start without it rather than falling back to a port another service may already own.
+
+### 🤝 What the host proxy must send
+
+The sidecar binds `127.0.0.1` only, so **the host proxy is the trust boundary** — the sidecar forwards these headers rather than setting them, and the app trusts what arrives. `next-suite provision` writes a host block that gets this right; a hand-written one must too:
+
+```nginx
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $remote_addr;   # NOT $proxy_add_x_forwarded_for —
+                                                   # that appends the client's own value
+proxy_set_header X-Forwarded-Proto https;
+proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host: Next.js
+                                                   # compares it against Origin for
+                                                   # Server Action CSRF
+client_max_body_size 25m;                          # host default is 1m and would 413 first
+```
+
+Get it wrong and the failures are quiet rather than loud: with no `X-Forwarded-For` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with `Host` left at nginx's `$proxy_host` default every absolute URL the app derives points at `127.0.0.1`.
+
+A missing `X-Forwarded-Proto` is the one case the sidecar covers on its own — a `map` defaults it to `https`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the `Secure` flag from auth cookies.
+{{/if}}
+{{#if (eq production.mode "standalone")}}
+> **Certificate renewal.** This container terminates TLS itself, so a host-level `systemctl reload nginx` does not reach it — nginx keeps serving the certificate it read at startup. Have certbot's deploy hook signal the container as well:
+>
+> ```sh
+> docker ps -q --filter label=com.docker.compose.service=nginx | xargs -r docker kill -s HUP
+> ```
+>
+> Verify with `certbot renew --dry-run --run-deploy-hooks` (plain `--dry-run` skips deploy hooks).
+{{/if}}
+
+{{#if (includes githubActions "deploy")}}
+## 🔐 GitHub Actions secrets & variables
+
+The `CD` workflow deploys over SSH — set these in the repo (**Settings → Secrets and variables → Actions**):
+
+**Secrets**
+
+- `DEPLOY_SSH_KEY` — private SSH key authorized on the server
+- `DEPLOY_SSH_HOST` — server hostname or IP
+- `DEPLOY_SSH_USER` — SSH user
+
+> **⚠️ `DEPLOY_SSH_KEY` is a root-equivalent credential.** The deploy user is in
+> the `docker` group so it can run `docker compose` without `sudo` — and docker
+> group access is equivalent to root on the host (`docker run -v /:/host …`).
+> Anyone with write access to this repository, any compromised third-party
+> action, and any workflow that runs on untrusted input can therefore reach
+> root on the server, including every other project on it.
+>
+> Keep the key out of `pull_request` workflows from forks, and prefer an
+> environment with required reviewers for the deploy job.
+>
+> To rotate it: delete `~/.config/next-suite/keys/<project>` (and `.pub`), re-run
+> `next-suite provision` to mint and upload a new one — then remove the **old**
+> public key from `/srv/www/<project>/.ssh/authorized_keys` by hand. provision
+> only appends, so without that last step the retired key keeps working.
+
+**Variables**
+
+- `DEPLOY_PATH` — absolute path to the deploy directory
+{{#if (or api (eq auth "better-auth"))}}
+- `NEXT_PUBLIC_APP_URL` — the app's public URL, **baked into the image at build time**
+
+> Set this **before the first push**, or the image is built with it unset and the
+> app fails env validation on every request — while the container still reports
+> healthy. Setting it in the server `.env` afterwards does not help: Next inlines
+> `NEXT_PUBLIC_*` at build time, it is not read at runtime. `next-suite provision`
+> sets it; if you pushed first, rebuild the image afterwards.
+{{/if}}
+
+{{/if}}
+## 🚦 First deploy
+
+{{#if (eq production.mode "standalone")}}
+This stack terminates TLS itself, so two things must exist **before** the first
+deploy — nginx refuses to start without them and the container crash-loops.
+
+1. **Put your domain into `nginx/nginx.conf`.** Four places are marked
+   `# TODO`: the `server_name` in the `:80` and the `:443` block, and the two
+   `ssl_certificate*` paths. The shipped value is `example.com`.
+
+   While you are there: the `Strict-Transport-Security` line ships **without**
+   `includeSubDomains`, deliberately. Add it only once you know this domain is a
+   subdomain whose siblings all speak HTTPS — on an apex it commits **every**
+   subdomain of the zone for two years, with no server-side way back.
+
+2. **Obtain the certificate.** The ACME challenge is served by this same nginx,
+   which cannot start yet, so the first certificate has to come from outside the
+   stack. With ports 80/443 still free:
+
+   ```bash
+   certbot certonly --standalone -d <your-domain>
+   ```
+
+   Renewals are different — by then nginx is running and serves the webroot, so
+   the deploy hook above is what keeps them working.
+
+3. On the server, create `<deploy-path>/.env` with real values for the keys
+   above — or let the shipped script do it:
+   `bash scripts/prod.sh bootstrap`.
+4. Trigger the deploy (push to `main`{{#if (includes githubActions "deploy")}}, or run the `CD` workflow manually{{/if}}) — it ships `docker-compose.prod.yml`, `nginx`, and `scripts`, then pulls the built image.
+{{else}}
+1. On the server, create `<deploy-path>/.env` with real values for the keys above — or let the shipped script do it: `bash scripts/prod.sh bootstrap`.
+2. Trigger the deploy (push to `main`{{#if (includes githubActions "deploy")}}, or run the `CD` workflow manually{{/if}}) — it ships `docker-compose.prod.yml`, `nginx`, and `scripts`, then pulls the built image.
+{{/if}}
+
+## 📡 Streaming responses
+
+nginx cuts a proxied connection after 120s without data (`proxy_read_timeout`). Streaming SSR is unaffected — it keeps flushing — but an idle Server-Sent-Events or WebSocket connection is not. Keep them alive from the app rather than raising the timeout: send an SSE comment (`: ping\n\n`) or a WebSocket ping every 25–30s.
+
+`X-Accel-Buffering: no` — the usual advice — does **not** help here: nginx consumes `X-Accel-*` rather than forwarding it, so it never reaches the hop that would act on it. It is also unnecessary, because the location serving the app runs with `proxy_buffering off` already; only the static-asset locations buffer, and those serve finite files.
+
+## 🛠️ Operating the app
+
+The deploy also ships `scripts/prod.sh`:
+
+```bash
+bash scripts/prod.sh bootstrap  # create .env from .env.example + generate the auth secret
+bash scripts/prod.sh up       # migrate, then start (builds the image locally if none is set)
+bash scripts/prod.sh logs     # follow logs
+bash scripts/prod.sh down     # stop
+bash scripts/prod.sh restart  # restart
+bash scripts/prod.sh ps       # status
+```
+{{#if database}}
+
+`up` applies pending migrations **before** it touches the stack, in a
+short-lived `migrate` container. That ordering is deliberate: `docker compose
+up` stops the running containers to recreate them, so a migration that fails
+during `up` leaves the site down — run on its own it fails while the current
+release is still serving, and nothing has been changed.
+{{/if}}

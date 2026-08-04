@@ -1,0 +1,43 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "create-next-suite": "0.11.0",
+    "@next-suite/eslint-config": "0.0.0",
+    "@next-suite/typescript-config": "0.0.0"
+  },
+  "changesets": [
+    "actions-node24",
+    "banner-meta-strip",
+    "break-wizard-ui-cycle",
+    "cd-deploy-hardening",
+    "compose-db-guards",
+    "dedupe-shared-helpers",
+    "dependency-bumps",
+    "deploy-stdin",
+    "deprovision-prev-backup",
+    "deprovision-teardown-hint",
+    "deps-check-tooling",
+    "dhparams-doc",
+    "docs-and-log-permissions",
+    "docs-dead-pointers",
+    "first-release",
+    "fix-install-commands",
+    "harden-post-steps-and-flags",
+    "health-and-migrations",
+    "helper-scripts",
+    "migrate-before-stack",
+    "nginx-assets-and-hsts",
+    "nginx-catchall-and-provision-audit",
+    "nginx-proxy-chain-review",
+    "node-engine-floor",
+    "polish-generated-docs",
+    "production-env-guard-and-deploy-docs",
+    "provision-correctness",
+    "provision-edge-cases",
+    "provision-foundation",
+    "provision-nginx-scoping",
+    "strip-inline-comments",
+    "wizard-back-nav"
+  ]
+}

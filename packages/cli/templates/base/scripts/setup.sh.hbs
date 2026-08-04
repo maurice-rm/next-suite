@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s extglob
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
+ASSUME_YES=false
+SKIP_DATABASE=false
+for arg in "$@"; do
+  case "$arg" in
+    --yes) ASSUME_YES=true ;;
+    --skip-db) SKIP_DATABASE=true ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Usage: $0 [--yes] [--skip-db]"
+      exit 1
+      ;;
+  esac
+done
+
+{{#if database}}
+if [ "$SKIP_DATABASE" = true ]; then
+  TOTAL_STEPS=2
+else
+  TOTAL_STEPS=3
+fi
+{{else}}
+TOTAL_STEPS=2
+{{/if}}
+
+if [ -t 1 ]; then
+  C_RESET='\033[0m'
+  C_BOLD='\033[1m'
+  C_DIM='\033[2m'
+  if [ "${COLORTERM:-}" = truecolor ] || [ "${COLORTERM:-}" = 24bit ]; then
+    C_PRIMARY='\033[38;2;37;99;235m'
+  else
+    C_PRIMARY='\033[38;5;69m'
+  fi
+  C_SUCCESS='\033[38;5;114m'
+  C_WARNING='\033[38;5;221m'
+  C_ERROR='\033[38;5;204m'
+  C_MUTED='\033[38;5;245m'
+else
+  C_RESET='' C_BOLD='' C_DIM='' C_PRIMARY='' C_SUCCESS='' C_WARNING='' C_ERROR='' C_MUTED=''
+fi
+
+S_SUCCESS="✓"
+S_ERROR="✗"
+S_WARN="!"
+S_INFO="→"
+S_WORKING="●"
+
+print_step() {
+  local step=$1 title=$2
+  local progress=$((step * 100 / TOTAL_STEPS))
+  echo ""
+  echo -e "${C_MUTED}  ────────────────────────────────────────────────────────────${C_RESET}"
+  echo ""
+  echo -e "  ${C_BOLD}${C_PRIMARY}Step ${step}/${TOTAL_STEPS}${C_RESET}  ${C_BOLD}${title}${C_RESET}"
+  echo -e "  ${C_DIM}Progress: ${progress}%${C_RESET}"
+  echo ""
+}
+
+print_action() { echo -e "    ${C_MUTED}${S_WORKING}${C_RESET}  ${C_DIM}$1${C_RESET}"; }
+print_success() { echo -e "    ${C_SUCCESS}${S_SUCCESS}${C_RESET}  $1"; }
+print_error() { echo -e "    ${C_ERROR}${S_ERROR}${C_RESET}  ${C_BOLD}$1${C_RESET}" >&2; }
+print_warning() { echo -e "    ${C_WARNING}${S_WARN}${C_RESET}  $1"; }
+print_info() { echo -e "    ${C_MUTED}${S_INFO}${C_RESET}  $1"; }
+
+print_footer() {
+  echo ""
+  echo -e "${C_MUTED}  ────────────────────────────────────────────────────────────${C_RESET}"
+  echo ""
+  echo -e "  ${C_SUCCESS}${S_SUCCESS}${C_RESET}  ${C_BOLD}${C_SUCCESS}Setup complete${C_RESET}"
+  echo ""
+  echo -e "  ${C_BOLD}Next steps:${C_RESET}"
+  echo -e "    ${C_PRIMARY}1.${C_RESET} Review your ${C_BOLD}.env${C_RESET} file and fill in any remaining values"
+  echo -e "    ${C_PRIMARY}2.${C_RESET} Run ${C_BOLD}${C_SUCCESS}{{packageManager}} run dev${C_RESET} to start the dev server"
+  echo ""
+}
+
+print_indented() {
+  local width line rest pending=0 seen=0
+  width=$(($(tput cols 2>/dev/null || echo 80) - 7))
+  [ "$width" -lt 20 ] && width=20
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line##*$'\r'}"
+    line="${line//$'\033'\[*([0-9;?])[A-Za-z]/}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    if [ -z "$line" ]; then
+      [ "$seen" -eq 1 ] && pending=$((pending + 1))
+      continue
+    fi
+    if [ "$seen" -eq 0 ]; then
+      echo ""
+      seen=1
+    fi
+    while [ "$pending" -gt 0 ]; do
+      echo ""
+      pending=$((pending - 1))
+    done
+    while [ "${#line}" -gt "$width" ]; do
+      rest="${line:0:$width}"
+      rest="${rest% *}"
+      [ -z "$rest" ] && rest="${line:0:$width}"
+      echo -e "       ${C_DIM}${rest}${C_RESET}"
+      line="${line:${#rest}}"
+      line="${line# }"
+    done
+    echo -e "       ${C_DIM}${line}${C_RESET}"
+  done
+  if [ "$seen" -eq 1 ]; then
+    echo ""
+  fi
+}
+
+run_step() {
+  "$@" 2>&1 | print_indented
+  local status=${PIPESTATUS[0]}
+  return "$status"
+}
+
+handle_error() {
+  local step=$1 message=$2
+  print_error "$message"
+  echo ""
+  echo -e "  ${C_MUTED}Setup failed at step ${step}/${TOTAL_STEPS}${C_RESET}"
+  echo ""
+  exit 1
+}
+
+step_environment() {
+  print_step 1 "Environment"
+
+  if [ -f .env ]; then
+    print_warning ".env already exists"
+    print_info "Keeping your existing configuration"
+    return 0
+  fi
+
+  if [ ! -f .env.example ]; then
+    print_warning "No .env.example found — nothing to create"
+    return 0
+  fi
+
+  print_action "Creating .env from .env.example..."
+  cp .env.example .env || handle_error 1 "Failed to create .env"
+  print_success "Environment file created"
+{{#if (eq auth "better-auth")}}
+
+  print_action "Generating a secure BETTER_AUTH_SECRET..."
+  local secret
+  if ! secret=$(openssl rand -base64 32 2>/dev/null); then
+    handle_error 1 "Failed to generate a secret (is openssl installed?)"
+  fi
+  if [[ "${OSTYPE:-}" == "darwin"* ]]; then
+    sed -i '' "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || handle_error 1 "Failed to write the secret to .env"
+  else
+    sed -i "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || handle_error 1 "Failed to write the secret to .env"
+  fi
+  print_success "Authentication secret generated"
+{{/if}}
+}
+
+step_dependencies() {
+  print_step 2 "Dependencies"
+
+  print_action "Installing packages ({{packageManager}})..."
+  if run_step {{packageManager}} install; then
+    print_success "Dependencies installed"
+  else
+    handle_error 2 "Failed to install dependencies"
+  fi
+}
+{{#if database}}
+
+step_database() {
+  print_step 3 "Database"
+
+  local db_hint="docker compose up -d && {{packageManager}} run db:push"
+
+  if [ "$ASSUME_YES" = false ]; then
+    if [ -t 0 ]; then
+      echo -ne "    ${C_BOLD}Start the database container now?${C_RESET} [Y/n] "
+      local reply
+      read -r reply || reply="n"
+      case "$reply" in
+        "" | y | Y) ;;
+        *)
+          print_info "Skipped — later: $db_hint"
+          return 0
+          ;;
+      esac
+    else
+      print_info "Skipped (non-interactive; pass --yes to start it)"
+      print_info "Later: $db_hint"
+      return 0
+    fi
+  fi
+
+  if ! docker compose version >/dev/null 2>&1; then
+    print_warning "Docker is not available — skipping the database"
+    print_info "Later: $db_hint"
+    return 0
+  fi
+
+  print_action "Starting the database container..."
+  if run_step docker compose up -d --wait; then
+    print_success "Database container ready"
+  else
+    handle_error 3 "Failed to start the database container"
+  fi
+
+  print_action "Pushing the schema..."
+  if run_step {{packageManager}} run db:push; then
+    print_success "Schema pushed"
+  else
+    handle_error 3 "Failed to push the schema"
+  fi
+}
+{{/if}}
+
+main() {
+  step_environment
+  step_dependencies
+{{#if database}}
+  if [ "$SKIP_DATABASE" = false ]; then
+    step_database
+  fi
+{{/if}}
+  print_footer
+}
+
+main

@@ -1,0 +1,28 @@
+{{#if (eq database.orm "drizzle")}}
+import { sql } from "drizzle-orm";
+
+{{/if}}
+import { env } from "@/env";
+{{#if database}}
+import { database } from "@/lib/database";
+{{/if}}
+
+// Never prerendered: at build time there is no database to reach.
+export const dynamic = "force-dynamic";
+
+export const GET = async (): Promise<Response> => {
+  try {
+    void env;
+{{#if database}}
+{{#if (eq database.orm "drizzle")}}
+    await database.execute(sql`select 1`);
+{{else}}
+    await database.$queryRaw`SELECT 1`;
+{{/if}}
+{{/if}}
+    return Response.json({ status: "ok" });
+  } catch (error) {
+    console.error("Health check failed:", error);
+    return Response.json({ status: "error" }, { status: 503 });
+  }
+};

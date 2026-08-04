@@ -1,0 +1,8 @@
+// Define your tables in per-domain files and re-export them here, e.g.:
+// export * from "./users";
+// https://orm.drizzle.team/docs/sql-schema-declaration
+{{#if (eq auth "better-auth")}}
+export * from "./auth";
+{{else}}
+export {};
+{{/if}}

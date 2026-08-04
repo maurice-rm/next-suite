@@ -1,0 +1,16 @@
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+  poweredByHeader: false,
+{{#if production}}
+  output: "standalone",
+{{/if}}
+  experimental: {
+    serverActions: { bodySizeLimit: "25mb" },
+  },
+  reactCompiler: true,
+  typedRoutes: true,
+};
+
+export default nextConfig;

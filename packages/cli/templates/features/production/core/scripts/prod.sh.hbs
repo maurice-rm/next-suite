@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s extglob
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
+if [ -t 1 ]; then
+  C_RESET='\033[0m'
+  C_BOLD='\033[1m'
+  C_DIM='\033[2m'
+  C_SUCCESS='\033[38;5;114m'
+  C_WARNING='\033[38;5;221m'
+  C_ERROR='\033[38;5;204m'
+  C_MUTED='\033[38;5;245m'
+else
+  C_RESET='' C_BOLD='' C_DIM='' C_SUCCESS='' C_WARNING='' C_ERROR='' C_MUTED=''
+fi
+
+S_SUCCESS="✓"
+S_ERROR="✗"
+S_WARN="!"
+S_INFO="→"
+S_WORKING="●"
+
+print_action() { echo -e "    ${C_MUTED}${S_WORKING}${C_RESET}  ${C_DIM}$1${C_RESET}"; }
+print_success() { echo -e "    ${C_SUCCESS}${S_SUCCESS}${C_RESET}  $1"; }
+print_error() { echo -e "    ${C_ERROR}${S_ERROR}${C_RESET}  ${C_BOLD}$1${C_RESET}" >&2; }
+print_warning() { echo -e "    ${C_WARNING}${S_WARN}${C_RESET}  $1"; }
+print_info() { echo -e "    ${C_MUTED}${S_INFO}${C_RESET}  $1"; }
+
+print_indented() {
+  local width line rest pending=0 seen=0
+  width=$(($(tput cols 2>/dev/null || echo 80) - 7))
+  [ "$width" -lt 20 ] && width=20
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line##*$'\r'}"
+    line="${line//$'\033'\[*([0-9;?])[A-Za-z]/}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    if [ -z "$line" ]; then
+      [ "$seen" -eq 1 ] && pending=$((pending + 1))
+      continue
+    fi
+    if [ "$seen" -eq 0 ]; then
+      echo ""
+      seen=1
+    fi
+    while [ "$pending" -gt 0 ]; do
+      echo ""
+      pending=$((pending - 1))
+    done
+    while [ "${#line}" -gt "$width" ]; do
+      rest="${line:0:$width}"
+      rest="${rest% *}"
+      [ -z "$rest" ] && rest="${line:0:$width}"
+      echo -e "       ${C_DIM}${rest}${C_RESET}"
+      line="${line:${#rest}}"
+      line="${line# }"
+    done
+    echo -e "       ${C_DIM}${line}${C_RESET}"
+  done
+  if [ "$seen" -eq 1 ]; then
+    echo ""
+  fi
+}
+
+run_step() {
+  "$@" 2>&1 | print_indented
+  local status=${PIPESTATUS[0]}
+  return "$status"
+}
+
+fail() {
+  print_error "$1"
+  echo ""
+  exit 1
+}
+
+compose() { docker compose -f docker-compose.prod.yml "$@"; }
+
+require_docker() {
+  if ! docker compose version >/dev/null 2>&1; then
+    fail "Docker Compose is not available"
+  fi
+}
+
+usage() {
+  echo "Usage: bash scripts/prod.sh <bootstrap|up|down|restart|logs|ps>"
+}
+
+cmd_bootstrap() {
+  echo ""
+
+  if [ -f .env ]; then
+    print_warning ".env already exists"
+    print_info "Keeping your existing configuration"
+    echo ""
+    return 0
+  fi
+
+  if [ ! -f .env.example ]; then
+    fail "No .env.example found — nothing to create"
+  fi
+
+  print_action "Creating .env from .env.example..."
+  cp .env.example .env || fail "Failed to create .env"
+  print_success "Environment file created"
+{{#if (eq auth "better-auth")}}
+
+  print_action "Generating a secure BETTER_AUTH_SECRET..."
+  local secret
+  if ! secret=$(openssl rand -base64 32 2>/dev/null); then
+    fail "Failed to generate a secret (is openssl installed?)"
+  fi
+  if [[ "${OSTYPE:-}" == "darwin"* ]]; then
+    sed -i '' "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || fail "Failed to write the secret to .env"
+  else
+    sed -i "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || fail "Failed to write the secret to .env"
+  fi
+  print_success "Authentication secret generated"
+{{/if}}
+{{#if database}}
+  print_warning "Set a real POSTGRES_PASSWORD / MYSQL_PASSWORD in .env before production"
+{{/if}}
+  echo ""
+}
+
+cmd_up() {
+  echo ""
+  require_docker
+{{#if database}}
+  print_action "Applying database migrations..."
+  if run_step compose run --rm app migrate; then
+    print_success "Migrations applied"
+  else
+    fail "Migration failed — the running stack was left untouched"
+  fi
+{{/if}}
+  print_action "Starting the production stack..."
+  if run_step compose up -d --wait; then
+    print_success "Production stack started"
+  else
+    fail "Failed to start the production stack"
+  fi
+}
+
+cmd_down() {
+  echo ""
+  require_docker
+  print_action "Stopping the production stack..."
+  if run_step compose down; then
+    print_success "Production stack stopped"
+  else
+    fail "Failed to stop the production stack"
+  fi
+}
+
+cmd_restart() {
+  echo ""
+  require_docker
+  print_action "Restarting the production stack..."
+  if run_step compose down && run_step compose up -d --wait; then
+    print_success "Production stack restarted"
+  else
+    fail "Failed to restart the production stack"
+  fi
+}
+
+case "${1:-}" in
+  bootstrap) cmd_bootstrap ;;
+  up) cmd_up ;;
+  down) cmd_down ;;
+  restart) cmd_restart ;;
+  logs)
+    require_docker
+    compose logs -f
+    ;;
+  ps)
+    require_docker
+    compose ps
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
