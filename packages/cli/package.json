@@ -59,7 +59,7 @@
     "execa": "^10.0.0",
     "fs-extra": "^11.4.0",
     "handlebars": "^4.7.9",
-    "validate-npm-package-name": "^7.0.2"
+    "validate-npm-package-name": "^8.0.0"
   },
   "devDependencies": {
     "@next-suite/eslint-config": "workspace:*",
