@@ -13,8 +13,8 @@ catalogs:
       specifier: ^10.8.0
       version: 10.8.0
     prettier:
-      specifier: ^3.8.4
-      version: 3.9.4
+      specifier: ^3.9.6
+      version: 3.9.6
     typescript:
       specifier: 5.9.3
       version: 5.9.3
@@ -37,10 +37,10 @@ importers:
         version: 17.3.0
       prettier:
         specifier: 'catalog:'
-        version: 3.9.4
+        version: 3.9.6
       prettier-plugin-packagejson:
         specifier: ^3.0.2
-        version: 3.0.2(prettier@3.9.4)
+        version: 3.0.2(prettier@3.9.6)
       turbo:
         specifier: ^2.10.6
         version: 2.10.8
@@ -1785,8 +1785,8 @@ packages:
     engines: {node: '>=10.13.0'}
     hasBin: true
 
-  prettier@3.9.4:
-    resolution: {integrity: sha512-yWG/o/4oJfo036EKAfK6ACAoDOfHeRHx4tuxkfBZiauURiaSmYwlpOr5LQqKtIkRD2z1PLteme2WoxEnj4tHTg==}
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -3637,15 +3637,15 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier-plugin-packagejson@3.0.2(prettier@3.9.4):
+  prettier-plugin-packagejson@3.0.2(prettier@3.9.6):
     dependencies:
       sort-package-json: 3.6.0
     optionalDependencies:
-      prettier: 3.9.4
+      prettier: 3.9.6
 
   prettier@2.8.8: {}
 
-  prettier@3.9.4: {}
+  prettier@3.9.6: {}
 
   pretty-ms@9.3.0:
     dependencies:
@@ -3933,7 +3933,7 @@ snapshots:
   vite@8.0.16(@types/node@26.1.2)(esbuild@0.27.7)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       postcss: 8.5.16
       rolldown: 1.0.3
       tinyglobby: 0.2.17
