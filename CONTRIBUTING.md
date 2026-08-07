@@ -194,7 +194,7 @@ Four workflows live in `.github/workflows/`. Every job that needs Node uses the 
 
 `release.yml` needs one note. GitHub deliberately starts no workflow for an event caused by the built-in `GITHUB_TOKEN`, which would otherwise let a workflow retrigger itself. A "Version Packages" pull request opened with that token therefore carries no checks at all — and `main` requires `Verify` and both `Test` jobs, so the release pull request can never satisfy them.
 
-The workflow mints a GitHub App installation token for that reason, which GitHub documents as the way to trigger workflows from a workflow. The app needs `Contents` and `Pull requests` write access on this repository only, and its id and private key live in the `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` secrets. Unlike a personal access token it does not expire, and it acts as its own identity rather than as a maintainer.
+The workflow mints a GitHub App installation token for that reason, which GitHub documents as the way to trigger workflows from a workflow. The app needs `Contents` and `Pull requests` write access on this repository only, and its client id and private key live in the `RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY` secrets. Unlike a personal access token it does not expire, and it acts as its own identity rather than as a maintainer.
 
 The minting step is `continue-on-error`, and the token expression falls back to `GITHUB_TOKEN`. A fork or a clone without the secrets still releases; the release pull request there just has to be closed and reopened by hand to make its checks run.
 
