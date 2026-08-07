@@ -1,0 +1,60 @@
+name: Bug report
+description: Something in the CLI or in a generated project does not work
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      options:
+        - Scaffolding (create-next-suite)
+        - The generated project
+        - Server provisioning (next-suite provision / deprovision)
+        - Documentation
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce it
+      description: The exact command, including every flag. A `--yes` run others can paste is worth more than a description of the wizard.
+      placeholder: npx create-next-suite@latest my-app --yes --pm pnpm --database postgres --orm drizzle
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: The error, the stack trace, or the relevant log lines. Redact tokens, hostnames and keys.
+      render: text
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `npx create-next-suite@latest --version`, `node --version`, your package manager and its version, and your OS.
+      render: text
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you file this
+      options:
+        - label: I searched the existing issues
+          required: true
+        - label: This is not a security problem — those go through the Security tab, not a public issue
+          required: true
