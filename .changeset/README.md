@@ -10,7 +10,7 @@ The question to ask: **does the change reach `dist/` (the published package) or 
 | ---------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | New feature (a `templates/features/*` layer, a wizard option, a package manager)         | yes — **minor**                                    |
 | Bug fix to the CLI or the generated output                                               | yes — **patch**                                    |
-| Breaking change (a flag removed, output reshaped, Node minimum raised)                   | yes — **minor** while pre-1.0 (see below)          |
+| Breaking change (a flag removed, output reshaped, Node minimum raised)                   | yes — **major**                                    |
 | Dependency bump that changes behavior or output                                          | yes — patch/minor                                  |
 | Tests, CI/workflows, internal refactors with no behavior change, docs, dev scripts, deps | **no** …                                           |
 | … but the change touches `src/**`, `templates/**`, or `package.json`                     | **empty changeset** (`pnpm changeset add --empty`) |
@@ -25,7 +25,7 @@ The empty case exists because the CI `changeset` gate counts any `src/**`, `temp
 - **minor** `0.1.0 → 0.2.0` — a new, backwards-compatible feature.
 - **major** `0.1.0 → 1.0.0` — a breaking change.
 
-**The repo is in pre mode** (`.changeset/pre.json`, tag `beta`) and `create-next-suite` sits at `1.0.0-beta.x`. Bumps apply to the pre-release: a `patch` moves `beta.3 → beta.4`, and the level you pick is what lands in the final `1.0.0` changelog when pre mode is exited. Pick the level the change would deserve in a stable release — breaking → major, feature → minor, fix → patch.
+Since `1.0.0` these mean what they say. The public surface is the flag set, the wizard steps, and the shape of a generated project — if a scripted `--yes` run has to be rewritten because of your change, it is a `major`.
 
 ## How to write one
 
@@ -51,7 +51,7 @@ Always the package `create-next-suite` — the private `@next-suite/*` config pa
 1. **You:** make the change + `pnpm changeset`, and commit both in the PR.
 2. Merge the PR to `main`.
 3. The release workflow opens/updates a **"Version Packages" PR** that gathers all pending changesets, bumps the version, and writes `CHANGELOG.md`.
-4. **You** merge that PR _when you want to release_ → `changeset publish` runs: a **git tag, a GitHub release** from the changelog, and an **npm publish** under the `beta` dist-tag; a follow-up step points `latest` at it. The consumed `.changeset/*.md` files are deleted.
+4. **You** merge that PR _when you want to release_ → `changeset publish` runs: a **git tag, a GitHub release** from the changelog, and an **npm publish** under the `latest` dist-tag. The consumed `.changeset/*.md` files are deleted.
 
 Never hand-edit a version number or `CHANGELOG.md` — the "Version Packages" PR owns both.
 

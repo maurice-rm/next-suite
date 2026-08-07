@@ -4,17 +4,12 @@
 
 An interactive CLI that scaffolds an opinionated, production-ready **Next.js 16 · React 19 · TypeScript** project — and leaves you in a formatted, linted, git-initialized app that runs on the first try.
 
-[![status](https://img.shields.io/badge/status-beta-f59e0b)](https://github.com/maurice-rm/next-suite/releases)
 [![npm](https://img.shields.io/npm/v/create-next-suite?color=2563eb)](https://www.npmjs.com/package/create-next-suite)
 [![downloads](https://img.shields.io/npm/dm/create-next-suite?color=2563eb)](https://www.npmjs.com/package/create-next-suite)
 [![node](https://img.shields.io/badge/node-%E2%89%A524-3c873a)](https://nodejs.org)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 </div>
-
----
-
-> **⚠️ Beta** — this is a pre-1.0 release; flags and generated output may still change before a stable 1.0.0.
 
 ## 🚀 Quick start
 

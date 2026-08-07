@@ -163,23 +163,15 @@ Always the package `create-next-suite`. The private `@next-suite/eslint-config` 
 
 Bump levels:
 
-| Bump    | Use it for                                                                                    |
-| ------- | --------------------------------------------------------------------------------------------- |
-| `patch` | A bug fix in the CLI or in the generated output.                                              |
-| `minor` | A new backwards-compatible feature — and, while the package is pre-1.0, breaking changes too. |
-| `major` | Reserved. Changesets bumps literally, so a `major` jumps straight to `1.0.0`.                 |
+| Bump    | Use it for                                                            |
+| ------- | --------------------------------------------------------------------- |
+| `patch` | A bug fix in the CLI or in the generated output.                      |
+| `minor` | A new backwards-compatible flag, wizard step, or generated feature.   |
+| `major` | A breaking change to a flag, a wizard step, or the generated project. |
 
-### Pre-release mode is active
+Since `1.0.0` the package follows semantic versioning, so those levels mean what they say. The public surface is the flag set, the wizard steps, and the shape of a generated project — a change that forces an existing scripted `--yes` run to be rewritten is a `major`.
 
-`.changeset/pre.json` exists, which means the repository is in changesets **pre-release mode**:
-
-| Field                                  | Value                           |
-| -------------------------------------- | ------------------------------- |
-| `mode`                                 | `pre`                           |
-| `tag`                                  | `beta`                          |
-| current version of `create-next-suite` | see `packages/cli/package.json` |
-
-While pre mode is on, `changeset version` produces `1.0.0-beta.N` versions instead of stable ones, and every consumed changeset id is appended to the `changesets` array in `pre.json` so it is not counted twice across pre-releases. Note that `changeset publish` does **not** move the `beta` dist-tag despite pre mode — nine releases went out with it still pointing at `1.0.0-beta.0`. `release.yml` sets both `latest` and `beta` explicitly after publishing. Do not hand-edit `pre.json`, a version number, or `CHANGELOG.md` — the "Version Packages" pull request owns all three. Leaving pre mode (`changeset pre exit`) is a deliberate act tied to the stable `1.0.0`, not something a feature branch does.
+Do not hand-edit a version number or `CHANGELOG.md`. The "Version Packages" pull request owns both.
 
 ### The CI gate
 
@@ -193,12 +185,12 @@ The `changeset` job in `.github/workflows/ci.yml` runs `pnpm changeset status --
 
 Four workflows live in `.github/workflows/`. Every job that needs Node uses the reusable composite action `.github/actions/setup` (pnpm, Node, `pnpm install --frozen-lockfile`).
 
-| Workflow              | Trigger                                                                                                                                                | Purpose                                                                                                                                                                                                                                                                                                                                                 |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`              | pull requests, pushes to `main`                                                                                                                        | `verify`: `check-types`, `lint`, `format:check`, `build`, `publint`. `test`: the suite on Node 24 and Node 26 in parallel. `changeset`: the gate described above.                                                                                                                                                                                       |
-| `generated-build.yml` | pull requests touching `packages/cli/src`, `packages/cli/templates`, `packages/cli/scripts`, the setup action or the workflow itself; pushes to `main` | Scaffolds real projects through the real CLI and builds them.                                                                                                                                                                                                                                                                                           |
-| `release.yml`         | pushes to `main`                                                                                                                                       | Runs `changesets/action`: opens or updates the "Version Packages" pull request, and on merge runs `changeset version` + `changeset publish`. A follow-up step then points both the `latest` and the `beta` dist-tag at the published version, since changesets moves neither on its own. Guarded by `if: github.repository == 'maurice-rm/next-suite'`. |
-| `zizmor.yml`          | pull requests touching `.github/workflows/**` or `.github/actions/**`; pushes to `main`                                                                | Runs `zizmor`, a static analyser for GitHub Actions workflows, to catch injection and permission problems in the CI configuration itself.                                                                                                                                                                                                               |
+| Workflow              | Trigger                                                                                                                                                | Purpose                                                                                                                                                                                                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`              | pull requests, pushes to `main`                                                                                                                        | `verify`: `check-types`, `lint`, `format:check`, `build`, `publint`. `test`: the suite on Node 24 and Node 26 in parallel. `changeset`: the gate described above.                                                                                                                                                     |
+| `generated-build.yml` | pull requests touching `packages/cli/src`, `packages/cli/templates`, `packages/cli/scripts`, the setup action or the workflow itself; pushes to `main` | Scaffolds real projects through the real CLI and builds them.                                                                                                                                                                                                                                                         |
+| `release.yml`         | pushes to `main`                                                                                                                                       | Runs `changesets/action`: opens or updates the "Version Packages" pull request, and on merge runs `changeset version` + `changeset publish`, which tags the release, creates a GitHub Release from the changelog, and publishes to npm under `latest`. Guarded by `if: github.repository == 'maurice-rm/next-suite'`. |
+| `zizmor.yml`          | pull requests touching `.github/workflows/**` or `.github/actions/**`; pushes to `main`                                                                | Runs `zizmor`, a static analyser for GitHub Actions workflows, to catch injection and permission problems in the CI configuration itself.                                                                                                                                                                             |
 
 `generated-build.yml` deserves the extra sentence. A `scenarios` job runs `pnpm --filter create-next-suite run matrix`, which derives one matrix entry per entry in `SCENARIOS` (package manager plus the `--yes` flags that reproduce it). Each matrix job then builds the CLI, runs `node packages/cli/dist/index.js app --yes <flags>` in a temporary directory — the actual published entry point, with install and post-steps included — and finally runs `build` and `typecheck` inside the _generated_ project. This is the only end-to-end proof in the repository: the golden snapshot pins what the generator emits, but only this workflow shows that what it emits actually installs, compiles and builds.
 
