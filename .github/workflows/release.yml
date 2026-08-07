@@ -33,10 +33,6 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           node-version: "24"
-      # A pull request opened with GITHUB_TOKEN starts no workflows, so the
-      # release PR arrives without the checks `main` requires. An app
-      # installation token counts as its own actor and does start them.
-      # continue-on-error keeps releases working before the app exists.
       - name: Mint an app installation token
         id: app-token
         continue-on-error: true
