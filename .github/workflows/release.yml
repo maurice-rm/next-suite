@@ -24,12 +24,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          # commitMode github-api commits via the API token, not git push,
-          # so the checkout credentials don't need to persist.
           persist-credentials: false
-      # Was pinned to 22.22 while Node 22.23.0's CVE-2026-48931 fix broke node-fetch
-      # keep-alive (changelog-github "Premature close", nodejs/node#63989). Now on the
-      # 24 LTS line — if that error resurfaces, pin to the last 24.x without the fix.
       - uses: ./.github/actions/setup
         with:
           node-version: "24"
