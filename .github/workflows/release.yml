@@ -37,6 +37,10 @@ jobs:
         id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
+          # A PR opened with GITHUB_TOKEN triggers no workflows, so the release
+          # PR never gets the checks `main` requires. RELEASE_PAT is attributed
+          # to a user and does; without it the fallback keeps releases working.
+          github-token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
           version: pnpm exec changeset version
           publish: pnpm exec changeset publish
           commitMode: github-api
