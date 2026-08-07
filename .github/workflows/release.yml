@@ -38,8 +38,6 @@ jobs:
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: pnpm exec changeset version
-          # changesets forbids a custom dist-tag here, and does not move `beta`
-          # itself despite pre mode — both tags are set in the next step.
           publish: pnpm exec changeset publish
           commitMode: github-api
           commit: "chore(release): version packages"
@@ -48,12 +46,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-      - name: Point the `latest` and `beta` dist-tags at the published version
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          npm config set //registry.npmjs.org/:_authToken "${NPM_TOKEN}"
-          version="$(node -p "require('./packages/cli/package.json').version")"
-          npm dist-tag add "create-next-suite@${version}" latest
-          npm dist-tag add "create-next-suite@${version}" beta
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
