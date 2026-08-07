@@ -115,7 +115,7 @@ pnpm test                              # tests (vitest)
 pnpm cli                               # build the CLI and run it end-to-end
 ```
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** to get set up and **[docs/architecture.md](docs/architecture.md)** for how the CLI is put together. Conventions and extension points for coding agents live in [`packages/cli/AGENTS.md`](packages/cli/AGENTS.md). Security policy: [SECURITY.md](SECURITY.md).
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** to get set up and **[docs/architecture.md](docs/architecture.md)** for how the CLI is put together. Conventions and extension points for coding agents live in [`packages/cli/AGENTS.md`](packages/cli/AGENTS.md). Security policy: [SECURITY.md](SECURITY.md). Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## 📄 License
 

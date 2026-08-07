@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an option, a flag, or a change to the generated output
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation you are in, not the solution you have in mind. That comes next.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+      description: If it is a new wizard choice, say what it adds to a generated project and which files it touches.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What did you consider instead?
+      description: Including doing it by hand after scaffolding — sometimes that is the right answer, and knowing why it is not helps.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This is opinionated by design — I understand the CLI ships one curated stack rather than every option
