@@ -21,6 +21,7 @@ const parseJsonFragment = (
   } catch (error) {
     throw new Error(
       `Invalid ${label} fragment at index ${index}: ${(error as Error).message}.`,
+      { cause: error },
     );
   }
 };

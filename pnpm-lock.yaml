@@ -7,14 +7,14 @@ settings:
 catalogs:
   default:
     '@types/node':
-      specifier: ^26.1.1
+      specifier: ^26.1.2
       version: 26.1.2
     eslint:
       specifier: ^10.8.0
       version: 10.8.0
     prettier:
-      specifier: ^3.8.4
-      version: 3.9.4
+      specifier: ^3.9.6
+      version: 3.9.6
     typescript:
       specifier: 5.9.3
       version: 5.9.3
@@ -37,10 +37,10 @@ importers:
         version: 17.3.0
       prettier:
         specifier: 'catalog:'
-        version: 3.9.4
+        version: 3.9.6
       prettier-plugin-packagejson:
         specifier: ^3.0.2
-        version: 3.0.2(prettier@3.9.4)
+        version: 3.0.2(prettier@3.9.6)
       turbo:
         specifier: ^2.10.6
         version: 2.10.8
@@ -72,8 +72,8 @@ importers:
         specifier: ^4.7.9
         version: 4.7.9
       validate-npm-package-name:
-        specifier: ^7.0.2
-        version: 7.0.2
+        specifier: ^8.0.0
+        version: 8.0.0
     devDependencies:
       '@next-suite/eslint-config':
         specifier: workspace:*
@@ -115,8 +115,8 @@ importers:
   packages/eslint-config:
     devDependencies:
       '@eslint/js':
-        specifier: ^9.39.1
-        version: 9.39.1
+        specifier: ^10.0.1
+        version: 10.0.1(eslint@10.8.0)
       eslint:
         specifier: 'catalog:'
         version: 10.8.0
@@ -130,8 +130,8 @@ importers:
         specifier: ^2.10.6
         version: 2.10.8(eslint@10.8.0)(turbo@2.10.8)
       globals:
-        specifier: ^16.5.0
-        version: 16.5.0
+        specifier: ^17.8.0
+        version: 17.9.0
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -559,9 +559,14 @@ packages:
     resolution: {integrity: sha512-MwcE1P+AZ4C6DWlpin/OmOA54mmIZ/+xZuJiQd4SyB29oAJjN30UW9wkKNptW2ctp4cEsvhlLY/CsQ1uoHDloQ==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  '@eslint/js@9.39.1':
-    resolution: {integrity: sha512-S26Stp4zCy88tH94QbBv3XCuzRQiZ9yXofEILmglYTh/Ug/a9/umqvgFtYBAo3Lp0nsI/5/qH1CCrbdK3AP1Tw==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+  '@eslint/js@10.0.1':
+    resolution: {integrity: sha512-zeR9k5pd4gxjZ0abRoIaxdc7I3nDktoXZk2qOv9gCNWx3mVwEn32VRhyLaRsDiJjTs0xq/T8mfPtyuXu7GWBcA==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=24}
+    peerDependencies:
+      eslint: ^10.0.0
+    peerDependenciesMeta:
+      eslint:
+        optional: true
 
   '@eslint/object-schema@3.0.5':
     resolution: {integrity: sha512-vqTaUEgxzm+YDSdElad6PiRoX4t8VGDjCtt05zn4nU810UIx/uNEV7/lZJ6KwFThKZOzOxzXy48da+No7HZaMw==}
@@ -1378,8 +1383,8 @@ packages:
     resolution: {integrity: sha512-XxwI8EOhVQgWp6iDL+3b0r86f4d6AX6zSU55HfB4ydCEuXLXc5FcYeOu+nnGftS4TEju/11rt4KJPTMgbfmv4A==}
     engines: {node: '>=10.13.0'}
 
-  globals@16.5.0:
-    resolution: {integrity: sha512-c/c15i26VrJ4IRt5Z89DnIzCGDn9EcebibhAOjw5ibqEHsE1wLUgkPn9RDmNcUKyU87GeaL633nyJ+pplFR2ZQ==}
+  globals@17.9.0:
+    resolution: {integrity: sha512-m/MvAW61QVU5VDNF1Vj8axt016h8w7L5TU1e9zlab7XIttAT2YAlCwl75K1fOqvMM9apmD7lbCIRhpfkhmxhCg==}
     engines: {node: '>=18'}
 
   globby@11.1.0:
@@ -1785,8 +1790,8 @@ packages:
     engines: {node: '>=10.13.0'}
     hasBin: true
 
-  prettier@3.9.4:
-    resolution: {integrity: sha512-yWG/o/4oJfo036EKAfK6ACAoDOfHeRHx4tuxkfBZiauURiaSmYwlpOr5LQqKtIkRD2z1PLteme2WoxEnj4tHTg==}
+  prettier@3.9.6:
+    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -2056,9 +2061,9 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  validate-npm-package-name@7.0.2:
-    resolution: {integrity: sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A==}
-    engines: {node: ^20.17.0 || >=22.9.0}
+  validate-npm-package-name@8.0.0:
+    resolution: {integrity: sha512-SCv6OOV6Xj2/3cXy3dGmADluJTNcL3o7hZAglNPTe+WYuEuvxgJzxPrSDLZhF+CwyQOubqgecjMmTJGMVLWjYQ==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   vite@8.0.16:
     resolution: {integrity: sha512-h9bXPmJichP5fLmVQo3PyaGSDE2n3aPuomeAlVRm0JLmt4rY6zmPKd59HYI4LNW8oTK7tlTsuC7l/m7awx9Jcw==}
@@ -2554,7 +2559,9 @@ snapshots:
     dependencies:
       '@types/json-schema': 7.0.15
 
-  '@eslint/js@9.39.1': {}
+  '@eslint/js@10.0.1(eslint@10.8.0)':
+    optionalDependencies:
+      eslint: 10.8.0
 
   '@eslint/object-schema@3.0.5': {}
 
@@ -3328,7 +3335,7 @@ snapshots:
     dependencies:
       is-glob: 4.0.3
 
-  globals@16.5.0: {}
+  globals@17.9.0: {}
 
   globby@11.1.0:
     dependencies:
@@ -3637,15 +3644,15 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier-plugin-packagejson@3.0.2(prettier@3.9.4):
+  prettier-plugin-packagejson@3.0.2(prettier@3.9.6):
     dependencies:
       sort-package-json: 3.6.0
     optionalDependencies:
-      prettier: 3.9.4
+      prettier: 3.9.6
 
   prettier@2.8.8: {}
 
-  prettier@3.9.4: {}
+  prettier@3.9.6: {}
 
   pretty-ms@9.3.0:
     dependencies:
@@ -3928,12 +3935,12 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  validate-npm-package-name@7.0.2: {}
+  validate-npm-package-name@8.0.0: {}
 
   vite@8.0.16(@types/node@26.1.2)(esbuild@0.27.7)(tsx@4.23.1)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
-      picomatch: 4.0.4
+      picomatch: 4.0.5
       postcss: 8.5.16
       rolldown: 1.0.3
       tinyglobby: 0.2.17
