@@ -1,5 +1,13 @@
 # create-next-suite
 
+## 1.0.1
+
+### Patch Changes
+
+- [#20](https://github.com/maurice-rm/next-suite/pull/20) [`600def1`](https://github.com/maurice-rm/next-suite/commit/600def19f4bd3dcdb5ebe3c9cda64cd4d95ebbc1) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Bump the pinned versions scaffolded into generated projects: `next` and
+  `eslint-config-next` to 16.3.2, `react` and `react-dom` to 19.2.8. New
+  projects pick up the upstream fixes; existing projects are unaffected.
+
 ## 1.0.0
 
 ### Major Changes
