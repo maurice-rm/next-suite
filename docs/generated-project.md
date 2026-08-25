@@ -6,9 +6,9 @@ Every generated project is a single Next.js application — not a monorepo. The 
 
 | Package              | Version    | Role                                             |
 | -------------------- | ---------- | ------------------------------------------------ |
-| `next`               | `16.2.10`  | Framework (App Router).                          |
-| `react`              | `19.2.7`   | UI runtime.                                      |
-| `react-dom`          | `19.2.7`   | DOM renderer.                                    |
+| `next`               | `16.3.2`   | Framework (App Router).                          |
+| `react`              | `19.2.8`   | UI runtime.                                      |
+| `react-dom`          | `19.2.8`   | DOM renderer.                                    |
 | `typescript`         | `^5.9.3`   | Language, in strict mode.                        |
 | `zod`                | `^4.4.3`   | Schema validation, used by the typed env module. |
 | `@t3-oss/env-nextjs` | `^0.13.11` | Typed, validated environment variables.          |
@@ -21,7 +21,7 @@ The always-installed dev toolchain:
 | `@types/react`                     | `^19`      | React type definitions.             |
 | `@types/react-dom`                 | `^19`      | React DOM type definitions.         |
 | `eslint`                           | `^9.39.4`  | Linter (flat config).               |
-| `eslint-config-next`               | `16.2.10`  | Next.js lint presets.               |
+| `eslint-config-next`               | `16.3.2`   | Next.js lint presets.               |
 | `eslint-config-prettier`           | `^10.1.8`  | Turns off formatting rules.         |
 | `eslint-plugin-simple-import-sort` | `^13.0.0`  | Import ordering.                    |
 | `eslint-plugin-import`             | `^2.32.0`  | Import hygiene.                     |
