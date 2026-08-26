@@ -2,8 +2,11 @@ name: CI
 
 on:
   pull_request:
+{{#unless (and production (includes githubActions "image"))}}
   push:
     branches: [main]
+{{/unless}}
+  workflow_call:
 
 permissions:
   contents: read
@@ -16,6 +19,8 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -32,8 +37,17 @@ jobs:
         run: {{packageManager}} run format:check
 {{/if}}
 {{#if (includes githubActions "build")}}
+{{#if (or api (eq auth "better-auth"))}}
+      - name: Require NEXT_PUBLIC_APP_URL
+        env:
+          APP_URL: $\{{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          [ -n "$APP_URL" ] || {
+            echo "Repository variable NEXT_PUBLIC_APP_URL is unset — run 'next-suite provision' before building." >&2
+            exit 1
+          }
+{{/if}}
       - name: Build
         run: {{packageManager}} run build
-        env:
-          SKIP_ENV_VALIDATION: "true"
+        env: $\{{ vars }}
 {{/if}}

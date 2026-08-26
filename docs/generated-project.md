@@ -118,6 +118,14 @@ Packages are listed with the version the generator writes. Files marked as fragm
 | GitHub Actions CI | `--github-actions lint,typecheck,format,build` | none                                                                                                                                                                              | `.github/actions/setup/action.yml`, `.github/workflows/ci.yml`                                                       | none in `.env.example`                                                                                              |
 | GitHub Actions CD | `--github-actions image,deploy`                | none                                                                                                                                                                              | `.github/workflows/cd.yml`                                                                                           | none in `.env.example`                                                                                              |
 
+### How the two workflows relate
+
+`CI` runs the selected checks on every pull request. It is also a reusable workflow (`workflow_call`), and when `CD` is generated it is `CD` that runs it: a `ci` job calls `.github/workflows/ci.yml`, the image job sits on `needs: ci`, and the deploy job's `!failure()` covers the whole chain. A red check therefore never reaches the registry or the server.
+
+Because `CD` runs it on a push to `main`, `CI` drops its own `push: main` trigger in that case — two runs would otherwise collide in the `ci-${{ github.ref }}` concurrency group and cancel each other. A manual `CD` run (`workflow_dispatch`) skips `CI`, since it redeploys an already-published tag rather than building one.
+
+The `CI` build step receives the repository variables (`env: ${{ vars }}`), so a project that needs `NEXT_PUBLIC_APP_URL` at build time gets the same value `CD` bakes into the image. Those projects also get a guard step that fails with a readable message when the variable is unset.
+
 ## Scripts
 
 The base `package.json` template defines these scripts:
@@ -190,14 +198,14 @@ The placeholders for `BETTER_AUTH_SECRET` and `RESEND_API_KEY` are development s
 
 These are referenced by generated code but never written into `.env.example`. You do not set them by hand for a normal development run.
 
-| Variable              | Where it is used                                                                                                      | Value                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `SKIP_ENV_VALIDATION` | `src/env.ts` skips validation when it is truthy. Set in the `next.Dockerfile` builder stage and in the CI build step. | `true`                                     |
-| `NODE_ENV`            | Set in the `next.Dockerfile` runner stage. The Prisma client module also branches on it to avoid a hot-reload leak.   | `production` in the image                  |
-| `PORT`                | Set in the `next.Dockerfile` runner stage.                                                                            | `3000`                                     |
-| `HOSTNAME`            | Set in the `next.Dockerfile` runner stage, so the standalone server listens on all interfaces.                        | `0.0.0.0`                                  |
-| `NODE_VERSION`        | A build argument in `next.Dockerfile`, used for every stage's base image.                                             | `24-slim` by default                       |
-| `DEPLOY_TAG`          | Used by the CD workflow to pick the image tag to deploy. Validated against a character allowlist before use.          | the workflow input, or `latest` when unset |
+| Variable              | Where it is used                                                                                                    | Value                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `SKIP_ENV_VALIDATION` | `src/env.ts` skips validation when it is truthy. Set in the `next.Dockerfile` builder stage and on the CI job.      | `true`                                     |
+| `NODE_ENV`            | Set in the `next.Dockerfile` runner stage. The Prisma client module also branches on it to avoid a hot-reload leak. | `production` in the image                  |
+| `PORT`                | Set in the `next.Dockerfile` runner stage.                                                                          | `3000`                                     |
+| `HOSTNAME`            | Set in the `next.Dockerfile` runner stage, so the standalone server listens on all interfaces.                      | `0.0.0.0`                                  |
+| `NODE_VERSION`        | A build argument in `next.Dockerfile`, used for every stage's base image.                                           | `24-slim` by default                       |
+| `DEPLOY_TAG`          | Used by the CD workflow to pick the image tag to deploy. Validated against a character allowlist before use.        | the workflow input, or `latest` when unset |
 
 ## How files are composed
 
