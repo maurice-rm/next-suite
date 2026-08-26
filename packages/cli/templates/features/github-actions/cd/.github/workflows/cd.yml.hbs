@@ -32,9 +32,19 @@ env:
 
 jobs:
 {{{{/raw}}}}
+{{#if (or (includes githubActions "lint") (includes githubActions "typecheck") (includes githubActions "format") (includes githubActions "build"))}}
+  ci:
+    if: github.event_name != 'workflow_dispatch'
+    uses: ./.github/workflows/ci.yml
+{{/if}}
 {{#if (includes githubActions "image")}}
 {{{{raw}}}}
   image:
+{{{{/raw}}}}
+{{#if (or (includes githubActions "lint") (includes githubActions "typecheck") (includes githubActions "format") (includes githubActions "build"))}}
+    needs: ci
+{{/if}}
+{{{{raw}}}}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: github.event_name != 'workflow_dispatch'

@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test } from "vitest";
 
+import type { ProjectConfig } from "@/core/types";
+
 import { composeProject } from "../compose";
 import { baseConfig } from "./scenarios";
 
@@ -14,13 +16,15 @@ const TEMPLATES = path.resolve(
   "templates",
 );
 
-const renderCd = async (): Promise<string> => {
+const renderCd = async (
+  githubActions: ProjectConfig["githubActions"] = ["image", "deploy"],
+): Promise<string> => {
   const files = await composeProject(
     {
       ...baseConfig,
       database: { engine: "postgres", orm: "drizzle" },
       production: { mode: "proxied" },
-      githubActions: ["image", "deploy"],
+      githubActions,
     },
     TEMPLATES,
   );
@@ -36,4 +40,18 @@ test("every `compose run` in the deploy reads from /dev/null", async () => {
 
   expect(runs.length).toBeGreaterThan(0);
   for (const line of runs) expect(line).toMatch(/<\s*\/dev\/null/);
+});
+
+test("the image job is gated on the CI workflow when CI steps are selected", async () => {
+  const cd = await renderCd(["lint", "image", "deploy"]);
+
+  expect(cd).toContain("uses: ./.github/workflows/ci.yml");
+  expect(cd).toMatch(/ {2}image:\n {4}needs: ci\n/);
+});
+
+test("the image job has no CI gate when no CI steps are selected", async () => {
+  const cd = await renderCd(["image", "deploy"]);
+
+  expect(cd).not.toContain("ci.yml");
+  expect(cd).not.toContain("needs: ci");
 });

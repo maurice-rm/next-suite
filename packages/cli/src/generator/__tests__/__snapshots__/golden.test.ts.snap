@@ -131,7 +131,11 @@ env:
   IMAGE_NAME: \${{ github.repository }}
 
 jobs:
+  ci:
+    if: github.event_name != 'workflow_dispatch'
+    uses: ./.github/workflows/ci.yml
   image:
+    needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: github.event_name != 'workflow_dispatch'
@@ -183,8 +187,7 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -197,15 +200,24 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - name: Lint
         run: bun run lint
+      - name: Require NEXT_PUBLIC_APP_URL
+        env:
+          APP_URL: \${{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          [ -n "$APP_URL" ] || {
+            echo "Repository variable NEXT_PUBLIC_APP_URL is unset — run 'next-suite provision' before building." >&2
+            exit 1
+          }
       - name: Build
         run: bun run build
-        env:
-          SKIP_ENV_VALIDATION: "true"
+        env: \${{ vars }}
 
 
 === .gitignore ===
@@ -2953,6 +2965,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -2965,6 +2978,8 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -6831,7 +6846,11 @@ env:
   IMAGE_NAME: \${{ github.repository }}
 
 jobs:
+  ci:
+    if: github.event_name != 'workflow_dispatch'
+    uses: ./.github/workflows/ci.yml
   image:
+    needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: github.event_name != 'workflow_dispatch'
@@ -6955,8 +6974,7 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -6969,6 +6987,8 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -6978,10 +6998,17 @@ jobs:
         run: pnpm run typecheck
       - name: Format check
         run: pnpm run format:check
+      - name: Require NEXT_PUBLIC_APP_URL
+        env:
+          APP_URL: \${{ vars.NEXT_PUBLIC_APP_URL }}
+        run: |
+          [ -n "$APP_URL" ] || {
+            echo "Repository variable NEXT_PUBLIC_APP_URL is unset — run 'next-suite provision' before building." >&2
+            exit 1
+          }
       - name: Build
         run: pnpm run build
-        env:
-          SKIP_ENV_VALIDATION: "true"
+        env: \${{ vars }}
 
 
 === .gitignore ===
@@ -7122,6 +7149,10 @@ Generate a secret with \`openssl rand -base64 32\`.
 ## 🔐 GitHub Actions secrets & variables
 
 The \`CD\` workflow deploys over SSH — set these in the repo (**Settings → Secrets and variables → Actions**):
+
+\`CD\` runs the \`CI\` workflow first and only builds and pushes the image once it
+passes, so a red check never reaches the server. A manual run (\`workflow_dispatch\`)
+skips \`CI\` and redeploys an already-published tag.
 
 **Secrets**
 
@@ -9003,6 +9034,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -9015,6 +9047,8 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

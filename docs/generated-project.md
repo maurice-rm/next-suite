@@ -190,14 +190,14 @@ The placeholders for `BETTER_AUTH_SECRET` and `RESEND_API_KEY` are development s
 
 These are referenced by generated code but never written into `.env.example`. You do not set them by hand for a normal development run.
 
-| Variable              | Where it is used                                                                                                      | Value                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `SKIP_ENV_VALIDATION` | `src/env.ts` skips validation when it is truthy. Set in the `next.Dockerfile` builder stage and in the CI build step. | `true`                                     |
-| `NODE_ENV`            | Set in the `next.Dockerfile` runner stage. The Prisma client module also branches on it to avoid a hot-reload leak.   | `production` in the image                  |
-| `PORT`                | Set in the `next.Dockerfile` runner stage.                                                                            | `3000`                                     |
-| `HOSTNAME`            | Set in the `next.Dockerfile` runner stage, so the standalone server listens on all interfaces.                        | `0.0.0.0`                                  |
-| `NODE_VERSION`        | A build argument in `next.Dockerfile`, used for every stage's base image.                                             | `24-slim` by default                       |
-| `DEPLOY_TAG`          | Used by the CD workflow to pick the image tag to deploy. Validated against a character allowlist before use.          | the workflow input, or `latest` when unset |
+| Variable              | Where it is used                                                                                                    | Value                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `SKIP_ENV_VALIDATION` | `src/env.ts` skips validation when it is truthy. Set in the `next.Dockerfile` builder stage and on the CI job.      | `true`                                     |
+| `NODE_ENV`            | Set in the `next.Dockerfile` runner stage. The Prisma client module also branches on it to avoid a hot-reload leak. | `production` in the image                  |
+| `PORT`                | Set in the `next.Dockerfile` runner stage.                                                                          | `3000`                                     |
+| `HOSTNAME`            | Set in the `next.Dockerfile` runner stage, so the standalone server listens on all interfaces.                      | `0.0.0.0`                                  |
+| `NODE_VERSION`        | A build argument in `next.Dockerfile`, used for every stage's base image.                                           | `24-slim` by default                       |
+| `DEPLOY_TAG`          | Used by the CD workflow to pick the image tag to deploy. Validated against a character allowlist before use.        | the workflow input, or `latest` when unset |
 
 ## How files are composed
 
