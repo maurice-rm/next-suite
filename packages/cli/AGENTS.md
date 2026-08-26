@@ -171,7 +171,7 @@ The ordering is causal: git must exist before committing; install runs before sh
 | `VERSIONS`                            | `generator/config/dependencies.ts` | the **only** place literal version strings live; `satisfies Record<string,string>` | `DependencyName = keyof typeof VERSIONS` |
 | `MERGEABLES` / `MERGED_OBJECT_FIELDS` | `generator/merge.ts`               | `{file, merge}` entries + which package.json fields union                          | `isMergeable`                            |
 
-Handlebars helpers registered globally in `engine.ts`: `eq`, `ne`, `not`, `and`, `or`, `includes`, `raw` (emits its block body verbatim — for literal `{{ }}` such as GitHub Actions `${{ }}` expressions), `execPrefix`. **HTML escaping is off** (`noEscape: true`) — output is source code. `execPrefix packageManager` renders `getPackageManagerEntry(pm).exec`; an unknown `packageManager` throws (fail-loud, via `getPackageManagerEntry`).
+Handlebars helpers registered globally in `engine.ts`: `eq`, `ne`, `not`, `and`, `or`, `includes`, `hasCiStep` / `hasCdStep` (whether the selected `githubActions` contain a CI or a CD step — derived from the registries in `options.ts`, so a new step never leaves a template stale), `raw` (emits its block body verbatim — for literal `{{ }}` such as GitHub Actions `${{ }}` expressions), `execPrefix`. **HTML escaping is off** (`noEscape: true`) — output is source code. `execPrefix packageManager` renders `getPackageManagerEntry(pm).exec`; an unknown `packageManager` throws (fail-loud, via `getPackageManagerEntry`).
 
 ### The `next-suite` bin (server provisioning)
 

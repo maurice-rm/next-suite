@@ -1,5 +1,6 @@
 import Handlebars from "handlebars";
 
+import { isCdStep } from "@/options";
 import { getPackageManagerEntry } from "@/package-managers";
 
 Handlebars.registerHelper("eq", (a, b) => a === b);
@@ -10,6 +11,16 @@ Handlebars.registerHelper("or", (...args) => args.slice(0, -1).some(Boolean));
 Handlebars.registerHelper(
   "includes",
   (arr, val) => Array.isArray(arr) && arr.includes(val),
+);
+// Whether any CI (lint/typecheck/…) or CD (image/deploy) step was selected —
+// derived from the step registries so a new step cannot leave a template stale.
+Handlebars.registerHelper(
+  "hasCiStep",
+  (steps) => Array.isArray(steps) && steps.some((step) => !isCdStep(step)),
+);
+Handlebars.registerHelper(
+  "hasCdStep",
+  (steps) => Array.isArray(steps) && steps.some(isCdStep),
 );
 // Emit the block body verbatim — lets templates contain literal `{{ }}` (e.g.
 // GitHub Actions `${{ }}` expressions) that Handlebars would otherwise consume.
