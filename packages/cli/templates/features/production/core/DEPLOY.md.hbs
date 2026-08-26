@@ -83,7 +83,7 @@ A missing `X-Forwarded-Proto` is the one case the sidecar covers on its own — 
 
 The `CD` workflow deploys over SSH — set these in the repo (**Settings → Secrets and variables → Actions**):
 
-{{#if (or (includes githubActions "lint") (includes githubActions "typecheck") (includes githubActions "format") (includes githubActions "build"))}}
+{{#if (hasCiStep githubActions)}}
 `CD` runs the `CI` workflow first and only builds and pushes the image once it
 passes, so a red check never reaches the server. A manual run (`workflow_dispatch`)
 skips `CI` and redeploys an already-published tag.

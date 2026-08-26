@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 
 import type { ProjectConfig } from "@/core/types";
+import { GITHUB_ACTIONS_CI_STEPS } from "@/options";
 
 import { composeProject } from "../compose";
 import { baseConfig } from "./scenarios";
@@ -55,3 +56,10 @@ test("the image job has no CI gate when no CI steps are selected", async () => {
   expect(cd).not.toContain("ci.yml");
   expect(cd).not.toContain("needs: ci");
 });
+
+test.each(GITHUB_ACTIONS_CI_STEPS.map((step) => step.value))(
+  "the %s step alone is enough to gate the image job",
+  async (step) => {
+    expect(await renderCd([step, "image", "deploy"])).toContain("needs: ci");
+  },
+);

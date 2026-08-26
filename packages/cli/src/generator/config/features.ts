@@ -1,11 +1,7 @@
-import type { GithubActionsStep, ProjectConfig } from "@/core/types";
-import { GITHUB_ACTIONS_CD_STEPS } from "@/options";
+import type { ProjectConfig } from "@/core/types";
+import { isCdStep } from "@/options";
 
 import type { DependencyName } from "./dependencies";
-
-/** A CD step (image/deploy) as opposed to a CI step (lint/typecheck/…). */
-const isCdStep = (step: GithubActionsStep): boolean =>
-  GITHUB_ACTIONS_CD_STEPS.some((cd) => cd.value === step);
 
 /**
  * Dependency names, either static or derived from the config — for a feature

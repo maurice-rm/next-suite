@@ -32,7 +32,7 @@ env:
 
 jobs:
 {{{{/raw}}}}
-{{#if (or (includes githubActions "lint") (includes githubActions "typecheck") (includes githubActions "format") (includes githubActions "build"))}}
+{{#if (hasCiStep githubActions)}}
   ci:
     if: github.event_name != 'workflow_dispatch'
     uses: ./.github/workflows/ci.yml
@@ -41,7 +41,7 @@ jobs:
 {{{{raw}}}}
   image:
 {{{{/raw}}}}
-{{#if (or (includes githubActions "lint") (includes githubActions "typecheck") (includes githubActions "format") (includes githubActions "build"))}}
+{{#if (hasCiStep githubActions)}}
     needs: ci
 {{/if}}
 {{{{raw}}}}

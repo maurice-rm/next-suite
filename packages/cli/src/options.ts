@@ -80,6 +80,10 @@ export const GITHUB_ACTIONS_CD_STEPS = defineOptions([
   { value: "deploy", label: "Deploy", hint: "includes build & push" },
 ]);
 
+/** A CD step (image/deploy) as opposed to a CI step (lint/typecheck/…). */
+export const isCdStep = (step: string): boolean =>
+  GITHUB_ACTIONS_CD_STEPS.some((cd) => cd.value === step);
+
 export const GITHUB_ACTIONS_STEP_ORDER = [
   ...GITHUB_ACTIONS_CI_STEPS,
   ...GITHUB_ACTIONS_CD_STEPS,

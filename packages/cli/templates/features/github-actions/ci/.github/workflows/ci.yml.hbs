@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-{{#unless (and production (includes githubActions "image"))}}
+{{#unless (and production (hasCdStep githubActions))}}
   push:
     branches: [main]
 {{/unless}}
