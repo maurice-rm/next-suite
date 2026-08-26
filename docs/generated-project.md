@@ -118,6 +118,14 @@ Packages are listed with the version the generator writes. Files marked as fragm
 | GitHub Actions CI | `--github-actions lint,typecheck,format,build` | none                                                                                                                                                                              | `.github/actions/setup/action.yml`, `.github/workflows/ci.yml`                                                       | none in `.env.example`                                                                                              |
 | GitHub Actions CD | `--github-actions image,deploy`                | none                                                                                                                                                                              | `.github/workflows/cd.yml`                                                                                           | none in `.env.example`                                                                                              |
 
+### How the two workflows relate
+
+`CI` runs the selected checks on every pull request. It is also a reusable workflow (`workflow_call`), and when `CD` is generated it is `CD` that runs it: a `ci` job calls `.github/workflows/ci.yml`, the image job sits on `needs: ci`, and the deploy job's `!failure()` covers the whole chain. A red check therefore never reaches the registry or the server.
+
+Because `CD` runs it on a push to `main`, `CI` drops its own `push: main` trigger in that case — two runs would otherwise collide in the `ci-${{ github.ref }}` concurrency group and cancel each other. A manual `CD` run (`workflow_dispatch`) skips `CI`, since it redeploys an already-published tag rather than building one.
+
+The `CI` build step receives the repository variables (`env: ${{ vars }}`), so a project that needs `NEXT_PUBLIC_APP_URL` at build time gets the same value `CD` bakes into the image. Those projects also get a guard step that fails with a readable message when the variable is unset.
+
 ## Scripts
 
 The base `package.json` template defines these scripts:
