@@ -69,11 +69,11 @@
     "@types/validate-npm-package-name": "^4.0.2",
     "eslint": "catalog:",
     "eslint-plugin-simple-import-sort": "^14.0.0",
-    "publint": "^0.3.22",
+    "publint": "^0.3.24",
     "tsup": "^8.3.5",
-    "tsx": "^4.23.1",
+    "tsx": "^4.23.12",
     "typescript": "catalog:",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24.0.0"
