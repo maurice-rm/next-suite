@@ -9,7 +9,8 @@
  *   version available; users stay on the old one until it is bumped.
  *
  * `^`/`~` ranges that only trail on minor/patch are considered current — a fresh
- * install already resolves the newest within the range.
+ * install already resolves the newest within the range. So is a `latest` tag
+ * that points at a prerelease (Prisma ships release candidates there).
  *
  * Run: `pnpm --filter create-next-suite deps:check`
  */
@@ -39,7 +40,10 @@ const isNewer = (a: number[], b: number[]): boolean => {
   return false;
 };
 
+const isPrerelease = (version: string): boolean => version.includes("-");
+
 const classify = (pinned: string, latest: string): Kind => {
+  if (isPrerelease(latest) && !isPrerelease(pinned)) return "current";
   const p = parts(pinned);
   const l = parts(latest);
   if ((l[0] ?? 0) > (p[0] ?? 0)) return "major";

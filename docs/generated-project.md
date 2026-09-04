@@ -6,7 +6,7 @@ Every generated project is a single Next.js application — not a monorepo. The 
 
 | Package              | Version    | Role                                             |
 | -------------------- | ---------- | ------------------------------------------------ |
-| `next`               | `16.3.2`   | Framework (App Router).                          |
+| `next`               | `16.3.4`   | Framework (App Router).                          |
 | `react`              | `19.2.8`   | UI runtime.                                      |
 | `react-dom`          | `19.2.8`   | DOM renderer.                                    |
 | `typescript`         | `^5.9.3`   | Language, in strict mode.                        |
@@ -21,9 +21,9 @@ The always-installed dev toolchain:
 | `@types/react`                     | `^19`      | React type definitions.             |
 | `@types/react-dom`                 | `^19`      | React DOM type definitions.         |
 | `eslint`                           | `^9.39.4`  | Linter (flat config).               |
-| `eslint-config-next`               | `16.3.2`   | Next.js lint presets.               |
+| `eslint-config-next`               | `16.3.4`   | Next.js lint presets.               |
 | `eslint-config-prettier`           | `^10.1.8`  | Turns off formatting rules.         |
-| `eslint-plugin-simple-import-sort` | `^13.0.0`  | Import ordering.                    |
+| `eslint-plugin-simple-import-sort` | `^14.0.0`  | Import ordering.                    |
 | `eslint-plugin-import`             | `^2.32.0`  | Import hygiene.                     |
 | `prettier`                         | `^3.8.4`   | Formatter.                          |
 | `prettier-plugin-packagejson`      | `^3.0.2`   | Sorts `package.json`.               |
