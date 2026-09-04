@@ -28,7 +28,6 @@ jobs:
       - uses: ./.github/actions/setup
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
       - name: Mint an app installation token
         id: app-token
         continue-on-error: true
@@ -47,6 +46,3 @@ jobs:
           publish-script: pnpm exec changeset publish
           commit-message: "chore(release): version packages"
           pr-title: "chore(release): version packages"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: true
