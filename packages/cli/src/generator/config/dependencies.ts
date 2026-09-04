@@ -30,7 +30,7 @@ export const VERSIONS = {
   "@types/pg": "^8.20.0",
   mysql2: "^3.22.5",
   dotenv: "^17.4.2",
-  esbuild: "^0.27.3",
+  esbuild: "^0.28.2",
   prisma: "^7.8.0",
   "@prisma/client": "^7.8.0",
   "@prisma/adapter-pg": "^7.8.0",
