@@ -4,7 +4,8 @@
  * and reports what the generated projects would fall behind on.
  *
  * - **Major behind** — the pinned major is older than latest (breaking; the `^`
- *   range does NOT pick this up, so it needs a deliberate bump).
+ *   range does NOT pick this up, so it needs a deliberate bump). For `0.x` pins
+ *   the minor counts as the major, which is how `^` treats them too.
  * - **Exact pin behind** — a pin without a `^`/`~` (e.g. `next`) has a newer
  *   version available; users stay on the old one until it is bumped.
  *
@@ -42,11 +43,16 @@ const isNewer = (a: number[], b: number[]): boolean => {
 
 const isPrerelease = (version: string): boolean => version.includes("-");
 
+// Below 1.0.0 the minor is the breaking segment, so ^0.27.3 does not reach 0.28.
+const breakingIndex = (p: number[], l: number[]): number =>
+  (p[0] ?? 0) === 0 && (l[0] ?? 0) === 0 ? 1 : 0;
+
 const classify = (pinned: string, latest: string): Kind => {
   if (isPrerelease(latest) && !isPrerelease(pinned)) return "current";
   const p = parts(pinned);
   const l = parts(latest);
-  if ((l[0] ?? 0) > (p[0] ?? 0)) return "major";
+  const i = breakingIndex(p, l);
+  if ((l[i] ?? 0) > (p[i] ?? 0)) return "major";
   if (isExactPin(pinned) && isNewer(l, p)) return "exact-behind";
   return "current";
 };
