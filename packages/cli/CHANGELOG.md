@@ -1,5 +1,27 @@
 # create-next-suite
 
+## 1.0.3
+
+### Patch Changes
+
+- [#32](https://github.com/maurice-rm/next-suite/pull/32) [`77b8e6c`](https://github.com/maurice-rm/next-suite/commit/77b8e6c1d6fb26693265397d3df7d629b8138f64) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Bump the pinned `esbuild` to `^0.28.2`. The old `^0.27.3` range sits inside
+  GHSA advisory range `>= 0.27.3, < 0.28.1` and cannot reach 0.28 on its own.
+
+  `deps:check` now treats the minor as the breaking segment for `0.x` pins,
+  which is how `^` resolves them — it had been reporting `esbuild` as current.
+
+- [#30](https://github.com/maurice-rm/next-suite/pull/30) [`93ff9c2`](https://github.com/maurice-rm/next-suite/commit/93ff9c2a6231de48203c30c52fdc854faef3470c) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Bump the pinned generated-project dependencies: `next` and
+  `eslint-config-next` to 16.3.4, and `eslint-plugin-simple-import-sort` to
+  14 (only breaking for string-literal module export names, which the
+  templates do not use).
+
+  `deps:check` no longer reports a `latest` tag that points at a prerelease as
+  a major update — Prisma ships release candidates there.
+
+- [#35](https://github.com/maurice-rm/next-suite/pull/35) [`31fda5a`](https://github.com/maurice-rm/next-suite/commit/31fda5adfd86e076a9cc048c1080c4d6fa9cf733) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Only import `zod` in the generated `src/env.ts` when a schema actually uses
+  it. A project scaffolded without a database, API, auth or email had no
+  `z.*` call left, so every `lint` run reported an unused import.
+
 ## 1.0.2
 
 ### Patch Changes
