@@ -6,12 +6,6 @@ inputs:
     description: Node.js version to install.
     required: false
     default: "24"
-  registry-url:
-    description: >
-      npm registry to authenticate against. Set it only where a publish
-      happens; actions/setup-node then writes an .npmrc that reads
-      NODE_AUTH_TOKEN from the step's environment.
-    required: false
 
 runs:
   using: composite
@@ -23,7 +17,6 @@ runs:
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ inputs.node-version }}
-        registry-url: ${{ inputs.registry-url }}
         cache: pnpm
 
     - name: Install dependencies
