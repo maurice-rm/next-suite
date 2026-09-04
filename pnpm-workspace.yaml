@@ -6,6 +6,6 @@ onlyBuiltDependencies:
 
 catalog:
   typescript: 5.9.3
-  "@types/node": ^26.1.2
-  eslint: ^10.8.0
+  "@types/node": ^26.4.1
+  eslint: ^10.9.1
   prettier: ^3.9.6
