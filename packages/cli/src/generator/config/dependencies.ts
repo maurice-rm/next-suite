@@ -1,5 +1,5 @@
 export const VERSIONS = {
-  next: "16.3.2",
+  next: "16.3.4",
   react: "19.2.8",
   "react-dom": "19.2.8",
   zod: "^4.4.3",
@@ -9,9 +9,9 @@ export const VERSIONS = {
   "@types/react-dom": "^19",
   typescript: "^5.9.3",
   eslint: "^9.39.4",
-  "eslint-config-next": "16.3.2",
+  "eslint-config-next": "16.3.4",
   "eslint-config-prettier": "^10.1.8",
-  "eslint-plugin-simple-import-sort": "^13.0.0",
+  "eslint-plugin-simple-import-sort": "^14.0.0",
   "eslint-plugin-import": "^2.32.0",
   prettier: "^3.8.4",
   "prettier-plugin-packagejson": "^3.0.2",
