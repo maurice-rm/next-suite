@@ -1,6 +1,6 @@
 {
   "name": "create-next-suite",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A better starting point for Next.js — an interactive CLI that scaffolds Next.js projects.",
   "keywords": [
     "nextjs",
