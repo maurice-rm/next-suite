@@ -11,9 +11,9 @@
     "eslint": "catalog:",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-only-warn": "^1.2.1",
-    "eslint-plugin-turbo": "^2.10.12",
+    "eslint-plugin-turbo": "^2.11.3",
     "globals": "^17.12.0",
     "typescript": "catalog:",
-    "typescript-eslint": "^8.69.0"
+    "typescript-eslint": "^8.70.1"
   }
 }
