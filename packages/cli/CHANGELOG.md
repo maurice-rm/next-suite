@@ -1,5 +1,12 @@
 # create-next-suite
 
+## 1.0.4
+
+### Patch Changes
+
+- [#40](https://github.com/maurice-rm/next-suite/pull/40) [`e122052`](https://github.com/maurice-rm/next-suite/commit/e122052ed65451a693b36857b86f75020f76e8bd) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Bump the pinned generated-project dependencies: `next` and
+  `eslint-config-next` to `16.3.6`, `react` and `react-dom` to `19.3.0`.
+
 ## 1.0.3
 
 ### Patch Changes
