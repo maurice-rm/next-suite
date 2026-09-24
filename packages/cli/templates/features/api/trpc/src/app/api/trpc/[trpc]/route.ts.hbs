@@ -3,10 +3,10 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createTRPCContext } from "@/trpc";
 import { appRouter } from "@/trpc/routers/_app";
 
-const handler = (req: Request) =>
+const handler = (request: Request) =>
   fetchRequestHandler({
     endpoint: "/api/trpc",
-    req,
+    req: request,
     router: appRouter,
     createContext: createTRPCContext,
     onError: ({ error, path }) => {

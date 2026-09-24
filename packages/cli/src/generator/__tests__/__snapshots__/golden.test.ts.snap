@@ -1583,19 +1583,20 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -1710,15 +1711,19 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { env } from "@/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_SECONDS = 30;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const adapter = new PrismaMariaDb({
   host: env.MYSQL_HOST,
   port: env.MYSQL_PORT,
   database: env.MYSQL_DATABASE,
   user: env.MYSQL_USER,
   password: env.MYSQL_PASSWORD,
-  connectionLimit: 20,
-  idleTimeout: 30,
-  connectTimeout: 5_000,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_SECONDS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
 // Reuse one client across dev hot-reloads — fresh modules would leak connections.
@@ -1728,9 +1733,10 @@ export const database = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = database;
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await database.$disconnect();
-}
+};
+
 
 === src/orpc/client.server.ts ===
 import "server-only";
@@ -1805,6 +1811,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -1813,8 +1823,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -2591,17 +2601,18 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>{children}</body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>{children}</body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -2688,22 +2699,27 @@ import { env } from "@/env";
 
 import * as schema from "./schema";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const pool = mysql.createPool({
   host: env.MYSQL_HOST,
   port: env.MYSQL_PORT,
   database: env.MYSQL_DATABASE,
   user: env.MYSQL_USER,
   password: env.MYSQL_PASSWORD,
-  connectionLimit: 20,
-  idleTimeout: 30_000,
-  connectTimeout: 5_000,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_MS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
 export const database = drizzle({ client: pool, schema, mode: "default" });
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await pool.end();
-}
+};
+
 
 === src/lib/database/schema/auth.ts ===
 import { relations } from "drizzle-orm";
@@ -3595,19 +3611,20 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -3678,22 +3695,27 @@ import { env } from "@/env";
 
 import * as schema from "./schema";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const pool = mysql.createPool({
   host: env.MYSQL_HOST,
   port: env.MYSQL_PORT,
   database: env.MYSQL_DATABASE,
   user: env.MYSQL_USER,
   password: env.MYSQL_PASSWORD,
-  connectionLimit: 20,
-  idleTimeout: 30_000,
-  connectTimeout: 5_000,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_MS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
 export const database = drizzle({ client: pool, schema, mode: "default" });
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await pool.end();
-}
+};
+
 
 === src/lib/database/schema/index.ts ===
 export {};
@@ -3756,6 +3778,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -3764,8 +3790,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -4849,17 +4875,18 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>{children}</body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>{children}</body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -5540,19 +5567,20 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -5667,6 +5695,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -5675,8 +5707,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -6405,19 +6437,20 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -6532,6 +6565,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -6540,8 +6577,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -8265,10 +8302,10 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { createTRPCContext } from "@/trpc";
 import { appRouter } from "@/trpc/routers/_app";
 
-const handler = (req: Request) =>
+const handler = (request: Request) =>
   fetchRequestHandler({
     endpoint: "/api/trpc",
-    req,
+    req: request,
     router: appRouter,
     createContext: createTRPCContext,
     onError: ({ error, path }) => {
@@ -8319,19 +8356,20 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -8497,22 +8535,27 @@ import { env } from "@/env";
 
 import * as schema from "./schema";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const pool = new Pool({
   host: env.POSTGRES_HOST,
   port: env.POSTGRES_PORT,
   database: env.POSTGRES_DATABASE,
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  max: POOL_MAX_CONNECTIONS,
+  idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
+  connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
 });
 
 export const database = drizzle({ client: pool, schema });
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await pool.end();
-}
+};
+
 
 === src/lib/database/schema/auth.ts ===
 import { relations } from "drizzle-orm";
@@ -8695,12 +8738,16 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -10248,17 +10295,18 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>{children}</body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>{children}</body>
+  </html>
+);
+
+export default RootLayout;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -10343,15 +10391,19 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "@/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const adapter = new PrismaPg({
   host: env.POSTGRES_HOST,
   port: env.POSTGRES_PORT,
   database: env.POSTGRES_DATABASE,
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  max: POOL_MAX_CONNECTIONS,
+  idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
+  connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
 });
 
 // Reuse one client across dev hot-reloads — fresh modules would leak connections.
@@ -10361,9 +10413,10 @@ export const database = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = database;
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await database.$disconnect();
-}
+};
+
 
 === src/lib/email/index.ts ===
 import { Resend } from "resend";

@@ -3,12 +3,16 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
