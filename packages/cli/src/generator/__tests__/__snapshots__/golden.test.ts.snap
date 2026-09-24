@@ -1874,7 +1874,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -1883,6 +1889,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -3841,7 +3876,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -3850,6 +3891,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -5763,7 +5833,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -5772,6 +5848,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -6633,7 +6738,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -6642,6 +6753,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -8796,11 +8936,14 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
-  createTRPCOptionsProxy,
-  type TRPCQueryOptions,
-} from "@trpc/tanstack-react-query";
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
+import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import { createTRPCContext } from "@/trpc";
 import { createQueryClient } from "@/trpc/query-client";
@@ -8819,17 +8962,33 @@ export const HydrateClient = ({ children }: { children: ReactNode }) => {
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const prefetch = <T extends ReturnType<TRPCQueryOptions<any>>>(
-  queryOptions: T,
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
 ) => {
-  const queryClient = getQueryClient();
-  if (queryOptions.queryKey[1]?.type === "infinite") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    void queryClient.prefetchInfiniteQuery(queryOptions as any);
-  } else {
-    void queryClient.prefetchQuery(queryOptions);
-  }
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
