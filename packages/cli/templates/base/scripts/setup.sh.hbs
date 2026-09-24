@@ -179,7 +179,11 @@ step_dependencies() {
 step_database() {
   print_step 3 "Database"
 
+{{#if (eq database.orm "drizzle")}}
+  local db_hint="docker compose up -d && {{packageManager}} run db:generate && {{packageManager}} run db:migrate"
+{{else}}
   local db_hint="docker compose up -d && {{packageManager}} run db:push"
+{{/if}}
 
   if [ "$ASSUME_YES" = false ]; then
     if [ -t 0 ]; then
@@ -213,12 +217,21 @@ step_database() {
     handle_error 3 "Failed to start the database container"
   fi
 
+{{#if (eq database.orm "drizzle")}}
+  print_action "Applying migrations..."
+  if run_step {{packageManager}} run db:generate && run_step {{packageManager}} run db:migrate; then
+    print_success "Migrations applied"
+  else
+    handle_error 3 "Failed to apply the migrations"
+  fi
+{{else}}
   print_action "Pushing the schema..."
   if run_step {{packageManager}} run db:push; then
     print_success "Schema pushed"
   else
     handle_error 3 "Failed to push the schema"
   fi
+{{/if}}
 }
 {{/if}}
 

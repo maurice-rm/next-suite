@@ -1,0 +1,22 @@
+{{#if api.openapi}}
+import { z } from "zod";
+
+{{/if}}
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+{{#if api.openapi}}
+  status: publicProcedure
+    .route({ method: "GET", path: "/health" })
+    .output(z.object({ status: z.literal("ok"), time: z.date() }))
+    .handler(() => ({
+      status: "ok" as const,
+      time: new Date(),
+    })),
+{{else}}
+  status: publicProcedure.handler(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+{{/if}}
+};

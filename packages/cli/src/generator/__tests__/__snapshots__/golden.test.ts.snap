@@ -603,6 +603,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -631,6 +633,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -665,10 +753,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -682,10 +766,6 @@ COPY prisma.config.ts ./prisma.config.ts
 COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \\
   npm install -g bun && bun install --frozen-lockfile
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -703,10 +783,6 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 RUN npm install -g bun && bun run build
 
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
-
 FROM node:\${NODE_VERSION} AS runner
 
 WORKDIR /app
@@ -723,17 +799,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   openssl \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Migration tooling (applied on start by entrypoint.sh)
 # prisma migrate deploy needs the full CLI + engines + transitive deps (not
 # traced into standalone), so the complete node_modules is copied, per the
 # Prisma Docker guide. The schema + config supply the connection URL.
@@ -754,7 +826,6 @@ ENTRYPOINT ["./entrypoint.sh"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -968,6 +1039,8 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -1072,8 +1145,7 @@ model Verification {
 
 
 === prisma/schema.prisma ===
-// Add your models in per-domain files under prisma/models/*.prisma —
-// every .prisma file below prisma/ is part of the schema.
+// Every .prisma file below prisma/ is part of this schema.
 
 generator client {
   provider = "prisma-client"
@@ -1509,7 +1581,8 @@ export const { GET, POST } = toNextJsHandler(auth);
 
 
 === src/app/api/health/route.ts ===
-import { env } from "@/env";
+import "@/env";
+
 import { database } from "@/lib/database";
 
 // Never prerendered: at build time there is no database to reach.
@@ -1517,7 +1590,6 @@ export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     await database.$queryRaw\`SELECT 1\`;
     return Response.json({ status: "ok" });
   } catch (error) {
@@ -1531,7 +1603,7 @@ export const GET = async (): Promise<Response> => {
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -1560,8 +1632,52 @@ export {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 @import "tailwindcss";
@@ -1601,19 +1717,33 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -1664,12 +1794,29 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.ts ===
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure.handler(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+};
+
 
 === src/instrumentation.ts ===
 export const register = async () => {
@@ -1728,15 +1875,19 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { env } from "@/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_SECONDS = 30;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const adapter = new PrismaMariaDb({
   host: env.MYSQL_HOST,
   port: env.MYSQL_PORT,
   database: env.MYSQL_DATABASE,
   user: env.MYSQL_USER,
   password: env.MYSQL_PASSWORD,
-  connectionLimit: 20,
-  idleTimeout: 30,
-  connectTimeout: 5_000,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_SECONDS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
 // Reuse one client across dev hot-reloads — fresh modules would leak connections.
@@ -1744,11 +1895,12 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const database = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = database;
+if (env.NODE_ENV !== "production") globalForPrisma.prisma = database;
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await database.$disconnect();
-}
+};
+
 
 === src/orpc/client.server.ts ===
 import "server-only";
@@ -1757,7 +1909,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -1770,7 +1922,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -1823,6 +1975,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -1831,8 +1987,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -1852,30 +2008,12 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+=== src/orpc/routers/app-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { publicProcedure } from "@/orpc";
-
-// The Date proves typed transport: the RPC protocol carries it natively.
-export const status = publicProcedure.handler(() => ({
-  status: "ok" as const,
-  time: new Date(),
-}));
 
 
 === src/orpc/server.tsx ===
@@ -1883,7 +2021,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -1892,6 +2036,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -2191,16 +2364,19 @@ import "dotenv/config";
 
 import { defineConfig } from "drizzle-kit";
 
+import { env } from "./src/env";
+
 export default defineConfig({
   dialect: "mysql",
   schema: "./src/lib/database/schema/index.ts",
   out: "./drizzle",
+  casing: "snake_case",
   dbCredentials: {
-    host: process.env.MYSQL_HOST!,
-    port: Number(process.env.MYSQL_PORT),
-    user: process.env.MYSQL_USER!,
-    password: process.env.MYSQL_PASSWORD!,
-    database: process.env.MYSQL_DATABASE!,
+    host: env.MYSQL_HOST,
+    port: env.MYSQL_PORT,
+    user: env.MYSQL_USER,
+    password: env.MYSQL_PASSWORD,
+    database: env.MYSQL_DATABASE,
   },
 });
 
@@ -2209,6 +2385,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -2236,6 +2414,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -2263,7 +2527,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -2323,6 +2586,8 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -2512,7 +2777,7 @@ step_dependencies() {
 step_database() {
   print_step 3 "Database"
 
-  local db_hint="docker compose up -d && npm run db:push"
+  local db_hint="docker compose up -d && npm run db:generate && npm run db:migrate"
 
   if [ "$ASSUME_YES" = false ]; then
     if [ -t 0 ]; then
@@ -2546,11 +2811,11 @@ step_database() {
     handle_error 3 "Failed to start the database container"
   fi
 
-  print_action "Pushing the schema..."
-  if run_step npm run db:push; then
-    print_success "Schema pushed"
+  print_action "Applying migrations..."
+  if run_step npm run db:generate && run_step npm run db:migrate; then
+    print_success "Migrations applied"
   else
-    handle_error 3 "Failed to push the schema"
+    handle_error 3 "Failed to apply the migrations"
   fi
 }
 
@@ -2574,8 +2839,52 @@ import { auth } from "@/lib/auth";
 export const { GET, POST } = toNextJsHandler(auth);
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -2611,17 +2920,31 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>{children}</body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>{children}</body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -2708,22 +3031,32 @@ import { env } from "@/env";
 
 import * as schema from "./schema";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const pool = mysql.createPool({
   host: env.MYSQL_HOST,
   port: env.MYSQL_PORT,
   database: env.MYSQL_DATABASE,
   user: env.MYSQL_USER,
   password: env.MYSQL_PASSWORD,
-  connectionLimit: 20,
-  idleTimeout: 30_000,
-  connectTimeout: 5_000,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_MS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
-export const database = drizzle({ client: pool, schema, mode: "default" });
+export const database = drizzle({
+  client: pool,
+  schema,
+  mode: "default",
+  casing: "snake_case",
+});
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await pool.end();
-}
+};
+
 
 === src/lib/database/schema/auth.ts ===
 import { relations } from "drizzle-orm";
@@ -2737,32 +3070,32 @@ import {
 } from "drizzle-orm/mysql-core";
 
 export const user = mysqlTable("user", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { fsp: 3 })
+  id: varchar({ length: 36 }).primaryKey(),
+  name: varchar({ length: 255 }).notNull(),
+  email: varchar({ length: 255 }).notNull().unique(),
+  emailVerified: boolean().default(false).notNull(),
+  image: text(),
+  createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+  updatedAt: timestamp({ fsp: 3 })
     .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .$onUpdate(() => new Date())
     .notNull(),
 });
 
 export const session = mysqlTable(
   "session",
   {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
-    token: varchar("token", { length: 255 }).notNull().unique(),
-    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { fsp: 3 })
+    id: varchar({ length: 36 }).primaryKey(),
+    expiresAt: timestamp({ fsp: 3 }).notNull(),
+    token: varchar({ length: 255 }).notNull().unique(),
+    createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ fsp: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: varchar("user_id", { length: 36 })
+    ipAddress: text(),
+    userAgent: text(),
+    userId: varchar({ length: 36 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
@@ -2772,23 +3105,23 @@ export const session = mysqlTable(
 export const account = mysqlTable(
   "account",
   {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: varchar("user_id", { length: 36 })
+    id: varchar({ length: 36 }).primaryKey(),
+    accountId: text().notNull(),
+    providerId: text().notNull(),
+    userId: varchar({ length: 36 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { fsp: 3 })
+    accessToken: text(),
+    refreshToken: text(),
+    idToken: text(),
+    accessTokenExpiresAt: timestamp({ fsp: 3 }),
+    refreshTokenExpiresAt: timestamp({ fsp: 3 }),
+    scope: text(),
+    password: text(),
+    createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ fsp: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("account_userId_idx").on(table.userId)],
@@ -2797,14 +3130,14 @@ export const account = mysqlTable(
 export const verification = mysqlTable(
   "verification",
   {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    identifier: varchar("identifier", { length: 255 }).notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
-    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { fsp: 3 })
+    id: varchar({ length: 36 }).primaryKey(),
+    identifier: varchar({ length: 255 }).notNull(),
+    value: text().notNull(),
+    expiresAt: timestamp({ fsp: 3 }).notNull(),
+    createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ fsp: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
@@ -2831,9 +3164,6 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 
 === src/lib/database/schema/index.ts ===
-// Define your tables in per-domain files and re-export them here, e.g.:
-// export * from "./users";
-// https://orm.drizzle.team/docs/sql-schema-declaration
 export * from "./auth";
 
 
@@ -3174,16 +3504,19 @@ import "dotenv/config";
 
 import { defineConfig } from "drizzle-kit";
 
+import { env } from "./src/env";
+
 export default defineConfig({
   dialect: "mysql",
   schema: "./src/lib/database/schema/index.ts",
   out: "./drizzle",
+  casing: "snake_case",
   dbCredentials: {
-    host: process.env.MYSQL_HOST!,
-    port: Number(process.env.MYSQL_PORT),
-    user: process.env.MYSQL_USER!,
-    password: process.env.MYSQL_PASSWORD!,
-    database: process.env.MYSQL_DATABASE!,
+    host: env.MYSQL_HOST,
+    port: env.MYSQL_PORT,
+    user: env.MYSQL_USER,
+    password: env.MYSQL_PASSWORD,
+    database: env.MYSQL_DATABASE,
   },
 });
 
@@ -3192,6 +3525,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -3219,6 +3554,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -3251,7 +3672,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -3315,6 +3735,8 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -3492,7 +3914,7 @@ step_dependencies() {
 step_database() {
   print_step 3 "Database"
 
-  local db_hint="docker compose up -d && npm run db:push"
+  local db_hint="docker compose up -d && npm run db:generate && npm run db:migrate"
 
   if [ "$ASSUME_YES" = false ]; then
     if [ -t 0 ]; then
@@ -3526,11 +3948,11 @@ step_database() {
     handle_error 3 "Failed to start the database container"
   fi
 
-  print_action "Pushing the schema..."
-  if run_step npm run db:push; then
-    print_success "Schema pushed"
+  print_action "Applying migrations..."
+  if run_step npm run db:generate && run_step npm run db:migrate; then
+    print_success "Migrations applied"
   else
-    handle_error 3 "Failed to push the schema"
+    handle_error 3 "Failed to apply the migrations"
   fi
 }
 
@@ -3550,7 +3972,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -3579,8 +4001,52 @@ export {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -3619,19 +4085,33 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -3688,6 +4168,17 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure.handler(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+};
+
+
 === src/instrumentation.ts ===
 export const register = async () => {
   await import("./orpc/client.server");
@@ -3702,27 +4193,34 @@ import { env } from "@/env";
 
 import * as schema from "./schema";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const pool = mysql.createPool({
   host: env.MYSQL_HOST,
   port: env.MYSQL_PORT,
   database: env.MYSQL_DATABASE,
   user: env.MYSQL_USER,
   password: env.MYSQL_PASSWORD,
-  connectionLimit: 20,
-  idleTimeout: 30_000,
-  connectTimeout: 5_000,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_MS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
-export const database = drizzle({ client: pool, schema, mode: "default" });
+export const database = drizzle({
+  client: pool,
+  schema,
+  mode: "default",
+  casing: "snake_case",
+});
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await pool.end();
-}
+};
+
 
 === src/lib/database/schema/index.ts ===
-// Define your tables in per-domain files and re-export them here, e.g.:
-// export * from "./users";
-// https://orm.drizzle.team/docs/sql-schema-declaration
 export {};
 
 
@@ -3733,7 +4231,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -3746,7 +4244,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -3783,6 +4281,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -3791,8 +4293,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -3812,30 +4314,12 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+=== src/orpc/routers/app-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { publicProcedure } from "@/orpc";
-
-// The Date proves typed transport: the RPC protocol carries it natively.
-export const status = publicProcedure.handler(() => ({
-  status: "ok" as const,
-  time: new Date(),
-}));
 
 
 === src/orpc/server.tsx ===
@@ -3843,7 +4327,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -3852,6 +4342,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -4248,6 +4767,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -4275,6 +4796,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -4298,10 +4905,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -4311,10 +4914,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \\
   npm ci
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -4326,10 +4925,6 @@ COPY . .
 ENV SKIP_ENV_VALIDATION=true
 
 RUN npm run build
-
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS runner
 
@@ -4344,13 +4939,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   curl \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
@@ -4365,7 +4957,6 @@ CMD ["node", "server.js"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -4496,6 +5087,8 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -4840,14 +5433,14 @@ main
 
 
 === src/app/api/health/route.ts ===
-import { env } from "@/env";
+import "@/env";
+
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     return Response.json({ status: "ok" });
   } catch (error) {
     console.error("Health check failed:", error);
@@ -4856,8 +5449,52 @@ export const GET = async (): Promise<Response> => {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -4893,17 +5530,31 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>{children}</body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>{children}</body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -4919,9 +5570,9 @@ export const env = createEnv({
   server: {
   },
   client: {
-    // NEXT_PUBLIC_* vars go here.
   },
-  experimental__runtimeEnv: {},
+  experimental__runtimeEnv: {
+  },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
@@ -5179,6 +5830,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -5206,6 +5859,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -5235,7 +5974,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -5293,6 +6031,8 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -5476,7 +6216,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -5511,10 +6251,8 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
-// The reference plugin serves the Scalar docs UI at /api/v1 and the OpenAPI
-// spec at /api/v1/spec.json.
 const handler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
@@ -5548,8 +6286,52 @@ export {
   handleRequest as PUT,
 };
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -5588,19 +6370,33 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -5652,6 +6448,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { z } from "zod";
+
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure
+    .route({ method: "GET", path: "/health" })
+    .output(z.object({ status: z.literal("ok"), time: z.date() }))
+    .handler(() => ({
+      status: "ok" as const,
+      time: new Date(),
+    })),
+};
+
+
 === src/instrumentation.ts ===
 export const register = async () => {
   await import("./orpc/client.server");
@@ -5665,7 +6477,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -5678,7 +6490,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -5715,6 +6527,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -5723,8 +6539,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -5744,35 +6560,12 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+=== src/orpc/routers/app-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { z } from "zod";
-
-import { publicProcedure } from "@/orpc";
-
-// The Date proves typed transport: the RPC protocol carries it natively.
-export const status = publicProcedure
-  .route({ method: "GET", path: "/health" })
-  .output(z.object({ status: z.literal("ok"), time: z.date() }))
-  .handler(() => ({
-    status: "ok" as const,
-    time: new Date(),
-  }));
 
 
 === src/orpc/server.tsx ===
@@ -5780,7 +6573,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -5789,6 +6588,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -6045,6 +6873,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -6072,6 +6902,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -6101,7 +7017,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -6159,6 +7074,8 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -6342,7 +7259,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -6377,7 +7294,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new OpenAPIHandler(appRouter, {
   interceptors: [onError((error) => console.error("[oRPC OpenAPI]", error))],
@@ -6415,8 +7332,52 @@ export {
   handleRequest as PUT,
 };
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -6455,19 +7416,33 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -6519,6 +7494,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { z } from "zod";
+
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure
+    .route({ method: "GET", path: "/health" })
+    .output(z.object({ status: z.literal("ok"), time: z.date() }))
+    .handler(() => ({
+      status: "ok" as const,
+      time: new Date(),
+    })),
+};
+
+
 === src/instrumentation.ts ===
 export const register = async () => {
   await import("./orpc/client.server");
@@ -6532,7 +7523,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -6545,7 +7536,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -6582,6 +7573,10 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -6590,8 +7585,8 @@ export const createQueryClient = () =>
           const [json, meta] = serializer.serialize(queryKey);
           return JSON.stringify({ json, meta });
         },
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -6611,35 +7606,12 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+=== src/orpc/routers/app-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { z } from "zod";
-
-import { publicProcedure } from "@/orpc";
-
-// The Date proves typed transport: the RPC protocol carries it natively.
-export const status = publicProcedure
-  .route({ method: "GET", path: "/health" })
-  .output(z.object({ status: z.literal("ok"), time: z.date() }))
-  .handler(() => ({
-    status: "ok" as const,
-    time: new Date(),
-  }));
 
 
 === src/orpc/server.tsx ===
@@ -6647,7 +7619,13 @@ import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
 
 import { createQueryClient } from "@/orpc/query-client";
 
@@ -6656,6 +7634,35 @@ export const getQueryClient = cache(createQueryClient);
 export const HydrateClient = ({ children }: { children: ReactNode }) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+) => {
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -7403,16 +8410,19 @@ import "dotenv/config";
 
 import { defineConfig } from "drizzle-kit";
 
+import { env } from "./src/env";
+
 export default defineConfig({
   dialect: "postgresql",
   schema: "./src/lib/database/schema/index.ts",
   out: "./drizzle",
+  casing: "snake_case",
   dbCredentials: {
-    host: process.env.POSTGRES_HOST!,
-    port: Number(process.env.POSTGRES_PORT),
-    user: process.env.POSTGRES_USER!,
-    password: process.env.POSTGRES_PASSWORD!,
-    database: process.env.POSTGRES_DATABASE!,
+    host: env.POSTGRES_HOST,
+    port: env.POSTGRES_PORT,
+    user: env.POSTGRES_USER,
+    password: env.POSTGRES_PASSWORD,
+    database: env.POSTGRES_DATABASE,
     ssl: false,
   },
 });
@@ -7462,6 +8472,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -7489,6 +8501,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -7526,10 +8624,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -7539,10 +8633,6 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \\
   corepack enable pnpm && pnpm install --frozen-lockfile
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -7561,10 +8651,6 @@ RUN corepack enable pnpm && pnpm build
 # the driver included — so the runner needs nothing from node_modules for it.
 RUN npx --no -- esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --alias:@=./src --outfile=migrate.cjs
 
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
-
 FROM node:\${NODE_VERSION} AS runner
 
 WORKDIR /app
@@ -7579,17 +8665,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   postgresql-client \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Migration tooling (applied on start by entrypoint.sh)
 # migrate.cjs is a self-contained esbuild bundle; it only needs the migrations.
 COPY --from=builder --chown=node:node /app/drizzle ./drizzle
 COPY --from=builder --chown=node:node /app/migrate.cjs ./migrate.cjs
@@ -7607,7 +8689,6 @@ ENTRYPOINT ["./entrypoint.sh"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -7833,6 +8914,8 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -8244,7 +9327,7 @@ step_dependencies() {
 step_database() {
   print_step 3 "Database"
 
-  local db_hint="docker compose up -d && pnpm run db:push"
+  local db_hint="docker compose up -d && pnpm run db:generate && pnpm run db:migrate"
 
   if [ "$ASSUME_YES" = false ]; then
     if [ -t 0 ]; then
@@ -8278,11 +9361,11 @@ step_database() {
     handle_error 3 "Failed to start the database container"
   fi
 
-  print_action "Pushing the schema..."
-  if run_step pnpm run db:push; then
-    print_success "Schema pushed"
+  print_action "Applying migrations..."
+  if run_step pnpm run db:generate && run_step pnpm run db:migrate; then
+    print_success "Migrations applied"
   else
-    handle_error 3 "Failed to push the schema"
+    handle_error 3 "Failed to apply the migrations"
   fi
 }
 
@@ -8309,7 +9392,8 @@ export const { GET, POST } = toNextJsHandler(auth);
 === src/app/api/health/route.ts ===
 import { sql } from "drizzle-orm";
 
-import { env } from "@/env";
+import "@/env";
+
 import { database } from "@/lib/database";
 
 // Never prerendered: at build time there is no database to reach.
@@ -8317,7 +9401,6 @@ export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     await database.execute(sql\`select 1\`);
     return Response.json({ status: "ok" });
   } catch (error) {
@@ -8331,12 +9414,12 @@ export const GET = async (): Promise<Response> => {
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
 import { createTRPCContext } from "@/trpc";
-import { appRouter } from "@/trpc/routers/_app";
+import { appRouter } from "@/trpc/routers/app-router";
 
-const handler = (req: Request) =>
+const handler = (request: Request) =>
   fetchRequestHandler({
     endpoint: "/api/trpc",
-    req,
+    req: request,
     router: appRouter,
     createContext: createTRPCContext,
     onError: ({ error, path }) => {
@@ -8347,8 +9430,52 @@ const handler = (req: Request) =>
 export { handler as GET, handler as POST };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 @import "tailwindcss";
@@ -8387,19 +9514,33 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -8430,7 +9571,7 @@ import superjson from "superjson";
 import { env } from "@/env";
 import { TRPCProvider } from "@/trpc/client";
 import { createQueryClient } from "@/trpc/query-client";
-import type { AppRouter } from "@/trpc/routers/_app";
+import type { AppRouter } from "@/trpc/routers/app-router";
 
 let browserQueryClient: QueryClient | undefined;
 let browserTRPCClient: TRPCClient<AppRouter> | undefined;
@@ -8510,6 +9651,17 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { publicProcedure, router } from "@/trpc";
+
+export const healthRouter = router({
+  status: publicProcedure.query(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+});
+
+
 === src/lib/auth/client.ts ===
 import { createAuthClient } from "better-auth/react";
 
@@ -8565,54 +9717,63 @@ import { env } from "@/env";
 
 import * as schema from "./schema";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const pool = new Pool({
   host: env.POSTGRES_HOST,
   port: env.POSTGRES_PORT,
   database: env.POSTGRES_DATABASE,
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  max: POOL_MAX_CONNECTIONS,
+  idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
+  connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
 });
 
-export const database = drizzle({ client: pool, schema });
+export const database = drizzle({
+  client: pool,
+  schema,
+  casing: "snake_case",
+});
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await pool.end();
-}
+};
+
 
 === src/lib/database/schema/auth.ts ===
 import { relations } from "drizzle-orm";
 import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+  id: text().primaryKey(),
+  name: text().notNull(),
+  email: text().notNull().unique(),
+  emailVerified: boolean().default(false).notNull(),
+  image: text(),
+  createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp({ withTimezone: true })
     .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .$onUpdate(() => new Date())
     .notNull(),
 });
 
 export const session = pgTable(
   "session",
   {
-    id: text("id").primaryKey(),
-    expiresAt: timestamp("expires_at").notNull(),
-    token: text("token").notNull().unique(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    id: text().primaryKey(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    token: text().notNull().unique(),
+    createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp({ withTimezone: true })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: text("user_id")
+    ipAddress: text(),
+    userAgent: text(),
+    userId: text()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
@@ -8622,23 +9783,23 @@ export const session = pgTable(
 export const account = pgTable(
   "account",
   {
-    id: text("id").primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: text("user_id")
+    id: text().primaryKey(),
+    accountId: text().notNull(),
+    providerId: text().notNull(),
+    userId: text()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at"),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    accessToken: text(),
+    refreshToken: text(),
+    idToken: text(),
+    accessTokenExpiresAt: timestamp({ withTimezone: true }),
+    refreshTokenExpiresAt: timestamp({ withTimezone: true }),
+    scope: text(),
+    password: text(),
+    createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp({ withTimezone: true })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("account_userId_idx").on(table.userId)],
@@ -8647,14 +9808,14 @@ export const account = pgTable(
 export const verification = pgTable(
   "verification",
   {
-    id: text("id").primaryKey(),
-    identifier: text("identifier").notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    id: text().primaryKey(),
+    identifier: text().notNull(),
+    value: text().notNull(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp({ withTimezone: true })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
@@ -8681,9 +9842,6 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 
 === src/lib/database/schema/index.ts ===
-// Define your tables in per-domain files and re-export them here, e.g.:
-// export * from "./users";
-// https://orm.drizzle.team/docs/sql-schema-declaration
 export * from "./auth";
 
 
@@ -8711,7 +9869,7 @@ export const resend = new Proxy({} as Resend, {
 
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 
-import type { AppRouter } from "@/trpc/routers/_app";
+import type { AppRouter } from "@/trpc/routers/app-router";
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 
@@ -8766,12 +9924,16 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
         refetchOnWindowFocus: false,
       },
       dehydrate: {
@@ -8784,10 +9946,9 @@ export const createQueryClient = () =>
   });
 
 
-=== src/trpc/routers/_app.ts ===
+=== src/trpc/routers/app-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
 import { router } from "@/trpc";
-
-import { healthRouter } from "./health";
 
 export const appRouter = router({
   health: healthRouter,
@@ -8796,40 +9957,23 @@ export const appRouter = router({
 export type AppRouter = typeof appRouter;
 
 
-=== src/trpc/routers/health/index.ts ===
-import { router } from "@/trpc";
-
-import { status } from "./status";
-
-export const healthRouter = router({
-  status,
-});
-
-
-=== src/trpc/routers/health/status.ts ===
-import { publicProcedure } from "@/trpc";
-
-// The Date proves typed transport: superjson revives it on the client.
-export const status = publicProcedure.query(() => ({
-  status: "ok" as const,
-  time: new Date(),
-}));
-
-
 === src/trpc/server.tsx ===
 import "server-only";
 
 import { cache, type ReactNode } from "react";
 
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import {
-  createTRPCOptionsProxy,
-  type TRPCQueryOptions,
-} from "@trpc/tanstack-react-query";
+  dehydrate,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  HydrationBoundary,
+  type QueryKey,
+} from "@tanstack/react-query";
+import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import { createTRPCContext } from "@/trpc";
 import { createQueryClient } from "@/trpc/query-client";
-import { appRouter } from "@/trpc/routers/_app";
+import { appRouter } from "@/trpc/routers/app-router";
 
 export const getQueryClient = cache(createQueryClient);
 
@@ -8844,19 +9988,33 @@ export const HydrateClient = ({ children }: { children: ReactNode }) => {
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
 
-// Prefetch a procedure in a Server Component (pair with <HydrateClient>):
-//   prefetch(trpc.health.status.queryOptions());
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const prefetch = <T extends ReturnType<TRPCQueryOptions<any>>>(
-  queryOptions: T,
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+>(
+  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
 ) => {
-  const queryClient = getQueryClient();
-  if (queryOptions.queryKey[1]?.type === "infinite") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    void queryClient.prefetchInfiniteQuery(queryOptions as any);
-  } else {
-    void queryClient.prefetchQuery(queryOptions);
-  }
+  void getQueryClient().prefetchQuery(options);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: FetchInfiniteQueryOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  void getQueryClient().prefetchInfiniteQuery(options);
 };
 
 
@@ -9442,6 +10600,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -9470,6 +10630,92 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,
@@ -9500,10 +10746,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -9517,10 +10759,6 @@ COPY prisma.config.ts ./prisma.config.ts
 COPY package.json yarn.lock .yarnrc.yml ./
 RUN --mount=type=cache,target=/root/.yarn/berry/cache \\
   corepack enable && yarn install --immutable
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -9538,10 +10776,6 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 RUN corepack enable && yarn build
 
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
-
 FROM node:\${NODE_VERSION} AS runner
 
 WORKDIR /app
@@ -9558,17 +10792,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   openssl \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Migration tooling (applied on start by entrypoint.sh)
 # prisma migrate deploy needs the full CLI + engines + transitive deps (not
 # traced into standalone), so the complete node_modules is copied, per the
 # Prisma Docker guide. The schema + config supply the connection URL.
@@ -9589,7 +10819,6 @@ ENTRYPOINT ["./entrypoint.sh"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -9743,6 +10972,8 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
@@ -9847,8 +11078,7 @@ model Verification {
 
 
 === prisma/schema.prisma ===
-// Add your models in per-domain files under prisma/models/*.prisma —
-// every .prisma file below prisma/ is part of the schema.
+// Every .prisma file below prisma/ is part of this schema.
 
 generator client {
   provider = "prisma-client"
@@ -10284,7 +11514,8 @@ export const { GET, POST } = toNextJsHandler(auth);
 
 
 === src/app/api/health/route.ts ===
-import { env } from "@/env";
+import "@/env";
+
 import { database } from "@/lib/database";
 
 // Never prerendered: at build time there is no database to reach.
@@ -10292,7 +11523,6 @@ export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     await database.$queryRaw\`SELECT 1\`;
     return Response.json({ status: "ok" });
   } catch (error) {
@@ -10302,8 +11532,52 @@ export const GET = async (): Promise<Response> => {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 @import "tailwindcss";
@@ -10340,17 +11614,31 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+const RootLayout = ({
   children,
 }: Readonly<{
   children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
-      <body>{children}</body>
-    </html>
-  );
-}
+}>) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>{children}</body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
 
 === src/app/page.tsx ===
 const Page = () => {
@@ -10377,8 +11665,14 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -10435,15 +11729,19 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "@/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const adapter = new PrismaPg({
   host: env.POSTGRES_HOST,
   port: env.POSTGRES_PORT,
   database: env.POSTGRES_DATABASE,
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  max: POOL_MAX_CONNECTIONS,
+  idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
+  connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
 });
 
 // Reuse one client across dev hot-reloads — fresh modules would leak connections.
@@ -10451,11 +11749,12 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const database = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = database;
+if (env.NODE_ENV !== "production") globalForPrisma.prisma = database;
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await database.$disconnect();
-}
+};
+
 
 === src/lib/email/index.ts ===
 import { Resend } from "resend";

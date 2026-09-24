@@ -48,6 +48,8 @@ export const FEATURES: Feature[] = [
       "eslint-config-prettier",
       "eslint-plugin-simple-import-sort",
       "eslint-plugin-import",
+      "eslint-plugin-check-file",
+      "eslint-plugin-boundaries",
       "prettier",
       "prettier-plugin-packagejson",
       "husky",

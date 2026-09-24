@@ -33,13 +33,31 @@ describe("nextSteps", () => {
     );
   });
 
-  test("adds the database steps when a database was selected", () => {
+  test("generates and applies migrations when Drizzle was selected", () => {
     expect(
       nextSteps(
         config({
           packageManager: "pnpm",
           install: true,
           database: { engine: "postgres", orm: "drizzle" },
+        }),
+      ),
+    ).toEqual([
+      "cd app",
+      "docker compose up -d",
+      "pnpm run db:generate",
+      "pnpm run db:migrate",
+      "pnpm run dev",
+    ]);
+  });
+
+  test("pushes the schema when Prisma was selected", () => {
+    expect(
+      nextSteps(
+        config({
+          packageManager: "pnpm",
+          install: true,
+          database: { engine: "postgres", orm: "prisma" },
         }),
       ),
     ).toEqual([

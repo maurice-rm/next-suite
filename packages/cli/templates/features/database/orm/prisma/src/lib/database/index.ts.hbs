@@ -4,15 +4,19 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "@/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_MS = 30_000;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const adapter = new PrismaPg({
   host: env.POSTGRES_HOST,
   port: env.POSTGRES_PORT,
   database: env.POSTGRES_DATABASE,
   user: env.POSTGRES_USER,
   password: env.POSTGRES_PASSWORD,
-  max: 20,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  max: POOL_MAX_CONNECTIONS,
+  idleTimeoutMillis: POOL_IDLE_TIMEOUT_MS,
+  connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
 });
 {{else}}
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
@@ -20,15 +24,19 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { env } from "@/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_SECONDS = 30;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
 const adapter = new PrismaMariaDb({
   host: env.MYSQL_HOST,
   port: env.MYSQL_PORT,
   database: env.MYSQL_DATABASE,
   user: env.MYSQL_USER,
   password: env.MYSQL_PASSWORD,
-  connectionLimit: 20,
-  idleTimeout: 30,
-  connectTimeout: 5_000,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_SECONDS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 {{/if}}
 
@@ -37,8 +45,8 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export const database = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = database;
+if (env.NODE_ENV !== "production") globalForPrisma.prisma = database;
 
-export async function closeDatabase() {
+export const closeDatabase = async () => {
   await database.$disconnect();
-}
+};

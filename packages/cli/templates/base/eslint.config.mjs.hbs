@@ -2,6 +2,8 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
 const eslintConfig = defineConfig([
@@ -32,6 +34,94 @@ const eslintConfig = defineConfig([
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+{{{{raw}}}}
+                      featureName: "!{{ from.element.captured.featureName }}",
+{{{{/raw}}}}
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
     },
   },
   prettier,

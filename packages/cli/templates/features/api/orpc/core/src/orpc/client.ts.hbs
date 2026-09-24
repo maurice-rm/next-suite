@@ -3,7 +3,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
