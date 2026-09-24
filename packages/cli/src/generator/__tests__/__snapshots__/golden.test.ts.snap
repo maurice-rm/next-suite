@@ -1513,7 +1513,7 @@ export const GET = async (): Promise<Response> => {
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -1819,7 +1819,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -1832,7 +1832,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -1918,7 +1918,7 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
+=== src/orpc/routers/app-router.ts ===
 import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
@@ -3702,7 +3702,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -3961,7 +3961,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -3974,7 +3974,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -4044,7 +4044,7 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
+=== src/orpc/routers/app-router.ts ===
 import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
@@ -5766,7 +5766,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -5801,7 +5801,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new OpenAPIHandler(appRouter, {
   plugins: [
@@ -6027,7 +6027,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -6040,7 +6040,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -6110,7 +6110,7 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
+=== src/orpc/routers/app-router.ts ===
 import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
@@ -6719,7 +6719,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
@@ -6754,7 +6754,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new OpenAPIHandler(appRouter, {
   interceptors: [onError((error) => console.error("[oRPC OpenAPI]", error))],
@@ -6983,7 +6983,7 @@ import { headers } from "next/headers";
 
 import { createRouterClient } from "@orpc/server";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 globalThis.$client = createRouterClient(appRouter, {
   context: async () => ({ headers: await headers() }),
@@ -6996,7 +6996,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
-import type { appRouter } from "@/orpc/routers/_app";
+import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
   var $client: RouterClient<typeof appRouter> | undefined;
@@ -7066,7 +7066,7 @@ export const createQueryClient = () =>
   });
 
 
-=== src/orpc/routers/_app.ts ===
+=== src/orpc/routers/app-router.ts ===
 import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
@@ -8784,7 +8784,7 @@ export const GET = async (): Promise<Response> => {
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
 import { createTRPCContext } from "@/trpc";
-import { appRouter } from "@/trpc/routers/_app";
+import { appRouter } from "@/trpc/routers/app-router";
 
 const handler = (request: Request) =>
   fetchRequestHandler({
@@ -8941,7 +8941,7 @@ import superjson from "superjson";
 import { env } from "@/env";
 import { TRPCProvider } from "@/trpc/client";
 import { createQueryClient } from "@/trpc/query-client";
-import type { AppRouter } from "@/trpc/routers/_app";
+import type { AppRouter } from "@/trpc/routers/app-router";
 
 let browserQueryClient: QueryClient | undefined;
 let browserTRPCClient: TRPCClient<AppRouter> | undefined;
@@ -9239,7 +9239,7 @@ export const resend = new Proxy({} as Resend, {
 
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 
-import type { AppRouter } from "@/trpc/routers/_app";
+import type { AppRouter } from "@/trpc/routers/app-router";
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 
@@ -9316,7 +9316,7 @@ export const createQueryClient = () =>
   });
 
 
-=== src/trpc/routers/_app.ts ===
+=== src/trpc/routers/app-router.ts ===
 import { healthRouter } from "@/features/health/server/router";
 import { router } from "@/trpc";
 
@@ -9343,7 +9343,7 @@ import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import { createTRPCContext } from "@/trpc";
 import { createQueryClient } from "@/trpc/query-client";
-import { appRouter } from "@/trpc/routers/_app";
+import { appRouter } from "@/trpc/routers/app-router";
 
 export const getQueryClient = cache(createQueryClient);
 

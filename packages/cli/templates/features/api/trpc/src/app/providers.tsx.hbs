@@ -19,7 +19,7 @@ import superjson from "superjson";
 import { env } from "@/env";
 import { TRPCProvider } from "@/trpc/client";
 import { createQueryClient } from "@/trpc/query-client";
-import type { AppRouter } from "@/trpc/routers/_app";
+import type { AppRouter } from "@/trpc/routers/app-router";
 
 let browserQueryClient: QueryClient | undefined;
 let browserTRPCClient: TRPCClient<AppRouter> | undefined;

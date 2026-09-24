@@ -8,7 +8,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { appRouter } from "@/orpc/routers/_app";
+import { appRouter } from "@/orpc/routers/app-router";
 
 {{#if api.openapi.scalar}}
 const handler = new OpenAPIHandler(appRouter, {
