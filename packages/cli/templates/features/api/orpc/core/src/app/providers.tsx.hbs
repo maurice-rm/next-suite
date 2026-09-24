@@ -16,7 +16,9 @@ const getQueryClient = () => {
   return (browserQueryClient ??= createQueryClient());
 };
 
-export const Providers = ({ children }: { children: ReactNode }) => (
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => (
   <QueryClientProvider client={getQueryClient()}>
     {children}
   </QueryClientProvider>

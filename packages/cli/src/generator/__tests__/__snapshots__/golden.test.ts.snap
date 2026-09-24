@@ -1717,11 +1717,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>
       <Providers>{children}</Providers>
@@ -1771,7 +1769,9 @@ const getQueryClient = () => {
   return (browserQueryClient ??= createQueryClient());
 };
 
-export const Providers = ({ children }: { children: ReactNode }) => (
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => (
   <QueryClientProvider client={getQueryClient()}>
     {children}
   </QueryClientProvider>
@@ -2033,7 +2033,9 @@ import { createQueryClient } from "@/orpc/query-client";
 
 export const getQueryClient = cache(createQueryClient);
 
-export const HydrateClient = ({ children }: { children: ReactNode }) => {
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
@@ -2920,11 +2922,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>{children}</body>
   </html>
@@ -4085,11 +4085,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>
       <Providers>{children}</Providers>
@@ -4139,7 +4137,9 @@ const getQueryClient = () => {
   return (browserQueryClient ??= createQueryClient());
 };
 
-export const Providers = ({ children }: { children: ReactNode }) => (
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => (
   <QueryClientProvider client={getQueryClient()}>
     {children}
   </QueryClientProvider>
@@ -4339,7 +4339,9 @@ import { createQueryClient } from "@/orpc/query-client";
 
 export const getQueryClient = cache(createQueryClient);
 
-export const HydrateClient = ({ children }: { children: ReactNode }) => {
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
@@ -5530,11 +5532,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>{children}</body>
   </html>
@@ -6370,11 +6370,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>
       <Providers>{children}</Providers>
@@ -6424,7 +6422,9 @@ const getQueryClient = () => {
   return (browserQueryClient ??= createQueryClient());
 };
 
-export const Providers = ({ children }: { children: ReactNode }) => (
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => (
   <QueryClientProvider client={getQueryClient()}>
     {children}
   </QueryClientProvider>
@@ -6585,7 +6585,9 @@ import { createQueryClient } from "@/orpc/query-client";
 
 export const getQueryClient = cache(createQueryClient);
 
-export const HydrateClient = ({ children }: { children: ReactNode }) => {
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
@@ -7416,11 +7418,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>
       <Providers>{children}</Providers>
@@ -7470,7 +7470,9 @@ const getQueryClient = () => {
   return (browserQueryClient ??= createQueryClient());
 };
 
-export const Providers = ({ children }: { children: ReactNode }) => (
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => (
   <QueryClientProvider client={getQueryClient()}>
     {children}
   </QueryClientProvider>
@@ -7631,7 +7633,9 @@ import { createQueryClient } from "@/orpc/query-client";
 
 export const getQueryClient = cache(createQueryClient);
 
-export const HydrateClient = ({ children }: { children: ReactNode }) => {
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
@@ -9514,11 +9518,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>
       <Providers>{children}</Providers>
@@ -9612,7 +9614,9 @@ const getTRPCClient = () => {
   return (browserTRPCClient ??= makeTRPCClient());
 };
 
-export const Providers = ({ children }: { children: ReactNode }) => {
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => {
   const queryClient = getQueryClient();
   const trpcClient = getTRPCClient();
 
@@ -9983,7 +9987,9 @@ export const trpc = createTRPCOptionsProxy({
   queryClient: getQueryClient,
 });
 
-export const HydrateClient = ({ children }: { children: ReactNode }) => {
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
@@ -11614,11 +11620,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
     <body>{children}</body>
   </html>

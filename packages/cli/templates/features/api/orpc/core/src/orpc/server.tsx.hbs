@@ -14,7 +14,9 @@ import { createQueryClient } from "@/orpc/query-client";
 
 export const getQueryClient = cache(createQueryClient);
 
-export const HydrateClient = ({ children }: { children: ReactNode }) => {
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
   const state = dehydrate(getQueryClient());
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
