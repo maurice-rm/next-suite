@@ -41,6 +41,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 <br>
 
 - **Next.js 16 · React 19 · TypeScript (strict)** — App Router, the React Compiler enabled, `@/*` path alias, `noUncheckedIndexedAccess`.
+- **Error boundaries** — root `error.tsx`, `global-error.tsx` and `not-found.tsx`.
 - **ESLint** (flat config) — Next core-web-vitals + TypeScript presets, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible.
 - **Prettier** — with `prettier-plugin-packagejson`.
 - **Git hooks** — Husky + `lint-staged` + commitlint (Conventional Commits).

@@ -1542,8 +1542,52 @@ export {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 @import "tailwindcss";
@@ -1596,6 +1640,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===
@@ -2593,8 +2650,52 @@ import { auth } from "@/lib/auth";
 export const { GET, POST } = toNextJsHandler(auth);
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -2641,6 +2742,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===
@@ -3600,8 +3714,52 @@ export {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -3653,6 +3811,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===
@@ -4896,8 +5067,52 @@ export const GET = async (): Promise<Response> => {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -4944,6 +5159,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===
@@ -5585,8 +5813,52 @@ export {
   handleRequest as PUT,
 };
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -5638,6 +5910,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===
@@ -6484,8 +6769,52 @@ export {
   handleRequest as PUT,
 };
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 
@@ -6537,6 +6866,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===
@@ -8432,8 +8774,52 @@ const handler = (request: Request) =>
 export { handler as GET, handler as POST };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 @import "tailwindcss";
@@ -8485,6 +8871,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===
@@ -10383,8 +10782,52 @@ export const GET = async (): Promise<Response> => {
 };
 
 
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
 === src/app/favicon.ico ===
 <binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
 
 === src/app/globals.css ===
 @import "tailwindcss";
@@ -10432,6 +10875,19 @@ const RootLayout = ({
 );
 
 export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
 
 
 === src/app/page.tsx ===

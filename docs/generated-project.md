@@ -63,9 +63,12 @@ This is what the base layer writes, before any feature is applied:
 │   └── setup.sh
 ├── src/
 │   ├── app/
+│   │   ├── error.tsx
 │   │   ├── favicon.ico
+│   │   ├── global-error.tsx
 │   │   ├── globals.css
 │   │   ├── layout.tsx
+│   │   ├── not-found.tsx
 │   │   └── page.tsx
 │   └── env.ts
 └── tsconfig.json

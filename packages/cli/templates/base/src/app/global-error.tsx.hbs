@@ -1,0 +1,21 @@
+"use client";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
