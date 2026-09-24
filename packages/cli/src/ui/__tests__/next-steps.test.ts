@@ -33,7 +33,7 @@ describe("nextSteps", () => {
     );
   });
 
-  test("adds the database steps when a database was selected", () => {
+  test("generates and applies migrations when Drizzle was selected", () => {
     expect(
       nextSteps(
         config({
