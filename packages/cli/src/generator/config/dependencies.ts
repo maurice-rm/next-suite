@@ -14,6 +14,7 @@ export const VERSIONS = {
   "eslint-plugin-simple-import-sort": "^14.0.0",
   "eslint-plugin-import": "^2.32.0",
   "eslint-plugin-check-file": "^3.3.2",
+  "eslint-plugin-boundaries": "^7.2.0",
   prettier: "^3.8.4",
   "prettier-plugin-packagejson": "^3.0.2",
   husky: "^9.1.7",

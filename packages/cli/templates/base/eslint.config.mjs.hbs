@@ -2,6 +2,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -74,6 +75,45 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+{{{{raw}}}}
+                      featureName: "!{{ from.element.captured.featureName }}",
+{{{{/raw}}}}
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },

@@ -603,6 +603,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -673,6 +674,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -1001,6 +1039,7 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
@@ -2346,6 +2385,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -2415,6 +2455,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -2509,6 +2586,7 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
@@ -3447,6 +3525,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -3516,6 +3595,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -3619,6 +3735,7 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
@@ -4650,6 +4767,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -4719,6 +4837,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -4932,6 +5087,7 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
@@ -5674,6 +5830,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -5743,6 +5900,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -5837,6 +6031,7 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
@@ -6678,6 +6873,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -6747,6 +6943,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -6841,6 +7074,7 @@ export default nextConfig;
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
@@ -8238,6 +8472,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -8307,6 +8542,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -8642,6 +8914,7 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
@@ -10327,6 +10600,7 @@ import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -10397,6 +10671,43 @@ const eslintConfig = defineConfig([
         {
           "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
           "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
         },
       ],
     },
@@ -10661,6 +10972,7 @@ http {
     "eslint": "^9.39.4",
     "eslint-config-next": "16.3.6",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
     "eslint-plugin-check-file": "^3.3.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",

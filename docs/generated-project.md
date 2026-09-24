@@ -26,6 +26,7 @@ The always-installed dev toolchain:
 | `eslint-plugin-simple-import-sort` | `^14.0.0`  | Import ordering.                    |
 | `eslint-plugin-import`             | `^2.32.0`  | Import hygiene.                     |
 | `eslint-plugin-check-file`         | `^3.3.2`   | Kebab-case file and folder names.   |
+| `eslint-plugin-boundaries`         | `^7.2.0`   | No imports between features.        |
 | `prettier`                         | `^3.8.4`   | Formatter.                          |
 | `prettier-plugin-packagejson`      | `^3.0.2`   | Sorts `package.json`.               |
 | `husky`                            | `^9.1.7`   | Git hooks.                          |
