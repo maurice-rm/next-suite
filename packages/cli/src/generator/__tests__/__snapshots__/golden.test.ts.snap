@@ -665,10 +665,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -682,10 +678,6 @@ COPY prisma.config.ts ./prisma.config.ts
 COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \\
   npm install -g bun && bun install --frozen-lockfile
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -703,10 +695,6 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 RUN npm install -g bun && bun run build
 
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
-
 FROM node:\${NODE_VERSION} AS runner
 
 WORKDIR /app
@@ -723,17 +711,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   openssl \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Migration tooling (applied on start by entrypoint.sh)
 # prisma migrate deploy needs the full CLI + engines + transitive deps (not
 # traced into standalone), so the complete node_modules is copied, per the
 # Prisma Docker guide. The schema + config supply the connection URL.
@@ -754,7 +738,6 @@ ENTRYPOINT ["./entrypoint.sh"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -1072,8 +1055,7 @@ model Verification {
 
 
 === prisma/schema.prisma ===
-// Add your models in per-domain files under prisma/models/*.prisma —
-// every .prisma file below prisma/ is part of the schema.
+// Every .prisma file below prisma/ is part of this schema.
 
 generator client {
   provider = "prisma-client"
@@ -1509,7 +1491,8 @@ export const { GET, POST } = toNextJsHandler(auth);
 
 
 === src/app/api/health/route.ts ===
-import { env } from "@/env";
+import "@/env";
+
 import { database } from "@/lib/database";
 
 // Never prerendered: at build time there is no database to reach.
@@ -1517,7 +1500,6 @@ export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     await database.$queryRaw\`SELECT 1\`;
     return Response.json({ status: "ok" });
   } catch (error) {
@@ -1871,7 +1853,6 @@ export const healthRouter = {
 === src/orpc/routers/health/status.ts ===
 import { publicProcedure } from "@/orpc";
 
-// The Date proves typed transport: the RPC protocol carries it natively.
 export const status = publicProcedure.handler(() => ({
   status: "ok" as const,
   time: new Date(),
@@ -2263,7 +2244,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -2831,9 +2811,6 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 
 === src/lib/database/schema/index.ts ===
-// Define your tables in per-domain files and re-export them here, e.g.:
-// export * from "./users";
-// https://orm.drizzle.team/docs/sql-schema-declaration
 export * from "./auth";
 
 
@@ -3251,7 +3228,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -3720,9 +3696,6 @@ export async function closeDatabase() {
 }
 
 === src/lib/database/schema/index.ts ===
-// Define your tables in per-domain files and re-export them here, e.g.:
-// export * from "./users";
-// https://orm.drizzle.team/docs/sql-schema-declaration
 export {};
 
 
@@ -3831,7 +3804,6 @@ export const healthRouter = {
 === src/orpc/routers/health/status.ts ===
 import { publicProcedure } from "@/orpc";
 
-// The Date proves typed transport: the RPC protocol carries it natively.
 export const status = publicProcedure.handler(() => ({
   status: "ok" as const,
   time: new Date(),
@@ -4298,10 +4270,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -4311,10 +4279,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \\
   npm ci
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -4326,10 +4290,6 @@ COPY . .
 ENV SKIP_ENV_VALIDATION=true
 
 RUN npm run build
-
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS runner
 
@@ -4344,13 +4304,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   curl \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
@@ -4365,7 +4322,6 @@ CMD ["node", "server.js"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -4840,14 +4796,14 @@ main
 
 
 === src/app/api/health/route.ts ===
-import { env } from "@/env";
+import "@/env";
+
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     return Response.json({ status: "ok" });
   } catch (error) {
     console.error("Health check failed:", error);
@@ -4919,7 +4875,6 @@ export const env = createEnv({
   server: {
   },
   client: {
-    // NEXT_PUBLIC_* vars go here.
   },
   experimental__runtimeEnv: {},
   emptyStringAsUndefined: true,
@@ -5235,7 +5190,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -5513,8 +5467,6 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
 import { appRouter } from "@/orpc/routers/_app";
 
-// The reference plugin serves the Scalar docs UI at /api/v1 and the OpenAPI
-// spec at /api/v1/spec.json.
 const handler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
@@ -5765,7 +5717,6 @@ import { z } from "zod";
 
 import { publicProcedure } from "@/orpc";
 
-// The Date proves typed transport: the RPC protocol carries it natively.
 export const status = publicProcedure
   .route({ method: "GET", path: "/health" })
   .output(z.object({ status: z.literal("ok"), time: z.date() }))
@@ -6101,7 +6052,6 @@ export default eslintConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
@@ -6632,7 +6582,6 @@ import { z } from "zod";
 
 import { publicProcedure } from "@/orpc";
 
-// The Date proves typed transport: the RPC protocol carries it natively.
 export const status = publicProcedure
   .route({ method: "GET", path: "/health" })
   .output(z.object({ status: z.literal("ok"), time: z.date() }))
@@ -7526,10 +7475,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -7539,10 +7484,6 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \\
   corepack enable pnpm && pnpm install --frozen-lockfile
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -7561,10 +7502,6 @@ RUN corepack enable pnpm && pnpm build
 # the driver included — so the runner needs nothing from node_modules for it.
 RUN npx --no -- esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --alias:@=./src --outfile=migrate.cjs
 
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
-
 FROM node:\${NODE_VERSION} AS runner
 
 WORKDIR /app
@@ -7579,17 +7516,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   postgresql-client \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Migration tooling (applied on start by entrypoint.sh)
 # migrate.cjs is a self-contained esbuild bundle; it only needs the migrations.
 COPY --from=builder --chown=node:node /app/drizzle ./drizzle
 COPY --from=builder --chown=node:node /app/migrate.cjs ./migrate.cjs
@@ -7607,7 +7540,6 @@ ENTRYPOINT ["./entrypoint.sh"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -8309,7 +8241,8 @@ export const { GET, POST } = toNextJsHandler(auth);
 === src/app/api/health/route.ts ===
 import { sql } from "drizzle-orm";
 
-import { env } from "@/env";
+import "@/env";
+
 import { database } from "@/lib/database";
 
 // Never prerendered: at build time there is no database to reach.
@@ -8317,7 +8250,6 @@ export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     await database.execute(sql\`select 1\`);
     return Response.json({ status: "ok" });
   } catch (error) {
@@ -8681,9 +8613,6 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 
 === src/lib/database/schema/index.ts ===
-// Define your tables in per-domain files and re-export them here, e.g.:
-// export * from "./users";
-// https://orm.drizzle.team/docs/sql-schema-declaration
 export * from "./auth";
 
 
@@ -8809,7 +8738,6 @@ export const healthRouter = router({
 === src/trpc/routers/health/status.ts ===
 import { publicProcedure } from "@/trpc";
 
-// The Date proves typed transport: superjson revives it on the client.
 export const status = publicProcedure.query(() => ({
   status: "ok" as const,
   time: new Date(),
@@ -8844,8 +8772,6 @@ export const HydrateClient = ({ children }: { children: ReactNode }) => {
   return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
 };
 
-// Prefetch a procedure in a Server Component (pair with <HydrateClient>):
-//   prefetch(trpc.health.status.queryOptions());
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const prefetch = <T extends ReturnType<TRPCQueryOptions<any>>>(
   queryOptions: T,
@@ -9500,10 +9426,6 @@ export default eslintConfig;
 
 
 === next.Dockerfile ===
-# ============================================
-# Stage 1: Install dependencies
-# ============================================
-
 ARG NODE_VERSION=24-slim
 
 FROM node:\${NODE_VERSION} AS dependencies
@@ -9517,10 +9439,6 @@ COPY prisma.config.ts ./prisma.config.ts
 COPY package.json yarn.lock .yarnrc.yml ./
 RUN --mount=type=cache,target=/root/.yarn/berry/cache \\
   corepack enable && yarn install --immutable
-
-# ============================================
-# Stage 2: Build the Next.js application
-# ============================================
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -9538,10 +9456,6 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
 RUN corepack enable && yarn build
 
-# ============================================
-# Stage 3: Run the Next.js application
-# ============================================
-
 FROM node:\${NODE_VERSION} AS runner
 
 WORKDIR /app
@@ -9558,17 +9472,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
   openssl \\
   && rm -rf /var/lib/apt/lists/*
 
-# Copy production assets
 COPY --from=builder --chown=node:node /app/public ./public
 
-# Set the correct permission for the prerender cache
 RUN mkdir .next && chown node:node .next
 
-# Copy standalone output and static files
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Migration tooling (applied on start by entrypoint.sh)
 # prisma migrate deploy needs the full CLI + engines + transitive deps (not
 # traced into standalone), so the complete node_modules is copied, per the
 # Prisma Docker guide. The schema + config supply the connection URL.
@@ -9589,7 +9499,6 @@ ENTRYPOINT ["./entrypoint.sh"]
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   poweredByHeader: false,
   output: "standalone",
   experimental: {
@@ -9847,8 +9756,7 @@ model Verification {
 
 
 === prisma/schema.prisma ===
-// Add your models in per-domain files under prisma/models/*.prisma —
-// every .prisma file below prisma/ is part of the schema.
+// Every .prisma file below prisma/ is part of this schema.
 
 generator client {
   provider = "prisma-client"
@@ -10284,7 +10192,8 @@ export const { GET, POST } = toNextJsHandler(auth);
 
 
 === src/app/api/health/route.ts ===
-import { env } from "@/env";
+import "@/env";
+
 import { database } from "@/lib/database";
 
 // Never prerendered: at build time there is no database to reach.
@@ -10292,7 +10201,6 @@ export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
     await database.$queryRaw\`SELECT 1\`;
     return Response.json({ status: "ok" });
   } catch (error) {

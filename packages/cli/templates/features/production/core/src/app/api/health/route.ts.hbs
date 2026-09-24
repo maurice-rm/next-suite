@@ -2,7 +2,8 @@
 import { sql } from "drizzle-orm";
 
 {{/if}}
-import { env } from "@/env";
+import "@/env";
+
 {{#if database}}
 import { database } from "@/lib/database";
 {{/if}}
@@ -12,7 +13,6 @@ export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-    void env;
 {{#if database}}
 {{#if (eq database.orm "drizzle")}}
     await database.execute(sql`select 1`);

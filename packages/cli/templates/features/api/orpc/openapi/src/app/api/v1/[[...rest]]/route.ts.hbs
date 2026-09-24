@@ -11,8 +11,6 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { appRouter } from "@/orpc/routers/_app";
 
 {{#if api.openapi.scalar}}
-// The reference plugin serves the Scalar docs UI at /api/v1 and the OpenAPI
-// spec at /api/v1/spec.json.
 const handler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({

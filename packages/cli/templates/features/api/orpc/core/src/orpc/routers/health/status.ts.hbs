@@ -4,7 +4,6 @@ import { z } from "zod";
 {{/if}}
 import { publicProcedure } from "@/orpc";
 
-// The Date proves typed transport: the RPC protocol carries it natively.
 {{#if api.openapi}}
 export const status = publicProcedure
   .route({ method: "GET", path: "/health" })
