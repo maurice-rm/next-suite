@@ -1,6 +1,0 @@
-import { publicProcedure } from "@/trpc";
-
-export const status = publicProcedure.query(() => ({
-  status: "ok" as const,
-  time: new Date(),
-}));

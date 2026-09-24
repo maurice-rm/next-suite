@@ -1654,6 +1654,17 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure.handler(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+};
+
+
 === src/instrumentation.ts ===
 export const register = async () => {
   await import("./orpc/client.server");
@@ -1845,28 +1856,11 @@ export const createQueryClient = () =>
 
 
 === src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { publicProcedure } from "@/orpc";
-
-export const status = publicProcedure.handler(() => ({
-  status: "ok" as const,
-  time: new Date(),
-}));
 
 
 === src/orpc/server.tsx ===
@@ -3716,6 +3710,17 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure.handler(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+};
+
+
 === src/instrumentation.ts ===
 export const register = async () => {
   await import("./orpc/client.server");
@@ -3847,28 +3852,11 @@ export const createQueryClient = () =>
 
 
 === src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { publicProcedure } from "@/orpc";
-
-export const status = publicProcedure.handler(() => ({
-  status: "ok" as const,
-  time: new Date(),
-}));
 
 
 === src/orpc/server.tsx ===
@@ -5702,6 +5690,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { z } from "zod";
+
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure
+    .route({ method: "GET", path: "/health" })
+    .output(z.object({ status: z.literal("ok"), time: z.date() }))
+    .handler(() => ({
+      status: "ok" as const,
+      time: new Date(),
+    })),
+};
+
+
 === src/instrumentation.ts ===
 export const register = async () => {
   await import("./orpc/client.server");
@@ -5799,33 +5803,11 @@ export const createQueryClient = () =>
 
 
 === src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { z } from "zod";
-
-import { publicProcedure } from "@/orpc";
-
-export const status = publicProcedure
-  .route({ method: "GET", path: "/health" })
-  .output(z.object({ status: z.literal("ok"), time: z.date() }))
-  .handler(() => ({
-    status: "ok" as const,
-    time: new Date(),
-  }));
 
 
 === src/orpc/server.tsx ===
@@ -6607,6 +6589,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { z } from "zod";
+
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure
+    .route({ method: "GET", path: "/health" })
+    .output(z.object({ status: z.literal("ok"), time: z.date() }))
+    .handler(() => ({
+      status: "ok" as const,
+      time: new Date(),
+    })),
+};
+
+
 === src/instrumentation.ts ===
 export const register = async () => {
   await import("./orpc/client.server");
@@ -6704,33 +6702,11 @@ export const createQueryClient = () =>
 
 
 === src/orpc/routers/_app.ts ===
-import { healthRouter } from "./health";
+import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
 };
-
-
-=== src/orpc/routers/health/index.ts ===
-import { status } from "./status";
-
-export const healthRouter = {
-  status,
-};
-
-
-=== src/orpc/routers/health/status.ts ===
-import { z } from "zod";
-
-import { publicProcedure } from "@/orpc";
-
-export const status = publicProcedure
-  .route({ method: "GET", path: "/health" })
-  .output(z.object({ status: z.literal("ok"), time: z.date() }))
-  .handler(() => ({
-    status: "ok" as const,
-    time: new Date(),
-  }));
 
 
 === src/orpc/server.tsx ===
@@ -8620,6 +8596,17 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.ts ===
+import { publicProcedure, router } from "@/trpc";
+
+export const healthRouter = router({
+  status: publicProcedure.query(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+});
+
+
 === src/lib/auth/client.ts ===
 import { createAuthClient } from "better-auth/react";
 
@@ -8901,34 +8888,14 @@ export const createQueryClient = () =>
 
 
 === src/trpc/routers/_app.ts ===
+import { healthRouter } from "@/features/health/server/router";
 import { router } from "@/trpc";
-
-import { healthRouter } from "./health";
 
 export const appRouter = router({
   health: healthRouter,
 });
 
 export type AppRouter = typeof appRouter;
-
-
-=== src/trpc/routers/health/index.ts ===
-import { router } from "@/trpc";
-
-import { status } from "./status";
-
-export const healthRouter = router({
-  status,
-});
-
-
-=== src/trpc/routers/health/status.ts ===
-import { publicProcedure } from "@/trpc";
-
-export const status = publicProcedure.query(() => ({
-  status: "ok" as const,
-  time: new Date(),
-}));
 
 
 === src/trpc/server.tsx ===

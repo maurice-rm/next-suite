@@ -1,0 +1,8 @@
+import { publicProcedure, router } from "@/trpc";
+
+export const healthRouter = router({
+  status: publicProcedure.query(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+});
