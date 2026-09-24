@@ -12,6 +12,7 @@ export default defineConfig({
 {{/if}}
   schema: "./src/lib/database/schema/index.ts",
   out: "./drizzle",
+  casing: "snake_case",
   dbCredentials: {
 {{#if (eq database.engine "postgres")}}
     host: env.POSTGRES_HOST,

@@ -2280,6 +2280,7 @@ export default defineConfig({
   dialect: "mysql",
   schema: "./src/lib/database/schema/index.ts",
   out: "./drizzle",
+  casing: "snake_case",
   dbCredentials: {
     host: env.MYSQL_HOST,
     port: env.MYSQL_PORT,
@@ -2865,7 +2866,12 @@ const pool = mysql.createPool({
   connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
-export const database = drizzle({ client: pool, schema, mode: "default" });
+export const database = drizzle({
+  client: pool,
+  schema,
+  mode: "default",
+  casing: "snake_case",
+});
 
 export const closeDatabase = async () => {
   await pool.end();
@@ -2884,32 +2890,32 @@ import {
 } from "drizzle-orm/mysql-core";
 
 export const user = mysqlTable("user", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { fsp: 3 })
+  id: varchar({ length: 36 }).primaryKey(),
+  name: varchar({ length: 255 }).notNull(),
+  email: varchar({ length: 255 }).notNull().unique(),
+  emailVerified: boolean().default(false).notNull(),
+  image: text(),
+  createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+  updatedAt: timestamp({ fsp: 3 })
     .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .$onUpdate(() => new Date())
     .notNull(),
 });
 
 export const session = mysqlTable(
   "session",
   {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
-    token: varchar("token", { length: 255 }).notNull().unique(),
-    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { fsp: 3 })
+    id: varchar({ length: 36 }).primaryKey(),
+    expiresAt: timestamp({ fsp: 3 }).notNull(),
+    token: varchar({ length: 255 }).notNull().unique(),
+    createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ fsp: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: varchar("user_id", { length: 36 })
+    ipAddress: text(),
+    userAgent: text(),
+    userId: varchar({ length: 36 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
@@ -2919,23 +2925,23 @@ export const session = mysqlTable(
 export const account = mysqlTable(
   "account",
   {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: varchar("user_id", { length: 36 })
+    id: varchar({ length: 36 }).primaryKey(),
+    accountId: text().notNull(),
+    providerId: text().notNull(),
+    userId: varchar({ length: 36 })
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { fsp: 3 }),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { fsp: 3 }),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { fsp: 3 })
+    accessToken: text(),
+    refreshToken: text(),
+    idToken: text(),
+    accessTokenExpiresAt: timestamp({ fsp: 3 }),
+    refreshTokenExpiresAt: timestamp({ fsp: 3 }),
+    scope: text(),
+    password: text(),
+    createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ fsp: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("account_userId_idx").on(table.userId)],
@@ -2944,14 +2950,14 @@ export const account = mysqlTable(
 export const verification = mysqlTable(
   "verification",
   {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    identifier: varchar("identifier", { length: 255 }).notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at", { fsp: 3 }).notNull(),
-    createdAt: timestamp("created_at", { fsp: 3 }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { fsp: 3 })
+    id: varchar({ length: 36 }).primaryKey(),
+    identifier: varchar({ length: 255 }).notNull(),
+    value: text().notNull(),
+    expiresAt: timestamp({ fsp: 3 }).notNull(),
+    createdAt: timestamp({ fsp: 3 }).defaultNow().notNull(),
+    updatedAt: timestamp({ fsp: 3 })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
@@ -3324,6 +3330,7 @@ export default defineConfig({
   dialect: "mysql",
   schema: "./src/lib/database/schema/index.ts",
   out: "./drizzle",
+  casing: "snake_case",
   dbCredentials: {
     host: env.MYSQL_HOST,
     port: env.MYSQL_PORT,
@@ -3931,7 +3938,12 @@ const pool = mysql.createPool({
   connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
 });
 
-export const database = drizzle({ client: pool, schema, mode: "default" });
+export const database = drizzle({
+  client: pool,
+  schema,
+  mode: "default",
+  casing: "snake_case",
+});
 
 export const closeDatabase = async () => {
   await pool.end();
@@ -7864,6 +7876,7 @@ export default defineConfig({
   dialect: "postgresql",
   schema: "./src/lib/database/schema/index.ts",
   out: "./drizzle",
+  casing: "snake_case",
   dbCredentials: {
     host: env.POSTGRES_HOST,
     port: env.POSTGRES_PORT,
@@ -9089,7 +9102,11 @@ const pool = new Pool({
   connectionTimeoutMillis: POOL_CONNECTION_TIMEOUT_MS,
 });
 
-export const database = drizzle({ client: pool, schema });
+export const database = drizzle({
+  client: pool,
+  schema,
+  casing: "snake_case",
+});
 
 export const closeDatabase = async () => {
   await pool.end();
@@ -9101,32 +9118,32 @@ import { relations } from "drizzle-orm";
 import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
+  id: text().primaryKey(),
+  name: text().notNull(),
+  email: text().notNull().unique(),
+  emailVerified: boolean().default(false).notNull(),
+  image: text(),
+  createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp({ withTimezone: true })
     .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .$onUpdate(() => new Date())
     .notNull(),
 });
 
 export const session = pgTable(
   "session",
   {
-    id: text("id").primaryKey(),
-    expiresAt: timestamp("expires_at").notNull(),
-    token: text("token").notNull().unique(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    id: text().primaryKey(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    token: text().notNull().unique(),
+    createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp({ withTimezone: true })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: text("user_id")
+    ipAddress: text(),
+    userAgent: text(),
+    userId: text()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
@@ -9136,23 +9153,23 @@ export const session = pgTable(
 export const account = pgTable(
   "account",
   {
-    id: text("id").primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: text("user_id")
+    id: text().primaryKey(),
+    accountId: text().notNull(),
+    providerId: text().notNull(),
+    userId: text()
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at"),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    accessToken: text(),
+    refreshToken: text(),
+    idToken: text(),
+    accessTokenExpiresAt: timestamp({ withTimezone: true }),
+    refreshTokenExpiresAt: timestamp({ withTimezone: true }),
+    scope: text(),
+    password: text(),
+    createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp({ withTimezone: true })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("account_userId_idx").on(table.userId)],
@@ -9161,14 +9178,14 @@ export const account = pgTable(
 export const verification = pgTable(
   "verification",
   {
-    id: text("id").primaryKey(),
-    identifier: text("identifier").notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
+    id: text().primaryKey(),
+    identifier: text().notNull(),
+    value: text().notNull(),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    createdAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp({ withTimezone: true })
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
