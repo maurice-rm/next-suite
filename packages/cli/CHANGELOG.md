@@ -1,5 +1,54 @@
 # create-next-suite
 
+## 1.1.0
+
+### Minor Changes
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Map Drizzle columns to snake_case through the `casing` option instead of a
+  name string per column, and store the Postgres auth timestamps as
+  `timestamp with time zone`.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Enforce conventions in the generated ESLint config: no `any` or non-null
+  assertions, `max-params` 3, `max-depth` 2, arrow-function components,
+  kebab-case file and folder names (`eslint-plugin-check-file`), no import
+  cycles, and a one-way import direction between `lib`/`components`,
+  `features` and `app`. shadcn's vendored `components/ui` keeps its function
+  components.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Forbid imports between two features in the generated ESLint config through
+  `eslint-plugin-boundaries`; imports inside a feature stay allowed.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Generate root error boundaries: `error.tsx`, `global-error.tsx` and
+  `not-found.tsx` in `src/app/`.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Type the tRPC `prefetch` helper without `any` and split it into `prefetch`
+  and `prefetchInfinite`; generate the same pair for oRPC.
+
+### Patch Changes
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Name the root router file after its export: `routers/app-router.ts` instead
+  of `routers/_app.ts`.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Generate the root layout and `closeDatabase` as arrow functions, name the
+  query-client and connection-pool numbers as constants, and spell out
+  `request` in the tRPC route handler.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Read the database credentials in `drizzle.config.ts` through the typed `env`
+  instead of `process.env` with non-null assertions, and route Prisma's
+  `NODE_ENV` check through `env` as a shared variable.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Generate the health router inside its feature at
+  `src/features/health/server/router.ts`; `routers/app-router.ts` only composes the
+  feature routers.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Recommend `db:generate` + `db:migrate` instead of `db:push` for Drizzle
+  projects, in the closing next steps and in `scripts/setup.sh`, so the
+  committed migrations match what production applies.
+
+- [#42](https://github.com/maurice-rm/next-suite/pull/42) [`eb1e8a1`](https://github.com/maurice-rm/next-suite/commit/eb1e8a17067587a9316f4a16d5bf88aa3eec6d1e) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Drop explanatory and placeholder comments from the generated code and the
+  Dockerfile; the health route validates the environment through a side-effect
+  import instead of `void env`.
+
 ## 1.0.4
 
 ### Patch Changes
