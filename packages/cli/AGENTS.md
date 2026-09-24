@@ -33,7 +33,7 @@ gatherProjectConfig() → ProjectConfig → scaffold(config) → runPostSteps(co
    await runPostSteps(config);
    ```
    On throw it prints `p.cancel(...)`, and **if `config.action === "empty"`** it appends a data-loss warning that the target's previous contents may already be gone, then `process.exit(1)`.
-5. **Outro** — `renderOutro(config)` (`ui/outro`) prints the closing summary panel: project name, the selected stack (read from the config, each label resolved via `options.ts`), the next-step commands (`nextSteps` — `cd`, then conditionally `docker compose up -d`, `<pm> install`, `<pm> run db:push`, and always `<pm> run dev`), and a docs link.
+5. **Outro** — `renderOutro(config)` (`ui/outro`) prints the closing summary panel: project name, the selected stack (read from the config, each label resolved via `options.ts`), the next-step commands (`nextSteps` — `cd`, then conditionally `docker compose up -d`, `<pm> install`, `<pm> run db:generate` + `db:migrate` for Drizzle or `<pm> run db:push` for Prisma, and always `<pm> run dev`), and a docs link.
 
 ### The `ProjectConfig` contract (`core/types.ts`)
 

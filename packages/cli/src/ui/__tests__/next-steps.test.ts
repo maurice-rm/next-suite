@@ -45,6 +45,24 @@ describe("nextSteps", () => {
     ).toEqual([
       "cd app",
       "docker compose up -d",
+      "pnpm run db:generate",
+      "pnpm run db:migrate",
+      "pnpm run dev",
+    ]);
+  });
+
+  test("pushes the schema when Prisma was selected", () => {
+    expect(
+      nextSteps(
+        config({
+          packageManager: "pnpm",
+          install: true,
+          database: { engine: "postgres", orm: "prisma" },
+        }),
+      ),
+    ).toEqual([
+      "cd app",
+      "docker compose up -d",
       "pnpm run db:push",
       "pnpm run dev",
     ]);
