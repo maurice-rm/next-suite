@@ -42,7 +42,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 
 - **Next.js 16 · React 19 · TypeScript (strict)** — App Router, the React Compiler enabled, `@/*` path alias, `noUncheckedIndexedAccess`.
 - **Error boundaries** — root `error.tsx`, `global-error.tsx` and `not-found.tsx`.
-- **ESLint** (flat config) — Next core-web-vitals + TypeScript presets, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible.
+- **ESLint** (flat config) — Next core-web-vitals + TypeScript presets, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, at most three parameters and two nesting levels, arrow-function components, kebab-case file and folder names, no import cycles, and a one-way import direction (`lib`/`components` ← `features` ← `app`).
 - **Prettier** — with `prettier-plugin-packagejson`.
 - **Git hooks** — Husky + `lint-staged` + commitlint (Conventional Commits).
 - **Typed environment variables** — `@/env` via `@t3-oss/env-nextjs` + `zod`, validated at startup; features add their vars automatically.
