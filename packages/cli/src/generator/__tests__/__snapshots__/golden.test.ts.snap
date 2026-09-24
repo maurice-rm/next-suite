@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`golden FileMap > 'bun · tailwind, no shadcn' 1`] = `
+exports[`golden FileMap > bun · tailwind, no shadcn 1`] = `
 "=== .dockerignore ===
 node_modules
 .next
@@ -1936,7 +1936,7 @@ export const HydrateClient = ({ children }: { children: ReactNode }) => {
 "
 `;
 
-exports[`golden FileMap > 'npm · drizzle + mysql + auth' 1`] = `
+exports[`golden FileMap > npm · drizzle + mysql + auth 1`] = `
 "=== .editorconfig ===
 root = true
 
@@ -2878,7 +2878,7 @@ export * from "./auth";
 "
 `;
 
-exports[`golden FileMap > 'npm · drizzle + mysql' 1`] = `
+exports[`golden FileMap > npm · drizzle + mysql 1`] = `
 "=== .editorconfig ===
 root = true
 
@@ -3896,7 +3896,7 @@ export const HydrateClient = ({ children }: { children: ReactNode }) => {
 "
 `;
 
-exports[`golden FileMap > 'npm · minimal (everything off)' 1`] = `
+exports[`golden FileMap > npm · minimal (everything off) 1`] = `
 "=== .dockerignore ===
 node_modules
 .next
@@ -4967,7 +4967,7 @@ export const env = createEnv({
 "
 `;
 
-exports[`golden FileMap > 'orpc · openapi + scalar' 1`] = `
+exports[`golden FileMap > orpc · openapi + scalar 1`] = `
 "=== .editorconfig ===
 root = true
 
@@ -5833,7 +5833,7 @@ export const HydrateClient = ({ children }: { children: ReactNode }) => {
 "
 `;
 
-exports[`golden FileMap > 'orpc · openapi without scalar' 1`] = `
+exports[`golden FileMap > orpc · openapi without scalar 1`] = `
 "=== .editorconfig ===
 root = true
 
@@ -6700,7 +6700,7 @@ export const HydrateClient = ({ children }: { children: ReactNode }) => {
 "
 `;
 
-exports[`golden FileMap > 'pnpm · shadcn + full stack' 1`] = `
+exports[`golden FileMap > pnpm · shadcn + full stack 1`] = `
 "=== .dockerignore ===
 node_modules
 .next
@@ -8901,7 +8901,7 @@ export const prefetch = <T extends ReturnType<TRPCQueryOptions<any>>>(
 "
 `;
 
-exports[`golden FileMap > 'yarn · shadcn base, no preset' 1`] = `
+exports[`golden FileMap > yarn · shadcn base, no preset 1`] = `
 "=== .dockerignore ===
 node_modules
 .next

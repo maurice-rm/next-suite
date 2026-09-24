@@ -51,7 +51,7 @@ const resolveDomain = async (flag?: string): Promise<string> => {
       message: "Public domain for this project",
       validate: requiredInput("Domain"),
     });
-    if (p.isCancel(input)) throw new Error("Cancelled.");
+    if (typeof input !== "string") throw new Error("Cancelled.");
     domain = input;
   }
   if (!isValidHostname(domain)) {
