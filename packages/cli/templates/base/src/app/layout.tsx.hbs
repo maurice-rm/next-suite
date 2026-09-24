@@ -35,11 +35,9 @@ export const viewport: Viewport = {
   ],
 };
 
-const RootLayout = ({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) => (
+type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
 {{#if api}}
     <body>
