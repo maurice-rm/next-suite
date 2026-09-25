@@ -1,5 +1,12 @@
 # create-next-suite
 
+## 1.2.0
+
+### Minor Changes
+
+- [#46](https://github.com/maurice-rm/next-suite/pull/46) [`08b385a`](https://github.com/maurice-rm/next-suite/commit/08b385a2501705262f5b04018640372733ee43e9) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Offer React Aria as a shadcn/ui base library (`--shadcn-base aria`), next to
+  Base UI and Radix UI.
+
 ## 1.1.1
 
 ### Patch Changes
