@@ -1,5 +1,13 @@
 # create-next-suite
 
+## 1.1.1
+
+### Patch Changes
+
+- [#44](https://github.com/maurice-rm/next-suite/pull/44) [`1e4ac96`](https://github.com/maurice-rm/next-suite/commit/1e4ac96096627dd4c9588464291f2f11f8cd7178) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Name the prop types of the generated `RootLayout`, `Providers` and
+  `HydrateClient` components (`RootLayoutProps`, `ProvidersProps`,
+  `HydrateClientProps`) instead of writing them inline.
+
 ## 1.1.0
 
 ### Minor Changes
