@@ -26,6 +26,7 @@ export const COMPONENT_LIBRARIES = defineOptions([
 export const SHADCN_BASES = defineOptions([
   { value: "base", label: "Base UI", hint: "default" },
   { value: "radix", label: "Radix UI" },
+  { value: "aria", label: "React Aria" },
 ]);
 
 export const DATABASES = defineOptions([

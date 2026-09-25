@@ -41,7 +41,7 @@ const main = defineCommand({
     },
     "shadcn-base": {
       type: "string",
-      description: "shadcn base library: base or radix",
+      description: "shadcn base library: base, radix or aria",
     },
     "shadcn-preset": { type: "string", description: "shadcn preset code" },
     "shadcn-pointer": {

@@ -62,12 +62,12 @@ test("--shadcn honors base / preset / pointer", async () => {
   const config = await configFromFlags({
     name: "x",
     shadcn: true,
-    shadcnBase: "base",
+    shadcnBase: "aria",
     shadcnPreset: "b27Gc",
     shadcnPointer: true,
   });
   expect(config.shadcn).toEqual({
-    base: "base",
+    base: "aria",
     pointer: true,
     preset: "b27Gc",
   });
