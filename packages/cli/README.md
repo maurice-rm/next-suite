@@ -53,7 +53,7 @@ npx create-next-suite@latest my-app --yes --pm pnpm --tailwind \
 | `--pm <npm\|pnpm\|yarn\|bun>`        | detected, else `npm`  | Package manager                                              |
 | `--tailwind`                         | `false`               | Tailwind CSS (forced on by `--shadcn`)                       |
 | `--shadcn`                           | `false`               | shadcn/ui — implies Tailwind                                 |
-| `--shadcn-base <base\|radix>`        | `base`                | shadcn base library                                          |
+| `--shadcn-base <base\|radix\|aria>`  | `base`                | shadcn base library                                          |
 | `--shadcn-preset <code>`             | shadcn's blank preset | Preset code from shadcn/create                               |
 | `--shadcn-pointer`                   | `false`               | Pointer cursor on buttons                                    |
 | `--database <postgres\|mysql>`       | none                  | Dockerized local database — pass with `--orm`                |

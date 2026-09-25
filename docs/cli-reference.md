@@ -44,7 +44,7 @@ The flag names, types, and aliases come from `src/index.ts`. The defaults are no
 | `--pm`             | —     | string     | the manager detected from `npm_config_user_agent`, else `npm`      | Package manager: `npm`, `pnpm`, `yarn`, `bun`.                     |
 | `--tailwind`       | —     | boolean    | `false`; forced to `true` when `--shadcn` is passed                | Add Tailwind CSS.                                                  |
 | `--shadcn`         | —     | boolean    | `false`                                                            | Add shadcn/ui (implies Tailwind).                                  |
-| `--shadcn-base`    | —     | string     | `base`                                                             | shadcn base library: `base` or `radix`.                            |
+| `--shadcn-base`    | —     | string     | `base`                                                             | shadcn base library: `base`, `radix` or `aria`.                    |
 | `--shadcn-preset`  | —     | string     | none — the post-step falls back to shadcn's blank base preset `b0` | shadcn preset code.                                                |
 | `--shadcn-pointer` | —     | boolean    | `false`                                                            | Pointer cursor on buttons.                                         |
 | `--database`       | —     | string     | none — no database feature                                         | Database engine: `postgres` or `mysql` (with `--orm`).             |
@@ -82,7 +82,7 @@ The rules below are listed in the order `configFromFlags` evaluates them. The me
 | The shadcn sub-flags require `--shadcn`.               | `--shadcn-base, --shadcn-preset, and --shadcn-pointer require --shadcn.`                                                    |
 | A preset code must be a bare token.                    | `Invalid --shadcn-preset: Use only letters, numbers, - or _.`                                                               |
 | A non-empty target needs an override flag.             | `"<name>" already has conflicting files — pass --overwrite or --empty to proceed.`                                          |
-| `--shadcn-base` must name a known base.                | `Unknown shadcn base "<value>" — expected one of base, radix.`                                                              |
+| `--shadcn-base` must name a known base.                | `Unknown shadcn base "<value>" — expected one of base, radix, aria.`                                                        |
 | `--database` and `--orm` must be passed together.      | `--database and --orm must be passed together.`                                                                             |
 | `--database` must name a known engine.                 | `Unknown database "<value>" — expected one of postgres, mysql.`                                                             |
 | `--orm` must name a known ORM.                         | `Unknown ORM "<value>" — expected one of drizzle, prisma.`                                                                  |
@@ -123,7 +123,7 @@ The `Empty the directory` option is hidden when the target is the current workin
 | Step               | Question (verbatim)                                                            | Type    | Options                                                                  | Default     | Shown when               |
 | ------------------ | ------------------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------ | ----------- | ------------------------ |
 | `componentLibrary` | `Which component library would you like to use?`                               | select  | `shadcn/ui` (hint `recommended`), `None` (hint `bring your own styling`) | `shadcn/ui` | quick start was declined |
-| `base`             | `Which base library should shadcn/ui use?`                                     | select  | `Base UI` (hint `default`), `Radix UI`                                   | `Base UI`   | the library is shadcn/ui |
+| `base`             | `Which base library should shadcn/ui use?`                                     | select  | `Base UI` (hint `default`), `Radix UI`, `React Aria`                     | `Base UI`   | the library is shadcn/ui |
 | `pointer`          | `Use a pointer cursor on buttons?`                                             | confirm | `Yes` / `No`                                                             | `Yes`       | the library is shadcn/ui |
 | `preset`           | `Preset code from shadcn/create (optional — empty uses the blank base preset)` | text    | placeholder `e.g. b27GcrRo`                                              | empty       | the library is shadcn/ui |
 | `tailwind`         | `Use Tailwind CSS?`                                                            | confirm | `Yes` / `No`                                                             | `Yes`       | the library is `None`    |
