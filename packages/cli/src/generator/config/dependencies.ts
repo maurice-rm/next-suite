@@ -52,6 +52,8 @@ export const VERSIONS = {
   "server-only": "^0.0.1",
   "better-auth": "^1.6.23",
   resend: "^6.17.1",
+  pino: "^10.3.1",
+  "pino-pretty": "^13.1.3",
 } satisfies Record<string, string>;
 
 export type DependencyName = keyof typeof VERSIONS;
