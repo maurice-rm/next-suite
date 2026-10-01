@@ -7,6 +7,11 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+type DehydratedData = {
+  json: unknown;
+  meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
+};
+
 const MINUTE_MS = 60_000;
 const STALE_TIME_MS = 5 * MINUTE_MS;
 const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
@@ -28,13 +33,14 @@ export const createQueryClient = () =>
           defaultShouldDehydrateQuery(query) ||
           query.state.status === "pending",
         shouldRedactErrors: () => false,
-        serializeData: (data) => {
+        serializeData: (data): DehydratedData => {
           const [json, meta] = serializer.serialize(data);
           return { json, meta };
         },
       },
       hydrate: {
-        deserializeData: (data) => serializer.deserialize(data.json, data.meta),
+        deserializeData: (data: DehydratedData) =>
+          serializer.deserialize(data.json, data.meta),
       },
     },
   });

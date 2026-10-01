@@ -27,6 +27,12 @@ jobs:
 {{#if (includes githubActions "lint")}}
       - name: Lint
         run: {{packageManager}} run lint
+      - name: Unused code
+        run: {{packageManager}} run knip
+{{#if (eq packageManager "pnpm")}}
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high
+{{/if}}
 {{/if}}
 {{#if (includes githubActions "typecheck")}}
       - name: Type-check

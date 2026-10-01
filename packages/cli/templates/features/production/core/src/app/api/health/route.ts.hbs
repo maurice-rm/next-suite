@@ -6,19 +6,16 @@ import "@/env";
 
 {{#if database}}
 import { database } from "@/lib/database";
-{{/if}}
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
 
 export const GET = async (): Promise<Response> => {
   try {
-{{#if database}}
 {{#if (eq database.orm "drizzle")}}
     await database.execute(sql`select 1`);
 {{else}}
     await database.$queryRaw`SELECT 1`;
-{{/if}}
 {{/if}}
     return Response.json({ status: "ok" });
   } catch (error) {
@@ -26,3 +23,8 @@ export const GET = async (): Promise<Response> => {
     return Response.json({ status: "error" }, { status: 503 });
   }
 };
+{{else}}
+export const dynamic = "force-dynamic";
+
+export const GET = (): Response => Response.json({ status: "ok" });
+{{/if}}

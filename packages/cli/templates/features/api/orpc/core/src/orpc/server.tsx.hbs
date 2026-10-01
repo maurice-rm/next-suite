@@ -4,9 +4,10 @@ import { cache, type ReactNode } from "react";
 
 import {
   dehydrate,
-  type FetchInfiniteQueryOptions,
-  type FetchQueryOptions,
   HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
   type QueryKey,
 } from "@tanstack/react-query";
 
@@ -25,11 +26,18 @@ export const prefetch = <
   TQueryFnData,
   TError,
   TData,
+  TQueryData,
   TQueryKey extends QueryKey,
 >(
-  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
 ) => {
-  void getQueryClient().prefetchQuery(options);
+  getQueryClient().query(options).catch(noop);
 };
 
 export const prefetchInfinite = <
@@ -39,7 +47,7 @@ export const prefetchInfinite = <
   TQueryKey extends QueryKey,
   TPageParam,
 >(
-  options: FetchInfiniteQueryOptions<
+  options: InfiniteQueryExecuteOptions<
     TQueryFnData,
     TError,
     TData,
@@ -47,5 +55,5 @@ export const prefetchInfinite = <
     TPageParam
   >,
 ) => {
-  void getQueryClient().prefetchInfiniteQuery(options);
+  getQueryClient().infiniteQuery(options).catch(noop);
 };

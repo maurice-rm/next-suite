@@ -43,6 +43,7 @@ export const FEATURES: Feature[] = [
       "@types/react",
       "@types/react-dom",
       "typescript",
+      "typescript-eslint",
       "eslint",
       "eslint-config-next",
       "eslint-config-prettier",
@@ -52,12 +53,17 @@ export const FEATURES: Feature[] = [
       "eslint-plugin-boundaries",
       "prettier",
       "prettier-plugin-packagejson",
+      "knip",
       "husky",
       "lint-staged",
       "@commitlint/cli",
       "@commitlint/config-conventional",
       "babel-plugin-react-compiler",
     ],
+  },
+  {
+    dir: "features/pnpm",
+    when: (config) => config.packageManager === "pnpm",
   },
   {
     dir: "features/yarn",
@@ -140,7 +146,7 @@ export const FEATURES: Feature[] = [
     dir: "features/auth/better-auth/core",
     when: (config) =>
       config.auth === "better-auth" && config.database !== undefined,
-    dependencies: ["better-auth"],
+    dependencies: ["better-auth", "server-only"],
   },
   {
     dir: "features/auth/better-auth/schema/drizzle",

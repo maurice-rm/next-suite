@@ -10,7 +10,7 @@ const handler = (request: Request) =>
     router: appRouter,
     createContext: createTRPCContext,
     onError: ({ error, path }) => {
-      console.error(`[tRPC] ${path}: ${error.message}`);
+      console.error(`[tRPC] ${path ?? "unknown path"}: ${error.message}`);
     },
   });
 

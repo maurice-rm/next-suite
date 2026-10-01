@@ -9,7 +9,7 @@ Every generated project is a single Next.js application — not a monorepo. The 
 | `next`               | `16.3.6`   | Framework (App Router).                          |
 | `react`              | `19.3.0`   | UI runtime.                                      |
 | `react-dom`          | `19.3.0`   | DOM renderer.                                    |
-| `typescript`         | `^5.9.3`   | Language, in strict mode.                        |
+| `typescript`         | `~6.0.3`   | Language, in strict mode.                        |
 | `zod`                | `^4.4.3`   | Schema validation, used by the typed env module. |
 | `@t3-oss/env-nextjs` | `^0.13.11` | Typed, validated environment variables.          |
 
@@ -22,6 +22,7 @@ The always-installed dev toolchain:
 | `@types/react-dom`                 | `^19`      | React DOM type definitions.         |
 | `eslint`                           | `^9.39.4`  | Linter (flat config).               |
 | `eslint-config-next`               | `16.3.6`   | Next.js lint presets.               |
+| `typescript-eslint`                | `8.71.0`   | Type-checked strict lint presets.   |
 | `eslint-config-prettier`           | `^10.1.8`  | Turns off formatting rules.         |
 | `eslint-plugin-simple-import-sort` | `^14.0.0`  | Import ordering.                    |
 | `eslint-plugin-import`             | `^2.32.0`  | Import hygiene.                     |
@@ -29,6 +30,7 @@ The always-installed dev toolchain:
 | `eslint-plugin-boundaries`         | `^7.2.0`   | No imports between features.        |
 | `prettier`                         | `^3.8.4`   | Formatter.                          |
 | `prettier-plugin-packagejson`      | `^3.0.2`   | Sorts `package.json`.               |
+| `knip`                             | `^6.39.0`  | Unused files, exports and deps.     |
 | `husky`                            | `^9.1.7`   | Git hooks.                          |
 | `lint-staged`                      | `^17.0.7`  | Runs the formatter on staged files. |
 | `@commitlint/cli`                  | `^21.0.2`  | Commit-message linting.             |
@@ -57,6 +59,7 @@ This is what the base layer writes, before any feature is applied:
 ├── README.md
 ├── commitlint.config.mjs
 ├── eslint.config.mjs
+├── knip.json
 ├── next.config.ts
 ├── package.json
 ├── public/
@@ -82,6 +85,7 @@ Each feature then adds its own files. The conditions are the `when` predicates i
 
 | Feature layer                              | Applies when                                           | Files added                                                                                                                                                                                                                                                                       |
 | ------------------------------------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `features/pnpm`                            | the package manager is pnpm                            | `pnpm-workspace.yaml` (release-age delay, build-script allowlist)                                                                                                                                                                                                                 |
 | `features/yarn`                            | the package manager is Yarn                            | `.yarnrc.yml`                                                                                                                                                                                                                                                                     |
 | `features/tailwind`                        | Tailwind is enabled                                    | `postcss.config.mjs`, `src/app/globals.css` (replaces the base file), plus a `.prettierrc.json` fragment                                                                                                                                                                          |
 | `features/database/engine/postgres`        | the engine is PostgreSQL                               | `docker-compose.yml`, plus an `.env.example` fragment                                                                                                                                                                                                                             |
@@ -98,7 +102,7 @@ Each feature then adds its own files. The conditions are the `when` predicates i
 | `features/production/core`                 | a production deployment mode was chosen                | `.dockerignore`, `DEPLOY.md`, `docker-compose.prod.yml`, `next.Dockerfile`, `nginx/nginx.conf`, `scripts/prod.sh`, `src/app/api/health/route.ts`, plus an `.env.example` fragment                                                                                                 |
 | `features/production/entrypoint`           | production is on and a database is configured          | `entrypoint.sh`                                                                                                                                                                                                                                                                   |
 | `features/production/drizzle`              | production is on and the ORM is Drizzle                | `drizzle/.gitkeep`, `scripts/migrate.ts`                                                                                                                                                                                                                                          |
-| `features/github-actions/ci`               | at least one CI step was selected                      | `.github/actions/setup/action.yml`, `.github/workflows/ci.yml`                                                                                                                                                                                                                    |
+| `features/github-actions/ci`               | at least one CI step was selected                      | `.github/actions/setup/action.yml`, `.github/workflows/ci.yml`, `renovate.json`                                                                                                                                                                                                   |
 | `features/github-actions/cd`               | production is on and at least one CD step was selected | `.github/workflows/cd.yml`                                                                                                                                                                                                                                                        |
 
 ## Feature matrix
@@ -113,14 +117,14 @@ Packages are listed with the version the generator writes. Files marked as fragm
 | MySQL             | `--database mysql`                             | none directly — the driver comes with the ORM                                                                                                                                     | `docker-compose.yml`, `.env.example` fragment                                                                        | `COMPOSE_PROJECT_NAME`, `MYSQL_PORT`, `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`                |
 | Drizzle           | `--orm drizzle`                                | `drizzle-orm@^0.45.2`, `dotenv@^17.4.2`, and `pg@^8.22.0` (PostgreSQL) or `mysql2@^3.22.5` (MySQL); dev: `drizzle-kit@^0.31.10`, plus `@types/pg@^8.20.0` for PostgreSQL          | `drizzle.config.ts`, `src/lib/database/index.ts`, `src/lib/database/schema/index.ts`, `package.json` fragment        | none of its own                                                                                                     |
 | Prisma            | `--orm prisma`                                 | `@prisma/client@^7.8.0`, `dotenv@^17.4.2`, and `@prisma/adapter-pg@^7.8.0` (PostgreSQL) or `@prisma/adapter-mariadb@^7.8.0` (MySQL); dev: `prisma@^7.8.0`                         | `prisma.config.ts`, `prisma/schema.prisma`, `src/lib/database/index.ts`, `package.json` fragment                     | none of its own                                                                                                     |
-| tRPC              | `--api trpc`                                   | `@trpc/server@^11.18.0`, `@trpc/client@^11.18.0`, `@trpc/tanstack-react-query@^11.18.0`, `@tanstack/react-query@^5.101.2`, `superjson@^2.2.6`, `server-only@^0.0.1`, `zod@^4.4.3` | the `src/trpc/` tree, the route handler, `src/app/providers.tsx`, `.env.example` fragment                            | `NEXT_PUBLIC_APP_URL`                                                                                               |
-| oRPC              | `--api orpc`                                   | `@orpc/server@^1.14.6`, `@orpc/client@^1.14.6`, `@orpc/tanstack-query@^1.14.6`, `@tanstack/react-query@^5.101.2`, `server-only@^0.0.1`                                            | the `src/orpc/` tree, the route handler, `src/instrumentation.ts`, `src/app/providers.tsx`, `.env.example` fragment  | `NEXT_PUBLIC_APP_URL`                                                                                               |
+| tRPC              | `--api trpc`                                   | `@trpc/server@^11.18.0`, `@trpc/client@^11.18.0`, `@trpc/tanstack-react-query@^11.18.0`, `@tanstack/react-query@^5.104.0`, `superjson@^2.2.6`, `server-only@^0.0.1`, `zod@^4.4.3` | the `src/trpc/` tree, the route handler, `src/app/providers.tsx`, `.env.example` fragment                            | `NEXT_PUBLIC_APP_URL`                                                                                               |
+| oRPC              | `--api orpc`                                   | `@orpc/server@^1.14.6`, `@orpc/client@^1.14.6`, `@orpc/tanstack-query@^1.14.6`, `@tanstack/react-query@^5.104.0`, `server-only@^0.0.1`                                            | the `src/orpc/` tree, the route handler, `src/instrumentation.ts`, `src/app/providers.tsx`, `.env.example` fragment  | `NEXT_PUBLIC_APP_URL`                                                                                               |
 | OpenAPI (oRPC)    | `--openapi`                                    | `@orpc/openapi@^1.14.6`, `@orpc/zod@^1.14.6`                                                                                                                                      | `src/app/api/v1/[[...rest]]/route.ts`                                                                                | none of its own                                                                                                     |
 | Scalar docs UI    | `--scalar`                                     | none — it is a flag on the OpenAPI layer                                                                                                                                          | no extra file; it changes what `src/app/api/v1/[[...rest]]/route.ts` serves                                          | none                                                                                                                |
-| Better-Auth       | `--auth better-auth`                           | `better-auth@^1.6.23`                                                                                                                                                             | `src/lib/auth/`, `src/app/api/auth/[...all]/route.ts`, an ORM-specific schema file, `.env.example` fragment          | `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`                                                                         |
+| Better-Auth       | `--auth better-auth`                           | `better-auth@^1.6.23`, `server-only@^0.0.1`                                                                                                                                       | `src/lib/auth/`, `src/app/api/auth/[...all]/route.ts`, an ORM-specific schema file, `.env.example` fragment          | `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`                                                                         |
 | Resend            | `--email resend`                               | `resend@^6.17.1`                                                                                                                                                                  | `src/lib/email/index.ts`, `.env.example` fragment                                                                    | `RESEND_API_KEY`, `EMAIL_FROM`                                                                                      |
 | Production        | `--deployment standalone\|proxied`             | dev: `esbuild@^0.28.2` when the ORM is Drizzle                                                                                                                                    | the Docker, nginx, and deploy files listed above; `entrypoint.sh` with a database; `scripts/migrate.ts` with Drizzle | `COMPOSE_PROJECT_NAME`, `DOCKER_IMAGE`, and `APP_PORT` in proxied mode                                              |
-| GitHub Actions CI | `--github-actions lint,typecheck,format,build` | none                                                                                                                                                                              | `.github/actions/setup/action.yml`, `.github/workflows/ci.yml`                                                       | none in `.env.example`                                                                                              |
+| GitHub Actions CI | `--github-actions lint,typecheck,format,build` | none                                                                                                                                                                              | `.github/actions/setup/action.yml`, `.github/workflows/ci.yml`, `renovate.json`                                      | none in `.env.example`                                                                                              |
 | GitHub Actions CD | `--github-actions image,deploy`                | none                                                                                                                                                                              | `.github/workflows/cd.yml`                                                                                           | none in `.env.example`                                                                                              |
 
 ### How the two workflows relate
@@ -129,26 +133,29 @@ Packages are listed with the version the generator writes. Files marked as fragm
 
 Because `CD` runs it on a push to `main`, `CI` drops its own `push: main` trigger in that case — two runs would otherwise collide in the `ci-${{ github.ref }}` concurrency group and cancel each other. A manual `CD` run (`workflow_dispatch`) skips `CI`, since it redeploys an already-published tag rather than building one.
 
+The lint step is followed by `knip` and, in pnpm projects, `pnpm audit --audit-level high`. `renovate.json` holds new releases back for one day, matching pnpm's `minimumReleaseAge`.
+
 The `CI` build step receives the repository variables (`env: ${{ vars }}`), so a project that needs `NEXT_PUBLIC_APP_URL` at build time gets the same value `CD` bakes into the image. Those projects also get a guard step that fails with a readable message when the variable is unset.
 
 ## Scripts
 
 The base `package.json` template defines these scripts:
 
-| Script         | Command                                        | Purpose                                                      |
-| -------------- | ---------------------------------------------- | ------------------------------------------------------------ |
-| `build`        | `next build`                                   | Production build.                                            |
-| `check`        | `tsc --noEmit && eslint && prettier --check .` | Type-check, lint, and format-check in one pass.              |
-| `dev`          | `next dev`                                     | Development server.                                          |
-| `fix`          | `eslint --fix && prettier --write .`           | Auto-fix lint problems, then format. Used by the post-step.  |
-| `format`       | `prettier --write .`                           | Format everything.                                           |
-| `format:check` | `prettier --check .`                           | Fail on unformatted files.                                   |
-| `lint`         | `eslint`                                       | Lint.                                                        |
-| `lint:fix`     | `eslint --fix`                                 | Lint and auto-fix.                                           |
-| `prepare`      | `husky`                                        | Install the git hooks after an install.                      |
-| `setup`        | `bash scripts/setup.sh`                        | First-run setup: create `.env`, install, start the database. |
-| `start`        | `next start`                                   | Serve the production build.                                  |
-| `typecheck`    | `tsc --noEmit`                                 | Type-check only.                                             |
+| Script         | Command                                                | Purpose                                                           |
+| -------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| `build`        | `next build`                                           | Production build.                                                 |
+| `check`        | `tsc --noEmit && eslint && prettier --check . && knip` | Type-check, lint, format-check and unused-code check in one pass. |
+| `dev`          | `next dev`                                             | Development server.                                               |
+| `fix`          | `eslint --fix && prettier --write .`                   | Auto-fix lint problems, then format. Used by the post-step.       |
+| `format`       | `prettier --write .`                                   | Format everything.                                                |
+| `format:check` | `prettier --check .`                                   | Fail on unformatted files.                                        |
+| `knip`         | `knip`                                                 | Report unused files, exports and dependencies.                    |
+| `lint`         | `eslint`                                               | Lint.                                                             |
+| `lint:fix`     | `eslint --fix`                                         | Lint and auto-fix.                                                |
+| `prepare`      | `husky`                                                | Install the git hooks after an install.                           |
+| `setup`        | `bash scripts/setup.sh`                                | First-run setup: create `.env`, install, start the database.      |
+| `start`        | `next start`                                           | Serve the production build.                                       |
+| `typecheck`    | `tsc --noEmit`                                         | Type-check only.                                                  |
 
 The Drizzle layer adds:
 
@@ -216,7 +223,7 @@ These are referenced by generated code but never written into `.env.example`. Yo
 
 Generation runs entirely in memory first. The generator selects the active features in registry order, walks each feature's template directory, and accumulates the result into one map of path to content. Only after the whole project exists in memory is anything written to disk — and a target directory that this run created is removed again if the write fails.
 
-The layer order is the order of the `FEATURES` array: `base` first, then Yarn, Tailwind, the database engine, the ORM, the API layer, auth, email, production, and finally the GitHub Actions layers. Within that order, **a later layer overwrites an earlier one at the same output path**. That is how `features/tailwind` replaces the base `src/app/globals.css`.
+The layer order is the order of the `FEATURES` array: `base` first, then pnpm, Yarn, Tailwind, the database engine, the ORM, the API layer, auth, email, production, and finally the GitHub Actions layers. Within that order, **a later layer overwrites an earlier one at the same output path**. That is how `features/tailwind` replaces the base `src/app/globals.css`.
 
 Along the way:
 
