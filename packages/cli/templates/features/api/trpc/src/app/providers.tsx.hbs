@@ -43,7 +43,7 @@ const makeTRPCClient = () =>
         true: httpLink({
           url: getUrl(),
           transformer: {
-            serialize: (data) => data,
+            serialize: (data: unknown) => data,
             deserialize: superjson.deserialize,
           },
         }),

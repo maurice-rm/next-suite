@@ -1,12 +1,13 @@
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
-      console.error("[oRPC]", error);
+      logger.error({ err: error }, "oRPC request failed");
     }),
   ],
 });

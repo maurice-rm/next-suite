@@ -4,11 +4,12 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
@@ -19,10 +20,7 @@
   "engines": {
     "node": ">=24.0.0"
   }{{#if (eq packageManager "pnpm")}},
-  "packageManager": "pnpm@10.34.3",
-  "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp", "unrs-resolver"]
-  }{{/if}}{{#if (eq packageManager "yarn")}},
+  "packageManager": "pnpm@10.34.3"{{/if}}{{#if (eq packageManager "yarn")}},
   "packageManager": "yarn@4.17.1",
   "dependenciesMeta": {
     "esbuild": { "built": true },

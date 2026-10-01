@@ -7,7 +7,9 @@ export const VERSIONS = {
   "@types/node": "^24.13.3",
   "@types/react": "^19",
   "@types/react-dom": "^19",
-  typescript: "^5.9.3",
+  typescript: "~6.0.3",
+  "typescript-eslint": "8.71.0",
+  knip: "^6.39.0",
   eslint: "^9.39.4",
   "eslint-config-next": "16.3.6",
   "eslint-config-prettier": "^10.1.8",
@@ -40,7 +42,7 @@ export const VERSIONS = {
   "@trpc/server": "^11.18.0",
   "@trpc/client": "^11.18.0",
   "@trpc/tanstack-react-query": "^11.18.0",
-  "@tanstack/react-query": "^5.101.2",
+  "@tanstack/react-query": "^5.104.0",
   superjson: "^2.2.6",
   "@orpc/server": "^1.14.6",
   "@orpc/client": "^1.14.6",
@@ -50,6 +52,8 @@ export const VERSIONS = {
   "server-only": "^0.0.1",
   "better-auth": "^1.6.23",
   resend: "^6.17.1",
+  pino: "^10.3.1",
+  "pino-pretty": "^13.1.3",
 } satisfies Record<string, string>;
 
 export type DependencyName = keyof typeof VERSIONS;

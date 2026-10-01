@@ -11,6 +11,6 @@ let instance: Resend | null = null;
 export const resend = new Proxy({} as Resend, {
   get(_, prop) {
     instance ??= new Resend(env.RESEND_API_KEY);
-    return Reflect.get(instance, prop);
+    return Reflect.get(instance, prop) as unknown;
   },
 });

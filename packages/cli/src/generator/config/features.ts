@@ -34,6 +34,12 @@ export interface Feature {
   devDependencies?: FeatureDependencies;
 }
 
+// The logger exists only where generated server code logs: the API route
+// handlers and the production health check's database probe.
+const usesLogger = (config: ProjectConfig): boolean =>
+  config.api !== undefined ||
+  (config.production !== undefined && config.database !== undefined);
+
 export const FEATURES: Feature[] = [
   {
     dir: "base",
@@ -43,6 +49,7 @@ export const FEATURES: Feature[] = [
       "@types/react",
       "@types/react-dom",
       "typescript",
+      "typescript-eslint",
       "eslint",
       "eslint-config-next",
       "eslint-config-prettier",
@@ -52,12 +59,17 @@ export const FEATURES: Feature[] = [
       "eslint-plugin-boundaries",
       "prettier",
       "prettier-plugin-packagejson",
+      "knip",
       "husky",
       "lint-staged",
       "@commitlint/cli",
       "@commitlint/config-conventional",
       "babel-plugin-react-compiler",
     ],
+  },
+  {
+    dir: "features/pnpm",
+    when: (config) => config.packageManager === "pnpm",
   },
   {
     dir: "features/yarn",
@@ -140,7 +152,7 @@ export const FEATURES: Feature[] = [
     dir: "features/auth/better-auth/core",
     when: (config) =>
       config.auth === "better-auth" && config.database !== undefined,
-    dependencies: ["better-auth"],
+    dependencies: ["better-auth", "server-only"],
   },
   {
     dir: "features/auth/better-auth/schema/drizzle",
@@ -156,6 +168,12 @@ export const FEATURES: Feature[] = [
     dir: "features/email/resend",
     when: (config) => config.email === "resend",
     dependencies: ["resend"],
+  },
+  {
+    dir: "features/logging",
+    when: usesLogger,
+    dependencies: ["pino", "server-only"],
+    devDependencies: ["pino-pretty"],
   },
   {
     dir: "features/production/core",

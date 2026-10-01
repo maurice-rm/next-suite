@@ -207,6 +207,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Lint
         run: bun run lint
+      - name: Unused code
+        run: bun run knip
       - name: Require NEXT_PUBLIC_APP_URL
         env:
           APP_URL: \${{ vars.NEXT_PUBLIC_APP_URL }}
@@ -454,8 +456,9 @@ bun run dev
 | \`bun run dev\` | Start the dev server |
 | \`bun run build\` | Build for production |
 | \`bun run start\` | Start the production server |
-| \`bun run check\` | Type-check, lint, and format-check |
+| \`bun run check\` | Type-check, lint, format-check and unused-code check |
 | \`bun run lint\` | Run ESLint |
+| \`bun run knip\` | Report unused files, exports and dependencies |
 | \`bun run typecheck\` | Type-check |
 | \`bun run format\` | Format with Prettier |
 
@@ -606,11 +609,26 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   { ignores: ["src/generated/**"] },
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -635,8 +653,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -725,6 +770,21 @@ const eslintConfig = defineConfig([
 ]);
 
 export default eslintConfig;
+
+
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/lib/**/*.{ts,tsx}",
+    "src/orpc/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "pino-pretty"
+  ]
+}
 
 
 === next-suite.json ===
@@ -992,7 +1052,7 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
@@ -1001,6 +1061,7 @@ http {
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "postinstall": "prisma generate",
@@ -1019,10 +1080,11 @@ http {
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@t3-oss/env-nextjs": "^0.13.11",
-    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-query": "^5.104.0",
     "better-auth": "^1.6.23",
     "dotenv": "^17.4.2",
     "next": "16.3.6",
+    "pino": "^10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
@@ -1044,14 +1106,17 @@ http {
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
     "postcss": "^8.5.15",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.1",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -1070,7 +1135,7 @@ import "dotenv/config";
 
 import { defineConfig } from "prisma/config";
 
-const url = \`mysql://\${process.env.MYSQL_USER}:\${process.env.MYSQL_PASSWORD}@\${process.env.MYSQL_HOST}:\${process.env.MYSQL_PORT}/\${process.env.MYSQL_DATABASE}\`;
+const url = \`mysql://\${process.env.MYSQL_USER ?? ""}:\${process.env.MYSQL_PASSWORD ?? ""}@\${process.env.MYSQL_HOST ?? ""}:\${process.env.MYSQL_PORT ?? ""}/\${process.env.MYSQL_DATABASE ?? ""}\`;
 
 export default defineConfig({
   schema: "prisma/",
@@ -1158,6 +1223,14 @@ datasource db {
 
 
 === public/.gitkeep ===
+
+
+=== renovate.json ===
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "1 day"
+}
 
 
 === scripts/prod.sh ===
@@ -1584,6 +1657,7 @@ export const { GET, POST } = toNextJsHandler(auth);
 import "@/env";
 
 import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
@@ -1593,7 +1667,7 @@ export const GET = async (): Promise<Response> => {
     await database.$queryRaw\`SELECT 1\`;
     return Response.json({ status: "ok" });
   } catch (error) {
-    console.error("Health check failed:", error);
+    logger.error({ err: error }, "Health check failed");
     return Response.json({ status: "error" }, { status: 503 });
   }
 };
@@ -1603,12 +1677,13 @@ export const GET = async (): Promise<Response> => {
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
-      console.error("[oRPC]", error);
+      logger.error({ err: error }, "oRPC request failed");
     }),
   ],
 });
@@ -1682,6 +1757,11 @@ export default GlobalErrorPage;
 === src/app/globals.css ===
 @import "tailwindcss";
 
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 
 === src/app/layout.tsx ===
 import "./globals.css";
@@ -1691,6 +1771,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -1703,6 +1784,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "bun-app",
     template: "%s · bun-app",
@@ -1744,11 +1826,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>bun-app</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -1902,6 +1987,31 @@ export const closeDatabase = async () => {
 };
 
 
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const REDACTED_PATHS = [
+  "password",
+  "*.password",
+  "token",
+  "*.token",
+  "cookie",
+  "*.cookie",
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
+});
+
+
 === src/orpc/client.server.ts ===
 import "server-only";
 
@@ -1953,7 +2063,7 @@ export const publicProcedure = os.$context<{ headers: Headers }>();
 const authMiddleware = publicProcedure.middleware(async ({ context, next }) => {
   const sessionData = await auth.api.getSession({ headers: context.headers });
 
-  if (!sessionData?.session || !sessionData?.user) {
+  if (!sessionData) {
     throw new ORPCError("UNAUTHORIZED");
   }
 
@@ -1974,6 +2084,11 @@ import {
 
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
+
+type DehydratedData = {
+  json: unknown;
+  meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
+};
 
 const MINUTE_MS = 60_000;
 const STALE_TIME_MS = 5 * MINUTE_MS;
@@ -1996,13 +2111,14 @@ export const createQueryClient = () =>
           defaultShouldDehydrateQuery(query) ||
           query.state.status === "pending",
         shouldRedactErrors: () => false,
-        serializeData: (data) => {
+        serializeData: (data): DehydratedData => {
           const [json, meta] = serializer.serialize(data);
           return { json, meta };
         },
       },
       hydrate: {
-        deserializeData: (data) => serializer.deserialize(data.json, data.meta),
+        deserializeData: (data: DehydratedData) =>
+          serializer.deserialize(data.json, data.meta),
       },
     },
   });
@@ -2023,9 +2139,10 @@ import { cache, type ReactNode } from "react";
 
 import {
   dehydrate,
-  type FetchInfiniteQueryOptions,
-  type FetchQueryOptions,
   HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
   type QueryKey,
 } from "@tanstack/react-query";
 
@@ -2044,11 +2161,18 @@ export const prefetch = <
   TQueryFnData,
   TError,
   TData,
+  TQueryData,
   TQueryKey extends QueryKey,
 >(
-  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
 ) => {
-  void getQueryClient().prefetchQuery(options);
+  getQueryClient().query(options).catch(noop);
 };
 
 export const prefetchInfinite = <
@@ -2058,7 +2182,7 @@ export const prefetchInfinite = <
   TQueryKey extends QueryKey,
   TPageParam,
 >(
-  options: FetchInfiniteQueryOptions<
+  options: InfiniteQueryExecuteOptions<
     TQueryFnData,
     TError,
     TData,
@@ -2066,7 +2190,7 @@ export const prefetchInfinite = <
     TPageParam
   >,
 ) => {
-  void getQueryClient().prefetchInfiniteQuery(options);
+  getQueryClient().infiniteQuery(options).catch(noop);
 };
 
 
@@ -2081,6 +2205,8 @@ export const prefetchInfinite = <
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -2321,8 +2447,9 @@ npm run dev
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
-| \`npm run check\` | Type-check, lint, and format-check |
+| \`npm run check\` | Type-check, lint, format-check and unused-code check |
 | \`npm run lint\` | Run ESLint |
+| \`npm run knip\` | Report unused files, exports and dependencies |
 | \`npm run typecheck\` | Type-check |
 | \`npm run format\` | Format with Prettier |
 
@@ -2390,10 +2517,25 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -2418,8 +2560,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -2510,6 +2679,19 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 
 
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/lib/**/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import"
+  ]
+}
+
+
 === next-suite.json ===
 {
   "version": 1,
@@ -2547,7 +2729,7 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -2556,6 +2738,7 @@ export default nextConfig;
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
@@ -2575,6 +2758,7 @@ export default nextConfig;
     "next": "16.3.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -2593,10 +2777,12 @@ export default nextConfig;
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -2889,6 +3075,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -2896,6 +3092,8 @@ import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -2908,6 +3106,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "npm-auth",
     template: "%s · npm-auth",
@@ -2947,11 +3146,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>npm-auth</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
@@ -2969,8 +3171,14 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -3178,6 +3386,8 @@ export * from "./auth";
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -3315,6 +3525,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Lint
         run: npm run lint
+      - name: Unused code
+        run: npm run knip
 
 
 === .gitignore ===
@@ -3459,8 +3671,9 @@ npm run dev
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
-| \`npm run check\` | Type-check, lint, and format-check |
+| \`npm run check\` | Type-check, lint, format-check and unused-code check |
 | \`npm run lint\` | Run ESLint |
+| \`npm run knip\` | Report unused files, exports and dependencies |
 | \`npm run typecheck\` | Type-check |
 | \`npm run format\` | Format with Prettier |
 
@@ -3528,10 +3741,25 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -3556,8 +3784,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -3648,6 +3903,21 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 
 
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/lib/**/*.{ts,tsx}",
+    "src/orpc/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "pino-pretty"
+  ]
+}
+
+
 === next-suite.json ===
 {
   "version": 1,
@@ -3690,7 +3960,7 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -3699,6 +3969,7 @@ export default nextConfig;
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
@@ -3714,11 +3985,12 @@ export default nextConfig;
     "@orpc/server": "^1.14.6",
     "@orpc/tanstack-query": "^1.14.6",
     "@t3-oss/env-nextjs": "^0.13.11",
-    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-query": "^5.104.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "mysql2": "^3.22.5",
     "next": "16.3.6",
+    "pino": "^10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
@@ -3740,15 +4012,26 @@ export default nextConfig;
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
 
 
 === public/.gitkeep ===
+
+
+=== renovate.json ===
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "1 day"
+}
 
 
 === scripts/setup.sh ===
@@ -3972,12 +4255,13 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
-      console.error("[oRPC]", error);
+      logger.error({ err: error }, "oRPC request failed");
     }),
   ],
 });
@@ -4049,6 +4333,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -4059,6 +4353,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -4071,6 +4366,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "npm-db",
     template: "%s · npm-db",
@@ -4112,11 +4408,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>npm-db</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -4161,8 +4460,14 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -4224,6 +4529,31 @@ export const closeDatabase = async () => {
 export {};
 
 
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const REDACTED_PATHS = [
+  "password",
+  "*.password",
+  "token",
+  "*.token",
+  "cookie",
+  "*.cookie",
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
+});
+
+
 === src/orpc/client.server.ts ===
 import "server-only";
 
@@ -4281,6 +4611,11 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+type DehydratedData = {
+  json: unknown;
+  meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
+};
+
 const MINUTE_MS = 60_000;
 const STALE_TIME_MS = 5 * MINUTE_MS;
 const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
@@ -4302,13 +4637,14 @@ export const createQueryClient = () =>
           defaultShouldDehydrateQuery(query) ||
           query.state.status === "pending",
         shouldRedactErrors: () => false,
-        serializeData: (data) => {
+        serializeData: (data): DehydratedData => {
           const [json, meta] = serializer.serialize(data);
           return { json, meta };
         },
       },
       hydrate: {
-        deserializeData: (data) => serializer.deserialize(data.json, data.meta),
+        deserializeData: (data: DehydratedData) =>
+          serializer.deserialize(data.json, data.meta),
       },
     },
   });
@@ -4329,9 +4665,10 @@ import { cache, type ReactNode } from "react";
 
 import {
   dehydrate,
-  type FetchInfiniteQueryOptions,
-  type FetchQueryOptions,
   HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
   type QueryKey,
 } from "@tanstack/react-query";
 
@@ -4350,11 +4687,18 @@ export const prefetch = <
   TQueryFnData,
   TError,
   TData,
+  TQueryData,
   TQueryKey extends QueryKey,
 >(
-  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
 ) => {
-  void getQueryClient().prefetchQuery(options);
+  getQueryClient().query(options).catch(noop);
 };
 
 export const prefetchInfinite = <
@@ -4364,7 +4708,7 @@ export const prefetchInfinite = <
   TQueryKey extends QueryKey,
   TPageParam,
 >(
-  options: FetchInfiniteQueryOptions<
+  options: InfiniteQueryExecuteOptions<
     TQueryFnData,
     TError,
     TData,
@@ -4372,7 +4716,7 @@ export const prefetchInfinite = <
     TPageParam
   >,
 ) => {
-  void getQueryClient().prefetchInfiniteQuery(options);
+  getQueryClient().infiniteQuery(options).catch(noop);
 };
 
 
@@ -4387,6 +4731,8 @@ export const prefetchInfinite = <
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -4705,8 +5051,9 @@ npm run dev
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
-| \`npm run check\` | Type-check, lint, and format-check |
+| \`npm run check\` | Type-check, lint, format-check and unused-code check |
 | \`npm run lint\` | Run ESLint |
+| \`npm run knip\` | Report unused files, exports and dependencies |
 | \`npm run typecheck\` | Type-check |
 | \`npm run format\` | Format with Prettier |
 
@@ -4772,10 +5119,25 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -4800,8 +5162,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -4890,6 +5279,18 @@ const eslintConfig = defineConfig([
 ]);
 
 export default eslintConfig;
+
+
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import"
+  ]
+}
 
 
 === next-suite.json ===
@@ -5057,11 +5458,12 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
@@ -5094,10 +5496,12 @@ http {
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -5437,18 +5841,9 @@ main
 === src/app/api/health/route.ts ===
 import "@/env";
 
-
-// Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
 
-export const GET = async (): Promise<Response> => {
-  try {
-    return Response.json({ status: "ok" });
-  } catch (error) {
-    console.error("Health check failed:", error);
-    return Response.json({ status: "error" }, { status: 503 });
-  }
-};
+export const GET = (): Response => Response.json({ status: "ok" });
 
 
 === src/app/error.tsx ===
@@ -5499,6 +5894,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -5557,21 +5962,31 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>acme-app</h1>
+  </main>
+);
 
 export default Page;
 
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
 
 export const env = createEnv({
   server: {
   },
   client: {
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -5588,6 +6003,8 @@ export const env = createEnv({
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -5806,8 +6223,9 @@ npm run dev
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
-| \`npm run check\` | Type-check, lint, and format-check |
+| \`npm run check\` | Type-check, lint, format-check and unused-code check |
 | \`npm run lint\` | Run ESLint |
+| \`npm run knip\` | Report unused files, exports and dependencies |
 | \`npm run typecheck\` | Type-check |
 | \`npm run format\` | Format with Prettier |
 
@@ -5833,10 +6251,25 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -5861,8 +6294,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -5953,6 +6413,20 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 
 
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/orpc/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "pino-pretty"
+  ]
+}
+
+
 === next-suite.json ===
 {
   "version": 1,
@@ -5992,11 +6466,12 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
@@ -6014,8 +6489,9 @@ export default nextConfig;
     "@orpc/tanstack-query": "^1.14.6",
     "@orpc/zod": "^1.14.6",
     "@t3-oss/env-nextjs": "^0.13.11",
-    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-query": "^5.104.0",
     "next": "16.3.6",
+    "pino": "^10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
@@ -6036,10 +6512,13 @@ export default nextConfig;
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -6216,12 +6695,13 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
-      console.error("[oRPC]", error);
+      logger.error({ err: error }, "oRPC request failed");
     }),
   ],
 });
@@ -6251,6 +6731,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new OpenAPIHandler(appRouter, {
@@ -6263,7 +6744,11 @@ const handler = new OpenAPIHandler(appRouter, {
       },
     }),
   ],
-  interceptors: [onError((error) => console.error("[oRPC OpenAPI]", error))],
+  interceptors: [
+    onError((error) => {
+      logger.error({ err: error }, "oRPC OpenAPI request failed");
+    }),
+  ],
 });
 
 const handleRequest = async (request: Request) => {
@@ -6334,6 +6819,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -6344,6 +6839,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -6356,6 +6852,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "orpc-scalar",
     template: "%s · orpc-scalar",
@@ -6397,11 +6894,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>orpc-scalar</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -6441,8 +6941,14 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -6468,6 +6974,31 @@ export const healthRouter = {
 export const register = async () => {
   await import("./orpc/client.server");
 };
+
+
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const REDACTED_PATHS = [
+  "password",
+  "*.password",
+  "token",
+  "*.token",
+  "cookie",
+  "*.cookie",
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
+});
 
 
 === src/orpc/client.server.ts ===
@@ -6527,6 +7058,11 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+type DehydratedData = {
+  json: unknown;
+  meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
+};
+
 const MINUTE_MS = 60_000;
 const STALE_TIME_MS = 5 * MINUTE_MS;
 const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
@@ -6548,13 +7084,14 @@ export const createQueryClient = () =>
           defaultShouldDehydrateQuery(query) ||
           query.state.status === "pending",
         shouldRedactErrors: () => false,
-        serializeData: (data) => {
+        serializeData: (data): DehydratedData => {
           const [json, meta] = serializer.serialize(data);
           return { json, meta };
         },
       },
       hydrate: {
-        deserializeData: (data) => serializer.deserialize(data.json, data.meta),
+        deserializeData: (data: DehydratedData) =>
+          serializer.deserialize(data.json, data.meta),
       },
     },
   });
@@ -6575,9 +7112,10 @@ import { cache, type ReactNode } from "react";
 
 import {
   dehydrate,
-  type FetchInfiniteQueryOptions,
-  type FetchQueryOptions,
   HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
   type QueryKey,
 } from "@tanstack/react-query";
 
@@ -6596,11 +7134,18 @@ export const prefetch = <
   TQueryFnData,
   TError,
   TData,
+  TQueryData,
   TQueryKey extends QueryKey,
 >(
-  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
 ) => {
-  void getQueryClient().prefetchQuery(options);
+  getQueryClient().query(options).catch(noop);
 };
 
 export const prefetchInfinite = <
@@ -6610,7 +7155,7 @@ export const prefetchInfinite = <
   TQueryKey extends QueryKey,
   TPageParam,
 >(
-  options: FetchInfiniteQueryOptions<
+  options: InfiniteQueryExecuteOptions<
     TQueryFnData,
     TError,
     TData,
@@ -6618,7 +7163,7 @@ export const prefetchInfinite = <
     TPageParam
   >,
 ) => {
-  void getQueryClient().prefetchInfiniteQuery(options);
+  getQueryClient().infiniteQuery(options).catch(noop);
 };
 
 
@@ -6633,6 +7178,8 @@ export const prefetchInfinite = <
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -6851,8 +7398,9 @@ npm run dev
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
-| \`npm run check\` | Type-check, lint, and format-check |
+| \`npm run check\` | Type-check, lint, format-check and unused-code check |
 | \`npm run lint\` | Run ESLint |
+| \`npm run knip\` | Report unused files, exports and dependencies |
 | \`npm run typecheck\` | Type-check |
 | \`npm run format\` | Format with Prettier |
 
@@ -6878,10 +7426,25 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -6906,8 +7469,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -6998,6 +7588,20 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 
 
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/orpc/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "pino-pretty"
+  ]
+}
+
+
 === next-suite.json ===
 {
   "version": 1,
@@ -7037,11 +7641,12 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
@@ -7059,8 +7664,9 @@ export default nextConfig;
     "@orpc/tanstack-query": "^1.14.6",
     "@orpc/zod": "^1.14.6",
     "@t3-oss/env-nextjs": "^0.13.11",
-    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-query": "^5.104.0",
     "next": "16.3.6",
+    "pino": "^10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
@@ -7081,10 +7687,13 @@ export default nextConfig;
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -7261,12 +7870,13 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
     onError((error) => {
-      console.error("[oRPC]", error);
+      logger.error({ err: error }, "oRPC request failed");
     }),
   ],
 });
@@ -7296,10 +7906,15 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const handler = new OpenAPIHandler(appRouter, {
-  interceptors: [onError((error) => console.error("[oRPC OpenAPI]", error))],
+  interceptors: [
+    onError((error) => {
+      logger.error({ err: error }, "oRPC OpenAPI request failed");
+    }),
+  ],
 });
 
 const generator = new OpenAPIGenerator({
@@ -7382,6 +7997,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -7392,6 +8017,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -7404,6 +8030,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "orpc-openapi",
     template: "%s · orpc-openapi",
@@ -7445,11 +8072,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>orpc-openapi</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -7489,8 +8119,14 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -7516,6 +8152,31 @@ export const healthRouter = {
 export const register = async () => {
   await import("./orpc/client.server");
 };
+
+
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const REDACTED_PATHS = [
+  "password",
+  "*.password",
+  "token",
+  "*.token",
+  "cookie",
+  "*.cookie",
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
+});
 
 
 === src/orpc/client.server.ts ===
@@ -7575,6 +8236,11 @@ import {
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
 const serializer = new StandardRPCJsonSerializer();
 
+type DehydratedData = {
+  json: unknown;
+  meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
+};
+
 const MINUTE_MS = 60_000;
 const STALE_TIME_MS = 5 * MINUTE_MS;
 const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
@@ -7596,13 +8262,14 @@ export const createQueryClient = () =>
           defaultShouldDehydrateQuery(query) ||
           query.state.status === "pending",
         shouldRedactErrors: () => false,
-        serializeData: (data) => {
+        serializeData: (data): DehydratedData => {
           const [json, meta] = serializer.serialize(data);
           return { json, meta };
         },
       },
       hydrate: {
-        deserializeData: (data) => serializer.deserialize(data.json, data.meta),
+        deserializeData: (data: DehydratedData) =>
+          serializer.deserialize(data.json, data.meta),
       },
     },
   });
@@ -7623,9 +8290,10 @@ import { cache, type ReactNode } from "react";
 
 import {
   dehydrate,
-  type FetchInfiniteQueryOptions,
-  type FetchQueryOptions,
   HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
   type QueryKey,
 } from "@tanstack/react-query";
 
@@ -7644,11 +8312,18 @@ export const prefetch = <
   TQueryFnData,
   TError,
   TData,
+  TQueryData,
   TQueryKey extends QueryKey,
 >(
-  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
 ) => {
-  void getQueryClient().prefetchQuery(options);
+  getQueryClient().query(options).catch(noop);
 };
 
 export const prefetchInfinite = <
@@ -7658,7 +8333,7 @@ export const prefetchInfinite = <
   TQueryKey extends QueryKey,
   TPageParam,
 >(
-  options: FetchInfiniteQueryOptions<
+  options: InfiniteQueryExecuteOptions<
     TQueryFnData,
     TError,
     TData,
@@ -7666,7 +8341,7 @@ export const prefetchInfinite = <
     TPageParam
   >,
 ) => {
-  void getQueryClient().prefetchInfiniteQuery(options);
+  getQueryClient().infiniteQuery(options).catch(noop);
 };
 
 
@@ -7681,6 +8356,8 @@ export const prefetchInfinite = <
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -8004,6 +8681,10 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Lint
         run: pnpm run lint
+      - name: Unused code
+        run: pnpm run knip
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high
       - name: Type-check
         run: pnpm run typecheck
       - name: Format check
@@ -8295,8 +8976,9 @@ pnpm run dev
 | \`pnpm run dev\` | Start the dev server |
 | \`pnpm run build\` | Build for production |
 | \`pnpm run start\` | Start the production server |
-| \`pnpm run check\` | Type-check, lint, and format-check |
+| \`pnpm run check\` | Type-check, lint, format-check and unused-code check |
 | \`pnpm run lint\` | Run ESLint |
+| \`pnpm run knip\` | Report unused files, exports and dependencies |
 | \`pnpm run typecheck\` | Type-check |
 | \`pnpm run format\` | Format with Prettier |
 
@@ -8479,10 +9161,25 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -8507,8 +9204,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -8599,6 +9323,27 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 
 
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/lib/**/*.{ts,tsx}",
+    "src/trpc/*.{ts,tsx}",
+    "scripts/*.ts"
+  ],
+  "ignore": ["src/components/ui/**"],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "class-variance-authority",
+    "lucide-react",
+    "radix-ui",
+    "esbuild",
+    "pino-pretty"
+  ]
+}
+
+
 === next-suite.json ===
 {
   "version": 1,
@@ -8634,7 +9379,7 @@ FROM node:\${NODE_VERSION} AS dependencies
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \\
   corepack enable pnpm && pnpm install --frozen-lockfile
 
@@ -8859,7 +9604,7 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -8868,6 +9613,7 @@ http {
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
@@ -8879,16 +9625,9 @@ http {
     "node": ">=24.0.0"
   },
   "packageManager": "pnpm@10.34.3",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp",
-      "unrs-resolver"
-    ]
-  },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.13.11",
-    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-query": "^5.104.0",
     "@trpc/client": "^11.18.0",
     "@trpc/server": "^11.18.0",
     "@trpc/tanstack-react-query": "^11.18.0",
@@ -8897,6 +9636,7 @@ http {
     "drizzle-orm": "^0.45.2",
     "next": "16.3.6",
     "pg": "^8.22.0",
+    "pino": "^10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "resend": "^6.17.1",
@@ -8923,15 +9663,26 @@ http {
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
     "postcss": "^8.5.15",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.3.1",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
+
+
+=== pnpm-workspace.yaml ===
+minimumReleaseAge: 1440
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
 
 
 === postcss.config.mjs ===
@@ -8944,6 +9695,14 @@ const config = {
 export default config;
 
 === public/.gitkeep ===
+
+
+=== renovate.json ===
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "1 day"
+}
 
 
 === scripts/migrate.ts ===
@@ -9399,6 +10158,7 @@ import { sql } from "drizzle-orm";
 import "@/env";
 
 import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
@@ -9408,7 +10168,7 @@ export const GET = async (): Promise<Response> => {
     await database.execute(sql\`select 1\`);
     return Response.json({ status: "ok" });
   } catch (error) {
-    console.error("Health check failed:", error);
+    logger.error({ err: error }, "Health check failed");
     return Response.json({ status: "error" }, { status: 503 });
   }
 };
@@ -9417,6 +10177,7 @@ export const GET = async (): Promise<Response> => {
 === src/app/api/trpc/[trpc]/route.ts ===
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
+import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { appRouter } from "@/trpc/routers/app-router";
 
@@ -9427,7 +10188,7 @@ const handler = (request: Request) =>
     router: appRouter,
     createContext: createTRPCContext,
     onError: ({ error, path }) => {
-      console.error(\`[tRPC] \${path}: \${error.message}\`);
+      logger.error({ err: error, path }, "tRPC request failed");
     },
   });
 
@@ -9489,21 +10250,12 @@ export default GlobalErrorPage;
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { env } from "@/env";
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "pnpm-suite",
     template: "%s · pnpm-suite",
@@ -9521,7 +10273,7 @@ export const viewport: Viewport = {
 type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
-  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+  <html lang="en">
     <body>
       <Providers>{children}</Providers>
     </body>
@@ -9545,11 +10297,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>pnpm-suite</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -9597,7 +10352,7 @@ const makeTRPCClient = () =>
         true: httpLink({
           url: getUrl(),
           transformer: {
-            serialize: (data) => data,
+            serialize: (data: unknown) => data,
             deserialize: superjson.deserialize,
           },
         }),
@@ -9648,8 +10403,14 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
   },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
@@ -9863,8 +10624,33 @@ let instance: Resend | null = null;
 export const resend = new Proxy({} as Resend, {
   get(_, prop) {
     instance ??= new Resend(env.RESEND_API_KEY);
-    return Reflect.get(instance, prop);
+    return Reflect.get(instance, prop) as unknown;
   },
+});
+
+
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const REDACTED_PATHS = [
+  "password",
+  "*.password",
+  "token",
+  "*.token",
+  "cookie",
+  "*.cookie",
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
 });
 
 
@@ -9968,9 +10754,10 @@ import { cache, type ReactNode } from "react";
 
 import {
   dehydrate,
-  type FetchInfiniteQueryOptions,
-  type FetchQueryOptions,
   HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
   type QueryKey,
 } from "@tanstack/react-query";
 import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
@@ -9998,11 +10785,18 @@ export const prefetch = <
   TQueryFnData,
   TError,
   TData,
+  TQueryData,
   TQueryKey extends QueryKey,
 >(
-  options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
 ) => {
-  void getQueryClient().prefetchQuery(options);
+  getQueryClient().query(options).catch(noop);
 };
 
 export const prefetchInfinite = <
@@ -10012,7 +10806,7 @@ export const prefetchInfinite = <
   TQueryKey extends QueryKey,
   TPageParam,
 >(
-  options: FetchInfiniteQueryOptions<
+  options: InfiniteQueryExecuteOptions<
     TQueryFnData,
     TError,
     TData,
@@ -10020,7 +10814,7 @@ export const prefetchInfinite = <
     TPageParam
   >,
 ) => {
-  void getQueryClient().prefetchInfiniteQuery(options);
+  getQueryClient().infiniteQuery(options).catch(noop);
 };
 
 
@@ -10035,6 +10829,8 @@ export const prefetchInfinite = <
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
@@ -10458,8 +11254,9 @@ yarn run dev
 | \`yarn run dev\` | Start the dev server |
 | \`yarn run build\` | Build for production |
 | \`yarn run start\` | Start the production server |
-| \`yarn run check\` | Type-check, lint, and format-check |
+| \`yarn run check\` | Type-check, lint, format-check and unused-code check |
 | \`yarn run lint\` | Run ESLint |
+| \`yarn run knip\` | Report unused files, exports and dependencies |
 | \`yarn run typecheck\` | Type-check |
 | \`yarn run format\` | Format with Prettier |
 
@@ -10609,11 +11406,26 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
   { ignores: ["src/generated/**"] },
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -10638,8 +11450,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
@@ -10728,6 +11567,24 @@ const eslintConfig = defineConfig([
 ]);
 
 export default eslintConfig;
+
+
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/lib/**/*.{ts,tsx}"
+  ],
+  "ignore": ["src/components/ui/**"],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "class-variance-authority",
+    "lucide-react",
+    "@base-ui/react",
+    "pino-pretty"
+  ]
+}
 
 
 === next-suite.json ===
@@ -10923,7 +11780,7 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check .",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
@@ -10932,6 +11789,7 @@ http {
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "knip": "knip",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "postinstall": "prisma generate",
@@ -10962,9 +11820,11 @@ http {
     "better-auth": "^1.6.23",
     "dotenv": "^17.4.2",
     "next": "16.3.6",
+    "pino": "^10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "resend": "^6.17.1",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -10983,14 +11843,17 @@ http {
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "husky": "^9.1.7",
+    "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
     "postcss": "^8.5.15",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.1",
-    "typescript": "^5.9.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -11009,7 +11872,7 @@ import "dotenv/config";
 
 import { defineConfig } from "prisma/config";
 
-const url = \`postgresql://\${process.env.POSTGRES_USER}:\${process.env.POSTGRES_PASSWORD}@\${process.env.POSTGRES_HOST}:\${process.env.POSTGRES_PORT}/\${process.env.POSTGRES_DATABASE}\`;
+const url = \`postgresql://\${process.env.POSTGRES_USER ?? ""}:\${process.env.POSTGRES_PASSWORD ?? ""}@\${process.env.POSTGRES_HOST ?? ""}:\${process.env.POSTGRES_PORT ?? ""}/\${process.env.POSTGRES_DATABASE ?? ""}\`;
 
 export default defineConfig({
   schema: "prisma/",
@@ -11097,6 +11960,14 @@ datasource db {
 
 
 === public/.gitkeep ===
+
+
+=== renovate.json ===
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "1 day"
+}
 
 
 === scripts/prod.sh ===
@@ -11523,6 +12394,7 @@ export const { GET, POST } = toNextJsHandler(auth);
 import "@/env";
 
 import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
@@ -11532,7 +12404,7 @@ export const GET = async (): Promise<Response> => {
     await database.$queryRaw\`SELECT 1\`;
     return Response.json({ status: "ok" });
   } catch (error) {
-    console.error("Health check failed:", error);
+    logger.error({ err: error }, "Health check failed");
     return Response.json({ status: "error" }, { status: 503 });
   }
 };
@@ -11593,19 +12465,11 @@ export default GlobalErrorPage;
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { env } from "@/env";
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "yarn-thing",
     template: "%s · yarn-thing",
@@ -11623,7 +12487,7 @@ export const viewport: Viewport = {
 type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
-  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+  <html lang="en">
     <body>{children}</body>
   </html>
 );
@@ -11645,11 +12509,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>yarn-thing</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
@@ -11774,8 +12641,33 @@ let instance: Resend | null = null;
 export const resend = new Proxy({} as Resend, {
   get(_, prop) {
     instance ??= new Resend(env.RESEND_API_KEY);
-    return Reflect.get(instance, prop);
+    return Reflect.get(instance, prop) as unknown;
   },
+});
+
+
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const REDACTED_PATHS = [
+  "password",
+  "*.password",
+  "token",
+  "*.token",
+  "cookie",
+  "*.cookie",
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
 });
 
 
@@ -11790,6 +12682,8 @@ export const resend = new Proxy({} as Resend, {
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
