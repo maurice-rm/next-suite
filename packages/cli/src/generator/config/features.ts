@@ -140,7 +140,7 @@ export const FEATURES: Feature[] = [
     dir: "features/auth/better-auth/core",
     when: (config) =>
       config.auth === "better-auth" && config.database !== undefined,
-    dependencies: ["better-auth"],
+    dependencies: ["better-auth", "server-only"],
   },
   {
     dir: "features/auth/better-auth/schema/drizzle",

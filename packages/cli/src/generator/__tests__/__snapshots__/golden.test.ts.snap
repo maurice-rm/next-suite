@@ -2575,6 +2575,7 @@ export default nextConfig;
     "next": "16.3.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -10965,6 +10966,7 @@ http {
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "resend": "^6.17.1",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
