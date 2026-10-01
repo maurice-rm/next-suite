@@ -1,5 +1,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 
+import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { appRouter } from "@/trpc/routers/app-router";
 
@@ -10,7 +11,7 @@ const handler = (request: Request) =>
     router: appRouter,
     createContext: createTRPCContext,
     onError: ({ error, path }) => {
-      console.error(`[tRPC] ${path ?? "unknown path"}: ${error.message}`);
+      logger.error({ err: error, path }, "tRPC request failed");
     },
   });
 
