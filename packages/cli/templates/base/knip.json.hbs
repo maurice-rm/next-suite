@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts"{{#if (or database (eq email "resend") shadcn)}},
+    "src/lib/**/*.{ts,tsx}"{{/if}}{{#if api}},
+    "src/{{api.type}}/*.{ts,tsx}"{{/if}}{{#if (eq database.orm "drizzle")}}{{#if production}},
+    "scripts/*.ts"{{/if}}{{/if}}
+  ],{{#if shadcn}}
+  "ignore": ["src/components/ui/**"],{{/if}}
+  "ignoreDependencies": [
+    "eslint-plugin-import"{{#if shadcn}},
+    "class-variance-authority",
+    "lucide-react",
+    "{{#if (eq shadcn.base "radix")}}radix-ui{{/if}}{{#if (eq shadcn.base "base")}}@base-ui/react{{/if}}{{#if (eq shadcn.base "aria")}}react-aria-components{{/if}}"{{/if}}{{#if (eq database.orm "drizzle")}}{{#if production}},
+    "esbuild"{{/if}}{{/if}}
+  ]
+}

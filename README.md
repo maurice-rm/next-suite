@@ -25,7 +25,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 **Core** — in every project
 
 - ⚡ **Next 16 · React 19 · TypeScript (strict)** — App Router, React Compiler, `@/*` alias
-- 🧰 **DX toolchain** — ESLint · Prettier · Husky · commitlint · typed env
+- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Husky · commitlint · typed env
 
 **Optional** — pick in the wizard
 
@@ -40,9 +40,9 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 
 <br>
 
-- **Next.js 16 · React 19 · TypeScript (strict)** — App Router, the React Compiler enabled, `@/*` path alias, `noUncheckedIndexedAccess`.
+- **Next.js 16 · React 19 · TypeScript 6 (strict)** — App Router, the React Compiler enabled, `@/*` path alias, `noUncheckedIndexedAccess`, `noImplicitOverride`, `verbatimModuleSyntax`.
 - **Error boundaries** — root `error.tsx`, `global-error.tsx` and `not-found.tsx`.
-- **ESLint** (flat config) — Next core-web-vitals + TypeScript presets, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, at most three parameters and two nesting levels, arrow-function components, kebab-case file and folder names, no import cycles, a one-way import direction (`lib`/`components` ← `features` ← `app`), and no imports between two features.
+- **ESLint** (flat config) — Next core-web-vitals + typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, a naming convention, at most three parameters, two nesting levels and a complexity cap, arrow-function components, kebab-case file and folder names, no import cycles, a one-way import direction (`lib`/`components` ← `features` ← `app`), and no imports between two features.
 - **Prettier** — with `prettier-plugin-packagejson`.
 - **Git hooks** — Husky + `lint-staged` + commitlint (Conventional Commits).
 - **Typed environment variables** — `@/env` via `@t3-oss/env-nextjs` + `zod`, validated at startup; features add their vars automatically.
@@ -53,7 +53,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 - **Auth** (optional) — **Better-Auth** (email + password), headless: schema tables per ORM, `/api/auth` handler, typed `getSession`, the session in the API context.
 - **Email** (optional) — a **Resend** client with `EMAIL_FROM`, wired through the typed env.
 - **Production deployment** (optional) — a multi-stage **Docker** build (standalone), **nginx** (terminating TLS or behind an upstream proxy), a `docker-compose.prod.yml`, and an entrypoint that waits for the database and migrates on start. For proxied projects, the companion `next-suite provision` command _(beta)_ sets up the server over SSH (interactive wizard, `--yes` for CI); `next-suite deprovision` tears it back down.
-- **CI/CD** (optional) — **GitHub Actions**: CI (lint, type-check, format, build) plus CD (build & push to GHCR, deploy over SSH).
+- **CI/CD** (optional) — **GitHub Actions**: CI (lint, Knip, type-check, format, build, `pnpm audit`) with a Renovate config, plus CD (build & push to GHCR, deploy over SSH).
 
 After generation it can, depending on your answers: **initialize git** (on `main`), **install dependencies**, **auto-format**, and make an **initial commit** — a clean, formatted, committed start.
 

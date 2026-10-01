@@ -281,6 +281,7 @@ This is the rulebook. Match it from the first line of new code.
 ### Registries / single source of truth
 
 - **Values live in exactly one declared registry; nothing is inlined.** `VERSIONS` is the only place a literal version string appears; feature files reference catalog _names_, never versions. One intentional exception: the `packageManager` pins in `templates/base/package.json.hbs` (`pnpm@…`, `yarn@…`) are literal — Corepack needs an exact version to activate deterministically in the Docker build, and they are not npm dependencies `VERSIONS` can track.
+- **Bump a pin only once its release is at least one day old.** Generated pnpm projects set `minimumReleaseAge: 1440`, so a same-day pin fails every pnpm scaffold with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` for 24 hours.
 - **Union types are derived, never hand-maintained:** `type ComponentLibrary = (typeof COMPONENT_LIBRARIES)[number]["value"]`; sub-unions via `Exclude` (`DatabaseEngine = Exclude<DatabaseChoice, "none">`).
 - **`defineOptions<const T>`** preserves literal values for union derivation and type-checks each entry against `Option` — no `as const satisfies` at each call site.
 - **Leaf-module discipline:** `options.ts` and `package-managers.ts` import nothing from the layers (documented in their header JSDoc) so every layer can read them without a cycle. Adding an option/PM is an edit in one file.

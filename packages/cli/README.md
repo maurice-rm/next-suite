@@ -23,7 +23,7 @@ Answer the guided wizard (with back-navigation) and the CLI generates the projec
 ⚡ and 🧰 ship in every project; the rest are optional integrations chosen in the wizard.
 
 - ⚡ **Next 16 · React 19 · TypeScript (strict)** — App Router, React Compiler, `@/*` alias
-- 🧰 **DX toolchain** — ESLint · Prettier · Husky · lint-staged · commitlint · typed env (`@t3-oss/env-nextjs`)
+- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Husky · lint-staged · commitlint · typed env (`@t3-oss/env-nextjs`)
 - 🎨 **Tailwind CSS + shadcn/ui** _(optional)_
 - 🗄️ **Database** _(optional)_ — PostgreSQL / MySQL with Drizzle or Prisma
 - 🔌 **API** _(optional)_ — tRPC / oRPC + TanStack Query, optional OpenAPI + Scalar

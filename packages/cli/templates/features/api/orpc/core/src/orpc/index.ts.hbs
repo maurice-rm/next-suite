@@ -10,7 +10,7 @@ export const publicProcedure = os.$context<{ headers: Headers }>();
 const authMiddleware = publicProcedure.middleware(async ({ context, next }) => {
   const sessionData = await auth.api.getSession({ headers: context.headers });
 
-  if (!sessionData?.session || !sessionData?.user) {
+  if (!sessionData) {
     throw new ORPCError("UNAUTHORIZED");
   }
 

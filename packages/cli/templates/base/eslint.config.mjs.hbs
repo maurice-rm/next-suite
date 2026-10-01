@@ -5,6 +5,7 @@ import prettier from "eslint-config-prettier/flat";
 import boundaries from "eslint-plugin-boundaries";
 import checkFile from "eslint-plugin-check-file";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
 {{#if (eq database.orm "prisma")}}
@@ -12,6 +13,20 @@ const eslintConfig = defineConfig([
 {{/if}}
   ...nextVitals,
   ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
   {
     plugins: { "simple-import-sort": simpleImportSort },
     rules: {
@@ -36,8 +51,35 @@ const eslintConfig = defineConfig([
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
+      complexity: "error",
       "react/function-component-definition": [
         "error",
         {
