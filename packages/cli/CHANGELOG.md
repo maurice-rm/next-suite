@@ -1,5 +1,20 @@
 # create-next-suite
 
+## 1.3.0
+
+### Minor Changes
+
+- [#49](https://github.com/maurice-rm/next-suite/pull/49) [`2d859e7`](https://github.com/maurice-rm/next-suite/commit/2d859e7a331fa003690bdff319a31d1290b0e822) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Offer React Aria as a shadcn/ui base library (`--shadcn-base aria`), next to
+  Base UI and Radix UI.
+
+- [#49](https://github.com/maurice-rm/next-suite/pull/49) [`2d859e7`](https://github.com/maurice-rm/next-suite/commit/2d859e7a331fa003690bdff319a31d1290b0e822) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Generate projects with type-checked strict ESLint (naming convention, complexity cap), TypeScript 6 with `noImplicitOverride` and `verbatimModuleSyntax`, a pnpm `pnpm-workspace.yaml` with a one-day release-age delay, and Knip, `pnpm audit` and a Renovate config in CI.
+
+### Patch Changes
+
+- [#49](https://github.com/maurice-rm/next-suite/pull/49) [`2d859e7`](https://github.com/maurice-rm/next-suite/commit/2d859e7a331fa003690bdff319a31d1290b0e822) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Declare `server-only` for Better-Auth, which imports it even without an API layer.
+
+- [#49](https://github.com/maurice-rm/next-suite/pull/49) [`2d859e7`](https://github.com/maurice-rm/next-suite/commit/2d859e7a331fa003690bdff319a31d1290b0e822) Thanks [@maurice-rm](https://github.com/maurice-rm)! - Map the Geist fonts into the stylesheet (and leave fonts to the preset with shadcn), set `metadataBase` when `NEXT_PUBLIC_APP_URL` exists, and give the start page a `main` landmark with an `h1`.
+
 ## 1.2.0
 
 ### Minor Changes
