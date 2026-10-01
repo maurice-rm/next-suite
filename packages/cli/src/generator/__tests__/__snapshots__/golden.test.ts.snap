@@ -1682,6 +1682,11 @@ export default GlobalErrorPage;
 === src/app/globals.css ===
 @import "tailwindcss";
 
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 
 === src/app/layout.tsx ===
 import "./globals.css";
@@ -1691,6 +1696,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -1703,6 +1709,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "bun-app",
     template: "%s · bun-app",
@@ -1744,11 +1751,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>bun-app</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -2890,6 +2900,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -2897,6 +2917,8 @@ import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -2909,6 +2931,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "npm-auth",
     template: "%s · npm-auth",
@@ -2948,11 +2971,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>npm-auth</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
@@ -4050,6 +4076,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -4060,6 +4096,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -4072,6 +4109,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "npm-db",
     template: "%s · npm-db",
@@ -4113,11 +4151,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>npm-db</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -5500,6 +5541,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -5558,11 +5609,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>acme-app</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
@@ -6335,6 +6389,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -6345,6 +6409,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -6357,6 +6422,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "orpc-scalar",
     template: "%s · orpc-scalar",
@@ -6398,11 +6464,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>orpc-scalar</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -7383,6 +7452,16 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+body {
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
 
 
 === src/app/layout.tsx ===
@@ -7393,6 +7472,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
+import { env } from "@/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -7405,6 +7485,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "orpc-openapi",
     template: "%s · orpc-openapi",
@@ -7446,11 +7527,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>orpc-openapi</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -9490,21 +9574,12 @@ export default GlobalErrorPage;
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { env } from "@/env";
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "pnpm-suite",
     template: "%s · pnpm-suite",
@@ -9522,7 +9597,7 @@ export const viewport: Viewport = {
 type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
-  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+  <html lang="en">
     <body>
       <Providers>{children}</Providers>
     </body>
@@ -9546,11 +9621,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>pnpm-suite</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/app/providers.tsx ===
 "use client";
@@ -11595,19 +11673,11 @@ export default GlobalErrorPage;
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { env } from "@/env";
 
 export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "yarn-thing",
     template: "%s · yarn-thing",
@@ -11625,7 +11695,7 @@ export const viewport: Viewport = {
 type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
-  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+  <html lang="en">
     <body>{children}</body>
   </html>
 );
@@ -11647,11 +11717,14 @@ export default NotFoundPage;
 
 
 === src/app/page.tsx ===
-const Page = () => {
-  return <></>;
-};
+const Page = () => (
+  <main>
+    <h1>yarn-thing</h1>
+  </main>
+);
 
 export default Page;
+
 
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";

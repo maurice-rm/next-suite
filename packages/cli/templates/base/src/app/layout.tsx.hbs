@@ -4,11 +4,17 @@ import "@/orpc/client.server";
 {{/if}}
 
 import type { Metadata, Viewport } from "next";
+{{#unless shadcn}}
 import { Geist, Geist_Mono } from "next/font/google";
-{{#if api}}
+{{/unless}}
+{{#if (or api (eq auth "better-auth"))}}
 
+{{#if api}}
 import { Providers } from "@/app/providers";
 {{/if}}
+import { env } from "@/env";
+{{/if}}
+{{#unless shadcn}}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,8 +25,12 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+{{/unless}}
 
 export const metadata: Metadata = {
+{{#if (or api (eq auth "better-auth"))}}
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
+{{/if}}
   title: {
     default: "{{projectName}}",
     template: "%s · {{projectName}}",
@@ -38,7 +48,11 @@ export const viewport: Viewport = {
 type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
+{{#if shadcn}}
+  <html lang="en">
+{{else}}
   <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+{{/if}}
 {{#if api}}
     <body>
       <Providers>{children}</Providers>
