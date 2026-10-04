@@ -8,6 +8,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import { logger } from "@/lib/logger";
 import { appRouter } from "@/orpc/routers/app-router";
 
 {{#if api.openapi.scalar}}
@@ -21,11 +22,19 @@ const handler = new OpenAPIHandler(appRouter, {
       },
     }),
   ],
-  interceptors: [onError((error) => console.error("[oRPC OpenAPI]", error))],
+  interceptors: [
+    onError((error) => {
+      logger.error({ err: error }, "oRPC OpenAPI request failed");
+    }),
+  ],
 });
 {{else}}
 const handler = new OpenAPIHandler(appRouter, {
-  interceptors: [onError((error) => console.error("[oRPC OpenAPI]", error))],
+  interceptors: [
+    onError((error) => {
+      logger.error({ err: error }, "oRPC OpenAPI request failed");
+    }),
+  ],
 });
 
 const generator = new OpenAPIGenerator({

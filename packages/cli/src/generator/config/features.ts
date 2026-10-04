@@ -34,6 +34,12 @@ export interface Feature {
   devDependencies?: FeatureDependencies;
 }
 
+// The logger exists only where generated server code logs: the API route
+// handlers and the production health check's database probe.
+const usesLogger = (config: ProjectConfig): boolean =>
+  config.api !== undefined ||
+  (config.production !== undefined && config.database !== undefined);
+
 export const FEATURES: Feature[] = [
   {
     dir: "base",
@@ -162,6 +168,12 @@ export const FEATURES: Feature[] = [
     dir: "features/email/resend",
     when: (config) => config.email === "resend",
     dependencies: ["resend"],
+  },
+  {
+    dir: "features/logging",
+    when: usesLogger,
+    dependencies: ["pino", "server-only"],
+    devDependencies: ["pino-pretty"],
   },
   {
     dir: "features/production/core",

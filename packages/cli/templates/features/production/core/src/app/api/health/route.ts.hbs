@@ -6,6 +6,7 @@ import "@/env";
 
 {{#if database}}
 import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export const GET = async (): Promise<Response> => {
 {{/if}}
     return Response.json({ status: "ok" });
   } catch (error) {
-    console.error("Health check failed:", error);
+    logger.error({ err: error }, "Health check failed");
     return Response.json({ status: "error" }, { status: 503 });
   }
 };

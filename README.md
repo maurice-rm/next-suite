@@ -25,7 +25,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 **Core** — in every project
 
 - ⚡ **Next 16 · React 19 · TypeScript (strict)** — App Router, React Compiler, `@/*` alias
-- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Husky · commitlint · typed env
+- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Husky · commitlint · typed env · pino logging with an API or deployment
 
 **Optional** — pick in the wizard
 
@@ -52,6 +52,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 - **API layer** (optional) — **tRPC** or **oRPC** with **TanStack Query**, RSC prefetching + hydration, a health route; oRPC can add an **OpenAPI (REST)** layer with an optional **Scalar** docs UI.
 - **Auth** (optional) — **Better-Auth** (email + password), headless: schema tables per ORM, `/api/auth` handler, typed `getSession`, the session in the API context.
 - **Email** (optional) — a **Resend** client with `EMAIL_FROM`, wired through the typed env.
+- **Structured logging** — a **pino** logger at `@/lib/logger` (JSON in production, pretty in development, `password`, `token` and `cookie` fields redacted) in the API route handlers and the production health check.
 - **Production deployment** (optional) — a multi-stage **Docker** build (standalone), **nginx** (terminating TLS or behind an upstream proxy), a `docker-compose.prod.yml`, and an entrypoint that waits for the database and migrates on start. For proxied projects, the companion `next-suite provision` command _(beta)_ sets up the server over SSH (interactive wizard, `--yes` for CI); `next-suite deprovision` tears it back down.
 - **CI/CD** (optional) — **GitHub Actions**: CI (lint, Knip, type-check, format, build, `pnpm audit`) with a Renovate config, plus CD (build & push to GHCR, deploy over SSH).
 
