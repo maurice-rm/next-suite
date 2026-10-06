@@ -880,6 +880,7 @@ export default eslintConfig;
   ],
   "ignoreDependencies": [
     "eslint-plugin-import",
+    "@prisma/client",
     "pino-pretty"
   ]
 }
@@ -3272,6 +3273,7 @@ export default nextConfig;
   },
   "allowScripts": {
     "esbuild": true,
+    "fsevents": false,
     "sharp": true,
     "unrs-resolver": true
   },
@@ -4793,6 +4795,7 @@ export default nextConfig;
   },
   "allowScripts": {
     "esbuild": true,
+    "fsevents": false,
     "sharp": true,
     "unrs-resolver": true
   },
@@ -6586,6 +6589,7 @@ http {
   },
   "allowScripts": {
     "esbuild": true,
+    "fsevents": false,
     "sharp": true,
     "unrs-resolver": true
   },
@@ -7762,6 +7766,7 @@ export default nextConfig;
   },
   "allowScripts": {
     "esbuild": true,
+    "fsevents": false,
     "sharp": true,
     "unrs-resolver": true
   },
@@ -9275,6 +9280,7 @@ export default nextConfig;
   },
   "allowScripts": {
     "esbuild": true,
+    "fsevents": false,
     "sharp": true,
     "unrs-resolver": true
   },
@@ -15395,6 +15401,7 @@ export default eslintConfig;
   "ignore": ["src/components/ui/**"],
   "ignoreDependencies": [
     "eslint-plugin-import",
+    "@prisma/client",
     "class-variance-authority",
     "lucide-react",
     "@base-ui/react",
