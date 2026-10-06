@@ -2333,86 +2333,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -4142,86 +4157,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -5652,86 +5682,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -8713,86 +8758,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -10320,86 +10380,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -12834,86 +12909,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -15801,86 +15891,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -17452,86 +17557,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
@@ -19864,86 +19984,101 @@ const REDACTED_PATHS = [
 ];
 
 // Drizzle appends the bound values of a failed query to the error message
-// (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too, also in
-// nested and aggregated errors.
-const REDACTED_PARAMS = "params: [Redacted]";
+// (\`params: \${params}\`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = \`params: \${REDACTED}\`;
+const CIRCULAR = "[Circular]";
 
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
-// chain must not hang the logger.
-const collectQueryParams = (error: Error): string[] => {
+const isPlainObject = (value: object): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (isPlainObject(value)) return Object.values(value);
+  if (!(value instanceof Error)) return [];
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
   const found: string[] = [];
-  const seen = new Set<Error>();
-  const pending: unknown[] = [error];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
   while (pending.length > 0) {
     const current = pending.pop();
-    if (!(current instanceof Error) || seen.has(current)) continue;
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
     seen.add(current);
-    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
-    const fields: unknown[] = Object.values(current);
-    const aggregated: unknown[] =
-      current instanceof AggregateError ? current.errors : [];
-    pending.push(current.cause, ...fields, ...aggregated);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    pending.push(...listChildren(current));
   }
   return found;
 };
 
 type RedactionContext = {
   queryParams: string[];
-  seen: WeakSet<object>;
+  ancestors: Set<object>;
   errorPrototype: unknown;
 };
 
-// Only the serializer's own output is walked: plain objects, arrays and the
-// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
-const isWalkable = (
-  value: object,
-  errorPrototype: unknown,
-): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return (
-    prototype === Object.prototype ||
-    prototype === null ||
-    prototype === errorPrototype
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
   );
-};
 
-const redactSerialized = (
-  value: unknown,
-  context: RedactionContext,
-): unknown => {
-  if (typeof value === "string") {
-    return context.queryParams.reduce(
-      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
-      value,
-    );
-  }
-  if (value === null || typeof value !== "object") return value;
-  if (context.seen.has(value)) return "[Circular]";
+// Walks plain objects, arrays and serialized errors; class instances (Date,
+// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
+const isWalkable = (value: object, errorPrototype: unknown): boolean =>
+  Array.isArray(value) ||
+  isPlainObject(value) ||
+  Object.getPrototypeOf(value) === errorPrototype;
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
-    context.seen.add(value);
-    return value.map((item) => redactSerialized(item, context));
+    return value.map((item) => redactValue(item, context));
   }
-  if (!isWalkable(value, context.errorPrototype)) return value;
-  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, context),
+      key === "params" ? REDACTED : redactValue(field, context),
     ]),
   );
 };
 
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const serialized = pino.stdSerializers.err(error);
-  return redactSerialized(serialized, {
+  return redactValue(error, {
     queryParams: collectQueryParams(error),
-    seen: new WeakSet(),
-    errorPrototype: Object.getPrototypeOf(serialized),
+    ancestors: new Set(),
+    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
   });
 };
 
