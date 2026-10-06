@@ -29,6 +29,7 @@ if id -u ${deploy.user} >/dev/null 2>&1; then
 else
   useradd -m -d ${deploy.path} -s /bin/bash ${deploy.user}
 fi
+[ -L ${deploy.path} ] && { echo "${deploy.path} is a symlink — refusing to touch it." >&2; exit 1; }
 mkdir -p ${deploy.path}
 chown ${deploy.user}:${deploy.user} ${deploy.path}
 chmod 3755 ${deploy.path}

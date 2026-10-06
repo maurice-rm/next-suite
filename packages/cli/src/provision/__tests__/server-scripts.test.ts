@@ -16,6 +16,7 @@ test("buildServerSetupScript is idempotent, guards foreign homes, and installs t
   expect(script).toContain("chmod 3775 /srv/www");
   expect(script).toContain("useradd -m -d /srv/www/acme");
   expect(script).toContain("refusing");
+  expect(script).toContain("[ -L /srv/www/acme ]");
   expect(script).toContain("/srv/www/acme/.ssh");
   expect(script).toContain("usermod -aG docker acme");
   expect(script).toContain("usermod -aG deploy acme");
