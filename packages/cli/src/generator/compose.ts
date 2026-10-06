@@ -23,9 +23,8 @@ import {
  * resolved dependencies, then merge the collected fragments into their final
  * files. Performs no disk writes.
  *
- * @param config - The resolved project configuration.
  * @param templatesDir - Absolute path to the templates root (holds `base/`, `features/`).
- * @returns The finished project as a FileMap (relative POSIX path → content).
+ * @returns The finished project, keyed by relative POSIX path.
  * @throws If composition produces no files.
  */
 export const composeProject = async (
@@ -37,15 +36,13 @@ export const composeProject = async (
 
   const features = activeFeatures(config);
   for (const feature of features) {
-    await renderLayer(
-      path.join(templatesDir, feature.dir),
-      config,
+    await renderLayer(path.join(templatesDir, feature.dir), config, {
       fileMap,
       fragments,
-    );
+    });
   }
 
-  const depsFragment = dependenciesFragment(
+  const dependencyFragment = dependenciesFragment(
     features.flatMap((feature) =>
       featureDependencies(feature.dependencies, config),
     ),
@@ -53,8 +50,8 @@ export const composeProject = async (
       featureDependencies(feature.devDependencies, config),
     ),
   );
-  if (depsFragment) {
-    pushFragment(fragments, "package.json", depsFragment);
+  if (dependencyFragment) {
+    pushFragment(fragments, "package.json", dependencyFragment);
   }
   const overrides = overridesFragment(
     dependencyOverrides(config),

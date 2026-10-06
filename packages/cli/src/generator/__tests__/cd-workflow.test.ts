@@ -37,7 +37,7 @@ const renderCd = async (
 test("every `compose run` in the deploy reads from /dev/null", async () => {
   const runs = (await renderCd())
     .split("\n")
-    .filter((l) => /docker compose .*\brun\b/.test(l));
+    .filter((line) => /docker compose .*\brun\b/.test(line));
 
   expect(runs.length).toBeGreaterThan(0);
   for (const line of runs) expect(line).toMatch(/<\s*\/dev\/null/);

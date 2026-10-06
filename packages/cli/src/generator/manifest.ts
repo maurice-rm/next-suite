@@ -33,5 +33,5 @@ export const buildManifest = (config: ProjectConfig): ProjectManifest => ({
   githubActions: config.githubActions,
 });
 
-export const serializeManifest = (m: ProjectManifest): string =>
-  `${JSON.stringify(m, null, 2)}\n`;
+export const serializeManifest = (manifest: ProjectManifest): string =>
+  `${JSON.stringify(manifest, null, 2)}\n`;

@@ -26,17 +26,20 @@ interface Row {
   kind: Kind;
 }
 
-const parts = (version: string): number[] =>
+const DECIMAL_RADIX = 10;
+
+const parseVersionParts = (version: string): number[] =>
   (version.replace(/^[^\d]*/, "").split("-")[0] ?? "")
     .split(".")
-    .map((n) => parseInt(n, 10) || 0);
+    .map((part) => parseInt(part, DECIMAL_RADIX) || 0);
 
 const isExactPin = (pin: string): boolean => /^\d/.test(pin.trim());
 
-const isNewer = (a: number[], b: number[]): boolean => {
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
-    const diff = (a[i] ?? 0) - (b[i] ?? 0);
-    if (diff !== 0) return diff > 0;
+const isNewer = (candidate: number[], baseline: number[]): boolean => {
+  const length = Math.max(candidate.length, baseline.length);
+  for (let index = 0; index < length; index++) {
+    const difference = (candidate[index] ?? 0) - (baseline[index] ?? 0);
+    if (difference !== 0) return difference > 0;
   }
   return false;
 };
@@ -44,47 +47,59 @@ const isNewer = (a: number[], b: number[]): boolean => {
 const isPrerelease = (version: string): boolean => version.includes("-");
 
 // Below 1.0.0 the minor is the breaking segment, so ^0.27.3 does not reach 0.28.
-const breakingIndex = (p: number[], l: number[]): number =>
-  (p[0] ?? 0) === 0 && (l[0] ?? 0) === 0 ? 1 : 0;
+const getBreakingIndex = (pinned: number[], latest: number[]): number =>
+  (pinned[0] ?? 0) === 0 && (latest[0] ?? 0) === 0 ? 1 : 0;
 
 const classify = (pinned: string, latest: string): Kind => {
   if (isPrerelease(latest) && !isPrerelease(pinned)) return "current";
-  const p = parts(pinned);
-  const l = parts(latest);
-  const i = breakingIndex(p, l);
-  if ((l[i] ?? 0) > (p[i] ?? 0)) return "major";
-  if (isExactPin(pinned) && isNewer(l, p)) return "exact-behind";
+  const pinnedParts = parseVersionParts(pinned);
+  const latestParts = parseVersionParts(latest);
+  const breakingIndex = getBreakingIndex(pinnedParts, latestParts);
+  if ((latestParts[breakingIndex] ?? 0) > (pinnedParts[breakingIndex] ?? 0)) {
+    return "major";
+  }
+  if (isExactPin(pinned) && isNewer(latestParts, pinnedParts)) {
+    return "exact-behind";
+  }
   return "current";
 };
 
-const fetchLatest = async (name: string): Promise<string | null> => {
+const readVersion = (manifest: unknown): string | undefined =>
+  typeof manifest === "object" &&
+  manifest !== null &&
+  "version" in manifest &&
+  typeof manifest.version === "string"
+    ? manifest.version
+    : undefined;
+
+const fetchLatest = async (name: string): Promise<string | undefined> => {
   try {
-    const res = await fetch(`https://registry.npmjs.org/${name}/latest`);
-    if (!res.ok) return null;
-    const json = (await res.json()) as { version?: string };
-    return json.version ?? null;
+    const response = await fetch(`https://registry.npmjs.org/${name}/latest`);
+    if (!response.ok) return undefined;
+    const manifest: unknown = await response.json();
+    return readVersion(manifest);
   } catch {
-    return null;
+    return undefined;
   }
 };
 
 const rows: Row[] = await Promise.all(
-  Object.entries(VERSIONS).map(async ([name, pinned]) => {
+  Object.entries(VERSIONS).map(async ([name, pinned]): Promise<Row> => {
     const latest = await fetchLatest(name);
     return latest
       ? { name, pinned, latest, kind: classify(pinned, latest) }
-      : { name, pinned, latest: "?", kind: "error" as const };
+      : { name, pinned, latest: "?", kind: "error" };
   }),
 );
 
-const width = Math.max(...rows.map((r) => r.name.length));
+const width = Math.max(...rows.map((row) => row.name.length));
 
 const printSection = (title: string, kind: Kind): void => {
-  const items = rows.filter((r) => r.kind === kind);
+  const items = rows.filter((row) => row.kind === kind);
   if (items.length === 0) return;
   console.log(`\n${title}`);
-  for (const r of items) {
-    console.log(`  ${r.name.padEnd(width)}  ${r.pinned}  →  ${r.latest}`);
+  for (const row of items) {
+    console.log(`  ${row.name.padEnd(width)}  ${row.pinned}  →  ${row.latest}`);
   }
 };
 
@@ -99,9 +114,10 @@ printSection(
 );
 printSection("✗  Could not check (not found / offline):", "error");
 
-const count = (kind: Kind): number =>
-  rows.filter((r) => r.kind === kind).length;
+const countRows = (kind: Kind): number =>
+  rows.filter((row) => row.kind === kind).length;
+const uncheckedCount = countRows("error");
 console.log(
-  `\nSummary: ${count("major")} major, ${count("exact-behind")} exact-pin behind, ` +
-    `${count("current")} current${count("error") ? `, ${count("error")} unchecked` : ""}.`,
+  `\nSummary: ${String(countRows("major"))} major, ${String(countRows("exact-behind"))} exact-pin behind, ` +
+    `${String(countRows("current"))} current${uncheckedCount > 0 ? `, ${String(uncheckedCount)} unchecked` : ""}.`,
 );

@@ -10,7 +10,7 @@ vi.mock("../run");
 const commitArgsOf = (): string[] | undefined =>
   vi
     .mocked(run)
-    .mock.calls.map((c) => c[1])
+    .mock.calls.map((call) => call[1])
     .find((args) => args.includes("commit"));
 
 beforeEach(() => {
@@ -26,19 +26,21 @@ test("throws when git is not installed", async () => {
 
 test("initGit runs `git init` on the main branch (no add, no commit)", async () => {
   await initGit("/tmp/x");
-  const argSets = vi.mocked(run).mock.calls.map((c) => c[1]);
+  const argSets = vi.mocked(run).mock.calls.map((call) => call[1]);
   expect(argSets).toContainEqual(["-c", "init.defaultBranch=main", "init"]);
-  expect(argSets.some((a) => a.includes("add") || a.includes("commit"))).toBe(
-    false,
-  );
+  expect(
+    argSets.some((args) => args.includes("add") || args.includes("commit")),
+  ).toBe(false);
 });
 
 test("createInitialCommit stages everything and commits with hooks bypassed", async () => {
   await createInitialCommit("/tmp/x");
-  const argSets = vi.mocked(run).mock.calls.map((c) => c[1]);
+  const argSets = vi.mocked(run).mock.calls.map((call) => call[1]);
   expect(argSets).toContainEqual(["add", "-A"]);
   expect(
-    argSets.some((a) => a.includes("commit") && a.includes("--no-verify")),
+    argSets.some(
+      (args) => args.includes("commit") && args.includes("--no-verify"),
+    ),
   ).toBe(true);
 });
 

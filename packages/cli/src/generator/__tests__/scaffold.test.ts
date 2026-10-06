@@ -43,7 +43,7 @@ afterEach(async () => {
   await fs.remove(target);
 });
 
-const config = (targetDir: string): ProjectConfig => ({
+const createConfig = (targetDir: string): ProjectConfig => ({
   projectName: "synth-app",
   targetDir,
   action: "create",
@@ -59,20 +59,22 @@ const config = (targetDir: string): ProjectConfig => ({
 });
 
 test("scaffold renders the template and writes the project to disk", async () => {
-  const out = path.join(target, "app");
-  await scaffold(config(out), { templatesDir: templates });
+  const projectDir = path.join(target, "app");
+  await scaffold(createConfig(projectDir), { templatesDir: templates });
 
   const page = await fs.readFile(
-    path.join(out, "src", "app", "page.tsx"),
+    path.join(projectDir, "src", "app", "page.tsx"),
     "utf8",
   );
   expect(page).toContain("synth-app");
   expect(
-    await fs.pathExists(path.join(out, "src", "app", "page.tsx.hbs")),
+    await fs.pathExists(path.join(projectDir, "src", "app", "page.tsx.hbs")),
   ).toBe(false);
 
-  const pkg = await fs.readJson(path.join(out, "package.json"));
-  expect(pkg.name).toBe("synth-app");
+  const packageJson: unknown = await fs.readJson(
+    path.join(projectDir, "package.json"),
+  );
+  expect(packageJson).toMatchObject({ name: "synth-app" });
 
-  expect(await fs.pathExists(path.join(out, ".gitignore"))).toBe(true);
+  expect(await fs.pathExists(path.join(projectDir, ".gitignore"))).toBe(true);
 });

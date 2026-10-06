@@ -16,6 +16,11 @@ vi.mock("../resolve", () => ({
   overridesFragment: () => undefined,
 }));
 
+const parseJson = (content: string | Buffer | undefined): unknown => {
+  if (typeof content !== "string") throw new Error("Expected a text file.");
+  return JSON.parse(content);
+};
+
 let templates: string;
 beforeEach(async () => {
   templates = await fs.mkdtemp(path.join(os.tmpdir(), "nc-compose-"));
@@ -42,9 +47,13 @@ test("later layers overwrite normal files; package.json fragments merge", async 
   const fileMap = await composeProject({} as ProjectConfig, templates);
 
   expect(fileMap.get("app/page.tsx")).toBe("feature");
-  const pkg = JSON.parse(fileMap.get("package.json") as string);
-  expect(pkg.name).toBe("app");
-  expect(Object.keys(pkg.dependencies)).toEqual(["better-auth", "next"]);
+  expect(fileMap.get("package.json")).toBe(
+    `${JSON.stringify(
+      { name: "app", dependencies: { "better-auth": "^1", next: "^15" } },
+      null,
+      2,
+    )}\n`,
+  );
 });
 
 test("binary files pass through the pipeline uncorrupted", async () => {
@@ -72,8 +81,9 @@ test("includes next-suite.json manifest when composition succeeds", async () => 
   const fileMap = await composeProject({} as ProjectConfig, templates);
 
   expect(fileMap.has("next-suite.json")).toBe(true);
-  const manifest = JSON.parse(fileMap.get("next-suite.json") as string);
-  expect(manifest.version).toBe(1);
+  expect(parseJson(fileMap.get("next-suite.json"))).toMatchObject({
+    version: 1,
+  });
 });
 
 test("a merged .env.example is mirrored into a real .env", async () => {

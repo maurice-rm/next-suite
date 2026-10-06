@@ -55,10 +55,6 @@ const MIGRATION_GENERATORS: Record<
  * Generate the initial migration from the schema, so a production project
  * ships with one for the entrypoint to apply. Offline: neither ORM needs a
  * database to diff the schema against an empty one.
- *
- * @param targetDir - The generated project directory.
- * @param packageManager - The package manager that runs the ORM's CLI.
- * @param orm - The project's ORM.
  */
 export const generateMigrations = async (
   targetDir: string,

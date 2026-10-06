@@ -18,10 +18,6 @@ export interface RunOptions {
  * stdout/stderr so the caller can surface why it failed. A timeout guards
  * against a hung subprocess (stalled download, an unexpected prompt) freezing
  * the CLI under a spinner.
- *
- * @param command - The executable to run.
- * @param args - Its arguments.
- * @param options - Working directory, environment, and timeout.
  */
 export const run = async (
   command: string,
@@ -39,12 +35,7 @@ export const run = async (
   });
 };
 
-/**
- * Whether a command is available on the PATH (platform-aware, never throws).
- *
- * @param command - The command name to probe.
- * @returns `true` when the command resolves.
- */
+/** Probes the PATH platform-aware and never throws. */
 export const isCommandAvailable = async (command: string): Promise<boolean> => {
   const probe = process.platform === "win32" ? "where" : "which";
   const { exitCode } = await execa(probe, [command], { reject: false });

@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 
-import type { ProjectConfig } from "@/core/types";
+import type { ProjectConfig, ShadcnOptions } from "@/core/types";
 
 import { fixProject } from "./fix";
 import { createInitialCommit, initGit } from "./git";
@@ -9,20 +9,20 @@ import { generateMigrations } from "./migrations";
 import { isCommandAvailable } from "./run";
 import { initShadcn } from "./shadcn";
 
-/**
- * A human-readable reason for a failed `run`, trimmed. Prefers the tool's
- * stderr, then stdout, then execa's message — so a stderr-less failure (e.g. a
- * subprocess killed by signal or timeout) still reports something. Empty when
- * no candidate carries text.
- */
-const failureReason = (error: unknown): string => {
-  const e = error as {
-    stderr?: unknown;
-    stdout?: unknown;
-    shortMessage?: unknown;
-    message?: unknown;
-  } | null;
-  for (const candidate of [e?.stderr, e?.stdout, e?.shortMessage, e?.message]) {
+interface StepMessages {
+  start: string;
+  done: string;
+  failed: string;
+}
+
+// stderr first, then stdout, then execa's messages — so a stderr-less failure
+// (e.g. a subprocess killed by signal or timeout) still reports something.
+const FAILURE_REASON_FIELDS = ["stderr", "stdout", "shortMessage", "message"];
+
+const readFailureReason = (error: unknown): string => {
+  if (typeof error !== "object" || error === null) return "";
+  for (const field of FAILURE_REASON_FIELDS) {
+    const candidate: unknown = Reflect.get(error, field);
     if (typeof candidate === "string" && candidate.trim()) {
       return candidate.trim();
     }
@@ -36,97 +36,126 @@ const failureReason = (error: unknown): string => {
  *
  * @returns Whether the step succeeded.
  */
-const step = async (
-  start: string,
-  done: string,
-  failed: string,
+const runStep = async (
+  messages: StepMessages,
   action: () => Promise<void>,
 ): Promise<boolean> => {
   const spinner = p.spinner();
-  spinner.start(start);
+  spinner.start(messages.start);
   try {
     await action();
-    spinner.stop(done);
+    spinner.stop(messages.done);
     return true;
   } catch (error) {
-    spinner.error(failed);
-    const reason = failureReason(error);
+    spinner.error(messages.failed);
+    const reason = readFailureReason(error);
     if (reason) p.log.message(reason);
     return false;
   }
 };
 
+const checkPackageManager = async (
+  config: ProjectConfig,
+  isPackageManagerNeeded: boolean,
+): Promise<boolean> => {
+  if (!isPackageManagerNeeded) return true;
+  if (await isCommandAvailable(config.packageManager)) return true;
+  p.log.warn(
+    `${config.packageManager} was not found on your PATH — skipping install and shadcn setup. Install it, then run \`${config.packageManager} install\`.`,
+  );
+  return false;
+};
+
+const runGitInit = (config: ProjectConfig): Promise<boolean> =>
+  runStep(
+    {
+      start: "Initializing git repository…",
+      done: "Initialized git repository",
+      failed: "Could not initialize git repository",
+    },
+    () => initGit(config.targetDir),
+  );
+
+const runInstall = (config: ProjectConfig): Promise<boolean> =>
+  runStep(
+    {
+      start: `Installing dependencies (${config.packageManager})…`,
+      done: "Installed dependencies",
+      failed: `Could not install — run \`${config.packageManager} install\` yourself`,
+    },
+    () => installDependencies(config.targetDir, config.packageManager),
+  );
+
+const runShadcnInit = (
+  config: ProjectConfig,
+  shadcn: ShadcnOptions,
+): Promise<boolean> =>
+  runStep(
+    {
+      start: "Setting up shadcn/ui…",
+      done: "Set up shadcn/ui",
+      failed: "Could not set up shadcn/ui — run `shadcn init` yourself",
+    },
+    () => initShadcn(config.targetDir, config.packageManager, shadcn),
+  );
+
+const runMigrationGeneration = async (config: ProjectConfig): Promise<void> => {
+  const orm = config.database?.orm;
+  if (orm === undefined || config.production === undefined) return;
+  await runStep(
+    {
+      start: "Generating initial migration…",
+      done: "Generated initial migration",
+      failed:
+        "Could not generate the initial migration — create one yourself, or the first production deploy starts with an empty database",
+    },
+    () => generateMigrations(config.targetDir, config.packageManager, orm),
+  );
+};
+
+const runFix = (config: ProjectConfig): Promise<boolean> =>
+  runStep(
+    {
+      start: "Fixing files…",
+      done: "Fixed files",
+      failed: `Could not fix files — run \`${config.packageManager} run fix\` yourself`,
+    },
+    () => fixProject(config.targetDir, config.packageManager),
+  );
+
+const runInitialCommit = (config: ProjectConfig): Promise<boolean> =>
+  runStep(
+    {
+      start: "Creating initial commit…",
+      done: "Created initial commit",
+      failed: "Could not create initial commit",
+    },
+    () => createInitialCommit(config.targetDir),
+  );
+
 /**
  * Run the post-generation steps (best-effort, in order): initialize git,
- * install dependencies, initialize shadcn/ui, fix the project, then create
- * the initial commit. A failing step warns and the rest still run — the
- * generated project is never invalidated.
- *
- * @param config - The resolved project configuration.
+ * install dependencies, initialize shadcn/ui, generate the initial migration,
+ * fix the project, then create the initial commit. A failing step warns and
+ * the rest still run — the generated project is never invalidated.
  */
 export const runPostSteps = async (config: ProjectConfig): Promise<void> => {
-  const shadcn = config.shadcn;
-  const usesShadcn = config.componentLibrary === "shadcn" && !!shadcn;
-  const pmAvailable =
-    !(config.install || usesShadcn) ||
-    (await isCommandAvailable(config.packageManager));
-  if (!pmAvailable) {
-    p.log.warn(
-      `${config.packageManager} was not found on your PATH — skipping install and shadcn setup. Install it, then run \`${config.packageManager} install\`.`,
-    );
-  }
+  const shadcn =
+    config.componentLibrary === "shadcn" ? config.shadcn : undefined;
+  const canUsePackageManager = await checkPackageManager(
+    config,
+    config.install || shadcn !== undefined,
+  );
 
-  let gitReady = false;
-  if (config.git) {
-    gitReady = await step(
-      "Initializing git repository…",
-      "Initialized git repository",
-      "Could not initialize git repository",
-      () => initGit(config.targetDir),
-    );
-  }
-  let installed = false;
-  if (config.install && pmAvailable) {
-    installed = await step(
-      `Installing dependencies (${config.packageManager})…`,
-      "Installed dependencies",
-      `Could not install — run \`${config.packageManager} install\` yourself`,
-      () => installDependencies(config.targetDir, config.packageManager),
-    );
-  }
-  let shadcnInstalled = false;
-  if (usesShadcn && pmAvailable) {
-    shadcnInstalled = await step(
-      "Setting up shadcn/ui…",
-      "Set up shadcn/ui",
-      "Could not set up shadcn/ui — run `shadcn init` yourself",
-      () => initShadcn(config.targetDir, config.packageManager, shadcn),
-    );
-  }
-  const orm = config.database?.orm;
-  if (installed && orm !== undefined && config.production !== undefined) {
-    await step(
-      "Generating initial migration…",
-      "Generated initial migration",
-      "Could not generate the initial migration — create one yourself, or the first production deploy starts with an empty database",
-      () => generateMigrations(config.targetDir, config.packageManager, orm),
-    );
-  }
+  const isGitReady = config.git && (await runGitInit(config));
+  const isInstalled =
+    config.install && canUsePackageManager && (await runInstall(config));
+  const isShadcnInstalled =
+    shadcn !== undefined &&
+    canUsePackageManager &&
+    (await runShadcnInit(config, shadcn));
+  if (isInstalled) await runMigrationGeneration(config);
   // shadcn init installs the dependencies itself, even with --no-install.
-  if (installed || shadcnInstalled) {
-    await step(
-      "Fixing files…",
-      "Fixed files",
-      `Could not fix files — run \`${config.packageManager} run fix\` yourself`,
-      () => fixProject(config.targetDir, config.packageManager),
-    );
-  }
-  if (config.git && gitReady) {
-    await step(
-      "Creating initial commit…",
-      "Created initial commit",
-      "Could not create initial commit",
-      () => createInitialCommit(config.targetDir),
-    );
-  }
+  if (isInstalled || isShadcnInstalled) await runFix(config);
+  if (isGitReady) await runInitialCommit(config);
 };

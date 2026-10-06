@@ -7,6 +7,11 @@ import {
   mergePrettierConfig,
 } from "../merge";
 
+const parseJson = (text: string): unknown => JSON.parse(text);
+
+const formatJson = (value: unknown): string =>
+  `${JSON.stringify(value, null, 2)}\n`;
+
 test("isMergeable flags files merged across layers", () => {
   expect(isMergeable("package.json")).toBe(true);
   expect(isMergeable(".env.example")).toBe(true);
@@ -21,34 +26,32 @@ test("mergePrettierConfig concatenates plugins in layer order, keeps scalars", (
     plugins: ["prettier-plugin-packagejson"],
   });
   const feature = JSON.stringify({ plugins: ["prettier-plugin-tailwindcss"] });
-  const cfg = JSON.parse(mergePrettierConfig([base, feature]));
-  expect(cfg.semi).toBe(true);
-  expect(cfg.printWidth).toBe(80);
-  expect(cfg.plugins).toEqual([
-    "prettier-plugin-packagejson",
-    "prettier-plugin-tailwindcss",
-  ]);
+  expect(parseJson(mergePrettierConfig([base, feature]))).toEqual({
+    semi: true,
+    printWidth: 80,
+    plugins: ["prettier-plugin-packagejson", "prettier-plugin-tailwindcss"],
+  });
 });
 
 test("mergePrettierConfig dedupes plugins last-seen-wins; last scalar wins", () => {
   const base = JSON.stringify({ printWidth: 80, plugins: ["a", "b"] });
   const feature = JSON.stringify({ printWidth: 100, plugins: ["a"] });
-  const cfg = JSON.parse(mergePrettierConfig([base, feature]));
-  expect(cfg.printWidth).toBe(100);
-  expect(cfg.plugins).toEqual(["b", "a"]);
+  expect(parseJson(mergePrettierConfig([base, feature]))).toEqual({
+    printWidth: 100,
+    plugins: ["b", "a"],
+  });
 });
 
 test("mergePrettierConfig omits plugins when no fragment declares any", () => {
-  const cfg = JSON.parse(mergePrettierConfig([JSON.stringify({ semi: true })]));
-  expect(cfg.semi).toBe(true);
-  expect(cfg.plugins).toBeUndefined();
+  expect(
+    parseJson(mergePrettierConfig([JSON.stringify({ semi: true })])),
+  ).toEqual({ semi: true });
 });
 
 test("mergePrettierConfig treats an empty plugins array as none", () => {
-  const cfg = JSON.parse(
-    mergePrettierConfig([JSON.stringify({ plugins: [] })]),
-  );
-  expect(cfg.plugins).toBeUndefined();
+  expect(
+    parseJson(mergePrettierConfig([JSON.stringify({ plugins: [] })])),
+  ).toEqual({});
 });
 
 test("mergePrettierConfig throws on invalid JSON", () => {
@@ -67,14 +70,13 @@ test("mergePackageJson unions + sorts deps; last scalar wins, absent scalars kep
     version: "0.2.0",
     dependencies: { "better-auth": "^1" },
   });
-  const pkg = JSON.parse(mergePackageJson([base, feature]));
-  expect(pkg.name).toBe("app");
-  expect(pkg.version).toBe("0.2.0");
-  expect(Object.keys(pkg.dependencies)).toEqual([
-    "better-auth",
-    "next",
-    "react",
-  ]);
+  expect(mergePackageJson([base, feature])).toBe(
+    formatJson({
+      name: "app",
+      version: "0.2.0",
+      dependencies: { "better-auth": "^1", next: "^15", react: "^19" },
+    }),
+  );
 });
 
 test("mergePackageJson throws on invalid JSON", () => {
@@ -96,9 +98,12 @@ test("mergePackageJson unions devDependencies and scripts too", () => {
     devDependencies: { drizzle: "^0.3" },
     scripts: { "db:push": "drizzle-kit push" },
   });
-  const pkg = JSON.parse(mergePackageJson([base, feature]));
-  expect(Object.keys(pkg.devDependencies)).toEqual(["drizzle", "typescript"]);
-  expect(Object.keys(pkg.scripts)).toEqual(["build", "db:push"]);
+  expect(mergePackageJson([base, feature])).toBe(
+    formatJson({
+      devDependencies: { drizzle: "^0.3", typescript: "^5" },
+      scripts: { build: "next build", "db:push": "drizzle-kit push" },
+    }),
+  );
 });
 
 test("mergeEnv keeps block comments and joins blocks with one blank line", () => {

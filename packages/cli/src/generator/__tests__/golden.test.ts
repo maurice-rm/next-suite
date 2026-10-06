@@ -24,20 +24,17 @@ const TEMPLATES = path.resolve(
   "templates",
 );
 
-/** Serialize a FileMap to a deterministic, diff-friendly string (path-sorted). */
+const describeContent = (content: string | Buffer): string =>
+  typeof content === "string"
+    ? content
+    : `<binary ${String(content.length)} bytes sha256:${createHash("sha256")
+        .update(content)
+        .digest("hex")}>`;
+
 const serialize = (fileMap: FileMap): string =>
   [...fileMap.keys()]
     .sort()
-    .map((key) => {
-      const content = fileMap.get(key) as string | Buffer;
-      const body =
-        typeof content === "string"
-          ? content
-          : `<binary ${content.length} bytes sha256:${createHash("sha256")
-              .update(content)
-              .digest("hex")}>`;
-      return `=== ${key} ===\n${body}`;
-    })
+    .map((key) => `=== ${key} ===\n${describeContent(fileMap.get(key) ?? "")}`)
     .join("\n\n");
 
 describe("golden FileMap", () => {

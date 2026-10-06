@@ -1,4 +1,4 @@
-import type { ProjectConfig } from "@/core/types";
+import type { ApiConfig, ProjectConfig, ShadcnOptions } from "@/core/types";
 
 /**
  * Representative project configurations shared by the golden snapshot test and
@@ -136,47 +136,55 @@ export const SCENARIOS: { name: string; config: ProjectConfig }[] = [
   },
 ];
 
-/**
- * Convert a scenario into `create-next-suite --yes` flags for the
- * generated-build CI matrix: the output-affecting dimensions (package manager,
- * Tailwind, shadcn, database/orm, api, auth, email, deployment, github-actions)
- * plus `--no-git`. Install stays on (the default) so the
- * post-steps — install, shadcn init, the fix step — actually run.
- */
-export const scenarioToFlags = (config: ProjectConfig): string[] => {
-  const flags = ["--pm", config.packageManager, "--no-git"];
-  if (config.componentLibrary === "shadcn") {
-    if (!config.shadcn) {
-      throw new Error(
-        'scenarioToFlags: componentLibrary is "shadcn" but config.shadcn is missing.',
-      );
-    }
-    flags.push("--shadcn", "--shadcn-base", config.shadcn.base);
-    if (config.shadcn.preset) {
-      flags.push("--shadcn-preset", config.shadcn.preset);
-    }
-    if (config.shadcn.pointer) flags.push("--shadcn-pointer");
-  } else if (config.tailwind) {
-    flags.push("--tailwind");
-  }
-  if (config.database) {
-    flags.push(
-      "--database",
-      config.database.engine,
-      "--orm",
-      config.database.orm,
+const shadcnFlags = (shadcn: ShadcnOptions | undefined): string[] => {
+  if (!shadcn) {
+    throw new Error(
+      'scenarioToFlags: componentLibrary is "shadcn" but config.shadcn is missing.',
     );
   }
-  if (config.api) flags.push("--api", config.api.type);
-  if (config.api?.type === "orpc" && config.api.openapi) {
+  return [
+    "--shadcn",
+    "--shadcn-base",
+    shadcn.base,
+    ...(shadcn.preset ? ["--shadcn-preset", shadcn.preset] : []),
+    ...(shadcn.pointer ? ["--shadcn-pointer"] : []),
+  ];
+};
+
+const styleFlags = (config: ProjectConfig): string[] => {
+  if (config.componentLibrary === "shadcn") return shadcnFlags(config.shadcn);
+  return config.tailwind ? ["--tailwind"] : [];
+};
+
+const apiFlags = (api: ApiConfig | undefined): string[] => {
+  if (!api) return [];
+  const flags = ["--api", api.type];
+  if (api.type === "orpc" && api.openapi) {
     flags.push("--openapi");
-    if (config.api.openapi.scalar) flags.push("--scalar");
-  }
-  if (config.auth !== "none") flags.push("--auth", config.auth);
-  if (config.email !== "none") flags.push("--email", config.email);
-  if (config.production) flags.push("--deployment", config.production.mode);
-  if (config.githubActions.length) {
-    flags.push("--github-actions", config.githubActions.join(","));
+    if (api.openapi.scalar) flags.push("--scalar");
   }
   return flags;
 };
+
+/**
+ * Convert a scenario into `create-next-suite --yes` flags for the
+ * generated-build CI matrix: the output-affecting dimensions plus `--no-git`.
+ * Install stays on (the default) so the post-steps — install, shadcn init, the
+ * fix step — actually run.
+ */
+export const scenarioToFlags = (config: ProjectConfig): string[] => [
+  "--pm",
+  config.packageManager,
+  "--no-git",
+  ...styleFlags(config),
+  ...(config.database
+    ? ["--database", config.database.engine, "--orm", config.database.orm]
+    : []),
+  ...apiFlags(config.api),
+  ...(config.auth === "none" ? [] : ["--auth", config.auth]),
+  ...(config.email === "none" ? [] : ["--email", config.email]),
+  ...(config.production ? ["--deployment", config.production.mode] : []),
+  ...(config.githubActions.length > 0
+    ? ["--github-actions", config.githubActions.join(",")]
+    : []),
+];

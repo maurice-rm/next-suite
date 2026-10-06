@@ -218,13 +218,11 @@ export const FEATURES: Feature[] = [
   },
   {
     dir: "features/github-actions/ci",
-    when: (config) =>
-      (config.githubActions ?? []).some((step) => !isCdStep(step)),
+    when: (config) => config.githubActions.some((step) => !isCdStep(step)),
   },
   {
     dir: "features/github-actions/cd",
     when: (config) =>
-      config.production !== undefined &&
-      (config.githubActions ?? []).some(isCdStep),
+      config.production !== undefined && config.githubActions.some(isCdStep),
   },
 ];

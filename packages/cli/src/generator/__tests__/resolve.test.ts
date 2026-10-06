@@ -9,17 +9,22 @@ import {
   featureDependencies,
   overridesFragment,
 } from "../resolve";
+import { baseConfig } from "./scenarios";
+
+const parseJson = (text: string | undefined): unknown => {
+  if (text === undefined) throw new Error("Expected a JSON fragment.");
+  return JSON.parse(text);
+};
 
 test("base is always the first active feature", () => {
-  expect(activeFeatures({} as ProjectConfig)[0]?.dir).toBe("base");
+  expect(activeFeatures(baseConfig)[0]?.dir).toBe("base");
 });
 
 test("resolves declared dependency names to their catalog versions", () => {
-  const fragment = JSON.parse(
-    dependenciesFragment(["next"], ["typescript"]) as string,
-  );
-  expect(fragment.dependencies.next).toBe(VERSIONS.next);
-  expect(fragment.devDependencies.typescript).toBe(VERSIONS.typescript);
+  expect(parseJson(dependenciesFragment(["next"], ["typescript"]))).toEqual({
+    dependencies: { next: VERSIONS.next },
+    devDependencies: { typescript: VERSIONS.typescript },
+  });
 });
 
 test("returns undefined when no dependencies are declared", () => {
@@ -32,7 +37,7 @@ test("featureDependencies passes lists through and invokes functions", () => {
   expect(featureDependencies(["next"], config)).toEqual(["next"]);
   expect(
     featureDependencies(
-      (c) => (c.tailwind ? ["tailwindcss"] : ["typescript"]),
+      (current) => (current.tailwind ? ["tailwindcss"] : ["typescript"]),
       config,
     ),
   ).toEqual(["typescript"]);
@@ -40,10 +45,10 @@ test("featureDependencies passes lists through and invokes functions", () => {
 
 test("overridesFragment nests the versions under the package manager's field", () => {
   const overrides = { next: VERSIONS.next };
-  expect(JSON.parse(overridesFragment(overrides, "npm") as string)).toEqual({
+  expect(parseJson(overridesFragment(overrides, "npm"))).toEqual({
     overrides,
   });
-  expect(JSON.parse(overridesFragment(overrides, "yarn") as string)).toEqual({
+  expect(parseJson(overridesFragment(overrides, "yarn"))).toEqual({
     resolutions: overrides,
   });
 });

@@ -18,7 +18,7 @@ const REPO_TEMPLATES = fileURLToPath(
   new URL("../../../templates", import.meta.url),
 );
 
-const config = (
+const createConfig = (
   targetDir: string,
   action: ProjectConfig["action"],
 ): ProjectConfig => ({
@@ -49,7 +49,7 @@ test("removes a freshly created directory when writing fails", async () => {
   vi.mocked(writeFileMap).mockRejectedValueOnce(new Error("write failed"));
   const target = path.join(root, "fresh");
   await expect(
-    scaffold(config(target, "create"), { templatesDir: REPO_TEMPLATES }),
+    scaffold(createConfig(target, "create"), { templatesDir: REPO_TEMPLATES }),
   ).rejects.toThrow();
   expect(await fs.pathExists(target)).toBe(false);
 });
@@ -59,7 +59,9 @@ test("keeps a pre-existing directory and its files when writing fails", async ()
   const target = path.join(root, "existing");
   await fs.outputFile(path.join(target, "keep.txt"), "user data");
   await expect(
-    scaffold(config(target, "overwrite"), { templatesDir: REPO_TEMPLATES }),
+    scaffold(createConfig(target, "overwrite"), {
+      templatesDir: REPO_TEMPLATES,
+    }),
   ).rejects.toThrow();
   expect(await fs.readFile(path.join(target, "keep.txt"), "utf8")).toBe(
     "user data",
@@ -76,7 +78,7 @@ test.each(["overwrite", "empty"] as const)(
     vi.mocked(writeFileMap).mockRejectedValueOnce(new Error("write failed"));
     const target = path.join(root, "fresh");
     await expect(
-      scaffold(config(target, action), { templatesDir: REPO_TEMPLATES }),
+      scaffold(createConfig(target, action), { templatesDir: REPO_TEMPLATES }),
     ).rejects.toThrow();
     expect(await fs.pathExists(target)).toBe(false);
   },

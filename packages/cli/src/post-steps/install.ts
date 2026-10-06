@@ -10,13 +10,7 @@ const installEnv = (
 ): NodeJS.ProcessEnv | undefined =>
   getPackageManagerEntry(packageManager).installEnv;
 
-/**
- * Install dependencies with the chosen package manager, applying the per-manager
- * tweaks a fresh scaffold needs.
- *
- * @param targetDir - The generated project directory.
- * @param packageManager - The package manager to install with.
- */
+/** Install with the per-manager env tweaks a lockfile-less first install needs. */
 export const installDependencies = async (
   targetDir: string,
   packageManager: PackageManager,

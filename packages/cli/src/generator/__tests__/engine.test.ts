@@ -38,15 +38,17 @@ test("raw emits its block body verbatim, leaving mustaches literal", () => {
 });
 
 test("execPrefix maps each package manager to its local-bin runner", () => {
-  const t = "{{execPrefix packageManager}} lint-staged";
-  expect(renderString(t, { packageManager: "npm" })).toBe(
+  const template = "{{execPrefix packageManager}} lint-staged";
+  expect(renderString(template, { packageManager: "npm" })).toBe(
     "npx --no -- lint-staged",
   );
-  expect(renderString(t, { packageManager: "pnpm" })).toBe(
+  expect(renderString(template, { packageManager: "pnpm" })).toBe(
     "pnpm exec lint-staged",
   );
-  expect(renderString(t, { packageManager: "yarn" })).toBe(
+  expect(renderString(template, { packageManager: "yarn" })).toBe(
     "yarn exec lint-staged",
   );
-  expect(renderString(t, { packageManager: "bun" })).toBe("bunx lint-staged");
+  expect(renderString(template, { packageManager: "bun" })).toBe(
+    "bunx lint-staged",
+  );
 });
