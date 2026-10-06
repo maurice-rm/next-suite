@@ -5,14 +5,14 @@ const buildDatabaseSteps = (config: ProjectConfig): string[] => {
   if (config.database?.orm === "drizzle") {
     return [`${run} db:generate`, `${run} db:migrate`];
   }
-  return [`${run} db:push`];
+  return [`${run} db:migrate`];
 };
 
 /**
  * The commands to suggest after scaffolding: enter the project, optionally
  * start the database container, install dependencies (unless they were
- * installed already), bring the database schema up to date (migrations for
- * Drizzle, a schema push for Prisma), and start the dev server.
+ * installed already), bring the database schema up to date (generated and
+ * applied migrations), and start the dev server.
  *
  * @param config - The resolved project configuration.
  * @returns The ordered list of shell commands to print.

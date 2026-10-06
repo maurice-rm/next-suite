@@ -1295,7 +1295,9 @@ import "dotenv/config";
 
 import { defineConfig } from "prisma/config";
 
-const url = \`mysql://\${process.env.MYSQL_USER ?? ""}:\${process.env.MYSQL_PASSWORD ?? ""}@\${process.env.MYSQL_HOST ?? ""}:\${process.env.MYSQL_PORT ?? ""}/\${process.env.MYSQL_DATABASE ?? ""}\`;
+const urlPart = (value: string | undefined) => encodeURIComponent(value ?? "");
+
+const url = \`mysql://\${urlPart(process.env.MYSQL_USER)}:\${urlPart(process.env.MYSQL_PASSWORD)}@\${urlPart(process.env.MYSQL_HOST)}:\${urlPart(process.env.MYSQL_PORT)}/\${urlPart(process.env.MYSQL_DATABASE)}\`;
 
 export default defineConfig({
   schema: "prisma/",
@@ -1304,15 +1306,16 @@ export default defineConfig({
   },
 });
 
+
 === prisma/models/auth.prisma ===
 model User {
   id            String    @id
   name          String    @db.Text
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean   @default(false) @map("email_verified")
   image         String?   @db.Text
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
   sessions      Session[]
   accounts      Account[]
 
@@ -1322,13 +1325,13 @@ model User {
 
 model Session {
   id        String   @id
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
   token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?  @db.Text
-  userAgent String?  @db.Text
-  userId    String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address") @db.Text
+  userAgent String?  @map("user_agent") @db.Text
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
@@ -1338,19 +1341,19 @@ model Session {
 
 model Account {
   id                    String    @id
-  accountId             String    @db.Text
-  providerId            String    @db.Text
-  userId                String
+  accountId             String    @map("account_id") @db.Text
+  providerId            String    @map("provider_id") @db.Text
+  userId                String    @map("user_id")
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?   @db.Text
-  refreshToken          String?   @db.Text
-  idToken               String?   @db.Text
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
+  accessToken           String?   @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  idToken               String?   @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   scope                 String?   @db.Text
   password              String?   @db.Text
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   @@index([userId(length: 191)])
   @@map("account")
@@ -1360,9 +1363,9 @@ model Verification {
   id         String   @id
   identifier String   @db.Text
   value      String   @db.Text
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([identifier(length: 191)])
   @@map("verification")
@@ -1751,7 +1754,7 @@ step_dependencies() {
 step_database() {
   print_step 3 "Database"
 
-  local db_hint="docker compose up -d && bun run db:push"
+  local db_hint="docker compose up -d && bun run db:migrate"
 
   if [ "$ASSUME_YES" = false ]; then
     if [ -t 0 ]; then
@@ -1785,11 +1788,11 @@ step_database() {
     handle_error 3 "Failed to start the database container"
   fi
 
-  print_action "Pushing the schema..."
-  if run_step bun run db:push; then
-    print_success "Schema pushed"
+  print_action "Applying migrations..."
+  if run_step bunx prisma migrate dev --name init; then
+    print_success "Migrations applied"
   else
-    handle_error 3 "Failed to push the schema"
+    handle_error 3 "Failed to apply the migrations"
   fi
 }
 
@@ -3928,7 +3931,7 @@ export const session = mysqlTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
+  (table) => [index("session_user_id_idx").on(table.userId)],
 );
 
 export const account = mysqlTable(
@@ -3953,7 +3956,7 @@ export const account = mysqlTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)],
+  (table) => [index("account_user_id_idx").on(table.userId)],
 );
 
 export const verification = mysqlTable(
@@ -3993,7 +3996,15 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 
 === src/lib/database/schema/index.ts ===
-export * from "./auth";
+export {
+  account,
+  accountRelations,
+  session,
+  sessionRelations,
+  user,
+  userRelations,
+  verification,
+} from "./auth";
 
 
 === src/lib/logger.ts ===
@@ -12613,7 +12624,7 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
+  (table) => [index("session_user_id_idx").on(table.userId)],
 );
 
 export const account = pgTable(
@@ -12638,7 +12649,7 @@ export const account = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)],
+  (table) => [index("account_user_id_idx").on(table.userId)],
 );
 
 export const verification = pgTable(
@@ -12678,7 +12689,15 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 
 === src/lib/database/schema/index.ts ===
-export * from "./auth";
+export {
+  account,
+  accountRelations,
+  session,
+  sessionRelations,
+  user,
+  userRelations,
+  verification,
+} from "./auth";
 
 
 === src/lib/domain-error.ts ===
@@ -15683,7 +15702,9 @@ import "dotenv/config";
 
 import { defineConfig } from "prisma/config";
 
-const url = \`postgresql://\${process.env.POSTGRES_USER ?? ""}:\${process.env.POSTGRES_PASSWORD ?? ""}@\${process.env.POSTGRES_HOST ?? ""}:\${process.env.POSTGRES_PORT ?? ""}/\${process.env.POSTGRES_DATABASE ?? ""}\`;
+const urlPart = (value: string | undefined) => encodeURIComponent(value ?? "");
+
+const url = \`postgresql://\${urlPart(process.env.POSTGRES_USER)}:\${urlPart(process.env.POSTGRES_PASSWORD)}@\${urlPart(process.env.POSTGRES_HOST)}:\${urlPart(process.env.POSTGRES_PORT)}/\${urlPart(process.env.POSTGRES_DATABASE)}\`;
 
 export default defineConfig({
   schema: "prisma/",
@@ -15692,15 +15713,16 @@ export default defineConfig({
   },
 });
 
+
 === prisma/models/auth.prisma ===
 model User {
   id            String    @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean   @default(false) @map("email_verified")
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   sessions      Session[]
   accounts      Account[]
 
@@ -15710,13 +15732,13 @@ model User {
 
 model Session {
   id        String   @id
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
   token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
@@ -15726,19 +15748,19 @@ model Session {
 
 model Account {
   id                    String    @id
-  accountId             String
-  providerId            String
-  userId                String
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([userId])
   @@map("account")
@@ -15748,9 +15770,9 @@ model Verification {
   id         String   @id
   identifier String
   value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   @@index([identifier])
   @@map("verification")
@@ -16139,7 +16161,7 @@ step_dependencies() {
 step_database() {
   print_step 3 "Database"
 
-  local db_hint="docker compose up -d && yarn run db:push"
+  local db_hint="docker compose up -d && yarn run db:migrate"
 
   if [ "$ASSUME_YES" = false ]; then
     if [ -t 0 ]; then
@@ -16173,11 +16195,11 @@ step_database() {
     handle_error 3 "Failed to start the database container"
   fi
 
-  print_action "Pushing the schema..."
-  if run_step yarn run db:push; then
-    print_success "Schema pushed"
+  print_action "Applying migrations..."
+  if run_step yarn exec prisma migrate dev --name init; then
+    print_success "Migrations applied"
   else
-    handle_error 3 "Failed to push the schema"
+    handle_error 3 "Failed to apply the migrations"
   fi
 }
 

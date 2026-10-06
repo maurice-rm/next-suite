@@ -166,7 +166,19 @@ const prodDrizzle = {
 test("generates the initial migration for a production drizzle project", async () => {
   vi.mocked(isCommandAvailable).mockResolvedValue(true);
   await runPostSteps(config({ ...prodDrizzle }));
-  expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm");
+  expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm", "drizzle");
+});
+
+test("generates the initial migration for a production prisma project", async () => {
+  vi.mocked(isCommandAvailable).mockResolvedValue(true);
+  await runPostSteps(
+    config({
+      install: true,
+      database: { engine: "postgres", orm: "prisma" },
+      production: { mode: "proxied" },
+    }),
+  );
+  expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm", "prisma");
 });
 
 test("skips the migration where it would be wrong or impossible", async () => {
@@ -174,13 +186,6 @@ test("skips the migration where it would be wrong or impossible", async () => {
 
   await runPostSteps(
     config({ install: true, database: { engine: "postgres", orm: "drizzle" } }),
-  );
-  await runPostSteps(
-    config({
-      install: true,
-      database: { engine: "postgres", orm: "prisma" },
-      production: { mode: "proxied" },
-    }),
   );
   await runPostSteps(config({ ...prodDrizzle, install: false }));
 

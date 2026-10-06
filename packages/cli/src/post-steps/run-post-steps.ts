@@ -102,16 +102,13 @@ export const runPostSteps = async (config: ProjectConfig): Promise<void> => {
       () => initShadcn(config.targetDir, config.packageManager, shadcn),
     );
   }
-  if (
-    installed &&
-    config.database?.orm === "drizzle" &&
-    config.production !== undefined
-  ) {
+  const orm = config.database?.orm;
+  if (installed && orm !== undefined && config.production !== undefined) {
     await step(
       "Generating initial migration…",
       "Generated initial migration",
-      `Could not generate the migration — run \`${config.packageManager} run db:generate\` yourself, or the first production deploy starts with an empty database`,
-      () => generateMigrations(config.targetDir, config.packageManager),
+      "Could not generate the initial migration — create one yourself, or the first production deploy starts with an empty database",
+      () => generateMigrations(config.targetDir, config.packageManager, orm),
     );
   }
   if (installed) {

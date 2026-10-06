@@ -196,22 +196,22 @@ The base `package.json` template defines these scripts:
 
 The Drizzle layer adds:
 
-| Script        | Command                | Purpose                              |
-| ------------- | ---------------------- | ------------------------------------ |
-| `db:generate` | `drizzle-kit generate` | Generate migrations from the schema. |
-| `db:migrate`  | `drizzle-kit migrate`  | Apply pending migrations.            |
-| `db:push`     | `drizzle-kit push`     | Push the schema without migrations.  |
-| `db:studio`   | `drizzle-kit studio`   | Open Drizzle Studio.                 |
+| Script        | Command                | Purpose                                                                 |
+| ------------- | ---------------------- | ----------------------------------------------------------------------- |
+| `db:generate` | `drizzle-kit generate` | Generate migrations from the schema.                                    |
+| `db:migrate`  | `drizzle-kit migrate`  | Apply pending migrations.                                               |
+| `db:push`     | `drizzle-kit push`     | Push the schema without migrations, for throwaway local databases only. |
+| `db:studio`   | `drizzle-kit studio`   | Open Drizzle Studio.                                                    |
 
 The Prisma layer adds:
 
-| Script        | Command              | Purpose                                    |
-| ------------- | -------------------- | ------------------------------------------ |
-| `db:generate` | `prisma generate`    | Regenerate the client.                     |
-| `db:migrate`  | `prisma migrate dev` | Create and apply a development migration.  |
-| `db:push`     | `prisma db push`     | Push the schema without migrations.        |
-| `db:studio`   | `prisma studio`      | Open Prisma Studio.                        |
-| `postinstall` | `prisma generate`    | Regenerate the client after every install. |
+| Script        | Command              | Purpose                                                                 |
+| ------------- | -------------------- | ----------------------------------------------------------------------- |
+| `db:generate` | `prisma generate`    | Regenerate the client.                                                  |
+| `db:migrate`  | `prisma migrate dev` | Create and apply a development migration.                               |
+| `db:push`     | `prisma db push`     | Push the schema without migrations, for throwaway local databases only. |
+| `db:studio`   | `prisma studio`      | Open Prisma Studio.                                                     |
+| `postinstall` | `prisma generate`    | Regenerate the client after every install.                              |
 
 Script keys are sorted alphabetically in the written `package.json`, so the `db:*` entries appear interleaved with the base ones.
 
@@ -352,13 +352,14 @@ Once the files are on disk, the CLI runs a short sequence of post-steps. **Every
 
 Before the sequence starts, the CLI probes your `PATH` for the selected package manager — but only when it is actually needed (an install or the shadcn setup was requested). If it is missing you get a warning naming the command to run yourself, and both of those steps are skipped.
 
-| Order | Step            | Runs when                                         | What it does                                                                                                                                                                             |
-| ----- | --------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | git init        | git was enabled                                   | `git init` with `init.defaultBranch=main`, in an environment stripped of inherited git context variables.                                                                                |
-| 2     | Install         | install was enabled and the manager is available  | `<package-manager> install`. Yarn additionally gets `YARN_ENABLE_HARDENED_MODE=0` and `YARN_ENABLE_IMMUTABLE_INSTALLS=false`, because a fresh scaffold has no lockfile yet.              |
-| 3     | shadcn/ui setup | shadcn/ui was chosen and the manager is available | Runs `shadcn@latest init` through the manager's one-off runner, with `--template next`, your base, `--pointer` or `--no-pointer`, `--preset <code>` (falling back to `b0`), and `--yes`. |
-| 4     | Fix files       | the install succeeded                             | `<package-manager> run fix` — ESLint auto-fix followed by Prettier, so the first commit is already sorted and formatted.                                                                 |
-| 5     | Initial commit  | git was enabled and step 1 succeeded              | `git add -A`, then `git commit --no-verify -m "chore: initial commit"`.                                                                                                                  |
+| Order | Step              | Runs when                                                                 | What it does                                                                                                                                                                                                                                    |
+| ----- | ----------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | git init          | git was enabled                                                           | `git init` with `init.defaultBranch=main`, in an environment stripped of inherited git context variables.                                                                                                                                       |
+| 2     | Install           | install was enabled and the manager is available                          | `<package-manager> install`. Yarn additionally gets `YARN_ENABLE_HARDENED_MODE=0` and `YARN_ENABLE_IMMUTABLE_INSTALLS=false`, because a fresh scaffold has no lockfile yet.                                                                     |
+| 3     | shadcn/ui setup   | shadcn/ui was chosen and the manager is available                         | Runs `shadcn@latest init` through the manager's one-off runner, with `--template next`, your base, `--pointer` or `--no-pointer`, `--preset <code>` (falling back to `b0`), and `--yes`.                                                        |
+| 4     | Initial migration | the install succeeded, a database and a production deployment were chosen | Drizzle: `<package-manager> run db:generate`. Prisma: `prisma migrate diff --from-empty --to-schema prisma --script` into `prisma/migrations/0_init/migration.sql`. Both work offline, so the first production deploy has a migration to apply. |
+| 5     | Fix files         | the install succeeded                                                     | `<package-manager> run fix` — ESLint auto-fix followed by Prettier, so the first commit is already sorted and formatted.                                                                                                                        |
+| 6     | Initial commit    | git was enabled and step 1 succeeded                                      | `git add -A`, then `git commit --no-verify -m "chore: initial commit"`.                                                                                                                                                                         |
 
 Two dependencies between the steps are deliberate. The fix step runs only after a successful install, because it needs the toolchain that install provided. The commit runs only after a successful `git init`, so a missing repository does not produce a second error for the same cause.
 

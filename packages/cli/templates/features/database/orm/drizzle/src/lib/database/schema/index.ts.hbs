@@ -1,5 +1,13 @@
 {{#if (eq auth "better-auth")}}
-export * from "./auth";
+export {
+  account,
+  accountRelations,
+  session,
+  sessionRelations,
+  user,
+  userRelations,
+  verification,
+} from "./auth";
 {{else}}
 export {};
 {{/if}}

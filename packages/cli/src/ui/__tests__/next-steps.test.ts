@@ -63,7 +63,7 @@ describe("nextSteps", () => {
     ).toEqual([
       "cd app",
       "docker compose up -d",
-      "pnpm run db:push",
+      "pnpm run db:migrate",
       "pnpm run dev",
     ]);
   });
