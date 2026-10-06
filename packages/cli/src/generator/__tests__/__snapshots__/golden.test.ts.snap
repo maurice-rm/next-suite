@@ -103,6 +103,8 @@ runs:
   using: composite
   steps:
     - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: package.json
     - uses: actions/setup-node@v7
       with:
         node-version: 24
@@ -200,11 +202,13 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Use the example environment
+        run: cp .env.example .env
+      - name: Audit dependencies
+        run: bun audit --ignore GHSA-vfj7-8cjw-p6xm --ignore GHSA-67mh-4wv8-2f99 --ignore GHSA-ggr8-5vv4-36mx
       - name: Lint
         run: bun run lint
       - name: Unused code
@@ -467,6 +471,11 @@ bun run dev
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
 - **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+
+
+=== bunfig.toml ===
+[install]
+minimumReleaseAge = 86400
 
 
 === commitlint.config.mjs ===
@@ -824,9 +833,10 @@ WORKDIR /app
 COPY prisma ./prisma
 COPY prisma.config.ts ./prisma.config.ts
 
-COPY package.json bun.lock ./
+COPY package.json bun.lock bunfig.toml ./
 RUN --mount=type=cache,target=/root/.bun/install/cache \\
-  npm install -g bun && bun install --frozen-lockfile
+  npm install -g "$(node -p 'require("./package.json").packageManager')" && \\
+  bun install --frozen-lockfile
 
 FROM node:\${NODE_VERSION} AS builder
 
@@ -842,7 +852,8 @@ ENV SKIP_ENV_VALIDATION=true
 ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
-RUN npm install -g bun && bun run build
+RUN npm install -g "$(node -p 'require("./package.json").packageManager')" && \\
+  bun run build
 
 FROM node:\${NODE_VERSION} AS runner
 
@@ -1122,6 +1133,14 @@ http {
   "engines": {
     "node": ">=24.0.0"
   },
+  "packageManager": "bun@1.4.2",
+  "trustedDependencies": [
+    "@prisma/engines",
+    "esbuild",
+    "prisma",
+    "sharp",
+    "unrs-resolver"
+  ],
   "dependencies": {
     "@orpc/client": "^1.14.6",
     "@orpc/server": "^1.14.6",
@@ -1166,6 +1185,10 @@ http {
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
     "typescript-eslint": "8.71.0"
+  },
+  "overrides": {
+    "mysql2": "^3.24.5",
+    "mariadb": "~3.4.7"
   }
 }
 
@@ -2548,6 +2571,11 @@ npx --no -- lint-staged
 }
 
 
+=== .npmrc ===
+min-release-age=1
+strict-allow-scripts=true
+
+
 === .nvmrc ===
 24
 
@@ -2986,12 +3014,17 @@ export default nextConfig;
   "engines": {
     "node": ">=24.0.0"
   },
+  "allowScripts": {
+    "esbuild": true,
+    "sharp": true,
+    "unrs-resolver": true
+  },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.13.11",
     "better-auth": "^1.6.23",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "mysql2": "^3.22.5",
+    "mysql2": "^3.24.5",
     "next": "16.3.6",
     "pino": "^10.3.1",
     "react": "19.3.0",
@@ -3850,11 +3883,11 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Use the example environment
+        run: cp .env.example .env
       - name: Lint
         run: npm run lint
       - name: Unused code
@@ -3923,6 +3956,11 @@ npx --no -- lint-staged
   "*.{js,jsx,ts,tsx,mjs,cjs}": ["eslint --fix", "prettier --write"],
   "!*.{js,jsx,ts,tsx,mjs,cjs}": "prettier --ignore-unknown --write"
 }
+
+
+=== .npmrc ===
+min-release-age=1
+strict-allow-scripts=true
 
 
 === .nvmrc ===
@@ -4369,6 +4407,11 @@ export default nextConfig;
   "engines": {
     "node": ">=24.0.0"
   },
+  "allowScripts": {
+    "esbuild": true,
+    "sharp": true,
+    "unrs-resolver": true
+  },
   "dependencies": {
     "@orpc/client": "^1.14.6",
     "@orpc/server": "^1.14.6",
@@ -4377,7 +4420,7 @@ export default nextConfig;
     "@tanstack/react-query": "^5.104.0",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "mysql2": "^3.22.5",
+    "mysql2": "^3.24.5",
     "next": "16.3.6",
     "pino": "^10.3.1",
     "react": "19.3.0",
@@ -5401,6 +5444,11 @@ npx --no -- lint-staged
 }
 
 
+=== .npmrc ===
+min-release-age=1
+strict-allow-scripts=true
+
+
 === .nvmrc ===
 24
 
@@ -5807,7 +5855,7 @@ FROM node:\${NODE_VERSION} AS dependencies
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 RUN --mount=type=cache,target=/root/.npm \\
   npm ci
 
@@ -6023,6 +6071,11 @@ http {
   },
   "engines": {
     "node": ">=24.0.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "sharp": true,
+    "unrs-resolver": true
   },
   "dependencies": {
     "@t3-oss/env-nextjs": "^0.13.11",
@@ -6697,6 +6750,11 @@ npx --no -- lint-staged
 }
 
 
+=== .npmrc ===
+min-release-age=1
+strict-allow-scripts=true
+
+
 === .nvmrc ===
 24
 
@@ -7102,6 +7160,11 @@ export default nextConfig;
   },
   "engines": {
     "node": ">=24.0.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "sharp": true,
+    "unrs-resolver": true
   },
   "dependencies": {
     "@orpc/client": "^1.14.6",
@@ -8093,6 +8156,11 @@ npx --no -- lint-staged
 }
 
 
+=== .npmrc ===
+min-release-age=1
+strict-allow-scripts=true
+
+
 === .nvmrc ===
 24
 
@@ -8484,6 +8552,11 @@ export default nextConfig;
   },
   "engines": {
     "node": ">=24.0.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "sharp": true,
+    "unrs-resolver": true
   },
   "dependencies": {
     "@orpc/client": "^1.14.6",
@@ -9651,17 +9724,17 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Use the example environment
+        run: cp .env.example .env
+      - name: Audit dependencies
+        run: pnpm audit
       - name: Lint
         run: pnpm run lint
       - name: Unused code
         run: pnpm run knip
-      - name: Audit dependencies
-        run: pnpm audit --audit-level high
       - name: Type-check
         run: pnpm run typecheck
       - name: Format check
@@ -10710,6 +10783,11 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+    - GHSA-67mh-4wv8-2f99
+    - GHSA-ggr8-5vv4-36mx
 
 
 === postcss.config.mjs ===
@@ -12173,11 +12251,13 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+      - name: Use the example environment
+        run: cp .env.example .env
+      - name: Audit dependencies
+        run: yarn npm audit --all --recursive --no-deprecations
       - name: Type-check
         run: yarn run typecheck
       - name: Format check
@@ -12288,6 +12368,12 @@ AGENTS.md
 === .yarnrc.yml ===
 nodeLinker: node-modules
 enableGlobalCache: true
+npmMinimalAgeGate: 1d
+npmAuditIgnoreAdvisories:
+  - "1240992"
+  - "1102341"
+  - "1145093"
+
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
@@ -13078,6 +13164,9 @@ http {
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
     "typescript-eslint": "8.71.0"
+  },
+  "resolutions": {
+    "mysql2": "^3.24.5"
   }
 }
 

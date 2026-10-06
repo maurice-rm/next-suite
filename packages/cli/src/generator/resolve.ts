@@ -1,4 +1,8 @@
 import type { ProjectConfig } from "@/core/types";
+import {
+  getPackageManagerEntry,
+  type PackageManager,
+} from "@/package-managers";
 
 import { type DependencyName, VERSIONS } from "./config/dependencies";
 import {
@@ -49,4 +53,26 @@ export const dependenciesFragment = (
   if (devDependencies.length)
     fragment.devDependencies = resolve(devDependencies);
   return Object.keys(fragment).length ? JSON.stringify(fragment) : undefined;
+};
+
+/**
+ * Build a package.json fragment that forces transitive packages to their
+ * catalog versions, under the field the package manager reads overrides from.
+ *
+ * @param names - Catalog names of the packages to override.
+ * @param packageManager - The project's package manager.
+ * @returns A JSON package.json fragment string, or `undefined` when `names` is empty.
+ */
+export const overridesFragment = (
+  names: DependencyName[],
+  packageManager: PackageManager,
+): string | undefined => {
+  if (!names.length) return undefined;
+  const fragment = getPackageManagerEntry(
+    packageManager,
+  ).overridesPath.reduceRight<unknown>(
+    (nested, key) => ({ [key]: nested }),
+    resolve(names),
+  );
+  return JSON.stringify(fragment);
 };

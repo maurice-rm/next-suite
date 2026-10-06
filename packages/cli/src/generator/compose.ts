@@ -14,6 +14,7 @@ import {
   activeFeatures,
   dependenciesFragment,
   featureDependencies,
+  overridesFragment,
 } from "./resolve";
 
 /**
@@ -53,6 +54,15 @@ export const composeProject = async (
   );
   if (depsFragment) {
     pushFragment(fragments, "package.json", depsFragment);
+  }
+  const overrides = overridesFragment(
+    features.flatMap((feature) =>
+      featureDependencies(feature.overrides, config),
+    ),
+    config.packageManager,
+  );
+  if (overrides) {
+    pushFragment(fragments, "package.json", overrides);
   }
 
   for (const { file, merge } of MERGEABLES) {

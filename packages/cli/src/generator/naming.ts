@@ -1,6 +1,9 @@
 const HBS_EXTENSION = ".hbs";
 
-const RENAMES: Record<string, string> = { gitignore: ".gitignore" };
+const RENAMES: Record<string, string> = {
+  gitignore: ".gitignore",
+  npmrc: ".npmrc",
+};
 
 export const isTemplate = (fileName: string): boolean =>
   fileName.endsWith(HBS_EXTENSION);

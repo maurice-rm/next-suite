@@ -7,6 +7,7 @@ import {
   activeFeatures,
   dependenciesFragment,
   featureDependencies,
+  overridesFragment,
 } from "../resolve";
 
 test("base is always the first active feature", () => {
@@ -35,4 +36,21 @@ test("featureDependencies passes lists through and invokes functions", () => {
       config,
     ),
   ).toEqual(["typescript"]);
+});
+
+test("overridesFragment nests the versions under the package manager's field", () => {
+  const expected = { next: VERSIONS.next };
+  expect(JSON.parse(overridesFragment(["next"], "npm") as string)).toEqual({
+    overrides: expected,
+  });
+  expect(JSON.parse(overridesFragment(["next"], "pnpm") as string)).toEqual({
+    pnpm: { overrides: expected },
+  });
+  expect(JSON.parse(overridesFragment(["next"], "yarn") as string)).toEqual({
+    resolutions: expected,
+  });
+});
+
+test("overridesFragment returns undefined when nothing is overridden", () => {
+  expect(overridesFragment([], "npm")).toBeUndefined();
 });

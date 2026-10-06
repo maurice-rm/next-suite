@@ -32,6 +32,11 @@ export interface Feature {
   dependencies?: FeatureDependencies;
   /** Dev dependencies this feature contributes (catalog names). */
   devDependencies?: FeatureDependencies;
+  /**
+   * Transitive packages this feature forces to the catalog version, for an
+   * upstream that pins a release with a known vulnerability (catalog names).
+   */
+  overrides?: FeatureDependencies;
 }
 
 // The logger exists only where generated server code logs: the API route
@@ -71,6 +76,14 @@ export const FEATURES: Feature[] = [
   {
     dir: "features/pnpm",
     when: (config) => config.packageManager === "pnpm",
+  },
+  {
+    dir: "features/npm",
+    when: (config) => config.packageManager === "npm",
+  },
+  {
+    dir: "features/bun",
+    when: (config) => config.packageManager === "bun",
   },
   {
     dir: "features/yarn",
@@ -120,6 +133,8 @@ export const FEATURES: Feature[] = [
         : "@prisma/adapter-mariadb",
     ],
     devDependencies: ["prisma"],
+    overrides: (config) =>
+      config.database?.engine === "mysql" ? ["mysql2", "mariadb"] : ["mysql2"],
   },
   {
     dir: "features/api/shared",

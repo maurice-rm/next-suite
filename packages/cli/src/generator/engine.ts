@@ -3,6 +3,8 @@ import Handlebars from "handlebars";
 import { isCdStep } from "@/options";
 import { getPackageManagerEntry } from "@/package-managers";
 
+import { ACCEPTED_ADVISORIES } from "./config/advisories";
+
 Handlebars.registerHelper("eq", (a, b) => a === b);
 Handlebars.registerHelper("ne", (a, b) => a !== b);
 Handlebars.registerHelper("not", (a) => !a);
@@ -25,6 +27,12 @@ Handlebars.registerHelper(
 // Emit the block body verbatim — lets templates contain literal `{{ }}` (e.g.
 // GitHub Actions `${{ }}` expressions) that Handlebars would otherwise consume.
 Handlebars.registerHelper("raw", (options) => options.fn());
+Handlebars.registerHelper("acceptedAdvisories", () =>
+  ACCEPTED_ADVISORIES.map((advisory) => advisory.id),
+);
+Handlebars.registerHelper("acceptedNpmAdvisories", () =>
+  ACCEPTED_ADVISORIES.map((advisory) => advisory.npmAdvisoryId),
+);
 Handlebars.registerHelper(
   "execPrefix",
   (pm) => getPackageManagerEntry(pm).exec,

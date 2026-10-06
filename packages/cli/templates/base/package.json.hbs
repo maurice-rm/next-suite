@@ -20,7 +20,30 @@
   "engines": {
     "node": ">=24.0.0"
   }{{#if (eq packageManager "pnpm")}},
-  "packageManager": "pnpm@10.34.3"{{/if}}{{#if (eq packageManager "yarn")}},
+  "packageManager": "pnpm@10.34.3"{{/if}}{{#if (eq packageManager "npm")}},
+  "allowScripts": {
+{{#if (eq database.orm "prisma")}}
+    "@prisma/engines": true,
+{{/if}}
+    "esbuild": true,
+{{#if (eq database.orm "prisma")}}
+    "prisma": true,
+{{/if}}
+    "sharp": true,
+    "unrs-resolver": true
+  }{{/if}}{{#if (eq packageManager "bun")}},
+  "packageManager": "bun@1.4.2",
+  "trustedDependencies": [
+{{#if (eq database.orm "prisma")}}
+    "@prisma/engines",
+{{/if}}
+    "esbuild",
+{{#if (eq database.orm "prisma")}}
+    "prisma",
+{{/if}}
+    "sharp",
+    "unrs-resolver"
+  ]{{/if}}{{#if (eq packageManager "yarn")}},
   "packageManager": "yarn@4.17.1",
   "dependenciesMeta": {
     "esbuild": { "built": true },

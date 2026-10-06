@@ -3,3 +3,8 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+auditConfig:
+  ignoreGhsas:
+{{#each (acceptedAdvisories)}}
+    - {{this}}
+{{/each}}

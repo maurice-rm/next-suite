@@ -54,7 +54,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 - **Email** (optional) — a **Resend** client with `EMAIL_FROM`, wired through the typed env.
 - **Structured logging and errors** — a **pino** logger at `@/lib/logger` (JSON in production, pretty in development, secrets, cookies and the `authorization` header redacted) in the API route handlers, Better-Auth, `onRequestError` and the production health check and migrations; internal error messages never reach the client, domain errors map to API codes in one place, and the OpenAPI layer answers errors as Problem Details.
 - **Production deployment** (optional) — a multi-stage **Docker** build (standalone), **nginx** (terminating TLS or behind an upstream proxy), a `docker-compose.prod.yml`, and an entrypoint that waits for the database and migrates on start. For proxied projects, the companion `next-suite provision` command _(beta)_ sets up the server over SSH (interactive wizard, `--yes` for CI); `next-suite deprovision` tears it back down.
-- **CI/CD** (optional) — **GitHub Actions**: CI (lint, Knip, type-check, format, build, `pnpm audit`) with a Renovate config, plus CD (build & push to GHCR, deploy over SSH).
+- **CI/CD** (optional) — **GitHub Actions**: CI (dependency audit, lint, Knip, type-check, format, build, environment validated against `.env.example`) with a Renovate config, plus CD (build & push to GHCR, deploy over SSH).
 
 After generation it can, depending on your answers: **initialize git** (on `main`), **install dependencies**, **auto-format**, and make an **initial commit** — a clean, formatted, committed start.
 

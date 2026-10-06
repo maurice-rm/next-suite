@@ -16,6 +16,7 @@ vi.mock("../resolve", () => ({
   activeFeatures: () => [{ dir: "base" }],
   dependenciesFragment: () => undefined,
   featureDependencies: () => [],
+  overridesFragment: () => undefined,
 }));
 
 let templates: string;

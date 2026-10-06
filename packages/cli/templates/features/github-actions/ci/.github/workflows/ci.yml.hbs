@@ -19,20 +19,30 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SKIP_ENV_VALIDATION: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
+{{#if (or database api (eq auth "better-auth") (eq email "resend") production)}}
+      - name: Use the example environment
+        run: cp .env.example .env
+{{/if}}
+{{#unless (eq packageManager "npm")}}
+      - name: Audit dependencies
+{{/unless}}
+{{#if (eq packageManager "pnpm")}}
+        run: pnpm audit
+{{/if}}
+{{#if (eq packageManager "yarn")}}
+        run: yarn npm audit --all --recursive --no-deprecations
+{{/if}}
+{{#if (eq packageManager "bun")}}
+        run: bun audit{{#each (acceptedAdvisories)}} --ignore {{this}}{{/each}}
+{{/if}}
 {{#if (includes githubActions "lint")}}
       - name: Lint
         run: {{packageManager}} run lint
       - name: Unused code
         run: {{packageManager}} run knip
-{{#if (eq packageManager "pnpm")}}
-      - name: Audit dependencies
-        run: pnpm audit --audit-level high
-{{/if}}
 {{/if}}
 {{#if (includes githubActions "typecheck")}}
       - name: Type-check
