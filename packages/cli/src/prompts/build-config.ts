@@ -56,43 +56,72 @@ export interface WizardAnswers {
   quickStart?: boolean;
 }
 
-const toShadcnOptions = (a: Partial<WizardAnswers>): ShadcnOptions => ({
-  base: required(a.base, "base"),
-  pointer: required(a.pointer, "pointer"),
-  preset: a.preset?.trim() || undefined,
-});
+const toShadcnOptions = (answers: Partial<WizardAnswers>): ShadcnOptions => {
+  const preset = answers.preset?.trim();
+  return {
+    base: required(answers.base, "base"),
+    pointer: required(answers.pointer, "pointer"),
+    preset: preset === "" ? undefined : preset,
+  };
+};
 
 const toDatabaseOptions = (
-  a: Partial<WizardAnswers>,
+  answers: Partial<WizardAnswers>,
 ): DatabaseOptions | undefined => {
-  const choice = required(a.database, "database");
+  const choice = required(answers.database, "database");
   if (choice === "none") return undefined;
-  return { engine: choice, orm: required(a.orm, "orm") };
+  return { engine: choice, orm: required(answers.orm, "orm") };
 };
 
 const toOpenApiOptions = (
-  a: Partial<WizardAnswers>,
+  answers: Partial<WizardAnswers>,
 ): OpenApiOptions | undefined =>
-  a.openapi ? { scalar: !!a.scalar } : undefined;
+  answers.openapi ? { scalar: answers.scalar ?? false } : undefined;
 
-const toApiConfig = (a: Partial<WizardAnswers>): ApiConfig | undefined => {
-  const type = required(a.api, "api");
+const toApiConfig = (
+  answers: Partial<WizardAnswers>,
+): ApiConfig | undefined => {
+  const type = required(answers.api, "api");
   if (type === "none") return undefined;
   if (type === "trpc") return { type: "trpc" };
-  return { type: "orpc", openapi: toOpenApiOptions(a) };
+  return { type: "orpc", openapi: toOpenApiOptions(answers) };
 };
 
 const toProductionOptions = (
-  a: Partial<WizardAnswers>,
+  answers: Partial<WizardAnswers>,
 ): ProductionOptions | undefined =>
-  a.production ? { mode: required(a.nginxMode, "nginx mode") } : undefined;
+  answers.production
+    ? { mode: required(answers.nginxMode, "nginx mode") }
+    : undefined;
 
-const toGithubActions = (a: Partial<WizardAnswers>): GithubActionsStep[] => {
-  if (!a.githubActionsEnabled) return [];
-  const steps = new Set(a.githubActionsSteps ?? []);
+const toGithubActions = (
+  answers: Partial<WizardAnswers>,
+): GithubActionsStep[] => {
+  if (!answers.githubActionsEnabled) return [];
+  const steps = new Set(answers.githubActionsSteps ?? []);
   if (steps.has("deploy")) steps.add("image");
   return GITHUB_ACTIONS_STEP_ORDER.filter((step) => steps.has(step));
 };
+
+const buildQuickStartConfig = (
+  answers: Partial<WizardAnswers>,
+  target: Pick<ProjectConfig, "projectName" | "targetDir">,
+): ProjectConfig => ({
+  ...target,
+  action: answers.action ?? "create",
+  componentLibrary: "none",
+  tailwind: true,
+  shadcn: undefined,
+  database: undefined,
+  api: undefined,
+  auth: "none",
+  email: "none",
+  production: undefined,
+  githubActions: [],
+  git: true,
+  packageManager: required(answers.packageManager, "package manager"),
+  install: true,
+});
 
 /**
  * Assemble the final ProjectConfig from the collected wizard answers. Pure
@@ -108,23 +137,7 @@ export const buildProjectConfig = (
   );
 
   if (answers.quickStart) {
-    return {
-      projectName,
-      targetDir,
-      action: answers.action ?? "create",
-      componentLibrary: "none",
-      tailwind: true,
-      shadcn: undefined,
-      database: undefined,
-      api: undefined,
-      auth: "none",
-      email: "none",
-      production: undefined,
-      githubActions: [],
-      git: true,
-      packageManager: required(answers.packageManager, "package manager"),
-      install: true,
-    };
+    return buildQuickStartConfig(answers, { projectName, targetDir });
   }
 
   const componentLibrary = required(

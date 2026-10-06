@@ -4,28 +4,28 @@ import { describe, expect, test, vi } from "vitest";
 // initialValue-forwarding of defineSelect/defineConfirm can be asserted without
 // a TTY. Hoisted so the vi.mock factory below can close over them.
 const { selectArgs, confirmArgs } = vi.hoisted(() => ({
-  selectArgs: [] as Array<Record<string, unknown>>,
-  confirmArgs: [] as Array<Record<string, unknown>>,
+  selectArgs: [] as Record<string, unknown>[],
+  confirmArgs: [] as Record<string, unknown>[],
 }));
 
 vi.mock("@clack/core", () => {
   class FakePrompt {
-    on(): void {}
+    on = vi.fn();
     prompt(): Promise<unknown> {
       return Promise.resolve("value");
     }
   }
   return {
     SelectPrompt: class extends FakePrompt {
-      constructor(opts: Record<string, unknown>) {
+      constructor(options: Record<string, unknown>) {
         super();
-        selectArgs.push(opts);
+        selectArgs.push(options);
       }
     },
     ConfirmPrompt: class extends FakePrompt {
-      constructor(opts: Record<string, unknown>) {
+      constructor(options: Record<string, unknown>) {
         super();
-        confirmArgs.push(opts);
+        confirmArgs.push(options);
       }
     },
     GroupMultiSelectPrompt: class extends FakePrompt {},
@@ -34,27 +34,31 @@ vi.mock("@clack/core", () => {
   };
 });
 
+import type { State } from "@clack/core";
+
 import { GO_BACK } from "@/wizard";
 
-import { defineConfirm, defineSelect, withGoBack } from "../navigable";
+import { withGoBack } from "../go-back";
+import { defineConfirm } from "../navigable-confirm";
+import { defineSelect } from "../navigable-select";
 
 type KeyListener = (char?: string, key?: { name?: string }) => void;
 
 // A fake clack prompt: it captures the key listener and optionally fires a key
 // before resolving, so withGoBack's back-vs-value logic can be driven without a
 // TTY. `state` is the clack-internal field withGoBack mutates to cancel.
-const fakePrompt = (opts: { value?: unknown; pressKey?: string } = {}) => {
+const fakePrompt = (options: { value?: unknown; pressKey?: string } = {}) => {
   let onKey: KeyListener | undefined;
   return {
-    state: "active",
+    state: "active" as State,
     on(_event: "key", listener: KeyListener) {
       onKey = listener;
     },
     prompt() {
-      if (opts.pressKey !== undefined) {
-        onKey?.(opts.pressKey, { name: opts.pressKey });
+      if (options.pressKey !== undefined) {
+        onKey?.(options.pressKey, { name: options.pressKey });
       }
-      return Promise.resolve(opts.value ?? "chosen");
+      return Promise.resolve(options.value ?? "chosen");
     },
   };
 };

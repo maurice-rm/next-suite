@@ -10,7 +10,7 @@ interface Answers {
 
 /** Build a step with a plain (non-interactive) run, so `runWizard` needs no TTY. */
 const step = (
-  key: keyof Answers & string,
+  key: keyof Answers,
   run: WizardStep<Answers>["run"],
   extra: Partial<WizardStep<Answers>> = {},
 ): WizardStep<Answers> => ({ key, run, ...extra });
@@ -55,15 +55,15 @@ test("`when` sees the accumulated answers and gates dynamically", async () => {
 
 test("back-navigation returns to the previous shown step", async () => {
   let aRuns = 0;
-  let bWentBack = false;
+  let hasBWentBack = false;
   const answers = await runWizard<Answers>([
     step("a", () => {
       aRuns += 1;
       return "1";
     }),
     step("b", () => {
-      if (!bWentBack) {
-        bWentBack = true;
+      if (!hasBWentBack) {
+        hasBWentBack = true;
         return GO_BACK;
       }
       return "2";
@@ -75,7 +75,7 @@ test("back-navigation returns to the previous shown step", async () => {
 
 test("a `when`-skipped step is not a back target", async () => {
   const seen: string[] = [];
-  let cWentBack = false;
+  let hasCWentBack = false;
   await runWizard<Answers>([
     step("a", () => {
       seen.push("a");
@@ -91,28 +91,28 @@ test("a `when`-skipped step is not a back target", async () => {
     ),
     step("c", () => {
       seen.push("c");
-      if (!cWentBack) {
-        cWentBack = true;
+      if (!hasCWentBack) {
+        hasCWentBack = true;
         return GO_BACK;
       }
       return "3";
     }),
   ]);
   expect(seen).not.toContain("b");
-  expect(seen.filter((s) => s === "a")).toHaveLength(2); // back landed on "a", not "b"
+  expect(seen.filter((key) => key === "a")).toHaveLength(2); // back landed on "a", not "b"
 });
 
 test("canGoBack is false only on the first shown step", async () => {
-  const canGoBack: boolean[] = [];
+  const canGoBackPerStep: boolean[] = [];
   await runWizard<Answers>([
-    step("a", (_ans, back) => {
-      canGoBack.push(back);
+    step("a", (_answers, canGoBack) => {
+      canGoBackPerStep.push(canGoBack);
       return "1";
     }),
-    step("b", (_ans, back) => {
-      canGoBack.push(back);
+    step("b", (_answers, canGoBack) => {
+      canGoBackPerStep.push(canGoBack);
       return "2";
     }),
   ]);
-  expect(canGoBack).toEqual([false, true]);
+  expect(canGoBackPerStep).toEqual([false, true]);
 });

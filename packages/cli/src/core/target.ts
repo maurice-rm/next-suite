@@ -7,13 +7,7 @@ export interface ResolvedTarget {
   isCwd: boolean;
 }
 
-/**
- * Resolve a user-supplied name, relative path, or "." into an absolute target.
- *
- * @param input - The raw project name or path.
- * @returns The absolute target directory, the derived project name, and whether
- *   it points at the current working directory.
- */
+/** Resolve a user-supplied name, relative path, or "." into an absolute target. */
 export const resolveTarget = (input: string): ResolvedTarget => {
   const targetDir = path.resolve(process.cwd(), input.trim());
   return {
@@ -33,9 +27,11 @@ export const resolveTarget = (input: string): ResolvedTarget => {
  * @returns `true` when `targetDir` is the cwd or a descendant of it.
  */
 export const isWithinCwd = (targetDir: string): boolean => {
-  const rel = path.relative(process.cwd(), targetDir);
+  const relativePath = path.relative(process.cwd(), targetDir);
   return (
-    !path.isAbsolute(rel) && rel !== ".." && !rel.startsWith(`..${path.sep}`)
+    !path.isAbsolute(relativePath) &&
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${path.sep}`)
   );
 };
 

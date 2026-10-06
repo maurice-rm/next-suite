@@ -1,7 +1,7 @@
 export type PackageManager = "npm" | "pnpm" | "bun" | "yarn";
 
 /** One supported package manager — an entry in {@link PACKAGE_MANAGERS}. */
-export interface PackageManagerEntry {
+interface PackageManagerEntry {
   /** Matched against `npm_config_user_agent` for auto-detection. */
   id: PackageManager;
   /** Human label shown in the package-manager prompt. */

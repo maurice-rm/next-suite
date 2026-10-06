@@ -27,22 +27,20 @@ const isBenign = (entry: string): boolean =>
  * conflict-free. A non-directory path is treated as conflict-free here — it is
  * rejected earlier during input validation via {@link isExistingFile}.
  *
- * @param dir - Absolute path to the prospective target directory.
- * @returns `true` if the directory contains non-benign files.
+ * @param directory - Absolute path to the prospective target directory.
  */
-export const hasConflictingFiles = async (dir: string): Promise<boolean> => {
-  if (!(await fs.pathExists(dir))) return false;
-  if (!(await fs.stat(dir)).isDirectory()) return false;
-  const entries = await fs.readdir(dir);
+export const hasConflictingFiles = async (
+  directory: string,
+): Promise<boolean> => {
+  if (!(await fs.pathExists(directory))) return false;
+  if (!(await fs.stat(directory)).isDirectory()) return false;
+  const entries = await fs.readdir(directory);
   return entries.some((entry) => !isBenign(entry));
 };
 
 /**
  * Whether a path points at an existing file. Synchronous on purpose: it runs
  * inside clack's `validate` callback, which clack invokes synchronously.
- *
- * @param target - Absolute path to check.
- * @returns `true` if `target` exists and is a regular file.
  */
 export const isExistingFile = (target: string): boolean =>
   fs.existsSync(target) && fs.statSync(target).isFile();
