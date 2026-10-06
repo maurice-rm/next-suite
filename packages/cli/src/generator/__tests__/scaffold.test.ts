@@ -47,7 +47,6 @@ const createConfig = (targetDir: string): ProjectConfig => ({
   projectName: "synth-app",
   targetDir,
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   api: undefined,
   auth: "none",

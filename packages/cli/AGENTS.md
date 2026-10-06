@@ -44,9 +44,8 @@ interface ProjectConfig {
   projectName: string;
   targetDir: string; // absolute
   action: ConflictAction; // "create" | "overwrite" | "empty"
-  componentLibrary: ComponentLibrary;
   tailwind: boolean;
-  shadcn?: ShadcnOptions; // present iff componentLibrary === "shadcn"
+  shadcn?: ShadcnOptions; // present iff shadcn/ui was chosen (the wizard's componentLibrary answer)
   database?: DatabaseOptions; // present iff a non-"none" engine was chosen
   api?: ApiConfig; // present iff an API layer was chosen; oRPC can carry OpenAPI
   auth: Auth;
@@ -59,7 +58,7 @@ interface ProjectConfig {
 }
 ```
 
-- Almost every union member is **derived from a registry**, not hand-written: `ComponentLibrary`, `ShadcnBase`, `DatabaseChoice`, `Orm`, `ApiType`, `Auth`, `EmailProvider` are all `(typeof <ARRAY>)[number]["value"]` over the `options.ts` arrays; `PackageManager` is the hand-listed union in `package-managers.ts`.
+- Almost every union member is **derived from a registry**, not hand-written: `ComponentLibrary` (a wizard answer; the config carries only `shadcn?`), `ShadcnBase`, `DatabaseChoice`, `Orm`, `ApiType`, `Auth`, `EmailProvider` are all `(typeof <ARRAY>)[number]["value"]` over the `options.ts` arrays; `PackageManager` is the hand-listed union in `package-managers.ts`.
 - Sub-unions use `Exclude`: `DatabaseEngine = Exclude<DatabaseChoice, "none">`, `ConflictChoice = Exclude<ConflictAction, "create">`.
 - **Optional sub-objects encode conditional branches structurally** — their _presence is the feature flag_ (`shadcn?`, `database?`); absent when not selected, never `null`.
 - **A new feature's shape starts here.** Edit this file (and the registries it derives from) before anything else.

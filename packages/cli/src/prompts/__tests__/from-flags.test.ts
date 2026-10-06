@@ -20,7 +20,7 @@ beforeEach(() => {
 test("minimal flags fill every dimension with its default", async () => {
   const config = await configFromFlags({ name: "acme-app" });
   expect(config.projectName).toBe("acme-app");
-  expect(config.componentLibrary).toBe("none");
+  expect(config.shadcn).toBeUndefined();
   expect(config.tailwind).toBe(false);
   expect(config.shadcn).toBeUndefined();
   expect(config.database).toBeUndefined();
@@ -49,7 +49,7 @@ test("--pm rejects an unknown manager", async () => {
 
 test("--shadcn forces tailwind and fills shadcn defaults", async () => {
   const config = await configFromFlags({ name: "x", shadcn: true });
-  expect(config.componentLibrary).toBe("shadcn");
+  expect(config.shadcn).toBeDefined();
   expect(config.tailwind).toBe(true);
   expect(config.shadcn).toEqual({
     base: "base",

@@ -80,7 +80,6 @@ export interface ProjectConfig {
   projectName: string;
   targetDir: string;
   action: ConflictAction;
-  componentLibrary: ComponentLibrary;
   tailwind: boolean;
   shadcn?: ShadcnOptions;
   database?: DatabaseOptions;

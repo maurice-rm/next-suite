@@ -140,8 +140,7 @@ const runInitialCommit = (config: ProjectConfig): Promise<boolean> =>
  * the rest still run — the generated project is never invalidated.
  */
 export const runPostSteps = async (config: ProjectConfig): Promise<void> => {
-  const shadcn =
-    config.componentLibrary === "shadcn" ? config.shadcn : undefined;
+  const { shadcn } = config;
   const canUsePackageManager = await checkPackageManager(
     config,
     config.install || shadcn !== undefined,

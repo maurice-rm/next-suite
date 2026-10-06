@@ -33,7 +33,6 @@ const createConfig = (
   projectName: "app",
   targetDir: "/tmp/app",
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   api: undefined,
   auth: "none",
@@ -75,7 +74,6 @@ test("fixes the files when shadcn installed the dependencies without --install",
   await runPostSteps(
     createConfig({
       install: false,
-      componentLibrary: "shadcn",
       shadcn: { base: "radix", pointer: false },
     }),
   );
@@ -86,7 +84,6 @@ test("fixes the files when shadcn installed the dependencies without --install",
 test("runs shadcn init only when shadcn is selected", async () => {
   await runPostSteps(
     createConfig({
-      componentLibrary: "shadcn",
       shadcn: { base: "radix", pointer: false },
     }),
   );
@@ -135,7 +132,6 @@ test("warns once and skips install + shadcn when the package manager is missing"
     createConfig({
       install: true,
       git: true,
-      componentLibrary: "shadcn",
       shadcn: { base: "radix", pointer: false },
     }),
   );
@@ -173,7 +169,6 @@ test("runs steps in order: git init → install → shadcn → fix → commit", 
     createConfig({
       install: true,
       git: true,
-      componentLibrary: "shadcn",
       shadcn: { base: "radix", pointer: false },
     }),
   );

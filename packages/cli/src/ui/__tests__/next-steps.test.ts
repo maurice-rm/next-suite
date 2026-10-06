@@ -8,7 +8,6 @@ const config = (overrides: Partial<ProjectConfig>): ProjectConfig => ({
   projectName: "app",
   targetDir: "/tmp/app",
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   api: undefined,
   auth: "none",

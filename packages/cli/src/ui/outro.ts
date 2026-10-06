@@ -43,7 +43,7 @@ export const buildSummary = (config: ProjectConfig): OutroSummary => {
     "Next.js",
     "TypeScript",
     config.tailwind ? "Tailwind" : undefined,
-    findLabel(COMPONENT_LIBRARIES, config.componentLibrary),
+    findLabel(COMPONENT_LIBRARIES, config.shadcn ? "shadcn" : undefined),
     findLabel(DATABASES, config.database?.engine),
     findLabel(ORMS, config.database?.orm),
     findLabel(API_TYPES, config.api?.type),

@@ -12,7 +12,7 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 {{#if tailwind}}
 | Styling | Tailwind CSS |
 {{/if}}
-{{#if (eq componentLibrary "shadcn")}}
+{{#if shadcn}}
 | Components | shadcn/ui |
 {{/if}}
 {{#if database}}
@@ -104,7 +104,7 @@ Then start the dev server:
 src/
   app/                  routing only: pages, layouts, route handlers
   features/<domain>/    one vertical slice per domain: components, server code, schemas
-  components/           domain-free building blocks{{#if (eq componentLibrary "shadcn")}}; components/ui/ holds the shadcn primitives{{/if}}
+  components/           domain-free building blocks{{#if shadcn}}; components/ui/ holds the shadcn primitives{{/if}}
   lib/                  infrastructure{{#if database}}: database client and schema{{/if}}{{#if (eq auth "better-auth")}}, auth{{/if}}{{#if (eq email "resend")}}, email{{/if}}{{#if (or api (eq auth "better-auth") (and production database))}}, logger{{/if}}{{#if api}}, domain errors{{/if}}
 {{#if api}}
   {{api.type}}/                 the API layer: procedure builders, router, clients

@@ -109,7 +109,6 @@ const buildQuickStartConfig = (
 ): ProjectConfig => ({
   ...target,
   action: answers.action ?? "create",
-  componentLibrary: "none",
   tailwind: true,
   shadcn: undefined,
   database: undefined,
@@ -149,7 +148,6 @@ export const buildProjectConfig = (
     projectName,
     targetDir,
     action: answers.action ?? "create",
-    componentLibrary,
     tailwind: isShadcn ? true : required(answers.tailwind, "tailwind"),
     shadcn: isShadcn ? toShadcnOptions(answers) : undefined,
     database: toDatabaseOptions(answers),

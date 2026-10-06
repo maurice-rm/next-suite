@@ -25,7 +25,6 @@ const createConfig = (
   projectName: "app",
   targetDir,
   action,
-  componentLibrary: "none",
   tailwind: false,
   api: undefined,
   auth: "none",

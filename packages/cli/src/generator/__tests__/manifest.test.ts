@@ -8,7 +8,6 @@ const base: ProjectConfig = {
   projectName: "acme-app",
   targetDir: "/tmp/acme-app",
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   auth: "none",
   email: "none",

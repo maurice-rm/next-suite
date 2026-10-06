@@ -9,7 +9,6 @@ export const baseConfig: ProjectConfig = {
   projectName: "acme-app",
   targetDir: "/tmp/acme-app",
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   api: undefined,
   auth: "none",
@@ -35,7 +34,6 @@ export const SCENARIOS: { name: string; config: ProjectConfig }[] = [
       projectName: "pnpm-suite",
       packageManager: "pnpm",
       action: "overwrite",
-      componentLibrary: "shadcn",
       tailwind: true,
       shadcn: { base: "radix", pointer: true, preset: "b0" },
       database: { engine: "postgres", orm: "drizzle" },
@@ -77,7 +75,6 @@ export const SCENARIOS: { name: string; config: ProjectConfig }[] = [
       ...baseConfig,
       projectName: "yarn-thing",
       packageManager: "yarn",
-      componentLibrary: "shadcn",
       tailwind: true,
       shadcn: { base: "base", pointer: false },
       database: { engine: "postgres", orm: "prisma" },
@@ -136,23 +133,16 @@ export const SCENARIOS: { name: string; config: ProjectConfig }[] = [
   },
 ];
 
-const shadcnFlags = (shadcn: ShadcnOptions | undefined): string[] => {
-  if (!shadcn) {
-    throw new Error(
-      'scenarioToFlags: componentLibrary is "shadcn" but config.shadcn is missing.',
-    );
-  }
-  return [
-    "--shadcn",
-    "--shadcn-base",
-    shadcn.base,
-    ...(shadcn.preset ? ["--shadcn-preset", shadcn.preset] : []),
-    ...(shadcn.pointer ? ["--shadcn-pointer"] : []),
-  ];
-};
+const shadcnFlags = (shadcn: ShadcnOptions): string[] => [
+  "--shadcn",
+  "--shadcn-base",
+  shadcn.base,
+  ...(shadcn.preset ? ["--shadcn-preset", shadcn.preset] : []),
+  ...(shadcn.pointer ? ["--shadcn-pointer"] : []),
+];
 
 const styleFlags = (config: ProjectConfig): string[] => {
-  if (config.componentLibrary === "shadcn") return shadcnFlags(config.shadcn);
+  if (config.shadcn) return shadcnFlags(config.shadcn);
   return config.tailwind ? ["--tailwind"] : [];
 };
 

@@ -20,7 +20,6 @@ test("shadcn emits base/preset/pointer and implies Tailwind", () => {
     scenarioToFlags({
       ...baseConfig,
       packageManager: "pnpm",
-      componentLibrary: "shadcn",
       tailwind: true,
       shadcn: { base: "radix", pointer: true, preset: "b0" },
     }),
@@ -42,7 +41,6 @@ test("shadcn omits preset/pointer when unset", () => {
     scenarioToFlags({
       ...baseConfig,
       packageManager: "yarn",
-      componentLibrary: "shadcn",
       tailwind: true,
       shadcn: { base: "base", pointer: false },
     }),
