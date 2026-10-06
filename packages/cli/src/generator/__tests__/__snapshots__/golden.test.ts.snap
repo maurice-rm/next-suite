@@ -2332,21 +2332,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -4076,21 +4095,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -5521,21 +5559,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -8517,21 +8574,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -10059,21 +10135,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -12508,21 +12603,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -15410,21 +15524,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -16996,21 +17129,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
@@ -19343,21 +19495,40 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
-// Drizzle appends the bound values of a failed query to the error message,
-// where key-based redaction cannot reach them.
-const QUERY_PARAMS_LINE = /\\nparams: .*/g;
-const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+// Drizzle appends the bound values of a failed query to the error message
+// (\`params: \${params}\`), where key-based redaction cannot reach them; the
+// exact text is rebuilt from the error so multi-line values go too.
+const REDACTED_PARAMS = "params: [Redacted]";
 
-const redactQueryParams = (text: string | undefined) =>
-  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+const collectQueryParams = (error: unknown): string[] => {
+  const found: string[] = [];
+  let current: unknown = error;
+  while (current instanceof Error) {
+    if ("params" in current && Array.isArray(current.params)) {
+      found.push(\`params: \${String(current.params)}\`);
+    }
+    current = current.cause;
+  }
+  return found;
+};
+
+const redactQueryParams = (
+  text: string | undefined,
+  queryParams: string[],
+): string | undefined =>
+  queryParams.reduce(
+    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
+    text,
+  );
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
+  const queryParams = collectQueryParams(error);
   const serialized = pino.stdSerializers.err(error);
   return {
     ...serialized,
-    message: redactQueryParams(serialized.message),
-    stack: redactQueryParams(serialized.stack),
+    message: redactQueryParams(serialized.message, queryParams),
+    stack: redactQueryParams(serialized.stack, queryParams),
     ...("params" in serialized && { params: "[Redacted]" }),
   };
 };
