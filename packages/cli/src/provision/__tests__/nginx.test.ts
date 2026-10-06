@@ -49,7 +49,9 @@ test("HSTS never carries includeSubDomains, whatever the domain looks like", () 
   ]) {
     const header = renderNginxBlock(domain, 8100)
       .split("\n")
-      .find((l) => l.trimStart().startsWith("add_header Strict-Transport"));
+      .find((line) =>
+        line.trimStart().startsWith("add_header Strict-Transport"),
+      );
     expect(header).toBe(
       '    add_header Strict-Transport-Security "max-age=63072000" always;',
     );
@@ -58,15 +60,27 @@ test("HSTS never carries includeSubDomains, whatever the domain looks like", () 
 
 test("ships the edge-safe extra headers, but no CSP", () => {
   const block = renderNginxBlock("app.example.com", 8100);
-  for (const h of [
+  for (const header of [
     "Permissions-Policy",
     "Cross-Origin-Opener-Policy",
     "Cross-Origin-Resource-Policy",
     "X-Permitted-Cross-Domain-Policies",
   ]) {
-    expect(block).toContain(`add_header ${h}`);
+    expect(block).toContain(`add_header ${header}`);
   }
   expect(block).not.toContain("Content-Security-Policy");
+});
+
+test("hides the upstream copy of every header it adds, so none is sent twice", () => {
+  const block = renderNginxBlock("app.example.com", 8100);
+  const added = [...block.matchAll(/^\s*add_header (\S+)/gm)].map(
+    (match) => match[1],
+  );
+  const hidden = [...block.matchAll(/proxy_hide_header (\S+);/g)].map(
+    (match) => match[1],
+  );
+  expect(added.length).toBeGreaterThan(0);
+  expect(hidden).toEqual(added);
 });
 
 test("no location sets its own add_header, which would drop the inherited four", () => {
@@ -74,7 +88,7 @@ test("no location sets its own add_header, which would drop the inherited four",
   const afterFirstLocation = block
     .slice(block.indexOf("location /_next/static/"))
     .split("\n")
-    .filter((l) => !l.trimStart().startsWith("#"))
+    .filter((line) => !line.trimStart().startsWith("#"))
     .join("\n");
 
   expect(afterFirstLocation).not.toContain("add_header");
@@ -141,4 +155,19 @@ test("extractServerNames reports every name; extractServerName stays single-only
   ]);
   expect(extractServerName(multi)).toBeUndefined();
   expect(extractServerNames("server { server_name _; }")).toEqual([]);
+});
+
+test("extractServerName returns the first server_name value", () => {
+  const conf = "server {\n    server_name acme.example.com;\n}\n";
+  expect(extractServerName(conf)).toBe("acme.example.com");
+});
+
+test("extractServerName picks the first of multiple server_name directives", () => {
+  const conf =
+    "server_name first.example.com;\nserver_name second.example.com;";
+  expect(extractServerName(conf)).toBe("first.example.com");
+});
+
+test("extractServerName returns undefined when there is no server_name", () => {
+  expect(extractServerName("server {\n    listen 80;\n}\n")).toBeUndefined();
 });

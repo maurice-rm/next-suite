@@ -17,7 +17,7 @@ const { spinnerError, logWarn, logMessage } = vi.hoisted(() => ({
 }));
 
 vi.mock("@clack/prompts", () => ({
-  spinner: () => ({ start: () => {}, stop: () => {}, error: spinnerError }),
+  spinner: () => ({ start: vi.fn(), stop: vi.fn(), error: spinnerError }),
   log: { warn: logWarn, message: logMessage },
 }));
 vi.mock("../install");
@@ -27,11 +27,12 @@ vi.mock("../fix");
 vi.mock("../run");
 vi.mock("../migrations");
 
-const config = (over: Partial<ProjectConfig> = {}): ProjectConfig => ({
+const createConfig = (
+  overrides: Partial<ProjectConfig> = {},
+): ProjectConfig => ({
   projectName: "app",
   targetDir: "/tmp/app",
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   api: undefined,
   auth: "none",
@@ -40,7 +41,7 @@ const config = (over: Partial<ProjectConfig> = {}): ProjectConfig => ({
   packageManager: "npm",
   install: false,
   githubActions: [],
-  ...over,
+  ...overrides,
 });
 
 beforeEach(() => {
@@ -49,7 +50,7 @@ beforeEach(() => {
 });
 
 test("runs only the selected steps", async () => {
-  await runPostSteps(config({ install: true }));
+  await runPostSteps(createConfig({ install: true }));
   expect(installDependencies).toHaveBeenCalledOnce();
   expect(fixProject).toHaveBeenCalledOnce();
   expect(initShadcn).not.toHaveBeenCalled();
@@ -58,21 +59,31 @@ test("runs only the selected steps", async () => {
 });
 
 test("skips the fix step when dependencies are not installed", async () => {
-  await runPostSteps(config({ install: false, git: true }));
+  await runPostSteps(createConfig({ install: false, git: true }));
   expect(fixProject).not.toHaveBeenCalled();
 });
 
 test("skips the fix step when the install fails", async () => {
   vi.mocked(installDependencies).mockRejectedValueOnce(new Error("network"));
-  await runPostSteps(config({ install: true }));
+  await runPostSteps(createConfig({ install: true }));
   expect(installDependencies).toHaveBeenCalledOnce();
   expect(fixProject).not.toHaveBeenCalled();
 });
 
+test("fixes the files when shadcn installed the dependencies without --install", async () => {
+  await runPostSteps(
+    createConfig({
+      install: false,
+      shadcn: { base: "radix", pointer: false },
+    }),
+  );
+  expect(installDependencies).not.toHaveBeenCalled();
+  expect(fixProject).toHaveBeenCalledOnce();
+});
+
 test("runs shadcn init only when shadcn is selected", async () => {
   await runPostSteps(
-    config({
-      componentLibrary: "shadcn",
+    createConfig({
       shadcn: { base: "radix", pointer: false },
     }),
   );
@@ -81,7 +92,7 @@ test("runs shadcn init only when shadcn is selected", async () => {
 
 test("a failing step shows an error and does not stop the others", async () => {
   vi.mocked(installDependencies).mockRejectedValueOnce(new Error("network"));
-  await runPostSteps(config({ install: true, git: true }));
+  await runPostSteps(createConfig({ install: true, git: true }));
   expect(spinnerError).toHaveBeenCalledOnce();
   expect(createInitialCommit).toHaveBeenCalledOnce();
 });
@@ -90,13 +101,13 @@ test("surfaces the captured stderr of a failed step as the reason", async () => 
   vi.mocked(installDependencies).mockRejectedValueOnce(
     Object.assign(new Error("exit 1"), { stderr: "  disk full  " }),
   );
-  await runPostSteps(config({ install: true }));
+  await runPostSteps(createConfig({ install: true }));
   expect(logMessage).toHaveBeenCalledWith("disk full");
 });
 
 test("falls back to the error message when a failure has no stderr", async () => {
   vi.mocked(installDependencies).mockRejectedValueOnce(new Error("boom"));
-  await runPostSteps(config({ install: true }));
+  await runPostSteps(createConfig({ install: true }));
   expect(logMessage).toHaveBeenCalledWith("boom");
 });
 
@@ -104,13 +115,13 @@ test("uses stdout as the reason when stderr is empty", async () => {
   vi.mocked(installDependencies).mockRejectedValueOnce(
     Object.assign(new Error("msg"), { stderr: "  ", stdout: "  details  " }),
   );
-  await runPostSteps(config({ install: true }));
+  await runPostSteps(createConfig({ install: true }));
   expect(logMessage).toHaveBeenCalledWith("details");
 });
 
 test("skips the initial commit when git init failed", async () => {
   vi.mocked(initGit).mockRejectedValueOnce(new Error("git missing"));
-  await runPostSteps(config({ git: true }));
+  await runPostSteps(createConfig({ git: true }));
   expect(initGit).toHaveBeenCalledOnce();
   expect(createInitialCommit).not.toHaveBeenCalled();
 });
@@ -118,10 +129,9 @@ test("skips the initial commit when git init failed", async () => {
 test("warns once and skips install + shadcn when the package manager is missing", async () => {
   vi.mocked(isCommandAvailable).mockResolvedValue(false);
   await runPostSteps(
-    config({
+    createConfig({
       install: true,
       git: true,
-      componentLibrary: "shadcn",
       shadcn: { base: "radix", pointer: false },
     }),
   );
@@ -135,54 +145,70 @@ test("warns once and skips install + shadcn when the package manager is missing"
 
 test("runs steps in order: git init → install → shadcn → fix → commit", async () => {
   const order: string[] = [];
-  vi.mocked(initGit).mockImplementation(async () => void order.push("init"));
-  vi.mocked(installDependencies).mockImplementation(
-    async () => void order.push("install"),
-  );
-  vi.mocked(initShadcn).mockImplementation(
-    async () => void order.push("shadcn"),
-  );
-  vi.mocked(fixProject).mockImplementation(async () => void order.push("fix"));
-  vi.mocked(createInitialCommit).mockImplementation(
-    async () => void order.push("commit"),
-  );
+  vi.mocked(initGit).mockImplementation(() => {
+    order.push("init");
+    return Promise.resolve();
+  });
+  vi.mocked(installDependencies).mockImplementation(() => {
+    order.push("install");
+    return Promise.resolve();
+  });
+  vi.mocked(initShadcn).mockImplementation(() => {
+    order.push("shadcn");
+    return Promise.resolve();
+  });
+  vi.mocked(fixProject).mockImplementation(() => {
+    order.push("fix");
+    return Promise.resolve();
+  });
+  vi.mocked(createInitialCommit).mockImplementation(() => {
+    order.push("commit");
+    return Promise.resolve();
+  });
   await runPostSteps(
-    config({
+    createConfig({
       install: true,
       git: true,
-      componentLibrary: "shadcn",
       shadcn: { base: "radix", pointer: false },
     }),
   );
   expect(order).toEqual(["init", "install", "shadcn", "fix", "commit"]);
 });
 
-const prodDrizzle = {
+const PRODUCTION_DRIZZLE: Partial<ProjectConfig> = {
   install: true,
   database: { engine: "postgres", orm: "drizzle" },
   production: { mode: "proxied" },
-} as const;
+};
 
 test("generates the initial migration for a production drizzle project", async () => {
   vi.mocked(isCommandAvailable).mockResolvedValue(true);
-  await runPostSteps(config({ ...prodDrizzle }));
-  expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm");
+  await runPostSteps(createConfig({ ...PRODUCTION_DRIZZLE }));
+  expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm", "drizzle");
+});
+
+test("generates the initial migration for a production prisma project", async () => {
+  vi.mocked(isCommandAvailable).mockResolvedValue(true);
+  await runPostSteps(
+    createConfig({
+      install: true,
+      database: { engine: "postgres", orm: "prisma" },
+      production: { mode: "proxied" },
+    }),
+  );
+  expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm", "prisma");
 });
 
 test("skips the migration where it would be wrong or impossible", async () => {
   vi.mocked(isCommandAvailable).mockResolvedValue(true);
 
   await runPostSteps(
-    config({ install: true, database: { engine: "postgres", orm: "drizzle" } }),
-  );
-  await runPostSteps(
-    config({
+    createConfig({
       install: true,
-      database: { engine: "postgres", orm: "prisma" },
-      production: { mode: "proxied" },
+      database: { engine: "postgres", orm: "drizzle" },
     }),
   );
-  await runPostSteps(config({ ...prodDrizzle, install: false }));
+  await runPostSteps(createConfig({ ...PRODUCTION_DRIZZLE, install: false }));
 
   expect(generateMigrations).not.toHaveBeenCalled();
 });
@@ -193,7 +219,7 @@ test("a failed migration warns and still lets the remaining steps run", async ()
     new Error("drizzle-kit blew up"),
   );
 
-  await runPostSteps(config({ ...prodDrizzle, git: true }));
+  await runPostSteps(createConfig({ ...PRODUCTION_DRIZZLE, git: true }));
 
   expect(spinnerError).toHaveBeenCalled();
   expect(fixProject).toHaveBeenCalled();

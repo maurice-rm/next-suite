@@ -1,7 +1,13 @@
 const Page = () => (
+{{#if tailwind}}
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">{{projectName}}</h1>
+  </main>
+{{else}}
   <main>
     <h1>{{projectName}}</h1>
   </main>
+{{/if}}
 );
 
 export default Page;

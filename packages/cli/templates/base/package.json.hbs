@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -20,10 +20,40 @@
   "engines": {
     "node": ">=24.0.0"
   }{{#if (eq packageManager "pnpm")}},
-  "packageManager": "pnpm@10.34.3"{{/if}}{{#if (eq packageManager "yarn")}},
+  "packageManager": "pnpm@10.34.3"{{/if}}{{#if (eq packageManager "npm")}},
+  "allowScripts": {
+{{#if (eq database.orm "prisma")}}
+    "@prisma/engines": true,
+{{/if}}
+    "esbuild": true,
+    "fsevents": false,
+{{#if (eq database.orm "prisma")}}
+    "prisma": true,
+{{/if}}
+    "sharp": true,
+    "unrs-resolver": true
+  }{{/if}}{{#if (eq packageManager "bun")}},
+  "packageManager": "bun@1.4.2",
+  "trustedDependencies": [
+{{#if (eq database.orm "prisma")}}
+    "@prisma/engines",
+{{/if}}
+    "esbuild",
+{{#if (eq database.orm "prisma")}}
+    "prisma",
+{{/if}}
+    "sharp",
+    "unrs-resolver"
+  ]{{/if}}{{#if (eq packageManager "yarn")}},
   "packageManager": "yarn@4.17.1",
   "dependenciesMeta": {
+{{#if (eq database.orm "prisma")}}
+    "@prisma/engines": { "built": true },
+{{/if}}
     "esbuild": { "built": true },
+{{#if (eq database.orm "prisma")}}
+    "prisma": { "built": true },
+{{/if}}
     "sharp": { "built": true },
     "unrs-resolver": { "built": true }
   }{{/if}}

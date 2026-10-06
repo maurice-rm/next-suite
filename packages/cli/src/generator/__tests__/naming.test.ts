@@ -18,3 +18,7 @@ test("outputName keeps non-.hbs names unchanged", () => {
 test("outputName renames gitignore to .gitignore after stripping", () => {
   expect(outputName("gitignore.hbs")).toBe(".gitignore");
 });
+
+test("outputName renames npmrc to .npmrc", () => {
+  expect(outputName("npmrc")).toBe(".npmrc");
+});

@@ -2,7 +2,10 @@ import { PACKAGE_MANAGERS, type PackageManager } from "@/package-managers";
 import { defineConfirm, type NavigableOption, navigableSelect } from "@/ui";
 
 const PACKAGE_MANAGER_OPTIONS: NavigableOption<PackageManager>[] =
-  PACKAGE_MANAGERS.map((pm) => ({ value: pm.id, label: pm.label }));
+  PACKAGE_MANAGERS.map((manager) => ({
+    value: manager.id,
+    label: manager.label,
+  }));
 
 const packageManagerOptions = (
   detected?: PackageManager,

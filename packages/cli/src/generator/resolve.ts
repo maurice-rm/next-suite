@@ -1,4 +1,8 @@
 import type { ProjectConfig } from "@/core/types";
+import {
+  getPackageManagerEntry,
+  type PackageManager,
+} from "@/package-managers";
 
 import { type DependencyName, VERSIONS } from "./config/dependencies";
 import {
@@ -7,36 +11,20 @@ import {
   FEATURES,
 } from "./config/features";
 
-/**
- * Select the features that apply to a config, in registry order.
- *
- * @param config - The resolved project configuration.
- * @returns The active features (base first).
- */
+/** The features that apply to a config, in registry order (base first). */
 export const activeFeatures = (config: ProjectConfig): Feature[] =>
   FEATURES.filter((feature) => feature.when?.(config) ?? true);
 
-/**
- * Resolve a feature's declared dependencies against the config: a list passes
- * through, a function is invoked, absence yields [].
- */
 export const featureDependencies = (
   declared: FeatureDependencies | undefined,
   config: ProjectConfig,
 ): DependencyName[] =>
   typeof declared === "function" ? declared(config) : (declared ?? []);
 
-const resolve = (names: DependencyName[]): Record<string, string> =>
+const resolveVersions = (names: DependencyName[]): Record<string, string> =>
   Object.fromEntries(names.map((name) => [name, VERSIONS[name]]));
 
-/**
- * Build a package.json fragment (dependencies + devDependencies) from catalog
- * dependency names, resolving each to its version.
- *
- * @param dependencies - Runtime dependency names.
- * @param devDependencies - Dev dependency names.
- * @returns A JSON package.json fragment string, or `undefined` when both are empty.
- */
+/** @returns A package.json fragment, or `undefined` when both lists are empty. */
 export const dependenciesFragment = (
   dependencies: DependencyName[],
   devDependencies: DependencyName[],
@@ -45,8 +33,38 @@ export const dependenciesFragment = (
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
   } = {};
-  if (dependencies.length) fragment.dependencies = resolve(dependencies);
+  if (dependencies.length)
+    fragment.dependencies = resolveVersions(dependencies);
   if (devDependencies.length)
-    fragment.devDependencies = resolve(devDependencies);
+    fragment.devDependencies = resolveVersions(devDependencies);
   return Object.keys(fragment).length ? JSON.stringify(fragment) : undefined;
+};
+
+/** The transitive packages the active features force to a catalog version. */
+export const dependencyOverrides = (
+  config: ProjectConfig,
+): Record<string, string> =>
+  resolveVersions(
+    activeFeatures(config).flatMap((feature) =>
+      featureDependencies(feature.overrides, config),
+    ),
+  );
+
+/**
+ * Place the overrides under the package.json field the package manager reads.
+ *
+ * @returns A package.json fragment, or `undefined` when there is nothing to
+ *   override or the manager reads overrides from its own config file.
+ */
+export const overridesFragment = (
+  overrides: Record<string, string>,
+  packageManager: PackageManager,
+): string | undefined => {
+  const { overridesPath } = getPackageManagerEntry(packageManager);
+  if (!overridesPath || !Object.keys(overrides).length) return undefined;
+  const fragment = overridesPath.reduceRight<unknown>(
+    (nested, key) => ({ [key]: nested }),
+    overrides,
+  );
+  return JSON.stringify(fragment);
 };

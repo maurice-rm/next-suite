@@ -31,6 +31,8 @@ For a quick start, see the [project README](../README.md). This directory holds 
 
 **[Architecture](architecture.md)** — For working on the CLI: the monorepo layout, the two-phase flow, the import layering, the generation pipeline, the registries, and how verification works.
 
+**[Architecture decisions](adr/)** — The decisions that are costly to reverse, each with its context and consequences: [provisioning as a second binary](adr/0001-provisioning-as-a-second-binary.md), [in-memory composition from template layers](adr/0002-compose-projects-in-memory.md), and [the dependency audit policy for generated projects](adr/0003-dependency-audit-policy-for-generated-projects.md).
+
 ## Related
 
 - [Contributing](../CONTRIBUTING.md) — setup, daily commands, the verification bar, changesets, PR expectations

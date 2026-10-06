@@ -5,7 +5,6 @@ import type {
   ConflictChoice,
   GithubActionsStep,
   ProjectConfig,
-  ShadcnBase,
 } from "@/core/types";
 import { validateProjectInput, validateShadcnPreset } from "@/core/validation";
 import {
@@ -18,16 +17,12 @@ import {
   ORMS,
   SHADCN_BASES,
 } from "@/options";
-import {
-  findPackageManagerEntry,
-  PACKAGE_MANAGERS,
-  type PackageManager,
-} from "@/package-managers";
+import { PACKAGE_MANAGERS, type PackageManager } from "@/package-managers";
 
 import { buildProjectConfig, type WizardAnswers } from "./build-config";
 
 /** The CLI flags the non-interactive (`--yes`) path reads. */
-export interface CLIFlags {
+interface CLIFlags {
   name?: string;
   pm?: string;
   tailwind?: boolean;
@@ -56,75 +51,85 @@ const fail = (message: string): never => {
   throw new Error(message);
 };
 
-const resolvePackageManager = (flag: string | undefined): PackageManager => {
-  if (flag === undefined) return detectPackageManager() ?? "npm";
-  const entry = findPackageManagerEntry(flag);
-  if (entry) return entry.id;
+const NONE = "none";
+
+const valuesOf = <T extends string>(options: readonly { value: T }[]): T[] =>
+  options.map((option) => option.value);
+
+const selectableValuesOf = <T extends string>(
+  options: readonly { value: T }[],
+): Exclude<T, typeof NONE>[] =>
+  valuesOf(options).filter(
+    (value): value is Exclude<T, typeof NONE> => value !== NONE,
+  );
+
+const resolveChoice = <T extends string>(
+  choices: readonly T[],
+  flag: string,
+  dimension: string,
+): T => {
+  const match = choices.find((choice) => choice === flag);
+  if (match !== undefined) return match;
   return fail(
-    `Unknown package manager "${flag}" — expected one of ${PACKAGE_MANAGERS.map((pm) => pm.id).join(", ")}.`,
+    `Unknown ${dimension} "${flag}" — expected one of ${choices.join(", ")}.`,
   );
 };
 
-const resolveShadcnBase = (flag: string | undefined): ShadcnBase => {
-  if (flag !== undefined) {
-    const match = SHADCN_BASES.find((base) => base.value === flag);
-    if (match) return match.value;
-    return fail(
-      `Unknown shadcn base "${flag}" — expected one of ${SHADCN_BASES.map((base) => base.value).join(", ")}.`,
-    );
+const resolvePackageManager = (flag: string | undefined): PackageManager => {
+  if (flag === undefined) return detectPackageManager() ?? "npm";
+  return resolveChoice(
+    PACKAGE_MANAGERS.map((manager) => manager.id),
+    flag,
+    "package manager",
+  );
+};
+
+const resolveComponentLibrary = (
+  flags: CLIFlags,
+): Pick<
+  WizardAnswers,
+  "componentLibrary" | "tailwind" | "base" | "pointer" | "preset"
+> => {
+  if (!flags.shadcn) {
+    return { componentLibrary: "none", tailwind: flags.tailwind ?? false };
   }
-  const fallback = SHADCN_BASES[0];
-  if (fallback) return fallback.value;
-  return fail("SHADCN_BASES must not be empty.");
+  return {
+    componentLibrary: "shadcn",
+    base:
+      flags.shadcnBase === undefined
+        ? SHADCN_BASES[0].value
+        : resolveChoice(
+            valuesOf(SHADCN_BASES),
+            flags.shadcnBase,
+            "shadcn base",
+          ),
+    pointer: flags.shadcnPointer ?? false,
+    preset: flags.shadcnPreset,
+  };
 };
 
 const resolveDatabase = (
   flags: CLIFlags,
 ): Pick<WizardAnswers, "database" | "orm"> => {
   if (flags.database === undefined && flags.orm === undefined) {
-    return { database: "none", orm: undefined };
+    return { database: NONE, orm: undefined };
   }
   if (flags.database === undefined || flags.orm === undefined) {
     return fail("--database and --orm must be passed together.");
   }
-  const database = DATABASES.find(
-    (entry) => entry.value !== "none" && entry.value === flags.database,
-  );
-  if (!database) {
-    return fail(
-      `Unknown database "${flags.database}" — expected one of ${DATABASES.filter(
-        (entry) => entry.value !== "none",
-      )
-        .map((entry) => entry.value)
-        .join(", ")}.`,
-    );
-  }
-  const orm = ORMS.find((entry) => entry.value === flags.orm);
-  if (!orm) {
-    return fail(
-      `Unknown ORM "${flags.orm}" — expected one of ${ORMS.map(
-        (entry) => entry.value,
-      ).join(", ")}.`,
-    );
-  }
-  return { database: database.value, orm: orm.value };
+  return {
+    database: resolveChoice(
+      selectableValuesOf(DATABASES),
+      flags.database,
+      "database",
+    ),
+    orm: resolveChoice(valuesOf(ORMS), flags.orm, "ORM"),
+  };
 };
 
 const resolveApi = (flag: string | undefined): Pick<WizardAnswers, "api"> => {
-  if (flag === undefined) return { api: "none" };
-  const api = API_TYPES.find(
-    (entry) => entry.value !== "none" && entry.value === flag,
-  );
-  if (!api) {
-    return fail(
-      `Unknown api "${flag}" — expected one of ${API_TYPES.filter(
-        (entry) => entry.value !== "none",
-      )
-        .map((entry) => entry.value)
-        .join(", ")}.`,
-    );
-  }
-  return { api: api.value };
+  if (flag === undefined) return { api: NONE };
+  return { api: resolveChoice(selectableValuesOf(API_TYPES), flag, "api") };
 };
 
 const resolveOpenApi = (
@@ -135,73 +140,43 @@ const resolveOpenApi = (
     return { openapi: false, scalar: false };
   }
   if (flags.api !== "orpc") return fail("--openapi requires --api orpc.");
-  return { openapi: true, scalar: !!flags.scalar };
+  return { openapi: true, scalar: flags.scalar ?? false };
 };
 
 const resolveAuth = (flags: CLIFlags): Pick<WizardAnswers, "auth"> => {
-  if (flags.auth === undefined) return { auth: "none" };
+  if (flags.auth === undefined) return { auth: NONE };
   if (flags.database === undefined) {
     return fail(
       "--auth requires --database — Better-Auth needs a database adapter.",
     );
   }
-  const auth = AUTH_PROVIDERS.find(
-    (entry) => entry.value !== "none" && entry.value === flags.auth,
-  );
-  if (!auth) {
-    return fail(
-      `Unknown auth "${flags.auth}" — expected one of ${AUTH_PROVIDERS.filter(
-        (entry) => entry.value !== "none",
-      )
-        .map((entry) => entry.value)
-        .join(", ")}.`,
-    );
-  }
-  return { auth: auth.value };
+  return {
+    auth: resolveChoice(selectableValuesOf(AUTH_PROVIDERS), flags.auth, "auth"),
+  };
 };
 
-const resolveEmail = (flags: CLIFlags): Pick<WizardAnswers, "email"> => {
-  if (flags.email === undefined) return { email: "none" };
-  const email = EMAIL_PROVIDERS.find(
-    (entry) => entry.value !== "none" && entry.value === flags.email,
-  );
-  if (!email) {
-    return fail(
-      `Unknown email "${flags.email}" — expected one of ${EMAIL_PROVIDERS.filter(
-        (entry) => entry.value !== "none",
-      )
-        .map((entry) => entry.value)
-        .join(", ")}.`,
-    );
-  }
-  return { email: email.value };
+const resolveEmail = (
+  flag: string | undefined,
+): Pick<WizardAnswers, "email"> => {
+  if (flag === undefined) return { email: NONE };
+  return {
+    email: resolveChoice(selectableValuesOf(EMAIL_PROVIDERS), flag, "email"),
+  };
 };
 
 const resolveDeployment = (
-  flags: CLIFlags,
+  flag: string | undefined,
 ): Pick<WizardAnswers, "production" | "nginxMode"> => {
-  if (flags.deployment === undefined) {
-    return { production: false, nginxMode: undefined };
-  }
-  const mode = NGINX_MODES.find((entry) => entry.value === flags.deployment);
-  if (!mode) {
-    return fail(
-      `Unknown deployment "${flags.deployment}" — expected one of ${NGINX_MODES.map(
-        (entry) => entry.value,
-      ).join(", ")}.`,
-    );
-  }
-  return { production: true, nginxMode: mode.value };
+  if (flag === undefined) return { production: false, nginxMode: undefined };
+  return {
+    production: true,
+    nginxMode: resolveChoice(valuesOf(NGINX_MODES), flag, "deployment"),
+  };
 };
 
-const resolveGithubActions = (
-  flags: CLIFlags,
-): Pick<WizardAnswers, "githubActionsEnabled" | "githubActionsSteps"> => {
-  if (flags.githubActions === undefined) {
-    return { githubActionsEnabled: false, githubActionsSteps: undefined };
-  }
+const parseGithubActionsSteps = (flag: string): GithubActionsStep[] => {
   const steps: GithubActionsStep[] = [];
-  for (const requested of flags.githubActions.split(",").map((s) => s.trim())) {
+  for (const requested of flag.split(",").map((step) => step.trim())) {
     if (requested.length === 0) continue;
     const match = GITHUB_ACTIONS_STEP_ORDER.find((step) => step === requested);
     if (!match) {
@@ -211,6 +186,16 @@ const resolveGithubActions = (
     }
     steps.push(match);
   }
+  return steps;
+};
+
+const resolveGithubActions = (
+  flags: CLIFlags,
+): Pick<WizardAnswers, "githubActionsEnabled" | "githubActionsSteps"> => {
+  if (flags.githubActions === undefined) {
+    return { githubActionsEnabled: false, githubActionsSteps: undefined };
+  }
+  const steps = parseGithubActionsSteps(flags.githubActions);
   if (
     steps.some((step) => step === "image" || step === "deploy") &&
     flags.deployment === undefined
@@ -223,78 +208,77 @@ const resolveGithubActions = (
   };
 };
 
+const requireValidInput = (name: string | undefined): string => {
+  const input = name?.trim();
+  if (!input) {
+    return fail(
+      "A project name is required in --yes mode — pass it as the argument.",
+    );
+  }
+  const error = validateProjectInput(input);
+  if (error) return fail(error);
+  return input;
+};
+
+const assertCompatibleFlags = (flags: CLIFlags): void => {
+  if (flags.overwrite && flags.empty) {
+    fail("--overwrite and --empty are mutually exclusive — pass only one.");
+  }
+  const hasShadcnOptions =
+    flags.shadcnBase !== undefined ||
+    flags.shadcnPreset !== undefined ||
+    flags.shadcnPointer !== undefined;
+  if (!flags.shadcn && hasShadcnOptions) {
+    fail(
+      "--shadcn-base, --shadcn-preset, and --shadcn-pointer require --shadcn.",
+    );
+  }
+  const presetError = flags.shadcn
+    ? validateShadcnPreset(flags.shadcnPreset)
+    : undefined;
+  if (presetError) fail(`Invalid --shadcn-preset: ${presetError}`);
+};
+
+const resolveConflictAction = async (
+  input: string,
+  flags: CLIFlags,
+): Promise<ConflictChoice | undefined> => {
+  if (!(await hasConflictingFiles(resolveTarget(input).targetDir))) {
+    return undefined;
+  }
+  if (flags.overwrite) return "overwrite";
+  if (flags.empty) return "empty";
+  return fail(
+    `"${input}" already has conflicting files — pass --overwrite or --empty to proceed.`,
+  );
+};
+
 /**
  * Build a fully-resolved ProjectConfig from `--yes`-mode flags, defaulting
  * everything omitted — the non-interactive counterpart to the wizard. It runs
  * the same validation (`validateProjectInput`) and conflict detection, then
  * reuses {@link buildProjectConfig} so all the narrowing lives in one place.
  *
- * @param flags - The parsed CLI flags.
- * @returns The resolved {@link ProjectConfig}.
  * @throws If the name is missing or invalid, the target has conflicting files
- *   without an override flag, or `--pm`/`--shadcn-base` name an unknown value.
+ *   without an override flag, a flag names an unknown value, or two flags
+ *   contradict each other.
  */
 export const configFromFlags = async (
   flags: CLIFlags,
 ): Promise<ProjectConfig> => {
-  const input = flags.name?.trim();
-  if (!input) {
-    return fail(
-      "A project name is required in --yes mode — pass it as the argument.",
-    );
-  }
-
-  const error = validateProjectInput(input);
-  if (error) return fail(error);
-
-  if (flags.overwrite && flags.empty) {
-    return fail(
-      "--overwrite and --empty are mutually exclusive — pass only one.",
-    );
-  }
-
-  const isShadcn = flags.shadcn === true;
-  if (
-    !isShadcn &&
-    (flags.shadcnBase !== undefined ||
-      flags.shadcnPreset !== undefined ||
-      flags.shadcnPointer !== undefined)
-  ) {
-    return fail(
-      "--shadcn-base, --shadcn-preset, and --shadcn-pointer require --shadcn.",
-    );
-  }
-  if (isShadcn) {
-    const presetError = validateShadcnPreset(flags.shadcnPreset);
-    if (presetError) return fail(`Invalid --shadcn-preset: ${presetError}`);
-  }
-
-  const { targetDir } = resolveTarget(input);
-  let action: ConflictChoice | undefined;
-  if (await hasConflictingFiles(targetDir)) {
-    if (flags.overwrite) action = "overwrite";
-    else if (flags.empty) action = "empty";
-    else {
-      return fail(
-        `"${input}" already has conflicting files — pass --overwrite or --empty to proceed.`,
-      );
-    }
-  }
+  const input = requireValidInput(flags.name);
+  assertCompatibleFlags(flags);
 
   const answers: WizardAnswers = {
     input,
-    action,
-    componentLibrary: isShadcn ? "shadcn" : "none",
-    tailwind: isShadcn ? undefined : (flags.tailwind ?? false),
-    base: isShadcn ? resolveShadcnBase(flags.shadcnBase) : undefined,
-    pointer: isShadcn ? (flags.shadcnPointer ?? false) : undefined,
-    preset: isShadcn ? flags.shadcnPreset : undefined,
+    action: await resolveConflictAction(input, flags),
+    ...resolveComponentLibrary(flags),
     ...resolveDatabase(flags),
     ...resolveApi(flags.api),
     ...resolveOpenApi(flags),
     ...resolveAuth(flags),
-    ...resolveEmail(flags),
-    ...resolveDeployment(flags),
+    ...resolveEmail(flags.email),
+    ...resolveDeployment(flags.deployment),
     ...resolveGithubActions(flags),
     git: flags.git ?? true,
     packageManager: resolvePackageManager(flags.pm),

@@ -8,11 +8,12 @@
   ],{{#if shadcn}}
   "ignore": ["src/components/ui/**"],{{/if}}
   "ignoreDependencies": [
-    "eslint-plugin-import"{{#if shadcn}},
+    "eslint-plugin-import"{{#if (eq database.orm "prisma")}},
+    "@prisma/client"{{/if}}{{#if shadcn}},
     "class-variance-authority",
     "lucide-react",
     "{{#if (eq shadcn.base "radix")}}radix-ui{{/if}}{{#if (eq shadcn.base "base")}}@base-ui/react{{/if}}{{#if (eq shadcn.base "aria")}}react-aria-components{{/if}}"{{/if}}{{#if (eq database.orm "drizzle")}}{{#if production}},
-    "esbuild"{{/if}}{{/if}}{{#if (or api (and production database))}},
+    "esbuild"{{/if}}{{/if}}{{#if (or api (eq auth "better-auth") (and production database))}},
     "pino-pretty"{{/if}}
   ]
 }

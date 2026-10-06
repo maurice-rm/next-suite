@@ -134,10 +134,11 @@ deploy — nginx refuses to start without them and the container crash-loops.
    `# TODO`: the `server_name` in the `:80` and the `:443` block, and the two
    `ssl_certificate*` paths. The shipped value is `example.com`.
 
-   While you are there: the `Strict-Transport-Security` line ships **without**
-   `includeSubDomains`, deliberately. Add it only once you know this domain is a
-   subdomain whose siblings all speak HTTPS — on an apex it commits **every**
-   subdomain of the zone for two years, with no server-side way back.
+   The security headers are set by the app in `next.config.ts`, not here. Its
+   `Strict-Transport-Security` header ships **without** `includeSubDomains`,
+   deliberately. Add it only once you know this domain is a subdomain whose
+   siblings all speak HTTPS — on an apex it commits **every** subdomain of the
+   zone for two years, with no server-side way back.
 
 2. **Obtain the certificate.** The ACME challenge is served by this same nginx,
    which cannot start yet, so the first certificate has to come from outside the

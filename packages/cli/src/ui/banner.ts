@@ -15,6 +15,8 @@ const TITLE_LINES = [
 
 /** Column where "SUITE" begins; the wordmark is two-tone across this split. */
 const SPLIT = 37;
+const DEFAULT_TERMINAL_COLUMNS = 80;
+const META_SEPARATOR = "  ·  ";
 const TAGLINE = "A better starting point for Next.js.";
 const WIDTH = Math.max(...TITLE_LINES.map((line) => line.length));
 
@@ -30,24 +32,24 @@ export const renderVersionPart = (
   version: string,
   status: VersionStatus,
 ): { plain: string; styled: string } => {
-  const v = `v${version}`;
+  const tag = `v${version}`;
   switch (status.state) {
     case "latest":
       return {
-        plain: `${v} (latest)`,
-        styled: ansis.bold(v) + brand.bold(" (latest)"),
+        plain: `${tag} (latest)`,
+        styled: ansis.bold(tag) + brand.bold(" (latest)"),
       };
     case "outdated":
       return {
-        plain: `${v} (update available → v${status.latest})`,
+        plain: `${tag} (update available → v${status.latest})`,
         styled:
-          ansis.bold(v) +
+          ansis.bold(tag) +
           ansis.dim(" (update available → ") +
           brand.bold(`v${status.latest}`) +
           ansis.dim(")"),
       };
     default:
-      return { plain: v, styled: ansis.bold(v) };
+      return { plain: tag, styled: ansis.bold(tag) };
   }
 };
 
@@ -59,19 +61,18 @@ export const buildMetaStrip = (
     renderVersionPart(version, status),
     { plain: LINK, styled: brand(LINK) },
   ];
-  const sep = "  ·  ";
   return {
-    plain: parts.map((p) => p.plain).join(sep),
-    styled: parts.map((p) => p.styled).join(ansis.dim(sep)),
+    plain: parts.map((part) => part.plain).join(META_SEPARATOR),
+    styled: parts.map((part) => part.styled).join(ansis.dim(META_SEPARATOR)),
   };
 };
 
 export const centerText = (
   styled: string,
-  visibleLen: number,
+  visibleLength: number,
   width: number,
 ): string =>
-  " ".repeat(Math.max(0, Math.floor((width - visibleLen) / 2))) + styled;
+  " ".repeat(Math.max(0, Math.floor((width - visibleLength) / 2))) + styled;
 
 /**
  * Print the next-suite banner: a two-tone ASCII wordmark, the centered tagline,
@@ -82,21 +83,23 @@ export const renderTitle = (
   version: string,
   status: VersionStatus = { state: "unknown" },
 ): void => {
-  const cols = process.stdout.columns || 80;
-  if (cols < WIDTH) {
-    const vp = renderVersionPart(version, status);
+  const columns = process.stdout.columns || DEFAULT_TERMINAL_COLUMNS;
+  if (columns < WIDTH) {
+    const versionPart = renderVersionPart(version, status);
     console.log();
     console.log(
       centerText(
         brand.bold("next") + ansis.bold("-suite"),
         "next-suite".length,
-        cols,
+        columns,
       ),
     );
     console.log();
-    console.log(centerText(renderTagline(), TAGLINE.length, cols));
+    console.log(centerText(renderTagline(), TAGLINE.length, columns));
     console.log();
-    console.log(centerText(vp.styled, vp.plain.length, cols));
+    console.log(
+      centerText(versionPart.styled, versionPart.plain.length, columns),
+    );
     console.log();
     console.log();
     return;

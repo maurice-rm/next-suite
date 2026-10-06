@@ -1,0 +1,30 @@
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed `next` package before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
+# Project conventions
+
+- **Done means green:** `{{packageManager}} run check` and `{{packageManager}} run build` pass. `check` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in `src/app/` stay thin and delegate to `src/features/<domain>/`; a feature imports only itself, `src/lib/`, `src/components/` and the project infrastructure. `src/lib/` knows no feature.
+- **Environment:** `src/env.ts` is the only module that reads `process.env`. A new variable goes into `src/env.ts` and `.env.example` together.
+{{#if (or api (eq auth "better-auth") (and production database))}}
+- **Logging:** server code logs through `@/lib/logger` (pino), object first, message second, the error under `err`. Never `console`.
+{{/if}}
+{{#if (eq auth "better-auth")}}
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from `x-real-ip`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch `CLIENT_IP_HEADER` in `src/lib/auth/index.ts` to the header that proxy sets.
+{{/if}}
+{{#if api}}
+- **Errors:** a feature throws a subclass of `DomainError` (`@/lib/domain-error`) with a stable code; `publicProcedure` maps it to the API error once. Procedures start from `{{#if (eq auth "better-auth")}}protectedProcedure{{else}}publicProcedure{{/if}}`.
+{{/if}}
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_

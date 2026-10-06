@@ -4,53 +4,37 @@ The shared ESLint flat config for this repository. It is `private: true` and nev
 
 ## Usage
 
-The package exposes exactly one entry point, `@next-suite/eslint-config/base`, mapped to `base.js` by the `exports` field. There is no other subpath and no root export. It exports a named `config` array, so you spread it and add your own layers on top, as `packages/cli/eslint.config.js` does:
+The package exposes one entry point, `@next-suite/eslint-config/base`, mapped to `base.js` by the `exports` field. It exports a named `config`; a consumer adds it to its own flat config and sets `parserOptions.tsconfigRootDir` for type-aware linting, as `packages/cli/eslint.config.js` does:
 
 ```js
 import { config } from "@next-suite/eslint-config/base";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
+import { defineConfig } from "eslint/config";
 
-/** @type {import("eslint").Linter.Config[]} */
-export default [
-  ...config,
-  { ignores: ["dist/**", "templates/**"] },
+export default defineConfig([
+  config,
   {
-    plugins: { "simple-import-sort": simpleImportSort },
-    rules: {
-      "simple-import-sort/imports": ["error", { groups: [/* … */] }],
-      "simple-import-sort/exports": "error",
+    languageOptions: {
+      parserOptions: { tsconfigRootDir: import.meta.dirname },
     },
   },
-];
+]);
 ```
 
 ## What the base config contributes
 
-| Entry                                       | Kind         | Contribution                                                             |
-| ------------------------------------------- | ------------ | ------------------------------------------------------------------------ |
-| `@eslint/js` — `js.configs.recommended`     | Preset       | The core JavaScript recommended rules                                    |
-| `eslint-config-prettier`                    | Preset       | Turns off every rule that would conflict with Prettier formatting        |
-| `typescript-eslint` — `configs.recommended` | Preset       | The recommended TypeScript rules, spread in after the Prettier reset     |
-| `eslint-plugin-turbo`                       | Plugin       | Registered as `turbo`, with `turbo/no-undeclared-env-vars` set to `warn` |
-| `eslint-plugin-only-warn`                   | Plugin       | Registered for its load-time side effect — see below                     |
-| `ignores: ["dist/**"]`                      | Ignore block | Keeps build output out of every lint run                                 |
+| Entry                                                             | Contribution                                                                                                                                                                  |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@eslint/js` — `js.configs.recommended`                           | The core JavaScript recommended rules                                                                                                                                         |
+| `typescript-eslint` — `strictTypeChecked`, `stylisticTypeChecked` | Type-aware strict and stylistic rules through `projectService`; the version is pinned exactly, since the strict configs change in minors                                      |
+| Code rules                                                        | `@typescript-eslint/naming-convention` (boolean predicates need `is`/`has`/`can`/…), `max-params: 3`, `max-depth: 2`, `complexity: 15`, `@typescript-eslint/no-magic-numbers` |
+| `eslint-plugin-turbo`                                             | `turbo/no-undeclared-env-vars` as an error                                                                                                                                    |
+| `disableTypeChecked` for `*.{js,mjs,cjs}`                         | Config files lint without type information                                                                                                                                    |
+| `eslint-config-prettier`                                          | Turns off every rule that would conflict with Prettier formatting                                                                                                             |
+| `ignores: ["dist/**"]`                                            | Keeps build output out of every lint run                                                                                                                                      |
 
-## Linting is a report, not a gate
-
-`eslint-plugin-only-warn` downgrades **every** rule severity to `warn` for the whole config, including rules a consumer sets to `"error"` explicitly. Combined with `eslint .` being run without `--max-warnings`, that means ESLint reports zero errors and exits 0 no matter what the rules find.
-
-This is intentional — lint findings never block work — but be clear about the consequence: the CI lint job cannot fail, so it tells you something only if you read its output. The checks that actually gate a change are `check-types`, `build` and `test`.
-
-Verify it yourself:
-
-```bash
-printf 'const x = 1\nexport const y: any = 1\n' \
-  | pnpm --filter create-next-suite exec eslint --stdin --stdin-filename src/tmp.ts
-# 2 problems (0 errors, 2 warnings) — exit code 0
-```
+Every rule is an error, and the consumer's `lint` script runs with `--max-warnings 0`, so lint gates CI like `check-types`, `build` and `test` do.
 
 ## Notes
 
-- The consumer overlay lives in `packages/cli/eslint.config.js`: it ignores `dist/**` and `templates/**`, and adds `eslint-plugin-simple-import-sort` with an explicit import-group order (side effects, `node:` builtins, npm packages, the `@/` alias, everything else, relative imports). Test files there get `turbo/no-undeclared-env-vars` switched off.
-- `globals` is declared as a devDependency in `package.json`, but `base.js` never imports it. Nothing in this package uses it.
+- The consumer overlay lives in `packages/cli/eslint.config.js`: it adds `eslint-plugin-simple-import-sort` with an explicit import-group order, `import-x/no-cycle`, and `import-x/no-restricted-paths` zones that enforce the CLI's layering (see `packages/cli/AGENTS.md`). Test files there get `turbo/no-undeclared-env-vars` and `no-magic-numbers` switched off.
 - The `eslint`, `typescript` and `prettier` versions come from the `catalog:` block in `pnpm-workspace.yaml`.

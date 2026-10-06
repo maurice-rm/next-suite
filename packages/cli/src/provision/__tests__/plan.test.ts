@@ -115,7 +115,7 @@ test("the plan names exactly the checks preflight runs", () => {
     domain: "app.example.com",
     port: 8100,
     envExample: MINIMAL_EXAMPLE,
-  }).find((l) => l.startsWith("Prerequisites"));
+  }).find((line) => line.startsWith("Prerequisites"));
 
   expect(line).toBeDefined();
   for (const check of remoteChecks()) expect(line).toContain(check.name);

@@ -11,15 +11,16 @@ const ok: RunResult = { stdout: "", stderr: "", exitCode: 0 };
 const failed: RunResult = { stdout: "", stderr: "no", exitCode: 1 };
 
 const scriptedRunner = (failWhen: (script: string) => boolean): Runner => {
-  return async (_file, args) => {
+  return (_file, args) => {
     const script = args[1] ?? "";
-    return failWhen(script) ? failed : ok;
+    return Promise.resolve(failWhen(script) ? failed : ok);
   };
 };
 
-test("remoteChecks lists the 9 baseline checks in order", () => {
-  expect(remoteChecks().map((c) => c.name)).toEqual([
+test("remoteChecks lists the 10 baseline checks in order", () => {
+  expect(remoteChecks().map((check) => check.name)).toEqual([
     "root",
+    "runuser",
     "nginx",
     "certbot",
     "docker",
@@ -33,7 +34,7 @@ test("remoteChecks lists the 9 baseline checks in order", () => {
 
 test("remoteChecks fail messages instruct how to fix each baseline gap", () => {
   const messages = remoteChecks()
-    .map((c) => c.fail)
+    .map((check) => check.fail)
     .join("\n");
   expect(messages).toContain("/var/www/certbot");
   expect(messages).toContain("ssl-dhparams.pem");
@@ -53,15 +54,15 @@ test("every doc section a fail message points at actually exists", () => {
   );
   const captured = (source: string, re: RegExp): string[] =>
     [...source.matchAll(re)]
-      .map((m) => m[1])
+      .map((match) => match[1])
       .filter((value): value is string => value !== undefined);
 
-  const headings = captured(guide, /^#{2,3} (.+)$/gm).map((h) =>
-    h.replaceAll("`", "").trim(),
+  const headings = captured(guide, /^#{2,3} (.+)$/gm).map((heading) =>
+    heading.replaceAll("`", "").trim(),
   );
 
   const messages = remoteChecks()
-    .map((c) => c.fail)
+    .map((check) => check.fail)
     .join("\n");
   const referenced = captured(
     messages,
@@ -93,9 +94,9 @@ test("runPreflight throws listing every failed check", async () => {
 
 test("runPreflight throws a reachability error and skips checks when ssh itself fails", async () => {
   const state = { calls: 0 };
-  const run: Runner = async () => {
+  const run: Runner = () => {
     state.calls += 1;
-    return failed;
+    return Promise.resolve(failed);
   };
   await expect(runPreflight(target, run)).rejects.toThrow(/Cannot reach/);
   expect(state.calls).toBe(1);

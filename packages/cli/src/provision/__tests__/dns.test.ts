@@ -11,7 +11,7 @@ test("isValidHostname accepts real hostnames and rejects junk", () => {
 });
 
 test("resolvesToAny compares resolved A records to the server IPs", async () => {
-  const lookup = async () => ["203.0.113.7"];
+  const lookup = () => Promise.resolve(["203.0.113.7"]);
   expect(await resolvesToAny("x.example.com", ["203.0.113.7"], lookup)).toBe(
     true,
   );
@@ -20,11 +20,21 @@ test("resolvesToAny compares resolved A records to the server IPs", async () => 
   );
 });
 
-test("resolvesToAny returns false when resolution fails", async () => {
-  const lookup = async () => {
-    throw new Error("ENOTFOUND");
-  };
-  expect(await resolvesToAny("x.example.com", ["203.0.113.7"], lookup)).toBe(
-    false,
-  );
+const dnsError = (code: string): Error =>
+  Object.assign(new Error(`queryA ${code} x.example.com`), { code });
+
+test("resolvesToAny returns false when the domain does not resolve", async () => {
+  for (const code of ["ENOTFOUND", "ENODATA"]) {
+    const lookup = () => Promise.reject(dnsError(code));
+    expect(await resolvesToAny("x.example.com", ["203.0.113.7"], lookup)).toBe(
+      false,
+    );
+  }
+});
+
+test("resolvesToAny rethrows a lookup failure that is not an answer about the domain", async () => {
+  const lookup = () => Promise.reject(dnsError("EBADNAME"));
+  await expect(
+    resolvesToAny("x.example.com", ["203.0.113.7"], lookup),
+  ).rejects.toThrow(/EBADNAME/);
 });

@@ -11,10 +11,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const options = (over: Partial<ShadcnOptions> = {}): ShadcnOptions => ({
+const options = (overrides: Partial<ShadcnOptions> = {}): ShadcnOptions => ({
   base: "radix",
   pointer: false,
-  ...over,
+  ...overrides,
 });
 
 test("runs shadcn via npx and defaults an empty preset to the blank `b0`", async () => {

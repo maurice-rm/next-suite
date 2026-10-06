@@ -21,6 +21,10 @@ Three things must be in place locally before the command does anything:
 | `.env.example` in the cwd      | file exists                                              | `No .env.example here — it ships with the scaffold; restore it …`             |
 | A global config                | `~/.config/next-suite/config.json`                       | none — you are prompted for it and it is written on the spot                  |
 
+A `next-suite.json` or global config that exists but cannot be read — any error
+other than "file not found", such as a permission error — stops the run with
+that error instead of being treated as missing.
+
 The project name is also validated: it must match `^[a-z][a-z0-9._-]*$`, because
 it becomes a Linux user name, a directory name, and an nginx config file name.
 
@@ -37,6 +41,7 @@ with the full list of what failed. Setting these up once is described in
 | Check           | Command run over SSH                                                                                   | A failure means                                                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `root`          | `[ "$(id -u)" = 0 ]`                                                                                   | The admin user is not root. Every remote step runs the bare command (`useradd`, `cat > /etc/nginx/…`, `certbot`), so sudo is not enough. |
+| `runuser`       | `command -v runuser >/dev/null`                                                                        | runuser (util-linux) is missing. The deploy key is written to `authorized_keys` as the deploy user through it, not as root.              |
 | `nginx`         | `command -v nginx >/dev/null`                                                                          | nginx is not installed.                                                                                                                  |
 | `certbot`       | `command -v certbot >/dev/null`                                                                        | certbot is not installed.                                                                                                                |
 | `docker`        | `docker compose version >/dev/null 2>&1 && docker info >/dev/null 2>&1`                                | Docker or the Compose plugin is missing, or the daemon is down. Provision would succeed and the first deploy would fail.                 |
@@ -129,11 +134,23 @@ real one — see [Idempotence](#idempotence).
 
 ### Deploy keypair
 
-An ed25519 keypair is loaded from `~/.config/next-suite/keys/<project>` or
-generated there if absent (private key mode `600`, directory mode `700`). It is
-never reminted on a later run: a fresh key would append to the server's
-`authorized_keys` forever and orphan the GitHub secret that still holds the old
-one.
+An ed25519 keypair is loaded from `~/.config/next-suite/keys/<host>/<project>` or
+generated there if absent (private key mode `600`, directory mode `700`). The
+key belongs to one project on one server: two projects with the same name on
+different servers never share a key, so a repository's `DEPLOY_SSH_KEY` opens
+only its own server. It is reused on a later run against the same server, so the
+GitHub secret stays valid. Only a keypair with both files missing is generated.
+Keys from versions before 1.4 lived at `keys/<project>` and were shared by every
+same-named project. They are no longer read: the next run against a server mints
+a per-server key, removes the old key from that server's `authorized_keys` and
+replaces the repository's `DEPLOY_SSH_KEY`. Until a project is provisioned again,
+its server still accepts the old key, so re-run `provision` for every project
+that shared a name with one on another server, then delete `keys/<project>` and
+`keys/<project>.pub`. With `--skip-github`, store the newly printed key as the
+`DEPLOY_SSH_KEY` secret yourself, or CD loses access after the run. If exactly one of
+`<project>` and `<project>.pub` exists, the run stops before it changes the server
+rather than overwrite the surviving half — restore the missing file, or delete
+both to start over with a new key.
 
 ### Server setup
 
@@ -146,8 +163,12 @@ One script runs as root and is safe to repeat:
 - The project directory becomes `<project>:<project>`, mode `3755`.
 - The user joins the `docker` group and the `deploy` group — each only if the
   group already exists on the host.
-- `~/.ssh` is created mode `700`, and the deploy public key is appended to
-  `authorized_keys` (mode `600`) unless the exact line is already there.
+- `~/.ssh` (mode `700`) and `authorized_keys` (mode `600`) are created and
+  rewritten as the deploy user, through `runuser`, so a symlink the user plants
+  in their home cannot redirect a root write. `authorized_keys` is rewritten to
+  hold exactly one key with this
+  project's comment (`<project>@next-suite`): the current one. Other keys stay
+  untouched, and a rotated key no longer lingers.
 
 The user gets no password and no sudo rule.
 
@@ -157,7 +178,10 @@ The user gets no password and no sudo rule.
 project on the host. If the project already has an entry, that port is reused
 and nothing is written. Otherwise `ss -ltn` is run, the first port in
 **8100–8199** that is neither in the registry nor currently listening is taken,
-and the updated registry is written back.
+and the updated registry is written back through a temporary file and a `mv`.
+A registry that is not a JSON object of project names to port numbers stops the
+run with `/srv/ports.json must be a JSON object of project names to port
+numbers.` rather than being treated as empty.
 
 ### Server `.env`
 
@@ -175,10 +199,12 @@ comment, and blank line survives; only known keys are rewritten:
 | `POSTGRES_PASSWORD`, `MYSQL_PASSWORD`, `BETTER_AUTH_SECRET` | 32 fresh random bytes, base64url |
 
 If `.env.example` carries no `APP_PORT`, one is inserted directly after
-`COMPOSE_PROJECT_NAME`; if it carries neither, both are prepended. The file is
-uploaded to a temporary path, then moved into place — a partially written upload
-never replaces a working `.env` on a running host. The result is owned by the
-deploy user, mode `600`.
+`COMPOSE_PROJECT_NAME`; if it carries neither, both are prepended. The existing
+`.env` is read, and the new one written, as the deploy user (through `runuser`),
+so a symlink in the project directory cannot make root read or overwrite
+another file. It is written to a `mktemp` file, then moved into place — a
+partially written upload never replaces a working `.env` on a running host. The
+result is owned by the deploy user, mode `600`.
 
 ### Certificate
 
@@ -196,6 +222,9 @@ deploy user, mode `600`.
 Before certbot runs, the domain is resolved and compared against the server's
 own addresses. This is advisory only — a mismatch prints a warning and the
 request is attempted anyway, because certbot's exit code is the real answer.
+A missing or temporarily unreachable record (`ENOTFOUND`, `ENODATA`, `ETIMEOUT`,
+`ESERVFAIL`, `ECONNREFUSED`, `EAI_AGAIN`) counts as a mismatch; any other lookup
+error stops the run.
 
 If certbot fails, the previous nginx config is restored when there was one for a
 different domain, and the run continues with TLS deferred. The outro then tells
@@ -208,7 +237,7 @@ limits: five failed validations per hostname per hour, one slot back every
 The full site config is written to `/etc/nginx/conf.d/<project>.conf` only once
 the certificate exists. The write is validated before it is committed: the old
 file is copied to `<name>.conf.bak`, the new one is written, `nginx -t` runs, and
-only on success is the backup dropped and nginx reloaded. On failure the backup
+only on success is the backup kept as `<name>.conf.prev` and nginx reloaded. On failure the backup
 is moved back (or the new file removed) and the step fails. After a successful
 reload the `nginx-limit-req` and `nginx-botsearch` fail2ban jails are reloaded,
 because their `*error.log` glob is resolved only at jail start and would
@@ -219,7 +248,9 @@ header, its own `limit_req_zone`, and its own `upstream`, each suffixed with the
 port so several projects can share the one `http{}` namespace. It terminates TLS,
 redirects `:80` to `:443` while keeping the ACME location open, sets the usual
 security headers, rate-limits everything except `/_next/static/`, and proxies to
-`127.0.0.1:<port>`.
+`127.0.0.1:<port>`. Generated apps set the same headers in `next.config.ts`; the
+block hides the app's copies with `proxy_hide_header`, so each header arrives
+once, and lets the app's Content-Security-Policy through.
 
 ### GitHub secrets and variables
 
@@ -296,11 +327,11 @@ fields with the current values pre-filled, and writes the file back.
 Unless `--skip-github` is passed, three preconditions are checked after preflight
 and before anything is written to GitHub:
 
-| Precondition              | Checked with                        | Error                                                                            |
-| ------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
-| An `origin` remote exists | `git remote get-url origin`         | `no GitHub remote — add one or pass --skip-github`                               |
-| `gh` is authenticated     | `gh auth status`                    | `gh is not authenticated — run 'gh auth login' or pass --skip-github`            |
-| The repository resolves   | `gh repo view --json nameWithOwner` | `could not resolve the GitHub repository … fix the remote or pass --skip-github` |
+| Precondition              | Checked with                        | Error                                                                             |
+| ------------------------- | ----------------------------------- | --------------------------------------------------------------------------------- |
+| An `origin` remote exists | `git remote get-url origin`         | `No GitHub remote — add one or pass --skip-github.`                               |
+| `gh` is authenticated     | `gh auth status`                    | `gh is not authenticated — run 'gh auth login' or pass --skip-github.`            |
+| The repository resolves   | `gh repo view --json nameWithOwner` | `Could not resolve the GitHub repository … fix the remote or pass --skip-github.` |
 
 The resolved `owner/repo` is passed to every `gh` call as `--repo`. Without it
 `gh` picks its target from the remotes, which in a fork is not necessarily
@@ -323,20 +354,22 @@ it as secret material, and prefer letting `gh` transfer the key.
 
 ## Configuration and local files
 
-| Path                                      | Contents                                                     |
-| ----------------------------------------- | ------------------------------------------------------------ |
-| `~/.config/next-suite/config.json`        | `host`, `adminUser`, `certbotEmail` — shared by all projects |
-| `~/.config/next-suite/keys/<project>`     | The deploy private key, mode `600`                           |
-| `~/.config/next-suite/keys/<project>.pub` | The matching public key                                      |
+| Path                                             | Contents                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| `~/.config/next-suite/config.json`               | `host`, `adminUser`, `certbotEmail` — shared by all projects |
+| `~/.config/next-suite/keys/<host>/<project>`     | The deploy private key, mode `600`                           |
+| `~/.config/next-suite/keys/<host>/<project>.pub` | The matching public key                                      |
 
 `XDG_CONFIG_HOME` is respected: when it is set, both paths live under
 `$XDG_CONFIG_HOME/next-suite/` instead of `~/.config/next-suite/`.
 
-The config is parsed strictly. All three fields must be non-empty strings, and
-`certbotEmail` must look like an address, otherwise the command aborts and names
-the offending field. When provision creates the file itself on a first run it
-writes it with mode `600`; `next-suite config` writes it with your default file
-mode.
+The config is parsed strictly. All three fields must be non-empty strings, the
+host and admin user may only contain letters, digits, dot, dash and underscore,
+and `certbotEmail` must look like an address. The prompts apply the same rules
+as you type. `provision` and `deprovision` abort on a file that breaks them and
+name the offending field; `next-suite config` warns and asks for the values
+again, so the command that fixes the file never fails on it. Both commands write
+the file with mode `600` (a file created before 1.4 keeps the mode it has).
 
 ## Deprovisioning
 

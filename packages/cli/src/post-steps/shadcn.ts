@@ -13,13 +13,13 @@ const SHADCN_TEMPLATE = "next";
 // shadcn/create's blank-base preset (fallback when none given).
 const DEFAULT_PRESET = "b0";
 
-/** The package manager's one-off runner (DLX) as command + args. */
 const dlxCommand = (
   packageManager: PackageManager,
 ): readonly [string, ...string[]] => getPackageManagerEntry(packageManager).dlx;
 
 const shadcnFlags = (shadcn: ShadcnOptions): string[] => {
-  const preset = shadcn.preset?.trim() || DEFAULT_PRESET;
+  const requestedPreset = shadcn.preset?.trim() ?? "";
+  const preset = requestedPreset.length > 0 ? requestedPreset : DEFAULT_PRESET;
   return [
     "--template",
     SHADCN_TEMPLATE,
@@ -36,10 +36,6 @@ const shadcnFlags = (shadcn: ShadcnOptions): string[] => {
  * Initialize shadcn/ui in the generated project via the chosen package manager's
  * runner. The flag names target the current shadcn CLI and may need adjusting
  * per shadcn version.
- *
- * @param targetDir - The generated project directory.
- * @param packageManager - The package manager whose runner executes shadcn.
- * @param shadcn - The shadcn options collected by the wizard (base/pointer/preset).
  */
 export const initShadcn = async (
   targetDir: string,

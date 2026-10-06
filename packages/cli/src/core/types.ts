@@ -32,7 +32,7 @@ export interface ShadcnOptions {
 
 export type DatabaseChoice = (typeof DATABASES)[number]["value"];
 
-export type DatabaseEngine = Exclude<DatabaseChoice, "none">;
+type DatabaseEngine = Exclude<DatabaseChoice, "none">;
 
 export type Orm = (typeof ORMS)[number]["value"];
 
@@ -80,7 +80,6 @@ export interface ProjectConfig {
   projectName: string;
   targetDir: string;
   action: ConflictAction;
-  componentLibrary: ComponentLibrary;
   tailwind: boolean;
   shadcn?: ShadcnOptions;
   database?: DatabaseOptions;

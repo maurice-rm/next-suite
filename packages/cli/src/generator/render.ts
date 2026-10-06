@@ -10,7 +10,11 @@ export type FileMap = Map<string, string | Buffer>;
 
 export type Fragments = Map<string, string[]>;
 
-/** Append a rendered fragment to its per-file bucket, creating the bucket lazily. */
+interface RenderOutput {
+  fileMap: FileMap;
+  fragments: Fragments;
+}
+
 export const pushFragment = (
   fragments: Fragments,
   key: string,
@@ -21,44 +25,44 @@ export const pushFragment = (
   fragments.set(key, bucket);
 };
 
+const joinRelativePath = (prefix: string, name: string): string =>
+  prefix ? `${prefix}/${name}` : name;
+
+const readContent = async (
+  sourcePath: string,
+  data: unknown,
+): Promise<string | Buffer> => {
+  const bytes = await fs.readFile(sourcePath);
+  const text = bytes.toString("utf8");
+  if (isTemplate(sourcePath)) return renderString(text, data);
+  return Buffer.from(text, "utf8").equals(bytes) ? text : bytes;
+};
+
 /**
- * Render one template layer into the shared FileMap and fragment collectors.
- * `.hbs` files are rendered with Handlebars; root-level mergeable files
- * (package.json / .env.example) are routed to `fragments`; everything else is
- * set in `fileMap` (a later layer overwrites an earlier one at the same path).
- *
- * @param layerDir - Absolute path to the layer's template directory.
- * @param data - Values exposed to every template.
- * @param fileMap - Accumulates normal output files.
- * @param fragments - Accumulates mergeable fragment contents.
+ * Render one template layer into the shared output. `.hbs` files are rendered
+ * with Handlebars; root-level mergeable files (package.json, .env.example,
+ * .prettierrc.json) are routed to `fragments`; everything else is set in
+ * `fileMap`, where a later layer overwrites an earlier one at the same path.
  */
 export const renderLayer = async (
   layerDir: string,
   data: unknown,
-  fileMap: FileMap,
-  fragments: Fragments,
+  output: RenderOutput,
 ): Promise<void> => {
-  const walk = async (dir: string, prefix: string): Promise<void> => {
-    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
-      const src = path.join(dir, entry.name);
+  const walk = async (directory: string, prefix: string): Promise<void> => {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      const sourcePath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        await walk(src, prefix ? `${prefix}/${entry.name}` : entry.name);
+        await walk(sourcePath, joinRelativePath(prefix, entry.name));
         continue;
       }
       const name = outputName(entry.name);
-      const bytes = await fs.readFile(src);
-      const text = bytes.toString("utf8");
-      const isText = Buffer.from(text, "utf8").equals(bytes);
-      const content: string | Buffer = isTemplate(entry.name)
-        ? renderString(text, data)
-        : isText
-          ? text
-          : bytes;
+      const content = await readContent(sourcePath, data);
       if (prefix === "" && isMergeable(name) && typeof content === "string") {
-        pushFragment(fragments, name, content);
-      } else {
-        fileMap.set(prefix ? `${prefix}/${name}` : name, content);
+        pushFragment(output.fragments, name, content);
+        continue;
       }
+      output.fileMap.set(joinRelativePath(prefix, name), content);
     }
   };
   await walk(layerDir, "");

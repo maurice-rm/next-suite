@@ -22,8 +22,10 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/setup
+      - run: pnpm audit
       - run: pnpm check-types
       - run: pnpm lint
+      - run: pnpm knip
       - run: pnpm format:check
       - run: pnpm build
       - name: Validate the publishable package

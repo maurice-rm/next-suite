@@ -1,23 +1,45 @@
-import { {{#if (eq auth "better-auth")}}ORPCError, {{/if}}os } from "@orpc/server";
-{{#if (eq auth "better-auth")}}
+import "server-only";
 
+import { ORPCError, os } from "@orpc/server";
+
+{{#if (eq auth "better-auth")}}
 import { auth } from "@/lib/auth";
 {{/if}}
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
 
-export const publicProcedure = os.$context<{ headers: Headers }>();
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, string>;
+
+const base = os.$context<{ headers: Headers }>();
+
+const mapDomainErrors = base.middleware(async ({ next }) => {
+  try {
+    return await next();
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    throw new ORPCError(ERROR_CODE_BY_KIND[error.kind], {
+      message: error.code,
+      cause: error,
+    });
+  }
+});
+
+export const publicProcedure = base.use(mapDomainErrors);
 {{#if (eq auth "better-auth")}}
 
-const authMiddleware = publicProcedure.middleware(async ({ context, next }) => {
-  const sessionData = await auth.api.getSession({ headers: context.headers });
+const requireSession = base.middleware(async ({ context, next }) => {
+  const session = await auth.api.getSession({ headers: context.headers });
 
-  if (!sessionData) {
+  if (!session) {
     throw new ORPCError("UNAUTHORIZED");
   }
 
-  return next({
-    context: { session: sessionData.session, user: sessionData.user },
-  });
+  return next({ context: { session } });
 });
 
-export const protectedProcedure = publicProcedure.use(authMiddleware);
+export const protectedProcedure = publicProcedure.use(requireSession);
 {{/if}}

@@ -26,12 +26,12 @@ cd next-suite
 pnpm install
 ```
 
-| Step                                                        | Expected result                                                                                                                                                             |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `git clone …`                                               | A working copy on the default branch `main`.                                                                                                                                |
-| `pnpm install`                                              | All workspace packages resolve from `pnpm-lock.yaml`; `esbuild` is the only dependency allowed to run a build script (`onlyBuiltDependencies` in `pnpm-workspace.yaml`).    |
-| `prepare` (runs automatically at the end of `pnpm install`) | Husky sets git's `core.hooksPath` to `.husky/_`, which activates `.husky/pre-commit` and `.husky/pre-push`. Verify with `git config core.hooksPath` — it prints `.husky/_`. |
-| `pnpm build`                                                | Turbo builds every package; `packages/cli/dist` exists afterwards.                                                                                                          |
+| Step                                                        | Expected result                                                                                                                                                                                                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `git clone …`                                               | A working copy on the default branch `main`.                                                                                                                                                                                               |
+| `pnpm install`                                              | All workspace packages resolve from `pnpm-lock.yaml`; `esbuild` is the only dependency allowed to run a build script (`allowBuilds` in `pnpm-workspace.yaml`), and only releases at least one day old are installed (`minimumReleaseAge`). |
+| `prepare` (runs automatically at the end of `pnpm install`) | Husky sets git's `core.hooksPath` to `.husky/_`, which activates `.husky/pre-commit` and `.husky/pre-push`. Verify with `git config core.hooksPath` — it prints `.husky/_`.                                                                |
+| `pnpm build`                                                | Turbo builds every package; `packages/cli/dist` exists afterwards.                                                                                                                                                                         |
 
 If `git config core.hooksPath` prints nothing, the hooks are not active. Re-run `pnpm install` (or `pnpm exec husky`) before you commit.
 
@@ -98,9 +98,7 @@ pnpm lint
 
 Add `pnpm format:check` if you edited anything outside the pre-commit hook's reach — CI runs it and fails on a formatting diff.
 
-One honest caveat about the lint step: `packages/eslint-config/base.js` registers `eslint-plugin-only-warn`, which downgrades every rule violation to a warning. No `--max-warnings` flag is set anywhere in this repository, so `pnpm lint` exits `0` even when it prints warnings. **The lint job cannot fail on a rule violation.** It still fails on things ESLint cannot even evaluate — a broken flat config, an unparsable file, a missing plugin — but that is all. Read the lint output; do not treat a green exit code as "no findings".
-
-`pnpm check-types`, `pnpm build` and `pnpm test` are the steps that actually fail, and `pnpm build` catches errors `tsc` alone does not.
+Every lint rule is an error and `lint` runs with `--max-warnings 0`, so a rule violation fails the step like a type error does. CI additionally runs `pnpm audit` and `pnpm knip` (unused files, exports and dependencies).
 
 ## Git hooks
 

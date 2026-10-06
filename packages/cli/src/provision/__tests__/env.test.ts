@@ -53,8 +53,8 @@ test("overrides COMPOSE_PROJECT_NAME, POSTGRES_HOST, NEXT_PUBLIC_APP_URL, and RE
 
 test("generates real, distinct secrets for POSTGRES_PASSWORD and BETTER_AUTH_SECRET", () => {
   const out = deriveServerEnv(EXAMPLE, ctx);
-  const pgPassword = out.match(/^POSTGRES_PASSWORD=(.*)$/m)?.[1];
-  const authSecret = out.match(/^BETTER_AUTH_SECRET=(.*)$/m)?.[1];
+  const pgPassword = /^POSTGRES_PASSWORD=(.*)$/m.exec(out)?.[1];
+  const authSecret = /^BETTER_AUTH_SECRET=(.*)$/m.exec(out)?.[1];
   expect(pgPassword).toMatch(/^[A-Za-z0-9_-]{40,}$/);
   expect(authSecret).toMatch(/^[A-Za-z0-9_-]{40,}$/);
   expect(pgPassword).not.toBe("next");
@@ -68,7 +68,7 @@ test("overrides MYSQL_HOST and generates MYSQL_PASSWORD, keeping other MYSQL_* k
   expect(out).toContain("MYSQL_PORT=3306");
   expect(out).toContain("MYSQL_USER=root");
   expect(out).toContain("MYSQL_DATABASE=acme-app");
-  const mysqlPassword = out.match(/^MYSQL_PASSWORD=(.*)$/m)?.[1];
+  const mysqlPassword = /^MYSQL_PASSWORD=(.*)$/m.exec(out)?.[1];
   expect(mysqlPassword).toMatch(/^[A-Za-z0-9_-]{40,}$/);
   expect(mysqlPassword).not.toBe("next");
 });
@@ -122,7 +122,7 @@ test("inserts APP_PORT directly after COMPOSE_PROJECT_NAME", () => {
 test("an APP_PORT already in the example is rewritten, not duplicated", () => {
   const example = "COMPOSE_PROJECT_NAME=acme\nAPP_PORT=8100\n\nDOCKER_IMAGE=\n";
   const out = deriveServerEnv(example, { ...ctx, port: 8137 });
-  const lines = out.split("\n").filter((l) => l.startsWith("APP_PORT="));
+  const lines = out.split("\n").filter((line) => line.startsWith("APP_PORT="));
 
   expect(lines).toEqual(["APP_PORT=8137"]);
 });
@@ -155,10 +155,10 @@ test("a stub genSecret replaces real secret generation (used by the dry-run plan
 });
 
 test("generateSecret returns a long, url-safe, unique-ish token", () => {
-  const a = generateSecret();
-  const b = generateSecret();
-  expect(a).toMatch(/^[A-Za-z0-9_-]{40,}$/);
-  expect(a).not.toBe(b);
+  const firstSecret = generateSecret();
+  const secondSecret = generateSecret();
+  expect(firstSecret).toMatch(/^[A-Za-z0-9_-]{40,}$/);
+  expect(firstSecret).not.toBe(secondSecret);
 });
 
 test("parseEnvKeys extracts keys, ignoring comments and blanks", () => {

@@ -1,0 +1,13 @@
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}

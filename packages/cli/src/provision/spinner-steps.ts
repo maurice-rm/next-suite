@@ -13,26 +13,26 @@ export interface StepSpinner {
   fail: (message?: string) => void;
 }
 
-export const createStepSpinner = (
-  interactive = Boolean(process.stdout.isTTY),
-): StepSpinner => {
-  if (!interactive) {
-    let pending: string | undefined;
-    return {
-      onStepStart: (label) => {
-        pending = label;
-      },
-      onStep: (line) => {
-        pending = undefined;
-        p.log.step(line);
-      },
-      fail: (message = "Failed") => {
-        p.log.error(pending ? `${pending} ${message}` : message);
-        pending = undefined;
-      },
-    };
-  }
+const DEFAULT_FAILURE = "Failed";
 
+const createPlainStepSpinner = (): StepSpinner => {
+  let pending: string | undefined;
+  return {
+    onStepStart: (label) => {
+      pending = label;
+    },
+    onStep: (line) => {
+      pending = undefined;
+      p.log.step(line);
+    },
+    fail: (message = DEFAULT_FAILURE) => {
+      p.log.error(pending ? `${pending} ${message}` : message);
+      pending = undefined;
+    },
+  };
+};
+
+const createAnimatedStepSpinner = (): StepSpinner => {
   let active: ReturnType<typeof p.spinner> | undefined;
   return {
     onStepStart: (label) => {
@@ -41,16 +41,33 @@ export const createStepSpinner = (
       active.start(label);
     },
     onStep: (line) => {
-      if (active) {
-        active.stop(line);
-        active = undefined;
-      } else {
+      if (!active) {
         p.log.step(line);
+        return;
       }
+      active.stop(line);
+      active = undefined;
     },
-    fail: (message = "Failed") => {
+    fail: (message = DEFAULT_FAILURE) => {
       active?.error(message);
       active = undefined;
     },
   };
+};
+
+export const createStepSpinner = (
+  isInteractive = process.stdout.isTTY,
+): StepSpinner =>
+  isInteractive ? createAnimatedStepSpinner() : createPlainStepSpinner();
+
+export const runWithSpinner = async <T>(
+  spinner: StepSpinner,
+  action: () => Promise<T>,
+): Promise<T> => {
+  try {
+    return await action();
+  } catch (error) {
+    spinner.fail();
+    throw error;
+  }
 };

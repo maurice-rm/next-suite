@@ -4,18 +4,134 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
 ];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => `*.${field}`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
+];
+
+// Drizzle appends the bound values of a failed query to the error message
+// (`params: ${params}`), where key-based redaction cannot reach them. The exact
+// text is rebuilt from every query error reachable from the logged one, so
+// multi-line values and nested or aggregated errors are covered too.
+const REDACTED = "[Redacted]";
+const REDACTED_PARAMS = `params: ${REDACTED}`;
+const CIRCULAR = "[Circular]";
+
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// What JSON output — and so the log line — would walk into: every object
+// except those that render themselves (Date, Buffer and other toJSON types).
+const isSerializedByFields = (value: object): boolean =>
+  !("toJSON" in value && typeof value.toJSON === "function");
+
+const listChildren = (value: object): unknown[] => {
+  if (Array.isArray(value)) return value;
+  if (!(value instanceof Error)) {
+    return isSerializedByFields(value) ? Object.values(value) : [];
+  }
+  const fields: unknown[] = Object.values(value);
+  const aggregated: unknown[] =
+    "errors" in value && Array.isArray(value.errors) ? value.errors : [];
+  return [value.cause, ...fields, ...aggregated];
+};
+
+// The text Drizzle wrote; params that cannot become text cannot be in it.
+const describeParams = (params: unknown[]): string[] => {
+  try {
+    return [`params: ${String(params)}`];
+  } catch {
+    return [];
+  }
+};
+
+// Visits each object once, so a cyclic graph ends.
+const collectQueryParams = (root: Error): string[] => {
+  const found: string[] = [];
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [root];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (current === null || typeof current !== "object") continue;
+    if (seen.has(current)) continue;
+    seen.add(current);
+    if (current instanceof Error && isQueryError(current)) {
+      found.push(...describeParams(current.params));
+    }
+    pending.push(...listChildren(current));
+  }
+  return found;
+};
+
+type RedactionContext = {
+  queryParams: string[];
+  ancestors: Set<object>;
+};
+
+const redactText = (text: string, queryParams: string[]): string =>
+  queryParams.reduce(
+    (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+    text,
+  );
+
+// Cycles are cut along the current path only, so shared references survive.
+const isWalkable = (value: object): boolean =>
+  Array.isArray(value) || isSerializedByFields(value);
+
+const walkChildren = (value: object, context: RedactionContext): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item) => redactValue(item, context));
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? REDACTED : redactValue(field, context),
+    ]),
+  );
+};
+
+const redactValue = (value: unknown, context: RedactionContext): unknown => {
+  if (typeof value === "string") return redactText(value, context.queryParams);
+  if (value === null || typeof value !== "object") return value;
+  if (context.ancestors.has(value)) return CIRCULAR;
+  const isError = value instanceof Error;
+  if (!isError && !isWalkable(value)) return value;
+  context.ancestors.add(value);
+  const redacted = walkChildren(
+    isError ? pino.stdSerializers.err(value) : value,
+    context,
+  );
+  context.ancestors.delete(value);
+  return redacted;
+};
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  // Longest first: one query's params can be a prefix of another's.
+  const queryParams = collectQueryParams(error).sort(
+    (left, right) => right.length - left.length,
+  );
+  return redactValue(error, { queryParams, ancestors: new Set() });
+};
 
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),

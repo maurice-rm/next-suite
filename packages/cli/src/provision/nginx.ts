@@ -1,6 +1,6 @@
-export const renderNginxBlock = (
+const renderNginxTemplate = (
   domain: string,
-  port: number,
+  port: string,
 ): string => `# Declared here, not globally: conf.d is inside http{}, and every
 # project on the host shares one namespace — hence the port in the names.
 map $http_upgrade $conn_upgrade_${port} {
@@ -57,6 +57,17 @@ server {
     add_header Cross-Origin-Resource-Policy      "same-origin"              always;
     add_header X-Permitted-Cross-Domain-Policies "none"                     always;
 
+    # Apps generated since the headers moved into next.config.ts send the same
+    # ones; hide those copies, or COOP and CORP arrive twice and stop parsing.
+    proxy_hide_header Strict-Transport-Security;
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header X-Frame-Options;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Permissions-Policy;
+    proxy_hide_header Cross-Origin-Opener-Policy;
+    proxy_hide_header Cross-Origin-Resource-Policy;
+    proxy_hide_header X-Permitted-Cross-Domain-Policies;
+
     client_max_body_size 25m;
 
     # In server{}: on http{} level a second project would duplicate it.
@@ -101,14 +112,19 @@ server {
 }
 `;
 
+export const renderNginxBlock = (domain: string, port: number): string =>
+  renderNginxTemplate(domain, String(port));
+
+const COMMENT_LINE = /^\s*#.*$/gm;
+
+const SERVER_NAME_DIRECTIVE = /server_name\s+([^;]+);/;
+
 /** Every `server_name` of a conf's first matching directive, comments stripped. */
 export const extractServerNames = (conf: string): string[] =>
-  conf
-    .replace(/^\s*#.*$/gm, "")
-    .match(/server_name\s+([^;]+);/)?.[1]
+  SERVER_NAME_DIRECTIVE.exec(conf.replace(COMMENT_LINE, ""))?.[1]
     ?.trim()
     .split(/\s+/)
-    .filter((n) => n !== "_") ?? [];
+    .filter((serverName) => serverName !== "_") ?? [];
 
 /**
  * The single `server_name` of a conf, or undefined. Multi-name yields undefined

@@ -40,7 +40,9 @@ test("parseManifest rejects non-object JSON", () => {
 });
 
 test("requireProxied passes for proxied", () => {
-  expect(() => requireProxied(parseManifest(valid))).not.toThrow();
+  expect(() => {
+    requireProxied(parseManifest(valid));
+  }).not.toThrow();
 });
 
 test("requireProxied throws for standalone or missing production", () => {
@@ -50,11 +52,15 @@ test("requireProxied throws for standalone or missing production", () => {
       production: { mode: "standalone" },
     }),
   );
-  expect(() => requireProxied(standalone)).toThrow(/proxied/);
+  expect(() => {
+    requireProxied(standalone);
+  }).toThrow(/proxied/);
   const none = parseManifest(
     JSON.stringify({ ...JSON.parse(valid), production: undefined }),
   );
-  expect(() => requireProxied(none)).toThrow(/proxied/);
+  expect(() => {
+    requireProxied(none);
+  }).toThrow(/proxied/);
 });
 
 test("parseManifest accepts safe project names", () => {

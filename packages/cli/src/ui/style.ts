@@ -14,7 +14,7 @@ export const LINK = pkg.homepage
   .replace(/^https?:\/\//, "")
   .replace(/#.*$/, "");
 
-export const stateGlyph = (state: State): string => {
+const stateGlyph = (state: State): string => {
   switch (state) {
     case "submit":
       return pick(SYMBOLS.submit);
@@ -25,6 +25,24 @@ export const stateGlyph = (state: State): string => {
     default:
       return brand(SYMBOLS.active);
   }
+};
+
+export const renderPromptTitle = (state: State, message: string): string =>
+  `${ansis.gray(SYMBOLS.bar)}\n${stateGlyph(state)}  ${message}\n`;
+
+/**
+ * The resolved (submit/cancel) line shared by the list-style prompts: the
+ * chosen label, struck through and followed by a trailing bar when cancelled.
+ */
+export const renderResolved = (
+  title: string,
+  state: State,
+  label: string,
+): string => {
+  const bar = ansis.gray(SYMBOLS.bar);
+  return state === "cancel"
+    ? `${title}${bar}  ${ansis.strikethrough(ansis.dim(label))}\n${bar}`
+    : `${title}${bar}  ${ansis.dim(label)}`;
 };
 
 const hint = (entries: [key: string, label: string][]): string =>

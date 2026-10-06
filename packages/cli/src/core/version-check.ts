@@ -8,13 +8,14 @@ const parseVersionParts = (version: string): number[] =>
     .split(".")
     .map((part) => parseInt(part, 10) || 0);
 
-const isNewer = (a: string, b: string): boolean => {
-  const pa = parseVersionParts(a);
-  const pb = parseVersionParts(b);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const da = pa[i] ?? 0;
-    const db = pb[i] ?? 0;
-    if (da !== db) return da > db;
+const isNewer = (candidate: string, baseline: string): boolean => {
+  const candidateParts = parseVersionParts(candidate);
+  const baselineParts = parseVersionParts(baseline);
+  const length = Math.max(candidateParts.length, baselineParts.length);
+  for (let i = 0; i < length; i++) {
+    const candidatePart = candidateParts[i] ?? 0;
+    const baselinePart = baselineParts[i] ?? 0;
+    if (candidatePart !== baselinePart) return candidatePart > baselinePart;
   }
   return false;
 };

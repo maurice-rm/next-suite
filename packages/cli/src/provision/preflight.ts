@@ -1,4 +1,10 @@
-import { defaultRunner, type Runner, type SshTarget } from "./ssh";
+import {
+  defaultRunner,
+  formatDestination,
+  isRemoteSuccess,
+  type Runner,
+  type SshTarget,
+} from "./ssh";
 
 export interface Check {
   name: string;
@@ -11,6 +17,11 @@ export const remoteChecks = (): Check[] => [
     name: "root",
     script: '[ "$(id -u)" = 0 ]',
     fail: "The admin user must be root — provision writes to /etc and /srv directly, without sudo.",
+  },
+  {
+    name: "runuser",
+    script: "command -v runuser >/dev/null",
+    fail: "runuser is missing (util-linux) — provision installs the deploy key as the deploy user through it.",
   },
   {
     name: "nginx",
@@ -58,23 +69,25 @@ export const remoteChecks = (): Check[] => [
 ];
 
 export const runPreflight = async (
-  t: SshTarget,
+  target: SshTarget,
   run: Runner = defaultRunner,
 ): Promise<void> => {
-  const reach = await run("ssh", [`${t.user}@${t.host}`, "true"]);
+  const destination = formatDestination(target);
+  const reach = await run("ssh", [destination, "true"]);
   if (reach.exitCode !== 0) {
-    throw new Error(`Cannot reach ${t.user}@${t.host}: ${reach.stderr}`);
+    throw new Error(`Cannot reach ${destination}: ${reach.stderr}`);
   }
 
   const failures: string[] = [];
   for (const check of remoteChecks()) {
-    const result = await run("ssh", [`${t.user}@${t.host}`, check.script]);
-    if (result.exitCode !== 0) failures.push(check.fail);
+    if (!(await isRemoteSuccess(target, check.script, run))) {
+      failures.push(check.fail);
+    }
   }
 
   if (failures.length > 0) {
     throw new Error(
-      `Preflight failed:\n${failures.map((f) => `  - ${f}`).join("\n")}`,
+      `Preflight failed:\n${failures.map((failure) => `  - ${failure}`).join("\n")}`,
     );
   }
 };

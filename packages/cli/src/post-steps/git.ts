@@ -6,20 +6,19 @@ const DEFAULT_BRANCH = "main";
 const INITIAL_COMMIT_MESSAGE = "chore: initial commit";
 
 /** Git sub-process env vars that would tie the new repo to a parent git context. */
-const GIT_CONTEXT_VARS = [
+const GIT_CONTEXT_VARS = new Set([
   "GIT_DIR",
   "GIT_WORK_TREE",
   "GIT_INDEX_FILE",
   "GIT_OBJECT_DIRECTORY",
   "GIT_ALTERNATE_OBJECT_DIRECTORIES",
   "GIT_COMMON_DIR",
-];
+]);
 
-const cleanGitEnv = (): NodeJS.ProcessEnv => {
-  const env = { ...process.env };
-  for (const key of GIT_CONTEXT_VARS) delete env[key];
-  return env;
-};
+const cleanGitEnv = (): NodeJS.ProcessEnv =>
+  Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !GIT_CONTEXT_VARS.has(key)),
+  );
 
 const gitOptions = (targetDir: string): RunOptions => ({
   cwd: targetDir,
@@ -27,7 +26,6 @@ const gitOptions = (targetDir: string): RunOptions => ({
   replaceEnv: true,
 });
 
-/** Initialize a git repository in the project (no staging, no commit). */
 export const initGit = async (targetDir: string): Promise<void> => {
   if (!(await isCommandAvailable("git")))
     throw new Error("Git is not installed.");
@@ -57,7 +55,6 @@ const hasGitIdentity = async (targetDir: string): Promise<boolean> => {
   return exitCode === 0 && stdout.trim().length > 0;
 };
 
-/** Stage everything and create the scaffold's initial commit. */
 export const createInitialCommit = async (targetDir: string): Promise<void> => {
   const options = gitOptions(targetDir);
   await run("git", ["add", "-A"], options);

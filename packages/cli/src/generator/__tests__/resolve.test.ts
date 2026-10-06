@@ -6,19 +6,26 @@ import { VERSIONS } from "../config/dependencies";
 import {
   activeFeatures,
   dependenciesFragment,
+  dependencyOverrides,
   featureDependencies,
+  overridesFragment,
 } from "../resolve";
+import { baseConfig } from "./scenarios";
+
+const parseJson = (text: string | undefined): unknown => {
+  if (text === undefined) throw new Error("Expected a JSON fragment.");
+  return JSON.parse(text);
+};
 
 test("base is always the first active feature", () => {
-  expect(activeFeatures({} as ProjectConfig)[0]?.dir).toBe("base");
+  expect(activeFeatures(baseConfig)[0]?.dir).toBe("base");
 });
 
 test("resolves declared dependency names to their catalog versions", () => {
-  const fragment = JSON.parse(
-    dependenciesFragment(["next"], ["typescript"]) as string,
-  );
-  expect(fragment.dependencies.next).toBe(VERSIONS.next);
-  expect(fragment.devDependencies.typescript).toBe(VERSIONS.typescript);
+  expect(parseJson(dependenciesFragment(["next"], ["typescript"]))).toEqual({
+    dependencies: { next: VERSIONS.next },
+    devDependencies: { typescript: VERSIONS.typescript },
+  });
 });
 
 test("returns undefined when no dependencies are declared", () => {
@@ -31,8 +38,38 @@ test("featureDependencies passes lists through and invokes functions", () => {
   expect(featureDependencies(["next"], config)).toEqual(["next"]);
   expect(
     featureDependencies(
-      (c) => (c.tailwind ? ["tailwindcss"] : ["typescript"]),
+      (current) => (current.tailwind ? ["tailwindcss"] : ["typescript"]),
       config,
     ),
   ).toEqual(["typescript"]);
+});
+
+test("overridesFragment nests the versions under the package manager's field", () => {
+  const overrides = { next: VERSIONS.next };
+  expect(parseJson(overridesFragment(overrides, "npm"))).toEqual({
+    overrides,
+  });
+  expect(parseJson(overridesFragment(overrides, "yarn"))).toEqual({
+    resolutions: overrides,
+  });
+});
+
+test("overridesFragment leaves pnpm's overrides to pnpm-workspace.yaml", () => {
+  expect(overridesFragment({ next: VERSIONS.next }, "pnpm")).toBeUndefined();
+});
+
+test("overridesFragment returns undefined when nothing is overridden", () => {
+  expect(overridesFragment({}, "npm")).toBeUndefined();
+});
+
+test("dependencyOverrides pins what the active features override", () => {
+  const mysqlPrisma = {
+    ...baseConfig,
+    database: { engine: "mysql", orm: "prisma" },
+  } satisfies ProjectConfig;
+  expect(dependencyOverrides(mysqlPrisma)).toEqual({
+    mysql2: VERSIONS.mysql2,
+    mariadb: VERSIONS.mariadb,
+  });
+  expect(dependencyOverrides(baseConfig)).toEqual({});
 });

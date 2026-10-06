@@ -32,7 +32,8 @@ export const VERSIONS = {
   "drizzle-kit": "^0.31.10",
   pg: "^8.22.0",
   "@types/pg": "^8.20.0",
-  mysql2: "^3.22.5",
+  mysql2: "^3.24.5",
+  mariadb: "~3.4.7",
   dotenv: "^17.4.2",
   esbuild: "^0.28.2",
   prisma: "^7.8.0",
@@ -54,6 +55,7 @@ export const VERSIONS = {
   resend: "^6.17.1",
   pino: "^10.3.1",
   "pino-pretty": "^13.1.3",
+  "@scalar/api-reference": "1.73.0",
 } satisfies Record<string, string>;
 
 export type DependencyName = keyof typeof VERSIONS;

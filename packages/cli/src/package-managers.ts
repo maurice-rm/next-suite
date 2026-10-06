@@ -1,7 +1,7 @@
 export type PackageManager = "npm" | "pnpm" | "bun" | "yarn";
 
 /** One supported package manager — an entry in {@link PACKAGE_MANAGERS}. */
-export interface PackageManagerEntry {
+interface PackageManagerEntry {
   /** Matched against `npm_config_user_agent` for auto-detection. */
   id: PackageManager;
   /** Human label shown in the package-manager prompt. */
@@ -19,6 +19,11 @@ export interface PackageManagerEntry {
    * first install because there is no lockfile yet.
    */
   installEnv?: NodeJS.ProcessEnv;
+  /**
+   * Where `package.json` declares dependency overrides, as a key path; absent
+   * when the manager reads them from its own config file.
+   */
+  overridesPath?: readonly [string, ...string[]];
 }
 
 /**
@@ -28,14 +33,32 @@ export interface PackageManagerEntry {
  * cycle. Adding a package manager is an edit here (the id union plus an entry).
  */
 export const PACKAGE_MANAGERS: readonly PackageManagerEntry[] = [
-  { id: "npm", label: "npm", exec: "npx --no --", dlx: ["npx"] },
-  { id: "pnpm", label: "pnpm", exec: "pnpm exec", dlx: ["pnpm", "dlx"] },
-  { id: "bun", label: "Bun", exec: "bunx", dlx: ["bunx"] },
+  {
+    id: "npm",
+    label: "npm",
+    exec: "npx --no --",
+    dlx: ["npx"],
+    overridesPath: ["overrides"],
+  },
+  {
+    id: "pnpm",
+    label: "pnpm",
+    exec: "pnpm exec",
+    dlx: ["pnpm", "dlx"],
+  },
+  {
+    id: "bun",
+    label: "Bun",
+    exec: "bunx",
+    dlx: ["bunx"],
+    overridesPath: ["overrides"],
+  },
   {
     id: "yarn",
     label: "Yarn",
     exec: "yarn exec",
     dlx: ["yarn", "dlx"],
+    overridesPath: ["resolutions"],
     installEnv: {
       YARN_ENABLE_HARDENED_MODE: "0",
       YARN_ENABLE_IMMUTABLE_INSTALLS: "false",

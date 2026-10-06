@@ -32,12 +32,18 @@ export interface Feature {
   dependencies?: FeatureDependencies;
   /** Dev dependencies this feature contributes (catalog names). */
   devDependencies?: FeatureDependencies;
+  /**
+   * Transitive packages this feature forces to the catalog version, for an
+   * upstream that pins a release with a known vulnerability (catalog names).
+   */
+  overrides?: FeatureDependencies;
 }
 
 // The logger exists only where generated server code logs: the API route
-// handlers and the production health check's database probe.
+// handlers, Better-Auth, and the production health check and migrations.
 const usesLogger = (config: ProjectConfig): boolean =>
   config.api !== undefined ||
+  config.auth === "better-auth" ||
   (config.production !== undefined && config.database !== undefined);
 
 export const FEATURES: Feature[] = [
@@ -72,8 +78,20 @@ export const FEATURES: Feature[] = [
     when: (config) => config.packageManager === "pnpm",
   },
   {
+    dir: "features/npm",
+    when: (config) => config.packageManager === "npm",
+  },
+  {
+    dir: "features/bun",
+    when: (config) => config.packageManager === "bun",
+  },
+  {
     dir: "features/yarn",
     when: (config) => config.packageManager === "yarn",
+  },
+  {
+    dir: "features/seo",
+    when: (config) => config.api !== undefined || config.auth === "better-auth",
   },
   {
     dir: "features/tailwind",
@@ -99,6 +117,7 @@ export const FEATURES: Feature[] = [
     dependencies: (config) => [
       "drizzle-orm",
       "dotenv",
+      "server-only",
       config.database?.engine === "postgres" ? "pg" : "mysql2",
     ],
     devDependencies: (config) =>
@@ -112,11 +131,18 @@ export const FEATURES: Feature[] = [
     dependencies: (config) => [
       "@prisma/client",
       "dotenv",
+      "server-only",
       config.database?.engine === "postgres"
         ? "@prisma/adapter-pg"
         : "@prisma/adapter-mariadb",
     ],
     devDependencies: ["prisma"],
+    overrides: (config) =>
+      config.database?.engine === "mysql" ? ["mysql2", "mariadb"] : ["mysql2"],
+  },
+  {
+    dir: "features/api/shared",
+    when: (config) => config.api !== undefined,
   },
   {
     dir: "features/api/trpc",
@@ -167,7 +193,7 @@ export const FEATURES: Feature[] = [
   {
     dir: "features/email/resend",
     when: (config) => config.email === "resend",
-    dependencies: ["resend"],
+    dependencies: ["resend", "server-only"],
   },
   {
     dir: "features/logging",
@@ -192,13 +218,11 @@ export const FEATURES: Feature[] = [
   },
   {
     dir: "features/github-actions/ci",
-    when: (config) =>
-      (config.githubActions ?? []).some((step) => !isCdStep(step)),
+    when: (config) => config.githubActions.some((step) => !isCdStep(step)),
   },
   {
     dir: "features/github-actions/cd",
     when: (config) =>
-      config.production !== undefined &&
-      (config.githubActions ?? []).some(isCdStep),
+      config.production !== undefined && config.githubActions.some(isCdStep),
   },
 ];

@@ -42,7 +42,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 
 - **Next.js 16 · React 19 · TypeScript 6 (strict)** — App Router, the React Compiler enabled, `@/*` path alias, `noUncheckedIndexedAccess`, `noImplicitOverride`, `verbatimModuleSyntax`.
 - **Error boundaries** — root `error.tsx`, `global-error.tsx` and `not-found.tsx`.
-- **ESLint** (flat config) — Next core-web-vitals + typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, a naming convention, at most three parameters, two nesting levels and a complexity cap, arrow-function components, kebab-case file and folder names, no import cycles, a one-way import direction (`lib`/`components` ← `features` ← `app`), and no imports between two features.
+- **ESLint** (flat config) — Next core-web-vitals + typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, a naming convention with predicate prefixes for booleans, named constants instead of magic numbers, at most three parameters, two nesting levels and a complexity cap of 15, no warnings, arrow-function components, kebab-case file and folder names, no import cycles, a one-way import direction (`lib`/`components` ← `features` ← `app`), and no imports between two features.
 - **Prettier** — with `prettier-plugin-packagejson`.
 - **Git hooks** — Husky + `lint-staged` + commitlint (Conventional Commits).
 - **Typed environment variables** — `@/env` via `@t3-oss/env-nextjs` + `zod`, validated at startup; features add their vars automatically.
@@ -52,9 +52,9 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 - **API layer** (optional) — **tRPC** or **oRPC** with **TanStack Query**, RSC prefetching + hydration, a health route; oRPC can add an **OpenAPI (REST)** layer with an optional **Scalar** docs UI.
 - **Auth** (optional) — **Better-Auth** (email + password), headless: schema tables per ORM, `/api/auth` handler, typed `getSession`, the session in the API context.
 - **Email** (optional) — a **Resend** client with `EMAIL_FROM`, wired through the typed env.
-- **Structured logging** — a **pino** logger at `@/lib/logger` (JSON in production, pretty in development, `password`, `token` and `cookie` fields redacted) in the API route handlers and the production health check.
+- **Structured logging and errors** — a **pino** logger at `@/lib/logger` (JSON in production, pretty in development, secrets, cookies and the `authorization` header redacted) in the API route handlers, Better-Auth, `onRequestError` and the production health check and migrations; internal error messages never reach the client, domain errors map to API codes in one place, and the OpenAPI layer answers errors as Problem Details.
 - **Production deployment** (optional) — a multi-stage **Docker** build (standalone), **nginx** (terminating TLS or behind an upstream proxy), a `docker-compose.prod.yml`, and an entrypoint that waits for the database and migrates on start. For proxied projects, the companion `next-suite provision` command _(beta)_ sets up the server over SSH (interactive wizard, `--yes` for CI); `next-suite deprovision` tears it back down.
-- **CI/CD** (optional) — **GitHub Actions**: CI (lint, Knip, type-check, format, build, `pnpm audit`) with a Renovate config, plus CD (build & push to GHCR, deploy over SSH).
+- **CI/CD** (optional) — **GitHub Actions**: CI (dependency audit for pnpm, Yarn and Bun, lint, Knip, type-check, format, build, environment validated against `.env.example`) with a Renovate config, plus CD (build & push to GHCR, deploy over SSH).
 
 After generation it can, depending on your answers: **initialize git** (on `main`), **install dependencies**, **auto-format**, and make an **initial commit** — a clean, formatted, committed start.
 
@@ -107,7 +107,8 @@ A Turborepo monorepo; the product is the CLI in [`packages/cli`](packages/cli).
 ```bash
 pnpm build                             # build everything (turbo)
 pnpm check-types                       # type-check
-pnpm lint                              # lint
+pnpm lint                              # lint (warnings fail)
+pnpm knip                              # unused files, exports and dependencies
 pnpm test                              # tests (vitest)
 pnpm cli                               # build the CLI and run it end-to-end
 ```

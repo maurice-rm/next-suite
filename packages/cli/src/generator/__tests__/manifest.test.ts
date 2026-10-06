@@ -8,7 +8,6 @@ const base: ProjectConfig = {
   projectName: "acme-app",
   targetDir: "/tmp/acme-app",
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   auth: "none",
   email: "none",
@@ -30,21 +29,21 @@ test("buildManifest keeps only the feature-relevant subset", () => {
 });
 
 test("buildManifest includes optional blocks only when present", () => {
-  const m = buildManifest({
+  const manifest = buildManifest({
     ...base,
     database: { engine: "postgres", orm: "drizzle" },
     api: { type: "orpc", openapi: { scalar: true } },
     production: { mode: "proxied" },
     githubActions: ["lint", "deploy"],
   });
-  expect(m.database).toEqual({ engine: "postgres", orm: "drizzle" });
-  expect(m.api).toEqual({ type: "orpc", openapi: { scalar: true } });
-  expect(m.production).toEqual({ mode: "proxied" });
+  expect(manifest.database).toEqual({ engine: "postgres", orm: "drizzle" });
+  expect(manifest.api).toEqual({ type: "orpc", openapi: { scalar: true } });
+  expect(manifest.production).toEqual({ mode: "proxied" });
   expect("database" in buildManifest(base)).toBe(false);
 });
 
 test("serializeManifest is 2-space JSON with a trailing newline", () => {
-  const out = serializeManifest(buildManifest(base));
-  expect(out.endsWith("}\n")).toBe(true);
-  expect(out).toContain('  "version": 1');
+  const serialized = serializeManifest(buildManifest(base));
+  expect(serialized.endsWith("}\n")).toBe(true);
+  expect(serialized).toContain('  "version": 1');
 });

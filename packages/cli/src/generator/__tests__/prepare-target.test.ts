@@ -6,32 +6,32 @@ import { afterEach, beforeEach, expect, test } from "vitest";
 
 import { prepareTarget } from "../prepare-target";
 
-let dir: string;
+let directory: string;
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), "nc-prepare-target-"));
+  directory = await fs.mkdtemp(path.join(os.tmpdir(), "nc-prepare-target-"));
 });
 afterEach(async () => {
-  await fs.remove(dir);
+  await fs.remove(directory);
 });
 
 test('"create" ensures the directory exists', async () => {
-  const target = path.join(dir, "fresh");
+  const target = path.join(directory, "fresh");
   await prepareTarget(target, "create");
   expect(await fs.pathExists(target)).toBe(true);
 });
 
 test('"overwrite" keeps existing files', async () => {
-  await fs.writeFile(path.join(dir, "keep.txt"), "x");
-  await prepareTarget(dir, "overwrite");
-  expect(await fs.pathExists(path.join(dir, "keep.txt"))).toBe(true);
+  await fs.writeFile(path.join(directory, "keep.txt"), "x");
+  await prepareTarget(directory, "overwrite");
+  expect(await fs.pathExists(path.join(directory, "keep.txt"))).toBe(true);
 });
 
 test('"empty" removes everything except .git', async () => {
-  await fs.outputFile(path.join(dir, ".git", "HEAD"), "ref");
-  await fs.writeFile(path.join(dir, "old.txt"), "x");
-  await prepareTarget(dir, "empty");
-  expect(await fs.pathExists(path.join(dir, ".git"))).toBe(true);
-  expect(await fs.pathExists(path.join(dir, "old.txt"))).toBe(false);
+  await fs.outputFile(path.join(directory, ".git", "HEAD"), "ref");
+  await fs.writeFile(path.join(directory, "old.txt"), "x");
+  await prepareTarget(directory, "empty");
+  expect(await fs.pathExists(path.join(directory, ".git"))).toBe(true);
+  expect(await fs.pathExists(path.join(directory, "old.txt"))).toBe(false);
 });
 
 test('"empty" refuses an unsafe target (throws before deleting anything)', async () => {

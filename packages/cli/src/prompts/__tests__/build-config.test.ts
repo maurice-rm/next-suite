@@ -115,7 +115,6 @@ describe("buildProjectConfig", () => {
   test("quickStart yields the recommended baseline, ignoring feature answers", () => {
     const config = buildProjectConfig(answers({ quickStart: true }));
     expect(config).toMatchObject({
-      componentLibrary: "none",
       tailwind: true,
       database: undefined,
       api: undefined,

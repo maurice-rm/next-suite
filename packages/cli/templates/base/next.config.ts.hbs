@@ -1,15 +1,100 @@
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    `script-src ${[...scriptSources].join(" ")}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    `font-src ${fontSources.join(" ")}`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years. HSTS
+// and upgrade-insecure-requests stay out of development, where localhost is HTTP.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  ...(isDevelopment
+    ? []
+    : [
+        {
+          key: "Strict-Transport-Security",
+          value: `max-age=${String(TWO_YEARS_IN_SECONDS)}`,
+        },
+      ]),
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+{{#if api.openapi.scalar}}
+
+const SCALAR_SOURCES: ExtraSources = {
+  scripts: [
+    "'unsafe-eval'",
+    "https://cdn.jsdelivr.net/npm/@scalar/api-reference@{{catalogVersion "@scalar/api-reference"}}",
+  ],
+  fonts: ["https://fonts.scalar.com"],
+};
+{{/if}}
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
 {{#if production}}
   output: "standalone",
 {{/if}}
+{{#unless api}}
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
   },
+{{/unless}}
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+{{#if api.openapi.scalar}}
+      {
+        source: "/api/v1",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: buildContentSecurityPolicy(SCALAR_SOURCES),
+          },
+        ],
+      },
+{{/if}}
+    ]),
 };
 
 export default nextConfig;

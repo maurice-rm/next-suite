@@ -8,7 +8,6 @@ const config = (overrides: Partial<ProjectConfig>): ProjectConfig => ({
   projectName: "app",
   targetDir: "/tmp/app",
   action: "create",
-  componentLibrary: "none",
   tailwind: false,
   api: undefined,
   auth: "none",
@@ -63,7 +62,7 @@ describe("nextSteps", () => {
     ).toEqual([
       "cd app",
       "docker compose up -d",
-      "pnpm run db:push",
+      "pnpm run db:migrate",
       "pnpm run dev",
     ]);
   });

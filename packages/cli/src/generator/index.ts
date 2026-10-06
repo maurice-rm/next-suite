@@ -1,1 +1,1 @@
-export { scaffold, type ScaffoldOptions } from "./scaffold";
+export { scaffold } from "./scaffold";

@@ -8,9 +8,6 @@ import { run } from "./run";
  * a pre-commit run would produce (the initial commit itself uses `--no-verify`).
  * Runs only after a successful install, since it relies on the project's
  * toolchain.
- *
- * @param targetDir - The generated project directory.
- * @param packageManager - The package manager whose `run` executes the script.
  */
 export const fixProject = async (
   targetDir: string,

@@ -1,0 +1,7 @@
+nodeLinker: node-modules
+enableGlobalCache: true
+npmMinimalAgeGate: 1d
+npmAuditIgnoreAdvisories:
+{{#each (acceptedNpmAdvisories)}}
+  - "{{this}}"
+{{/each}}

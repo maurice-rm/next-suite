@@ -354,17 +354,18 @@ provision.
 
 Each section above clears specific preflight checks:
 
-| Preflight check | Cleared by                                      |
-| --------------- | ----------------------------------------------- |
-| `root`          | SSH hardening — root login by key stays enabled |
-| `docker`        | Docker                                          |
-| `nginx`         | Packages and the ACME webroot                   |
-| `certbot`       | Packages and the ACME webroot                   |
-| `webroot`       | Packages and the ACME webroot                   |
-| `dhparams`      | The two TLS helper files                        |
-| `options-ssl`   | The two TLS helper files                        |
-| `tls-catch-all` | The `:443` catch-all default server             |
-| `renewal-hook`  | The certbot deploy hook                         |
+| Preflight check | Cleared by                                            |
+| --------------- | ----------------------------------------------------- |
+| `root`          | SSH hardening — root login by key stays enabled       |
+| `runuser`       | Ships with util-linux on every supported distribution |
+| `docker`        | Docker                                                |
+| `nginx`         | Packages and the ACME webroot                         |
+| `certbot`       | Packages and the ACME webroot                         |
+| `webroot`       | Packages and the ACME webroot                         |
+| `dhparams`      | The two TLS helper files                              |
+| `options-ssl`   | The two TLS helper files                              |
+| `tls-catch-all` | The `:443` catch-all default server                   |
+| `renewal-hook`  | The certbot deploy hook                               |
 
 All nine green means `provision` runs through. From here on the CLI takes over —
 see [Provisioning](provisioning.md), and
