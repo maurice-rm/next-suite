@@ -69,6 +69,18 @@ test("skips the fix step when the install fails", async () => {
   expect(fixProject).not.toHaveBeenCalled();
 });
 
+test("fixes the files when shadcn installed the dependencies without --install", async () => {
+  await runPostSteps(
+    config({
+      install: false,
+      componentLibrary: "shadcn",
+      shadcn: { base: "radix", pointer: false },
+    }),
+  );
+  expect(installDependencies).not.toHaveBeenCalled();
+  expect(fixProject).toHaveBeenCalledOnce();
+});
+
 test("runs shadcn init only when shadcn is selected", async () => {
   await runPostSteps(
     config({

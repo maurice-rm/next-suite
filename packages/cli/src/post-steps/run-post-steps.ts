@@ -94,8 +94,9 @@ export const runPostSteps = async (config: ProjectConfig): Promise<void> => {
       () => installDependencies(config.targetDir, config.packageManager),
     );
   }
+  let shadcnInstalled = false;
   if (usesShadcn && pmAvailable) {
-    await step(
+    shadcnInstalled = await step(
       "Setting up shadcn/ui…",
       "Set up shadcn/ui",
       "Could not set up shadcn/ui — run `shadcn init` yourself",
@@ -111,7 +112,8 @@ export const runPostSteps = async (config: ProjectConfig): Promise<void> => {
       () => generateMigrations(config.targetDir, config.packageManager, orm),
     );
   }
-  if (installed) {
+  // shadcn init installs the dependencies itself, even with --no-install.
+  if (installed || shadcnInstalled) {
     await step(
       "Fixing files…",
       "Fixed files",
