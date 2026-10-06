@@ -161,8 +161,10 @@ export const obtainCertificate = async (
   },
 ): Promise<boolean> => {
   const { request, stepLog } = context;
-  await writeBootstrapConf(context, options.previousConf);
+  // Before the bootstrap block replaces the conf: a lookup that throws must
+  // not leave the previous site switched off.
   await warnUnresolvedDomain(context, options.lookup);
+  await writeBootstrapConf(context, options.previousConf);
 
   stepLog.start("Requesting TLS certificate (can take a minute)…");
   if (await requestCertificate(context, options.isReplacingStaging)) {

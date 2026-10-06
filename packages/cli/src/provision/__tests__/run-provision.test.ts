@@ -673,7 +673,7 @@ test("certbot failure after a domain change restores the previous vhost instead 
   expect(isCertReady).toBe(false);
 });
 
-test("DNS mismatch is only advisory: certbot still runs and a success writes the full block", async () => {
+test("DNS mismatch is only advisory and checked before nginx changes: certbot still runs and a success writes the full block", async () => {
   const { run, calls } = buildRun({ certExitCode: 1, certbotExitCode: 0 });
   const { gh } = fakeGh();
   const lookup = () => Promise.resolve(["198.51.100.9"]); // does not match the server's IP
@@ -710,7 +710,8 @@ test("DNS mismatch is only advisory: certbot still runs and a success writes the
   const warningIdx = events.findIndex((event) =>
     event.includes("does not resolve"),
   );
-  expect(warningIdx).toBeGreaterThan(bootstrapStart + 1);
+  expect(warningIdx).toBeGreaterThan(-1);
+  expect(warningIdx).toBeLessThan(bootstrapStart);
 });
 
 test("--staging appends the certbot staging flag", async () => {
@@ -1033,4 +1034,27 @@ test("this project's own conf serving the domain is not a conflict (re-run)", as
     },
   );
   expect(result.log.join("\n")).toMatch(/Deploy key ready/);
+});
+
+test("a failing DNS lookup stops the run before the nginx config is replaced", async () => {
+  const { run, calls } = buildRun({ certExitCode: 1, certbotExitCode: 0 });
+  const { gh } = fakeGh();
+  const lookup = () =>
+    Promise.reject(Object.assign(new Error("refused"), { code: "EREFUSED" }));
+
+  await expect(
+    runProvision(
+      {
+        manifest,
+        config,
+        domain,
+        envExample: ENV_EXAMPLE,
+        isStaging: false,
+        shouldSkipGithub: false,
+      },
+      { run, gh, lookup, generateKeypair },
+    ),
+  ).rejects.toThrow(/refused/);
+  const inputs = calls.map((call) => call.input ?? "").join("\n");
+  expect(inputs).not.toContain("acme-challenge");
 });
