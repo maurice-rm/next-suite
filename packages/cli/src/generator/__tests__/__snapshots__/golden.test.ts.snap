@@ -334,6 +334,24 @@ AGENTS.md
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`bun run check\` and \`bun run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === DEPLOY.md ===
 # 🚀 Deployment
@@ -439,9 +457,16 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | Auth | Better-Auth |
 | Deployment | Docker + nginx |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **Bun** — the version in \`package.json#packageManager\`.
+- **Docker** with Compose — runs the local MySQL database.
+- **openssl** — the setup script generates the auth secret with it.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies, and starts the database:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\` (generating the auth secret), installs dependencies, starts the database and applies the schema:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -454,23 +479,50 @@ Then start the dev server:
 bun run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`bun run setup\` | Create \`.env\`, install dependencies and prepare the database |
 | \`bun run dev\` | Start the dev server |
 | \`bun run build\` | Build for production |
 | \`bun run start\` | Start the production server |
 | \`bun run check\` | Type-check, lint, format-check and unused-code check |
-| \`bun run lint\` | Run ESLint |
-| \`bun run knip\` | Report unused files, exports and dependencies |
+| \`bun run fix\` | Fix lint findings and format |
 | \`bun run typecheck\` | Type-check |
-| \`bun run format\` | Format with Prettier |
+| \`bun run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`bun run format\` | Format with Prettier (\`format:check\` to check) |
+| \`bun run knip\` | Report unused files, exports and dependencies |
+| \`bun run db:generate\` | Generate the Prisma client |
+| \`bun run db:migrate\` | Create and apply a migration from the schema |
+| \`bun run db:push\` | Push the schema without a migration (local throwaway databases only) |
+| \`bun run db:studio\` | Open Prisma Studio |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure: database client and schema, auth, logger, domain errors
+  orpc/                 the API layer: procedure builders, router, clients
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
+
+## 🐳 Deployment
+
+[DEPLOY.md](DEPLOY.md) walks through the production stack (Docker, nginx, the CD workflow) and the first deploy.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === bunfig.toml ===
@@ -2614,6 +2666,23 @@ AGENTS.md
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === README.md ===
 # npm-auth
@@ -2631,9 +2700,16 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | ORM | Drizzle |
 | Auth | Better-Auth |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **npm 11.16 or newer** — it enforces the install-script allowlist in \`package.json#allowScripts\`.
+- **Docker** with Compose — runs the local MySQL database.
+- **openssl** — the setup script generates the auth secret with it.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies, and starts the database:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\` (generating the auth secret), installs dependencies, starts the database and applies the schema:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -2646,23 +2722,45 @@ Then start the dev server:
 npm run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`npm run setup\` | Create \`.env\`, install dependencies and prepare the database |
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
 | \`npm run check\` | Type-check, lint, format-check and unused-code check |
-| \`npm run lint\` | Run ESLint |
-| \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run fix\` | Fix lint findings and format |
 | \`npm run typecheck\` | Type-check |
-| \`npm run format\` | Format with Prettier |
+| \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`npm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run db:generate\` | Generate a migration from the schema |
+| \`npm run db:migrate\` | Apply pending migrations |
+| \`npm run db:push\` | Push the schema without a migration (local throwaway databases only) |
+| \`npm run db:studio\` | Open Drizzle Studio |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure: database client and schema, auth, logger
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === commitlint.config.mjs ===
@@ -4002,6 +4100,24 @@ AGENTS.md
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === README.md ===
 # npm-db
@@ -4019,9 +4135,15 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | ORM | Drizzle |
 | API | oRPC |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **npm 11.16 or newer** — it enforces the install-script allowlist in \`package.json#allowScripts\`.
+- **Docker** with Compose — runs the local MySQL database.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies, and starts the database:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\`, installs dependencies, starts the database and applies the schema:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -4034,23 +4156,46 @@ Then start the dev server:
 npm run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`npm run setup\` | Create \`.env\`, install dependencies and prepare the database |
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
 | \`npm run check\` | Type-check, lint, format-check and unused-code check |
-| \`npm run lint\` | Run ESLint |
-| \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run fix\` | Fix lint findings and format |
 | \`npm run typecheck\` | Type-check |
-| \`npm run format\` | Format with Prettier |
+| \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`npm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run db:generate\` | Generate a migration from the schema |
+| \`npm run db:migrate\` | Apply pending migrations |
+| \`npm run db:push\` | Push the schema without a migration (local throwaway databases only) |
+| \`npm run db:studio\` | Open Drizzle Studio |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure: database client and schema, logger, domain errors
+  orpc/                 the API layer: procedure builders, router, clients
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === commitlint.config.mjs ===
@@ -5486,6 +5631,22 @@ AGENTS.md
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === DEPLOY.md ===
 # 🚀 Deployment
@@ -5568,9 +5729,14 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | Language | TypeScript |
 | Deployment | Docker + nginx |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **npm 11.16 or newer** — it enforces the install-script allowlist in \`package.json#allowScripts\`.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\`, installs dependencies:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -5583,23 +5749,45 @@ Then start the dev server:
 npm run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`npm run setup\` | Create \`.env\`, install dependencies |
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
 | \`npm run check\` | Type-check, lint, format-check and unused-code check |
-| \`npm run lint\` | Run ESLint |
-| \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run fix\` | Fix lint findings and format |
 | \`npm run typecheck\` | Type-check |
-| \`npm run format\` | Format with Prettier |
+| \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`npm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`npm run knip\` | Report unused files, exports and dependencies |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
+
+## 🐳 Deployment
+
+[DEPLOY.md](DEPLOY.md) walks through the production stack (Docker, nginx) and the first deploy.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === commitlint.config.mjs ===
@@ -6792,6 +6980,24 @@ AGENTS.md
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === README.md ===
 # orpc-scalar
@@ -6807,9 +7013,14 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | Language | TypeScript |
 | API | oRPC |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **npm 11.16 or newer** — it enforces the install-script allowlist in \`package.json#allowScripts\`.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\`, installs dependencies:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -6822,23 +7033,42 @@ Then start the dev server:
 npm run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`npm run setup\` | Create \`.env\`, install dependencies |
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
 | \`npm run check\` | Type-check, lint, format-check and unused-code check |
-| \`npm run lint\` | Run ESLint |
-| \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run fix\` | Fix lint findings and format |
 | \`npm run typecheck\` | Type-check |
-| \`npm run format\` | Format with Prettier |
+| \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`npm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`npm run knip\` | Report unused files, exports and dependencies |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure, logger, domain errors
+  orpc/                 the API layer: procedure builders, router, clients
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === commitlint.config.mjs ===
@@ -8193,6 +8423,24 @@ AGENTS.md
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === README.md ===
 # orpc-openapi
@@ -8208,9 +8456,14 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | Language | TypeScript |
 | API | oRPC |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **npm 11.16 or newer** — it enforces the install-script allowlist in \`package.json#allowScripts\`.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\`, installs dependencies:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -8223,23 +8476,42 @@ Then start the dev server:
 npm run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`npm run setup\` | Create \`.env\`, install dependencies |
 | \`npm run dev\` | Start the dev server |
 | \`npm run build\` | Build for production |
 | \`npm run start\` | Start the production server |
 | \`npm run check\` | Type-check, lint, format-check and unused-code check |
-| \`npm run lint\` | Run ESLint |
-| \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run fix\` | Fix lint findings and format |
 | \`npm run typecheck\` | Type-check |
-| \`npm run format\` | Format with Prettier |
+| \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`npm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`npm run knip\` | Report unused files, exports and dependencies |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure, logger, domain errors
+  orpc/                 the API layer: procedure builders, router, clients
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === commitlint.config.mjs ===
@@ -9844,6 +10116,24 @@ AGENTS.md
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === DEPLOY.md ===
 # 🚀 Deployment
@@ -9993,9 +10283,16 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | Email | Resend |
 | Deployment | Docker + nginx |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **pnpm** — the version in \`package.json#packageManager\`, activated with \`corepack enable\`.
+- **Docker** with Compose — runs the local PostgreSQL database.
+- **openssl** — the setup script generates the auth secret with it.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies, and starts the database:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\` (generating the auth secret), installs dependencies, starts the database and applies the schema:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -10008,23 +10305,50 @@ Then start the dev server:
 pnpm run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`pnpm run setup\` | Create \`.env\`, install dependencies and prepare the database |
 | \`pnpm run dev\` | Start the dev server |
 | \`pnpm run build\` | Build for production |
 | \`pnpm run start\` | Start the production server |
 | \`pnpm run check\` | Type-check, lint, format-check and unused-code check |
-| \`pnpm run lint\` | Run ESLint |
-| \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run fix\` | Fix lint findings and format |
 | \`pnpm run typecheck\` | Type-check |
-| \`pnpm run format\` | Format with Prettier |
+| \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run db:generate\` | Generate a migration from the schema |
+| \`pnpm run db:migrate\` | Apply pending migrations |
+| \`pnpm run db:push\` | Push the schema without a migration (local throwaway databases only) |
+| \`pnpm run db:studio\` | Open Drizzle Studio |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks; components/ui/ holds the shadcn primitives
+  lib/                  infrastructure: database client and schema, auth, email, logger, domain errors
+  trpc/                 the API layer: procedure builders, router, clients
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
+
+## 🐳 Deployment
+
+[DEPLOY.md](DEPLOY.md) walks through the production stack (Docker, nginx, the CD workflow) and the first deploy.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === commitlint.config.mjs ===
@@ -12371,6 +12695,23 @@ npmAuditIgnoreAdvisories:
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Project conventions
+
+- **Done means green:** \`yarn run check\` and \`yarn run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
 
 === DEPLOY.md ===
 # 🚀 Deployment
@@ -12474,9 +12815,16 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | Email | Resend |
 | Deployment | Docker + nginx |
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **Yarn** — the version in \`package.json#packageManager\`, activated with \`corepack enable\`.
+- **Docker** with Compose — runs the local PostgreSQL database.
+- **openssl** — the setup script generates the auth secret with it.
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates \`.env\` (generating any secrets), installs dependencies, and starts the database:
+Fresh clone? The setup script creates \`.env\` from \`.env.example\` (generating the auth secret), installs dependencies, starts the database and applies the schema:
 
 \`\`\`bash
 bash scripts/setup.sh          # interactive
@@ -12489,23 +12837,49 @@ Then start the dev server:
 yarn run dev
 \`\`\`
 
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| \`yarn run setup\` | Create \`.env\`, install dependencies and prepare the database |
 | \`yarn run dev\` | Start the dev server |
 | \`yarn run build\` | Build for production |
 | \`yarn run start\` | Start the production server |
 | \`yarn run check\` | Type-check, lint, format-check and unused-code check |
-| \`yarn run lint\` | Run ESLint |
-| \`yarn run knip\` | Report unused files, exports and dependencies |
+| \`yarn run fix\` | Fix lint findings and format |
 | \`yarn run typecheck\` | Type-check |
-| \`yarn run format\` | Format with Prettier |
+| \`yarn run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`yarn run format\` | Format with Prettier (\`format:check\` to check) |
+| \`yarn run knip\` | Report unused files, exports and dependencies |
+| \`yarn run db:generate\` | Generate the Prisma client |
+| \`yarn run db:migrate\` | Create and apply a migration from the schema |
+| \`yarn run db:push\` | Push the schema without a migration (local throwaway databases only) |
+| \`yarn run db:studio\` | Open Prisma Studio |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks; components/ui/ holds the shadcn primitives
+  lib/                  infrastructure: database client and schema, auth, email, logger
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
+
+## 🐳 Deployment
+
+[DEPLOY.md](DEPLOY.md) walks through the production stack (Docker, nginx) and the first deploy.
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
-- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { Button } from "@/components/ui/button"\`.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
 
 
 === commitlint.config.mjs ===

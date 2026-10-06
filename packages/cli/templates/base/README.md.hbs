@@ -32,9 +32,31 @@ A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/
 | Deployment | Docker + nginx |
 {{/if}}
 
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in `.nvmrc` (`nvm use`).
+{{#if (eq packageManager "pnpm")}}
+- **pnpm** — the version in `package.json#packageManager`, activated with `corepack enable`.
+{{/if}}
+{{#if (eq packageManager "yarn")}}
+- **Yarn** — the version in `package.json#packageManager`, activated with `corepack enable`.
+{{/if}}
+{{#if (eq packageManager "bun")}}
+- **Bun** — the version in `package.json#packageManager`.
+{{/if}}
+{{#if (eq packageManager "npm")}}
+- **npm 11.16 or newer** — it enforces the install-script allowlist in `package.json#allowScripts`.
+{{/if}}
+{{#if database}}
+- **Docker** with Compose — runs the local {{#if (eq database.engine "postgres")}}PostgreSQL{{else}}MySQL{{/if}} database.
+{{/if}}
+{{#if (eq auth "better-auth")}}
+- **openssl** — the setup script generates the auth secret with it.
+{{/if}}
+
 ## 🚀 Getting started
 
-Fresh clone? The setup script creates `.env` (generating any secrets), installs dependencies{{#if database}}, and starts the database{{/if}}:
+Fresh clone? The setup script creates `.env` from `.env.example`{{#if (eq auth "better-auth")}} (generating the auth secret){{/if}}, installs dependencies{{#if database}}, starts the database and applies the schema{{/if}}:
 
 ```bash
 bash scripts/setup.sh          # interactive
@@ -47,20 +69,59 @@ Then start the dev server:
 {{packageManager}} run dev
 ```
 
+`src/env.ts` validates the environment at build and start; every variable it reads is listed in `.env.example`.
+
 ## 📜 Scripts
 
 | Command | Description |
 | --- | --- |
+| `{{packageManager}} run setup` | Create `.env`, install dependencies{{#if database}} and prepare the database{{/if}} |
 | `{{packageManager}} run dev` | Start the dev server |
 | `{{packageManager}} run build` | Build for production |
 | `{{packageManager}} run start` | Start the production server |
 | `{{packageManager}} run check` | Type-check, lint, format-check and unused-code check |
-| `{{packageManager}} run lint` | Run ESLint |
-| `{{packageManager}} run knip` | Report unused files, exports and dependencies |
+| `{{packageManager}} run fix` | Fix lint findings and format |
 | `{{packageManager}} run typecheck` | Type-check |
-| `{{packageManager}} run format` | Format with Prettier |
+| `{{packageManager}} run lint` | Run ESLint (`lint:fix` to fix) |
+| `{{packageManager}} run format` | Format with Prettier (`format:check` to check) |
+| `{{packageManager}} run knip` | Report unused files, exports and dependencies |
+{{#if (eq database.orm "drizzle")}}
+| `{{packageManager}} run db:generate` | Generate a migration from the schema |
+| `{{packageManager}} run db:migrate` | Apply pending migrations |
+| `{{packageManager}} run db:push` | Push the schema without a migration (local throwaway databases only) |
+| `{{packageManager}} run db:studio` | Open Drizzle Studio |
+{{/if}}
+{{#if (eq database.orm "prisma")}}
+| `{{packageManager}} run db:generate` | Generate the Prisma client |
+| `{{packageManager}} run db:migrate` | Create and apply a migration from the schema |
+| `{{packageManager}} run db:push` | Push the schema without a migration (local throwaway databases only) |
+| `{{packageManager}} run db:studio` | Open Prisma Studio |
+{{/if}}
+
+## 🗂️ Project structure
+
+```text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks{{#if (eq componentLibrary "shadcn")}}; components/ui/ holds the shadcn primitives{{/if}}
+  lib/                  infrastructure{{#if database}}: database client and schema{{/if}}{{#if (eq auth "better-auth")}}, auth{{/if}}{{#if (eq email "resend")}}, email{{/if}}{{#if (or api (eq auth "better-auth") (and production database))}}, logger{{/if}}{{#if api}}, domain errors{{/if}}
+{{#if api}}
+  {{api.type}}/                 the API layer: procedure builders, router, clients
+{{/if}}
+  env.ts                the only place that reads process.env
+```
+
+Features import only from themselves, `lib/`, `components/` and the project infrastructure; ESLint enforces these boundaries.
+{{#if production}}
+
+## 🐳 Deployment
+
+[DEPLOY.md](DEPLOY.md) walks through the production stack (Docker, nginx{{#if (hasCdStep githubActions)}}, the CD workflow{{/if}}) and the first deploy.
+{{/if}}
 
 ## ✅ Conventions
 
 - **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (`type(scope): description`), enforced by a `commit-msg` hook.
-- **Imports** — `@/` maps to `./src/`, e.g. `import { Button } from "@/components/ui/button"`.
+- **Imports** — `@/` maps to `./src/`, e.g. `import { env } from "@/env"`.
+- **Environment** — a new variable goes into `src/env.ts` and `.env.example` in the same commit.
