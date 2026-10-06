@@ -1,11 +1,10 @@
-import fsSync from "node:fs";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-
 import { execa } from "execa";
 
-import { configPath } from "./config";
+import {
+  buildSshOptions,
+  createControlDirectory,
+  isMultiplexingSupported,
+} from "./ssh-options";
 
 export interface SshTarget {
   host: string;
@@ -21,203 +20,112 @@ export interface RunResult {
 export type Runner = (
   file: string,
   args: string[],
-  opts?: { input?: string },
+  options?: { input?: string },
 ) => Promise<RunResult>;
 
-/**
- * A run makes ~25 ssh calls; without this each one is a fresh TCP connect, key
- * exchange and authentication. Windows OpenSSH has no multiplexing, so it stays
- * on the plain path.
- */
-export const muxArgs = (): string[] => {
-  if (process.platform === "win32") return [];
-  const dir = path.join(os.tmpdir(), `nsm${process.pid}`);
-  fsSync.mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const cleanup = (): void => {
-    fsSync.rmSync(dir, { recursive: true, force: true });
+export interface RemoteFile {
+  path: string;
+  content: string;
+}
+
+/** The probe's own code for "not there", distinct from cat's. */
+const ABSENT_EXIT_CODE = 3;
+
+export const formatDestination = (target: SshTarget): string =>
+  `${target.user}@${target.host}`;
+
+let sshOptions: string[] | undefined;
+
+export const defaultRunner: Runner = async (file, args, options) => {
+  sshOptions ??= buildSshOptions(
+    isMultiplexingSupported ? createControlDirectory() : undefined,
+  );
+  const fullArgs = file === "ssh" ? [...sshOptions, ...args] : args;
+  const result = await execa(file, fullArgs, {
+    input: options?.input,
+    reject: false,
+  });
+  return {
+    stdout: result.stdout,
+    stderr: result.stderr,
+    exitCode: result.exitCode ?? 1,
   };
-  process.on("exit", cleanup);
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
-    process.on(signal, () => {
-      cleanup();
-      process.exit(130);
-    });
-  }
-  return [
-    "-o",
-    "ControlMaster=auto",
-    "-o",
-    `ControlPath=${path.join(dir, "%C")}`,
-    "-o",
-    "ControlPersist=60s",
-  ];
 };
 
-/**
- * `accept-new` rather than the default `ask`: execa gives ssh no TTY, so `ask`
- * routes the prompt to `ssh-askpass` and a first run in CI dies there.
- */
-export const sshOpts = (): string[] => [
-  ...muxArgs(),
-  "-o",
-  "StrictHostKeyChecking=accept-new",
-];
-
-let cachedSshOpts: string[] | undefined;
-
-export const defaultRunner: Runner = async (file, args, opts) => {
-  cachedSshOpts ??= sshOpts();
-  const full = file === "ssh" ? [...cachedSshOpts, ...args] : args;
-  const r = await execa(file, full, { input: opts?.input, reject: false });
-  return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode ?? 1 };
-};
-
-const assertOk = (t: SshTarget, result: RunResult): void => {
+const assertSucceeded = (target: SshTarget, result: RunResult): void => {
   if (result.exitCode !== 0) {
     throw new Error(
-      `ssh ${t.user}@${t.host} failed (exit ${result.exitCode}): ${result.stderr}`,
+      `ssh ${formatDestination(target)} failed (exit ${String(result.exitCode)}): ${result.stderr}`,
     );
   }
 };
 
 export const runRemote = async (
-  t: SshTarget,
+  target: SshTarget,
   script: string,
   run: Runner = defaultRunner,
 ): Promise<void> => {
-  const result = await run("ssh", [`${t.user}@${t.host}`, "bash", "-s"], {
+  const result = await run("ssh", [formatDestination(target), "bash", "-s"], {
     input: script,
   });
-  assertOk(t, result);
+  assertSucceeded(target, result);
 };
 
 export const uploadFile = async (
-  t: SshTarget,
-  content: string,
-  remotePath: string,
+  target: SshTarget,
+  file: RemoteFile,
   run: Runner = defaultRunner,
 ): Promise<void> => {
   const result = await run(
     "ssh",
-    [`${t.user}@${t.host}`, `cat > ${remotePath}`],
-    { input: content },
+    [formatDestination(target), `cat > ${file.path}`],
+    { input: file.content },
   );
-  assertOk(t, result);
+  assertSucceeded(target, result);
 };
 
 /** Staged write: `cat >` truncates first, so a dropped connection would leave
  * a half-written file behind. */
 export const uploadFileAtomic = async (
-  t: SshTarget,
-  content: string,
-  remotePath: string,
+  target: SshTarget,
+  file: RemoteFile,
   run: Runner = defaultRunner,
 ): Promise<void> => {
-  await uploadFile(t, content, `${remotePath}.tmp`, run);
-  await runRemote(t, `mv ${remotePath}.tmp ${remotePath}`, run);
+  const stagedPath = `${file.path}.tmp`;
+  await uploadFile(target, { path: stagedPath, content: file.content }, run);
+  await runRemote(target, `mv ${stagedPath} ${file.path}`, run);
 };
-
-/** The probe's own code for "not there", distinct from cat's. */
-const ABSENT = 3;
 
 /**
  * The file's content, or `""` when it does not exist. Unreadable throws rather
  * than reading as empty: callers create an absent `.env` with fresh secrets.
  */
 export const readRemoteFile = async (
-  t: SshTarget,
+  target: SshTarget,
   remotePath: string,
   run: Runner = defaultRunner,
 ): Promise<string> => {
   const result = await run("ssh", [
-    `${t.user}@${t.host}`,
-    `if [ -e ${remotePath} ]; then cat ${remotePath}; else exit ${ABSENT}; fi`,
+    formatDestination(target),
+    `if [ -e ${remotePath} ]; then cat ${remotePath}; else exit ${String(ABSENT_EXIT_CODE)}; fi`,
   ]);
-  if (result.exitCode === ABSENT) return "";
-  assertOk(t, result);
+  if (result.exitCode === ABSENT_EXIT_CODE) return "";
+  assertSucceeded(target, result);
   return result.stdout;
 };
 
-export const remoteIps = async (
-  t: SshTarget,
+export const listRemoteIps = async (
+  target: SshTarget,
   run: Runner = defaultRunner,
 ): Promise<string[]> => {
-  const result = await run("ssh", [`${t.user}@${t.host}`, "hostname -I"]);
-  assertOk(t, result);
+  const result = await run("ssh", [formatDestination(target), "hostname -I"]);
+  assertSucceeded(target, result);
   return result.stdout.split(/\s+/).filter((ip) => ip.length > 0);
 };
 
-export const genKeypair = async (
-  comment: string,
-): Promise<{ publicKey: string; privateKey: string }> => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ns-ssh-"));
-  const keyPath = path.join(dir, "key");
-  try {
-    await execa("ssh-keygen", [
-      "-t",
-      "ed25519",
-      "-f",
-      keyPath,
-      "-N",
-      "",
-      "-C",
-      comment,
-    ]);
-    const privateKey = await fs.readFile(keyPath, "utf8");
-    const publicKey = (await fs.readFile(`${keyPath}.pub`, "utf8")).trim();
-    return { publicKey, privateKey };
-  } finally {
-    await fs.rm(dir, { recursive: true, force: true });
-  }
-};
-
-const isMissingFileError = (error: unknown): boolean =>
-  error instanceof Error && "code" in error && error.code === "ENOENT";
-
-/** A file's content, or `undefined` when it does not exist; other errors throw. */
-const readExistingFile = async (file: string): Promise<string | undefined> => {
-  try {
-    return await fs.readFile(file, "utf8");
-  } catch (error) {
-    if (isMissingFileError(error)) return undefined;
-    throw error;
-  }
-};
-
-/**
- * Reuses the deploy keypair persisted from a prior run instead of minting a
- * new one each time — a fresh key would append to authorized_keys forever
- * (the dedup grep never matches) and orphan the previous GitHub secret.
- */
-export const loadOrCreateKeypair = async (
-  name: string,
-  opts?: {
-    keyDir?: string;
-    gen?: (
-      comment: string,
-    ) => Promise<{ publicKey: string; privateKey: string }>;
-  },
-): Promise<{ publicKey: string; privateKey: string }> => {
-  const keyDir = opts?.keyDir ?? path.join(path.dirname(configPath()), "keys");
-  const gen = opts?.gen ?? genKeypair;
-  const keyFile = path.join(keyDir, name);
-
-  const [privateKey, publicKey] = await Promise.all([
-    readExistingFile(keyFile),
-    readExistingFile(`${keyFile}.pub`),
-  ]);
-  if (privateKey !== undefined && publicKey !== undefined) {
-    return { publicKey: publicKey.trim(), privateKey };
-  }
-  if (privateKey !== undefined || publicKey !== undefined) {
-    throw new Error(
-      `Only half of the deploy keypair exists at ${keyFile} — restore or delete both ${keyFile} and ${keyFile}.pub, then run again.`,
-    );
-  }
-
-  const keys = await gen(`${name}@next-suite`);
-  await fs.mkdir(keyDir, { recursive: true, mode: 0o700 });
-  await fs.writeFile(keyFile, keys.privateKey, { mode: 0o600 });
-  await fs.writeFile(`${keyFile}.pub`, `${keys.publicKey}\n`);
-  return keys;
-};
+export const isRemoteSuccess = async (
+  target: SshTarget,
+  command: string,
+  run: Runner = defaultRunner,
+): Promise<boolean> =>
+  (await run("ssh", [formatDestination(target), command])).exitCode === 0;

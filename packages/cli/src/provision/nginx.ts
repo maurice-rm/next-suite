@@ -1,6 +1,6 @@
-export const renderNginxBlock = (
+const renderNginxTemplate = (
   domain: string,
-  port: number,
+  port: string,
 ): string => `# Declared here, not globally: conf.d is inside http{}, and every
 # project on the host shares one namespace — hence the port in the names.
 map $http_upgrade $conn_upgrade_${port} {
@@ -112,14 +112,19 @@ server {
 }
 `;
 
+export const renderNginxBlock = (domain: string, port: number): string =>
+  renderNginxTemplate(domain, String(port));
+
+const COMMENT_LINE = /^\s*#.*$/gm;
+
+const SERVER_NAME_DIRECTIVE = /server_name\s+([^;]+);/;
+
 /** Every `server_name` of a conf's first matching directive, comments stripped. */
 export const extractServerNames = (conf: string): string[] =>
-  conf
-    .replace(/^\s*#.*$/gm, "")
-    .match(/server_name\s+([^;]+);/)?.[1]
+  SERVER_NAME_DIRECTIVE.exec(conf.replace(COMMENT_LINE, ""))?.[1]
     ?.trim()
     .split(/\s+/)
-    .filter((n) => n !== "_") ?? [];
+    .filter((serverName) => serverName !== "_") ?? [];
 
 /**
  * The single `server_name` of a conf, or undefined. Multi-name yields undefined

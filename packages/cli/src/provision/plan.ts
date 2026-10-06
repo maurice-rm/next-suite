@@ -1,16 +1,16 @@
 import type { ProjectManifest } from "@/generator/manifest";
 
-import {
-  certbotArgs,
-  deployTargets,
-  ghDeployConfig,
-  nginxWriteScript,
-  serverSetupScript,
-} from "./commands";
 import type { GlobalConfig } from "./config";
-import { deriveServerEnv, needsAppUrl } from "./env";
+import { resolveDeployTarget } from "./deploy-target";
+import { deriveServerEnv, resolveAppUrl } from "./env";
+import { buildGithubDeployEntries } from "./github-deploy";
 import { renderNginxBlock } from "./nginx";
 import { remoteChecks } from "./preflight";
+import {
+  buildCertbotArgs,
+  buildNginxWriteScript,
+  buildServerSetupScript,
+} from "./server-scripts";
 
 export interface PlanInput {
   manifest: ProjectManifest;
@@ -22,6 +22,7 @@ export interface PlanInput {
 
 const REDACTED_KEY = "<deploy-public-key>";
 const REDACTED_SECRET = "<redacted>";
+const GENERATED_SECRET = "<generated>";
 
 /** Side-effect-free preview; never prints a real secret or key (redaction markers only). */
 export const buildDryRunPlan = ({
@@ -31,39 +32,38 @@ export const buildDryRunPlan = ({
   port,
   envExample,
 }: PlanInput): string[] => {
-  const deploy = deployTargets(manifest.name, config.host);
-  const gh = ghDeployConfig(
+  const deploy = resolveDeployTarget(manifest.name, config.host);
+  const githubEntries = buildGithubDeployEntries(
     deploy,
-    domain,
     REDACTED_SECRET,
-    needsAppUrl(manifest),
+    resolveAppUrl(manifest, domain),
   );
   const derivedEnv = deriveServerEnv(
     envExample,
     { name: manifest.name, port, domain },
-    () => "<generated>",
+    () => GENERATED_SECRET,
   );
 
   return [
     `Server:  ${config.adminUser}@${config.host}`,
     `Create:  user ${deploy.user}, dir ${deploy.path} (docker group)`,
-    `Port:    ${port} (APP_PORT in the server .env)`,
+    `Port:    ${String(port)} (APP_PORT in the server .env)`,
     "",
     ".env:",
     ...derivedEnv.trimEnd().split("\n"),
     "",
     "Server setup (run as admin):",
-    serverSetupScript(deploy, REDACTED_KEY),
+    buildServerSetupScript(deploy, REDACTED_KEY),
     "nginx write:",
-    nginxWriteScript(manifest.name, renderNginxBlock(domain, port)),
+    buildNginxWriteScript(manifest.name, renderNginxBlock(domain, port)),
     "TLS:",
-    ["certbot", ...certbotArgs(domain, config.certbotEmail)].join(" "),
+    ["certbot", ...buildCertbotArgs(domain, config.certbotEmail)].join(" "),
     "",
     `Prerequisites (verified in preflight): ${remoteChecks()
-      .map((c) => c.name)
+      .map((check) => check.name)
       .join(", ")}`,
     "",
     "GitHub Actions config (names only):",
-    ...gh.map((e) => `${e.kind} ${e.name}`),
+    ...githubEntries.map((entry) => `${entry.kind} ${entry.name}`),
   ];
 };
