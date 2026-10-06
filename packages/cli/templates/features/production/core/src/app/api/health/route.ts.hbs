@@ -1,12 +1,14 @@
+import "@/env";
+
 {{#if (eq database.orm "drizzle")}}
 import { sql } from "drizzle-orm";
 
 {{/if}}
-import "@/env";
-
 {{#if database}}
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
+
+const SERVICE_UNAVAILABLE_STATUS = 503;
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
@@ -21,7 +23,10 @@ export const GET = async (): Promise<Response> => {
     return Response.json({ status: "ok" });
   } catch (error) {
     logger.error({ err: error }, "Health check failed");
-    return Response.json({ status: "error" }, { status: 503 });
+    return Response.json(
+      { status: "error" },
+      { status: SERVICE_UNAVAILABLE_STATUS },
+    );
   }
 };
 {{else}}

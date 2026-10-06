@@ -726,6 +726,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -744,7 +756,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -827,7 +852,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -1165,7 +1200,7 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
@@ -1175,7 +1210,7 @@ http {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "postinstall": "prisma generate",
     "prepare": "husky",
@@ -1784,6 +1819,8 @@ import "@/env";
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
 
+const SERVICE_UNAVAILABLE_STATUS = 503;
+
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
 
@@ -1793,7 +1830,10 @@ export const GET = async (): Promise<Response> => {
     return Response.json({ status: "ok" });
   } catch (error) {
     logger.error({ err: error }, "Health check failed");
-    return Response.json({ status: "error" }, { status: 503 });
+    return Response.json(
+      { status: "error" },
+      { status: SERVICE_UNAVAILABLE_STATUS },
+    );
   }
 };
 
@@ -2059,6 +2099,8 @@ export default sitemap;
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const AUTH_SECRET_MIN_LENGTH = 32;
+
 export const env = createEnv({
   server: {
     MYSQL_PORT: z.coerce.number(),
@@ -2066,7 +2108,7 @@ export const env = createEnv({
     MYSQL_USER: z.string(),
     MYSQL_PASSWORD: z.string(),
     MYSQL_DATABASE: z.string(),
-    BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_SECRET: z.string().min(AUTH_SECRET_MIN_LENGTH),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
@@ -2388,9 +2430,8 @@ type DehydratedData = {
   meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
 };
 
-const MINUTE_MS = 60_000;
-const STALE_TIME_MS = 5 * MINUTE_MS;
-const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+const STALE_TIME_MS = 300_000;
+const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -2427,9 +2468,18 @@ import { toORPCError } from "@orpc/client";
 
 import { logger } from "@/lib/logger";
 
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
+const FORBIDDEN_STATUS = 403;
+const TOO_MANY_REQUESTS_STATUS = 429;
 const SERVER_ERROR_STATUS = 500;
 
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+const REJECTED_REQUEST_STATUSES = new Set([
+  BAD_REQUEST_STATUS,
+  UNAUTHORIZED_STATUS,
+  FORBIDDEN_STATUS,
+  TOO_MANY_REQUESTS_STATUS,
+]);
 
 export const logProcedureFailure = (error: unknown) => {
   if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
@@ -2942,6 +2992,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -2960,7 +3022,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -3043,7 +3118,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -3159,7 +3244,7 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -3169,7 +3254,7 @@ export default nextConfig;
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -3634,6 +3719,8 @@ export default sitemap;
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const AUTH_SECRET_MIN_LENGTH = 32;
+
 export const env = createEnv({
   server: {
     MYSQL_PORT: z.coerce.number(),
@@ -3641,7 +3728,7 @@ export const env = createEnv({
     MYSQL_USER: z.string(),
     MYSQL_PASSWORD: z.string(),
     MYSQL_DATABASE: z.string(),
-    BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_SECRET: z.string().min(AUTH_SECRET_MIN_LENGTH),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.url(),
@@ -4415,6 +4502,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -4433,7 +4532,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -4516,7 +4628,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -4638,7 +4760,7 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -4648,7 +4770,7 @@ export default nextConfig;
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -5416,9 +5538,8 @@ type DehydratedData = {
   meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
 };
 
-const MINUTE_MS = 60_000;
-const STALE_TIME_MS = 5 * MINUTE_MS;
-const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+const STALE_TIME_MS = 300_000;
+const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -5455,9 +5576,18 @@ import { toORPCError } from "@orpc/client";
 
 import { logger } from "@/lib/logger";
 
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
+const FORBIDDEN_STATUS = 403;
+const TOO_MANY_REQUESTS_STATUS = 429;
 const SERVER_ERROR_STATUS = 500;
 
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+const REJECTED_REQUEST_STATUSES = new Set([
+  BAD_REQUEST_STATUS,
+  UNAUTHORIZED_STATUS,
+  FORBIDDEN_STATUS,
+  TOO_MANY_REQUESTS_STATUS,
+]);
 
 export const logProcedureFailure = (error: unknown) => {
   if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
@@ -6043,6 +6173,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -6061,7 +6203,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -6144,7 +6299,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -6386,13 +6551,13 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -7297,6 +7462,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -7315,7 +7492,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -7398,7 +7588,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -7530,13 +7730,13 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -8292,9 +8492,8 @@ type DehydratedData = {
   meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
 };
 
-const MINUTE_MS = 60_000;
-const STALE_TIME_MS = 5 * MINUTE_MS;
-const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+const STALE_TIME_MS = 300_000;
+const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -8331,9 +8530,18 @@ import { toORPCError } from "@orpc/client";
 
 import { logger } from "@/lib/logger";
 
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
+const FORBIDDEN_STATUS = 403;
+const TOO_MANY_REQUESTS_STATUS = 429;
 const SERVER_ERROR_STATUS = 500;
 
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+const REJECTED_REQUEST_STATUSES = new Set([
+  BAD_REQUEST_STATUS,
+  UNAUTHORIZED_STATUS,
+  FORBIDDEN_STATUS,
+  TOO_MANY_REQUESTS_STATUS,
+]);
 
 export const logProcedureFailure = (error: unknown) => {
   if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
@@ -8778,6 +8986,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -8796,7 +9016,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -8879,7 +9112,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -8997,13 +9240,13 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -9761,9 +10004,8 @@ type DehydratedData = {
   meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
 };
 
-const MINUTE_MS = 60_000;
-const STALE_TIME_MS = 5 * MINUTE_MS;
-const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+const STALE_TIME_MS = 300_000;
+const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -9800,9 +10042,18 @@ import { toORPCError } from "@orpc/client";
 
 import { logger } from "@/lib/logger";
 
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
+const FORBIDDEN_STATUS = 403;
+const TOO_MANY_REQUESTS_STATUS = 429;
 const SERVER_ERROR_STATUS = 500;
 
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+const REJECTED_REQUEST_STATUSES = new Set([
+  BAD_REQUEST_STATUS,
+  UNAUTHORIZED_STATUS,
+  FORBIDDEN_STATUS,
+  TOO_MANY_REQUESTS_STATUS,
+]);
 
 export const logProcedureFailure = (error: unknown) => {
   if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
@@ -10811,6 +11062,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -10829,7 +11092,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -10912,7 +11188,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -11250,7 +11536,7 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -11260,7 +11546,7 @@ http {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -11807,12 +12093,14 @@ export const { GET, POST } = toNextJsHandler(auth);
 
 
 === src/app/api/health/route.ts ===
-import { sql } from "drizzle-orm";
-
 import "@/env";
+
+import { sql } from "drizzle-orm";
 
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
+
+const SERVICE_UNAVAILABLE_STATUS = 503;
 
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
@@ -11823,7 +12111,10 @@ export const GET = async (): Promise<Response> => {
     return Response.json({ status: "ok" });
   } catch (error) {
     logger.error({ err: error }, "Health check failed");
-    return Response.json({ status: "error" }, { status: 503 });
+    return Response.json(
+      { status: "error" },
+      { status: SERVICE_UNAVAILABLE_STATUS },
+    );
   }
 };
 
@@ -12108,6 +12399,8 @@ export default sitemap;
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const AUTH_SECRET_MIN_LENGTH = 32;
+
 export const env = createEnv({
   server: {
     POSTGRES_PORT: z.coerce.number(),
@@ -12115,7 +12408,7 @@ export const env = createEnv({
     POSTGRES_USER: z.string(),
     POSTGRES_PASSWORD: z.string(),
     POSTGRES_DATABASE: z.string(),
-    BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_SECRET: z.string().min(AUTH_SECRET_MIN_LENGTH),
     RESEND_API_KEY: z.string().min(1),
     EMAIL_FROM: z.string().min(1),
   },
@@ -12548,9 +12841,8 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 
-const MINUTE_MS = 60_000;
-const STALE_TIME_MS = 5 * MINUTE_MS;
-const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+const STALE_TIME_MS = 300_000;
+const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -13061,6 +13353,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -13079,7 +13383,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -13162,7 +13479,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -13280,13 +13607,13 @@ export default nextConfig;
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "dev": "next dev",
     "fix": "eslint --fix && prettier --write .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
@@ -14045,9 +14372,8 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 
-const MINUTE_MS = 60_000;
-const STALE_TIME_MS = 5 * MINUTE_MS;
-const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+const STALE_TIME_MS = 300_000;
+const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
 export const createQueryClient = () =>
   new QueryClient({
@@ -14850,6 +15176,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -14868,7 +15206,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -14951,7 +15302,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);
@@ -15227,7 +15588,7 @@ http {
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
@@ -15237,7 +15598,7 @@ http {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "lint:fix": "eslint --fix",
     "postinstall": "prisma generate",
     "prepare": "husky",
@@ -15846,6 +16207,8 @@ import "@/env";
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
 
+const SERVICE_UNAVAILABLE_STATUS = 503;
+
 // Never prerendered: at build time there is no database to reach.
 export const dynamic = "force-dynamic";
 
@@ -15855,7 +16218,10 @@ export const GET = async (): Promise<Response> => {
     return Response.json({ status: "ok" });
   } catch (error) {
     logger.error({ err: error }, "Health check failed");
-    return Response.json({ status: "error" }, { status: 503 });
+    return Response.json(
+      { status: "error" },
+      { status: SERVICE_UNAVAILABLE_STATUS },
+    );
   }
 };
 
@@ -16014,6 +16380,8 @@ export default sitemap;
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+const AUTH_SECRET_MIN_LENGTH = 32;
+
 export const env = createEnv({
   server: {
     POSTGRES_PORT: z.coerce.number(),
@@ -16021,7 +16389,7 @@ export const env = createEnv({
     POSTGRES_USER: z.string(),
     POSTGRES_PASSWORD: z.string(),
     POSTGRES_DATABASE: z.string(),
-    BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_SECRET: z.string().min(AUTH_SECRET_MIN_LENGTH),
     RESEND_API_KEY: z.string().min(1),
     EMAIL_FROM: z.string().min(1),
   },

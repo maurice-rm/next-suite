@@ -2,9 +2,18 @@ import { toORPCError } from "@orpc/client";
 
 import { logger } from "@/lib/logger";
 
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
+const FORBIDDEN_STATUS = 403;
+const TOO_MANY_REQUESTS_STATUS = 429;
 const SERVER_ERROR_STATUS = 500;
 
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+const REJECTED_REQUEST_STATUSES = new Set([
+  BAD_REQUEST_STATUS,
+  UNAUTHORIZED_STATUS,
+  FORBIDDEN_STATUS,
+  TOO_MANY_REQUESTS_STATUS,
+]);
 
 export const logProcedureFailure = (error: unknown) => {
   if (toORPCError(error).status < SERVER_ERROR_STATUS) return;

@@ -61,6 +61,18 @@ const eslintConfig = defineConfig([
           format: ["camelCase", "PascalCase", "UPPER_CASE"],
         },
         { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
         { selector: "function", format: ["camelCase", "PascalCase"] },
         {
           selector: "parameter",
@@ -79,7 +91,20 @@ const eslintConfig = defineConfig([
       ],
       "max-params": ["error", 3],
       "max-depth": ["error", 2],
-      complexity: "error",
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
       "react/function-component-definition": [
         "error",
         {
@@ -164,7 +189,17 @@ const eslintConfig = defineConfig([
     files: ["src/components/ui/**"],
     rules: {
       "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
     },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
   },
   prettier,
 ]);

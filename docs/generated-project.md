@@ -178,21 +178,21 @@ The `CI` build step receives the repository variables (`env: ${{ vars }}`), so a
 
 The base `package.json` template defines these scripts:
 
-| Script         | Command                                                | Purpose                                                           |
-| -------------- | ------------------------------------------------------ | ----------------------------------------------------------------- |
-| `build`        | `next build`                                           | Production build.                                                 |
-| `check`        | `tsc --noEmit && eslint && prettier --check . && knip` | Type-check, lint, format-check and unused-code check in one pass. |
-| `dev`          | `next dev`                                             | Development server.                                               |
-| `fix`          | `eslint --fix && prettier --write .`                   | Auto-fix lint problems, then format. Used by the post-step.       |
-| `format`       | `prettier --write .`                                   | Format everything.                                                |
-| `format:check` | `prettier --check .`                                   | Fail on unformatted files.                                        |
-| `knip`         | `knip`                                                 | Report unused files, exports and dependencies.                    |
-| `lint`         | `eslint`                                               | Lint.                                                             |
-| `lint:fix`     | `eslint --fix`                                         | Lint and auto-fix.                                                |
-| `prepare`      | `husky`                                                | Install the git hooks after an install.                           |
-| `setup`        | `bash scripts/setup.sh`                                | First-run setup: create `.env`, install, start the database.      |
-| `start`        | `next start`                                           | Serve the production build.                                       |
-| `typecheck`    | `tsc --noEmit`                                         | Type-check only.                                                  |
+| Script         | Command                                                                 | Purpose                                                           |
+| -------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `build`        | `next build`                                                            | Production build.                                                 |
+| `check`        | `tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip` | Type-check, lint, format-check and unused-code check in one pass. |
+| `dev`          | `next dev`                                                              | Development server.                                               |
+| `fix`          | `eslint --fix && prettier --write .`                                    | Auto-fix lint problems, then format. Used by the post-step.       |
+| `format`       | `prettier --write .`                                                    | Format everything.                                                |
+| `format:check` | `prettier --check .`                                                    | Fail on unformatted files.                                        |
+| `knip`         | `knip`                                                                  | Report unused files, exports and dependencies.                    |
+| `lint`         | `eslint --max-warnings 0`                                               | Lint; a warning fails like an error.                              |
+| `lint:fix`     | `eslint --fix`                                                          | Lint and auto-fix.                                                |
+| `prepare`      | `husky`                                                                 | Install the git hooks after an install.                           |
+| `setup`        | `bash scripts/setup.sh`                                                 | First-run setup: create `.env`, install, start the database.      |
+| `start`        | `next start`                                                            | Serve the production build.                                       |
+| `typecheck`    | `tsc --noEmit`                                                          | Type-check only.                                                  |
 
 The Drizzle layer adds:
 

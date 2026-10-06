@@ -42,7 +42,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 
 - **Next.js 16 · React 19 · TypeScript 6 (strict)** — App Router, the React Compiler enabled, `@/*` path alias, `noUncheckedIndexedAccess`, `noImplicitOverride`, `verbatimModuleSyntax`.
 - **Error boundaries** — root `error.tsx`, `global-error.tsx` and `not-found.tsx`.
-- **ESLint** (flat config) — Next core-web-vitals + typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, a naming convention, at most three parameters, two nesting levels and a complexity cap, arrow-function components, kebab-case file and folder names, no import cycles, a one-way import direction (`lib`/`components` ← `features` ← `app`), and no imports between two features.
+- **ESLint** (flat config) — Next core-web-vitals + typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, a naming convention with predicate prefixes for booleans, named constants instead of magic numbers, at most three parameters, two nesting levels and a complexity cap of 15, no warnings, arrow-function components, kebab-case file and folder names, no import cycles, a one-way import direction (`lib`/`components` ← `features` ← `app`), and no imports between two features.
 - **Prettier** — with `prettier-plugin-packagejson`.
 - **Git hooks** — Husky + `lint-staged` + commitlint (Conventional Commits).
 - **Typed environment variables** — `@/env` via `@t3-oss/env-nextjs` + `zod`, validated at startup; features add their vars automatically.
