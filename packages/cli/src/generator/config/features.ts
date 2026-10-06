@@ -90,6 +90,10 @@ export const FEATURES: Feature[] = [
     when: (config) => config.packageManager === "yarn",
   },
   {
+    dir: "features/seo",
+    when: (config) => config.api !== undefined || config.auth === "better-auth",
+  },
+  {
     dir: "features/tailwind",
     when: (config) => config.tailwind,
     devDependencies: [

@@ -320,6 +320,7 @@ AGENTS.md
   "trailingComma": "all",
   "printWidth": 80,
   "tabWidth": 2,
+  "tailwindStylesheet": "./src/app/globals.css",
   "plugins": [
     "prettier-plugin-packagejson",
     "prettier-plugin-tailwindcss"
@@ -1840,9 +1841,13 @@ type ErrorPageProps = {
 };
 
 const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
       Try again
     </button>
   </main>
@@ -1857,6 +1862,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -1865,9 +1872,16 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
+      <title>Something went wrong</title>
+      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-semibold text-balance">
+          Something went wrong
+        </h1>
+        <button
+          type="button"
+          onClick={retry}
+          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+        >
           Try again
         </button>
       </main>
@@ -1884,6 +1898,29 @@ export default GlobalErrorPage;
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+    --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+    --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+    --muted-foreground: light-dark(oklch(0.556 0 0), oklch(0.708 0 0));
+    --primary: light-dark(oklch(0.205 0 0), oklch(0.922 0 0));
+    --primary-foreground: light-dark(oklch(0.985 0 0), oklch(0.205 0 0));
+    --ring: light-dark(oklch(0.708 0 0), oklch(0.556 0 0));
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
 }
 
 
@@ -1892,6 +1929,7 @@ import "./globals.css";
 import "@/orpc/client.server";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
@@ -1913,17 +1951,17 @@ export const metadata: Metadata = {
     default: "bun-app",
     template: "%s · bun-app",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "bun-app, a Next.js application.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
@@ -1940,9 +1978,14 @@ export default RootLayout;
 import Link from "next/link";
 
 const NotFoundPage = () => (
-  <main>
-    <h1>Page not found</h1>
-    <Link href="/">Back to the start page</Link>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Page not found</h1>
+    <p className="text-pretty text-muted-foreground">
+      The page you requested does not exist or has moved.
+    </p>
+    <Link href="/" className="text-primary underline underline-offset-4">
+      Back to the start page
+    </Link>
   </main>
 );
 
@@ -1951,8 +1994,8 @@ export default NotFoundPage;
 
 === src/app/page.tsx ===
 const Page = () => (
-  <main>
-    <h1>bun-app</h1>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">bun-app</h1>
   </main>
 );
 
@@ -1985,6 +2028,31 @@ export const Providers = ({ children }: ProvidersProps) => (
     {children}
   </QueryClientProvider>
 );
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
 
 
 === src/env.ts ===
@@ -3422,6 +3490,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -3430,6 +3500,7 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
+      <title>Something went wrong</title>
       <main>
         <h1>Something went wrong</h1>
         <button type="button" onClick={retry}>
@@ -3444,7 +3515,15 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+:root {
+  color-scheme: light dark;
+  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+}
+
 body {
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
 
@@ -3460,6 +3539,7 @@ samp {
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { env } from "@/env";
@@ -3480,17 +3560,17 @@ export const metadata: Metadata = {
     default: "npm-auth",
     template: "%s · npm-auth",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "npm-auth, a Next.js application.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
@@ -3507,6 +3587,7 @@ import Link from "next/link";
 const NotFoundPage = () => (
   <main>
     <h1>Page not found</h1>
+    <p>The page you requested does not exist or has moved.</p>
     <Link href="/">Back to the start page</Link>
   </main>
 );
@@ -3522,6 +3603,31 @@ const Page = () => (
 );
 
 export default Page;
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
 
 
 === src/env.ts ===
@@ -4888,6 +4994,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -4896,6 +5004,7 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
+      <title>Something went wrong</title>
       <main>
         <h1>Something went wrong</h1>
         <button type="button" onClick={retry}>
@@ -4910,7 +5019,15 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+:root {
+  color-scheme: light dark;
+  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+}
+
 body {
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
 
@@ -4927,6 +5044,7 @@ import "./globals.css";
 import "@/orpc/client.server";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
@@ -4948,17 +5066,17 @@ export const metadata: Metadata = {
     default: "npm-db",
     template: "%s · npm-db",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "npm-db, a Next.js application.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
@@ -4977,6 +5095,7 @@ import Link from "next/link";
 const NotFoundPage = () => (
   <main>
     <h1>Page not found</h1>
+    <p>The page you requested does not exist or has moved.</p>
     <Link href="/">Back to the start page</Link>
   </main>
 );
@@ -5020,6 +5139,31 @@ export const Providers = ({ children }: ProvidersProps) => (
     {children}
   </QueryClientProvider>
 );
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
 
 
 === src/env.ts ===
@@ -6661,6 +6805,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -6669,6 +6815,7 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
+      <title>Something went wrong</title>
       <main>
         <h1>Something went wrong</h1>
         <button type="button" onClick={retry}>
@@ -6683,7 +6830,15 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+:root {
+  color-scheme: light dark;
+  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+}
+
 body {
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
 
@@ -6699,6 +6854,7 @@ samp {
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
 const geistSans = Geist({
@@ -6716,17 +6872,17 @@ export const metadata: Metadata = {
     default: "acme-app",
     template: "%s · acme-app",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "acme-app, a Next.js application.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
@@ -6743,6 +6899,7 @@ import Link from "next/link";
 const NotFoundPage = () => (
   <main>
     <h1>Page not found</h1>
+    <p>The page you requested does not exist or has moved.</p>
     <Link href="/">Back to the start page</Link>
   </main>
 );
@@ -7754,6 +7911,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -7762,6 +7921,7 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
+      <title>Something went wrong</title>
       <main>
         <h1>Something went wrong</h1>
         <button type="button" onClick={retry}>
@@ -7776,7 +7936,15 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+:root {
+  color-scheme: light dark;
+  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+}
+
 body {
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
 
@@ -7793,6 +7961,7 @@ import "./globals.css";
 import "@/orpc/client.server";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
@@ -7814,17 +7983,17 @@ export const metadata: Metadata = {
     default: "orpc-scalar",
     template: "%s · orpc-scalar",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "orpc-scalar, a Next.js application.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
@@ -7843,6 +8012,7 @@ import Link from "next/link";
 const NotFoundPage = () => (
   <main>
     <h1>Page not found</h1>
+    <p>The page you requested does not exist or has moved.</p>
     <Link href="/">Back to the start page</Link>
   </main>
 );
@@ -7886,6 +8056,31 @@ export const Providers = ({ children }: ProvidersProps) => (
     {children}
   </QueryClientProvider>
 );
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
 
 
 === src/env.ts ===
@@ -9185,6 +9380,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -9193,6 +9390,7 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
+      <title>Something went wrong</title>
       <main>
         <h1>Something went wrong</h1>
         <button type="button" onClick={retry}>
@@ -9207,7 +9405,15 @@ export default GlobalErrorPage;
 
 
 === src/app/globals.css ===
+:root {
+  color-scheme: light dark;
+  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+}
+
 body {
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
 }
 
@@ -9224,6 +9430,7 @@ import "./globals.css";
 import "@/orpc/client.server";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { Providers } from "@/app/providers";
@@ -9245,17 +9452,17 @@ export const metadata: Metadata = {
     default: "orpc-openapi",
     template: "%s · orpc-openapi",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "orpc-openapi, a Next.js application.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
@@ -9274,6 +9481,7 @@ import Link from "next/link";
 const NotFoundPage = () => (
   <main>
     <h1>Page not found</h1>
+    <p>The page you requested does not exist or has moved.</p>
     <Link href="/">Back to the start page</Link>
   </main>
 );
@@ -9317,6 +9525,31 @@ export const Providers = ({ children }: ProvidersProps) => (
     {children}
   </QueryClientProvider>
 );
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
 
 
 === src/env.ts ===
@@ -10102,6 +10335,7 @@ AGENTS.md
   "trailingComma": "all",
   "printWidth": 80,
   "tabWidth": 2,
+  "tailwindStylesheet": "./src/app/globals.css",
   "plugins": [
     "prettier-plugin-packagejson",
     "prettier-plugin-tailwindcss"
@@ -11647,9 +11881,13 @@ type ErrorPageProps = {
 };
 
 const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
       Try again
     </button>
   </main>
@@ -11664,6 +11902,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -11672,9 +11912,16 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
+      <title>Something went wrong</title>
+      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-semibold text-balance">
+          Something went wrong
+        </h1>
+        <button
+          type="button"
+          onClick={retry}
+          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+        >
           Try again
         </button>
       </main>
@@ -11693,6 +11940,7 @@ export default GlobalErrorPage;
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 
 import { Providers } from "@/app/providers";
 import { env } from "@/env";
@@ -11703,17 +11951,15 @@ export const metadata: Metadata = {
     default: "pnpm-suite",
     template: "%s · pnpm-suite",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "pnpm-suite, a Next.js application.",
 };
 
+// shadcn's dark theme follows a \`.dark\` class that nothing sets yet.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
+  themeColor: "#ffffff",
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en">
@@ -11730,9 +11976,14 @@ export default RootLayout;
 import Link from "next/link";
 
 const NotFoundPage = () => (
-  <main>
-    <h1>Page not found</h1>
-    <Link href="/">Back to the start page</Link>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Page not found</h1>
+    <p className="text-pretty text-muted-foreground">
+      The page you requested does not exist or has moved.
+    </p>
+    <Link href="/" className="text-primary underline underline-offset-4">
+      Back to the start page
+    </Link>
   </main>
 );
 
@@ -11741,8 +11992,8 @@ export default NotFoundPage;
 
 === src/app/page.tsx ===
 const Page = () => (
-  <main>
-    <h1>pnpm-suite</h1>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">pnpm-suite</h1>
   </main>
 );
 
@@ -11826,6 +12077,31 @@ export const Providers = ({ children }: ProvidersProps) => {
     </QueryClientProvider>
   );
 };
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
 
 
 === src/env.ts ===
@@ -12671,6 +12947,7 @@ AGENTS.md
   "trailingComma": "all",
   "printWidth": 80,
   "tabWidth": 2,
+  "tailwindStylesheet": "./src/app/globals.css",
   "plugins": [
     "prettier-plugin-packagejson",
     "prettier-plugin-tailwindcss"
@@ -14095,9 +14372,13 @@ type ErrorPageProps = {
 };
 
 const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
       Try again
     </button>
   </main>
@@ -14112,6 +14393,8 @@ export default ErrorPage;
 === src/app/global-error.tsx ===
 "use client";
 
+import "./globals.css";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -14120,9 +14403,16 @@ type GlobalErrorPageProps = {
 const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
+      <title>Something went wrong</title>
+      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-semibold text-balance">
+          Something went wrong
+        </h1>
+        <button
+          type="button"
+          onClick={retry}
+          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+        >
           Try again
         </button>
       </main>
@@ -14141,6 +14431,7 @@ export default GlobalErrorPage;
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 
 import { env } from "@/env";
 
@@ -14150,17 +14441,15 @@ export const metadata: Metadata = {
     default: "yarn-thing",
     template: "%s · yarn-thing",
   },
-  description: "A modern Next.js application built with TypeScript and React.",
+  description: "yarn-thing, a Next.js application.",
 };
 
+// shadcn's dark theme follows a \`.dark\` class that nothing sets yet.
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
+  themeColor: "#ffffff",
 };
 
-type RootLayoutProps = Readonly<{ children: React.ReactNode }>;
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
 
 const RootLayout = ({ children }: RootLayoutProps) => (
   <html lang="en">
@@ -14175,9 +14464,14 @@ export default RootLayout;
 import Link from "next/link";
 
 const NotFoundPage = () => (
-  <main>
-    <h1>Page not found</h1>
-    <Link href="/">Back to the start page</Link>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Page not found</h1>
+    <p className="text-pretty text-muted-foreground">
+      The page you requested does not exist or has moved.
+    </p>
+    <Link href="/" className="text-primary underline underline-offset-4">
+      Back to the start page
+    </Link>
   </main>
 );
 
@@ -14186,12 +14480,37 @@ export default NotFoundPage;
 
 === src/app/page.tsx ===
 const Page = () => (
-  <main>
-    <h1>yarn-thing</h1>
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">yarn-thing</h1>
   </main>
 );
 
 export default Page;
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
 
 
 === src/env.ts ===
