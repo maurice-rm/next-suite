@@ -108,29 +108,9 @@ Verified by reading every script the command sends:
 
 The key directory is created with mode `0700`, and the private key file is written with mode `0600`. The keypair is deliberately persisted and reused across runs against the same server, so the GitHub secret stays valid; it is keyed by host and project, so two same-named projects on different servers never share a key that opens both. A pair with only one of its two files present stops the run instead of being regenerated over the surviving half (`loadOrCreateKeypair` in `deploy-keypair.ts`).
 
-### Known inconsistency: the config file's permissions depend on which command created it
+### The config file's permissions
 
-There are two code paths that write `config.json`, and they do not agree on the mode:
-
-- `src/provision/index.ts` (`loadOrPromptConfig`, reached when `provision` finds no config and prompts for one) writes it with an explicit mode (`PRIVATE_FILE_MODE` is `0o600`, from `file-modes.ts`):
-
-  ```ts
-  await fs.outputFile(configPath(), serializeGlobalConfig(config), {
-    mode: PRIVATE_FILE_MODE,
-  });
-  ```
-
-- `src/provision/config-command.ts` (the `next-suite config` command) writes it with no mode at all:
-
-  ```ts
-  await fs.outputFile(file, serializeGlobalConfig(config));
-  ```
-
-  The file then gets the default `0666` masked by your umask — commonly `0644`, that is world-readable.
-
-The mode argument only applies when the file is created, so **whichever path creates the file first determines its permissions for good**. Later writes by the other path do not tighten or loosen them.
-
-Recommendation: check the permissions yourself after running `next-suite config`, and fix them if needed.
+Both commands that write `config.json` — `provision` when it prompts on a first run, and `next-suite config` — go through one function, `saveGlobalConfig` in `src/provision/config-command.ts`, which creates the file with mode `0600`. The mode only applies when the file is created: a file written by a version before 1.4, where `next-suite config` used no mode, keeps its permissions. Check them once:
 
 ```bash
 ls -l ~/.config/next-suite/config.json
@@ -138,9 +118,9 @@ chmod 600 ~/.config/next-suite/config.json
 chmod 700 ~/.config/next-suite/keys
 ```
 
-On a single-user machine the practical exposure is small — the file holds a hostname, a username and an email address, not a key. Do it anyway on a shared host.
+The prompts reject a host or admin user the config parser would refuse later (only letters, digits, dot, dash and underscore), and `next-suite config` offers a saved file that no longer parses for repair instead of failing on it.
 
-One more local artifact: on non-Windows platforms the CLI multiplexes its roughly twenty-five SSH calls through a control socket in a per-process directory under the system temp directory, created with mode `0700` and removed when the process exits. The master connection can outlive the process by up to `ControlPersist=60s`.
+One more local artifact: on non-Windows platforms the CLI multiplexes its roughly twenty-five SSH calls through a control socket in a directory under the system temp directory with an unguessable name (`mkdtemp`), mode `0700`, removed when the process exits. The master connection can outlive the process by up to `ControlPersist=60s`.
 
 ### Warning: `--skip-github` prints the private deploy key in clear text
 

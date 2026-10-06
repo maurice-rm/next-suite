@@ -31,11 +31,19 @@ const readRequiredField = (
   return value;
 };
 
+const SHELL_SAFE_RULE =
+  "may only contain letters, digits, dot, dash and underscore, and may not start with a dash";
+
+/** The prompt's check for a value that ends up in shell commands; undefined when valid. */
+export const validateShellSafe = (
+  label: string,
+  value: string,
+): string | undefined =>
+  SHELL_SAFE.test(value) ? undefined : `${label} ${SHELL_SAFE_RULE}.`;
+
 const assertShellSafe = (field: keyof GlobalConfig, value: string): void => {
   if (!SHELL_SAFE.test(value)) {
-    throw new Error(
-      `Global config '${field}' may only contain letters, digits, dot, dash and underscore, and may not start with a dash: ${value}`,
-    );
+    throw new Error(`Global config '${field}' ${SHELL_SAFE_RULE}: ${value}`);
   }
 };
 

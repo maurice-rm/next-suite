@@ -8,16 +8,14 @@ import { navigableText, renderProvisionOutro } from "@/ui";
 
 import { CancelledError } from "./cancelled-error";
 import { exitWithCommandError, renderCommandIntro } from "./command-frame";
+import { configPath, type GlobalConfig, parseGlobalConfig } from "./config";
 import {
-  configPath,
-  type GlobalConfig,
-  parseGlobalConfig,
-  serializeGlobalConfig,
-} from "./config";
-import { promptConfig, requiredInput } from "./config-command";
+  promptConfig,
+  requiredInput,
+  saveGlobalConfig,
+} from "./config-command";
 import { resolveDeployTarget } from "./deploy-target";
 import { isValidHostname } from "./dns";
-import { PRIVATE_FILE_MODE } from "./file-modes";
 import { resolveGhRepo } from "./github-cli";
 import { parseManifest, requireProxied } from "./manifest";
 import { buildDryRunPlan } from "./plan";
@@ -79,9 +77,7 @@ const loadOrPromptConfig = async (): Promise<GlobalConfig> => {
   const saved = await readSavedConfig();
   if (saved) return saved;
   const config = await promptConfig();
-  await fs.outputFile(configPath(), serializeGlobalConfig(config), {
-    mode: PRIVATE_FILE_MODE,
-  });
+  await saveGlobalConfig(config);
   return config;
 };
 

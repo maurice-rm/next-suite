@@ -6,6 +6,7 @@ import {
   configPath,
   parseGlobalConfig,
   serializeGlobalConfig,
+  validateShellSafe,
 } from "../config";
 
 const valid = {
@@ -66,4 +67,14 @@ test("host and adminUser may not start with a dash — ssh would read them as op
     /host/,
   );
   expect(() => parseGlobalConfig(bad({}))).not.toThrow();
+});
+
+test("validateShellSafe accepts plain hosts and rejects what the parser would reject", () => {
+  expect(validateShellSafe("Host", "vps.example.com")).toBeUndefined();
+  expect(validateShellSafe("Host", "root@vps")).toMatch(
+    /Host may only contain/,
+  );
+  expect(validateShellSafe("Host", "2001:db8::1")).toMatch(
+    /Host may only contain/,
+  );
 });
