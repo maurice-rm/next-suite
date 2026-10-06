@@ -5,6 +5,7 @@ import { isCdStep } from "@/options";
 import { findPackageManagerEntry } from "@/package-managers";
 
 import { ACCEPTED_ADVISORIES } from "./config/advisories";
+import { type DependencyName, VERSIONS } from "./config/dependencies";
 import { dependencyOverrides } from "./resolve";
 
 const isStringArray = (value: unknown): value is string[] =>
@@ -41,6 +42,16 @@ const getExecPrefix = (packageManager: unknown): string => {
     throw new Error(`Unknown package manager: ${String(packageManager)}.`);
   }
   return entry.exec;
+};
+
+const isDependencyName = (value: unknown): value is DependencyName =>
+  typeof value === "string" && Object.hasOwn(VERSIONS, value);
+
+const getCatalogVersion = (name: unknown): string => {
+  if (!isDependencyName(name)) {
+    throw new Error(`Unknown catalog dependency: ${String(name)}.`);
+  }
+  return VERSIONS[name];
 };
 
 const dropHelperOptions = (args: unknown[]): unknown[] => args.slice(0, -1);
@@ -94,6 +105,8 @@ Handlebars.registerHelper("acceptedNpmAdvisories", () =>
   ACCEPTED_ADVISORIES.map((advisory) => advisory.npmAdvisoryId),
 );
 Handlebars.registerHelper("execPrefix", getExecPrefix);
+// For pinned versions a template writes outside package.json (a CDN URL).
+Handlebars.registerHelper("catalogVersion", getCatalogVersion);
 
 /**
  * Render a Handlebars template string with the given data. HTML escaping is

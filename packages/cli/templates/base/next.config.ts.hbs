@@ -55,7 +55,10 @@ const SECURITY_HEADERS = [
 {{#if api.openapi.scalar}}
 
 const SCALAR_SOURCES: ExtraSources = {
-  scripts: ["'unsafe-eval'", "https://cdn.jsdelivr.net"],
+  scripts: [
+    "'unsafe-eval'",
+    "https://cdn.jsdelivr.net/npm/@scalar/api-reference@{{catalogVersion "@scalar/api-reference"}}",
+  ],
   fonts: ["https://fonts.scalar.com"],
 };
 {{/if}}

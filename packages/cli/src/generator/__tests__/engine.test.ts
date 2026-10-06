@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import { VERSIONS } from "../config/dependencies";
 import { renderString } from "../engine";
 
 test("renderString interpolates without HTML-escaping", () => {
@@ -50,5 +51,12 @@ test("execPrefix maps each package manager to its local-bin runner", () => {
   );
   expect(renderString(template, { packageManager: "bun" })).toBe(
     "bunx lint-staged",
+  );
+});
+
+test("catalogVersion renders a catalog version and rejects unknown names", () => {
+  expect(renderString('{{catalogVersion "next"}}', {})).toBe(VERSIONS.next);
+  expect(() => renderString('{{catalogVersion "left-pad"}}', {})).toThrow(
+    /Unknown catalog dependency: left-pad\./,
   );
 });
