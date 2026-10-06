@@ -26,7 +26,9 @@ export const createTRPCContext = cache(async () => ({
   session: await getSession(),
 }));
 {{else}}
-export const createTRPCContext = cache(async () => ({}));
+export const createTRPCContext = cache(
+  (): Promise<Record<string, never>> => Promise.resolve({}),
+);
 {{/if}}
 
 export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
