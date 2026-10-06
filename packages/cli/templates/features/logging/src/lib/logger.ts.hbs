@@ -51,31 +51,60 @@ const collectQueryParams = (error: Error): string[] => {
   return found;
 };
 
-const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+type RedactionContext = {
+  queryParams: string[];
+  seen: WeakSet<object>;
+  errorPrototype: unknown;
+};
+
+// Only the serializer's own output is walked: plain objects, arrays and the
+// serialized errors; class instances (Date, Buffer, sockets) pass untouched.
+const isWalkable = (
+  value: object,
+  errorPrototype: unknown,
+): value is Record<string, unknown> => {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return (
+    prototype === Object.prototype ||
+    prototype === null ||
+    prototype === errorPrototype
+  );
+};
+
+const redactSerialized = (
+  value: unknown,
+  context: RedactionContext,
+): unknown => {
   if (typeof value === "string") {
-    return queryParams.reduce(
+    return context.queryParams.reduce(
       (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
       value,
     );
   }
-  if (Array.isArray(value)) {
-    return value.map((item) => redactSerialized(item, queryParams));
-  }
   if (value === null || typeof value !== "object") return value;
+  if (context.seen.has(value)) return "[Circular]";
+  if (Array.isArray(value)) {
+    context.seen.add(value);
+    return value.map((item) => redactSerialized(item, context));
+  }
+  if (!isWalkable(value, context.errorPrototype)) return value;
+  context.seen.add(value);
   return Object.fromEntries(
     Object.entries(value).map(([key, field]) => [
       key,
-      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+      key === "params" ? "[Redacted]" : redactSerialized(field, context),
     ]),
   );
 };
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  return redactSerialized(
-    pino.stdSerializers.err(error),
-    collectQueryParams(error),
-  );
+  const serialized = pino.stdSerializers.err(error);
+  return redactSerialized(serialized, {
+    queryParams: collectQueryParams(error),
+    seen: new WeakSet(),
+    errorPrototype: Object.getPrototypeOf(serialized),
+  });
 };
 
 export const logger = pino({
