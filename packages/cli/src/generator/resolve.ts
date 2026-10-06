@@ -56,23 +56,38 @@ export const dependenciesFragment = (
 };
 
 /**
- * Build a package.json fragment that forces transitive packages to their
- * catalog versions, under the field the package manager reads overrides from.
+ * The transitive packages the active features force to a catalog version.
  *
- * @param names - Catalog names of the packages to override.
+ * @param config - The resolved project configuration.
+ * @returns Package name → catalog version.
+ */
+export const dependencyOverrides = (
+  config: ProjectConfig,
+): Record<string, string> =>
+  resolve(
+    activeFeatures(config).flatMap((feature) =>
+      featureDependencies(feature.overrides, config),
+    ),
+  );
+
+/**
+ * Build a package.json fragment holding the dependency overrides, under the
+ * field the package manager reads them from.
+ *
+ * @param overrides - Package name → version, as {@link dependencyOverrides} returns.
  * @param packageManager - The project's package manager.
- * @returns A JSON package.json fragment string, or `undefined` when `names` is empty.
+ * @returns A JSON package.json fragment string, or `undefined` when there is
+ * nothing to override or the manager reads overrides from its own config file.
  */
 export const overridesFragment = (
-  names: DependencyName[],
+  overrides: Record<string, string>,
   packageManager: PackageManager,
 ): string | undefined => {
-  if (!names.length) return undefined;
-  const fragment = getPackageManagerEntry(
-    packageManager,
-  ).overridesPath.reduceRight<unknown>(
+  const { overridesPath } = getPackageManagerEntry(packageManager);
+  if (!overridesPath || !Object.keys(overrides).length) return undefined;
+  const fragment = overridesPath.reduceRight<unknown>(
     (nested, key) => ({ [key]: nested }),
-    resolve(names),
+    overrides,
   );
   return JSON.stringify(fragment);
 };

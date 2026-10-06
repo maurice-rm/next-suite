@@ -8,3 +8,9 @@ auditConfig:
 {{#each (acceptedAdvisories)}}
     - {{this}}
 {{/each}}
+{{#each (dependencyOverrides)}}
+{{#if @first}}
+overrides:
+{{/if}}
+  "{{name}}": "{{version}}"
+{{/each}}

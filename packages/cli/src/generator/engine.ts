@@ -3,7 +3,10 @@ import Handlebars from "handlebars";
 import { isCdStep } from "@/options";
 import { getPackageManagerEntry } from "@/package-managers";
 
+import type { ProjectConfig } from "@/core/types";
+
 import { ACCEPTED_ADVISORIES } from "./config/advisories";
+import { dependencyOverrides } from "./resolve";
 
 Handlebars.registerHelper("eq", (a, b) => a === b);
 Handlebars.registerHelper("ne", (a, b) => a !== b);
@@ -29,6 +32,14 @@ Handlebars.registerHelper(
 Handlebars.registerHelper("raw", (options) => options.fn());
 Handlebars.registerHelper("acceptedAdvisories", () =>
   ACCEPTED_ADVISORIES.map((advisory) => advisory.id),
+);
+// The overrides as `{ name, version }` pairs, for config files that list them.
+Handlebars.registerHelper(
+  "dependencyOverrides",
+  (options: Handlebars.HelperOptions) =>
+    Object.entries(dependencyOverrides(options.data.root as ProjectConfig)).map(
+      ([name, version]) => ({ name, version }),
+    ),
 );
 Handlebars.registerHelper("acceptedNpmAdvisories", () =>
   ACCEPTED_ADVISORIES.map((advisory) => advisory.npmAdvisoryId),

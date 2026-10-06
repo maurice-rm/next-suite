@@ -13,6 +13,7 @@ import {
 import {
   activeFeatures,
   dependenciesFragment,
+  dependencyOverrides,
   featureDependencies,
   overridesFragment,
 } from "./resolve";
@@ -56,9 +57,7 @@ export const composeProject = async (
     pushFragment(fragments, "package.json", depsFragment);
   }
   const overrides = overridesFragment(
-    features.flatMap((feature) =>
-      featureDependencies(feature.overrides, config),
-    ),
+    dependencyOverrides(config),
     config.packageManager,
   );
   if (overrides) {

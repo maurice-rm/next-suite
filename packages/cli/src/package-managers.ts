@@ -19,8 +19,11 @@ export interface PackageManagerEntry {
    * first install because there is no lockfile yet.
    */
   installEnv?: NodeJS.ProcessEnv;
-  /** Where `package.json` declares dependency overrides, as a key path. */
-  overridesPath: readonly [string, ...string[]];
+  /**
+   * Where `package.json` declares dependency overrides, as a key path; absent
+   * when the manager reads them from its own config file.
+   */
+  overridesPath?: readonly [string, ...string[]];
 }
 
 /**
@@ -42,7 +45,6 @@ export const PACKAGE_MANAGERS: readonly PackageManagerEntry[] = [
     label: "pnpm",
     exec: "pnpm exec",
     dlx: ["pnpm", "dlx"],
-    overridesPath: ["pnpm", "overrides"],
   },
   {
     id: "bun",

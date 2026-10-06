@@ -39,18 +39,19 @@ test("featureDependencies passes lists through and invokes functions", () => {
 });
 
 test("overridesFragment nests the versions under the package manager's field", () => {
-  const expected = { next: VERSIONS.next };
-  expect(JSON.parse(overridesFragment(["next"], "npm") as string)).toEqual({
-    overrides: expected,
+  const overrides = { next: VERSIONS.next };
+  expect(JSON.parse(overridesFragment(overrides, "npm") as string)).toEqual({
+    overrides,
   });
-  expect(JSON.parse(overridesFragment(["next"], "pnpm") as string)).toEqual({
-    pnpm: { overrides: expected },
-  });
-  expect(JSON.parse(overridesFragment(["next"], "yarn") as string)).toEqual({
-    resolutions: expected,
+  expect(JSON.parse(overridesFragment(overrides, "yarn") as string)).toEqual({
+    resolutions: overrides,
   });
 });
 
+test("overridesFragment leaves pnpm's overrides to pnpm-workspace.yaml", () => {
+  expect(overridesFragment({ next: VERSIONS.next }, "pnpm")).toBeUndefined();
+});
+
 test("overridesFragment returns undefined when nothing is overridden", () => {
-  expect(overridesFragment([], "npm")).toBeUndefined();
+  expect(overridesFragment({}, "npm")).toBeUndefined();
 });

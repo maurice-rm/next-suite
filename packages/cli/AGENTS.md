@@ -163,16 +163,16 @@ The ordering is causal: git must exist before committing; install runs before sh
 
 ### Registries / single sources of truth
 
-| Registry                              | File                               | Holds                                                                              | Derived                                  |
-| ------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------- |
-| `options.ts` arrays                   | `src/options.ts`                   | per-dimension `{value,label,hint?}` + display order, wrapped by `defineOptions`    | `core/types` union types                 |
-| `PACKAGE_MANAGERS`                    | `src/package-managers.ts`          | `{id,label,exec,dlx,installEnv?,overridesPath}` per PM + `getPackageManagerEntry`  | `PackageManager` union                   |
-| `ACCEPTED_ADVISORIES`                 | `generator/config/advisories.ts`   | audit advisories every generated project ignores, each with its reason             | the `acceptedAdvisories` helpers         |
-| `FEATURES`                            | `generator/config/features.ts`     | `Feature {dir, when?, dependencies?, devDependencies?}`; base is always-on         | the composed layer order                 |
-| `VERSIONS`                            | `generator/config/dependencies.ts` | the **only** place literal version strings live; `satisfies Record<string,string>` | `DependencyName = keyof typeof VERSIONS` |
-| `MERGEABLES` / `MERGED_OBJECT_FIELDS` | `generator/merge.ts`               | `{file, merge}` entries + which package.json fields union                          | `isMergeable`                            |
+| Registry                              | File                               | Holds                                                                                  | Derived                                  |
+| ------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `options.ts` arrays                   | `src/options.ts`                   | per-dimension `{value,label,hint?}` + display order, wrapped by `defineOptions`        | `core/types` union types                 |
+| `PACKAGE_MANAGERS`                    | `src/package-managers.ts`          | `{id,label,exec,dlx,installEnv?,overridesPath?}` per PM + `getPackageManagerEntry`     | `PackageManager` union                   |
+| `ACCEPTED_ADVISORIES`                 | `generator/config/advisories.ts`   | audit advisories every generated project ignores, each with its reason                 | the `acceptedAdvisories` helpers         |
+| `FEATURES`                            | `generator/config/features.ts`     | `Feature {dir, when?, dependencies?, devDependencies?, overrides?}`; base is always-on | the composed layer order                 |
+| `VERSIONS`                            | `generator/config/dependencies.ts` | the **only** place literal version strings live; `satisfies Record<string,string>`     | `DependencyName = keyof typeof VERSIONS` |
+| `MERGEABLES` / `MERGED_OBJECT_FIELDS` | `generator/merge.ts`               | `{file, merge}` entries + which package.json fields union                              | `isMergeable`                            |
 
-Handlebars helpers registered globally in `engine.ts`: `eq`, `ne`, `not`, `and`, `or`, `includes`, `hasCiStep` / `hasCdStep` (whether the selected `githubActions` contain a CI or a CD step — derived from the registries in `options.ts`, so a new step never leaves a template stale), `raw` (emits its block body verbatim — for literal `{{ }}` such as GitHub Actions `${{ }}` expressions), `acceptedAdvisories` / `acceptedNpmAdvisories` (the GHSA and npm IDs from `ACCEPTED_ADVISORIES`), `execPrefix`. **HTML escaping is off** (`noEscape: true`) — output is source code. `execPrefix packageManager` renders `getPackageManagerEntry(pm).exec`; an unknown `packageManager` throws (fail-loud, via `getPackageManagerEntry`).
+Handlebars helpers registered globally in `engine.ts`: `eq`, `ne`, `not`, `and`, `or`, `includes`, `hasCiStep` / `hasCdStep` (whether the selected `githubActions` contain a CI or a CD step — derived from the registries in `options.ts`, so a new step never leaves a template stale), `raw` (emits its block body verbatim — for literal `{{ }}` such as GitHub Actions `${{ }}` expressions), `acceptedAdvisories` / `acceptedNpmAdvisories` (the GHSA and npm IDs from `ACCEPTED_ADVISORIES`), `dependencyOverrides` (the active features' `overrides` as `{ name, version }` pairs), `execPrefix`. **HTML escaping is off** (`noEscape: true`) — output is source code. `execPrefix packageManager` renders `getPackageManagerEntry(pm).exec`; an unknown `packageManager` throws (fail-loud, via `getPackageManagerEntry`).
 
 ### The `next-suite` bin (server provisioning)
 
@@ -220,7 +220,7 @@ Missing any one of the first three will silently omit the feature or cause a `De
 
 ### Add a package manager
 
-1. Extend the `PackageManager` union in `package-managers.ts` and add one `PACKAGE_MANAGERS` entry: `id`, `label`, `exec` (local-binary runner), `dlx` (non-empty `readonly [string, ...string[]]` tuple), optional `installEnv`, and `overridesPath` (the `package.json` key path its dependency overrides live under).
+1. Extend the `PackageManager` union in `package-managers.ts` and add one `PACKAGE_MANAGERS` entry: `id`, `label`, `exec` (local-binary runner), `dlx` (non-empty `readonly [string, ...string[]]` tuple), optional `installEnv`, and `overridesPath` (the `package.json` key path its dependency overrides live under; omit it when the manager reads overrides from its own config file, as pnpm does from `pnpm-workspace.yaml`).
 
 That single edit flows everywhere: detection (`pm-detector`), the prompt (options/labels), install (`installEnv`), shadcn (`dlx`), and the `execPrefix` Handlebars helper. `getPackageManagerEntry` throws `"Unknown package manager: <id>."` on an unknown id (fail-loud).
 
@@ -258,7 +258,7 @@ This is the rulebook. Match it from the first line of new code.
 - **`SCREAMING_SNAKE_CASE` for module-level constants & registries:** `VERSIONS`, `FEATURES`, `PACKAGE_MANAGERS`, `MERGEABLES`, `MERGED_OBJECT_FIELDS`, `GO_BACK`, `HBS_EXTENSION`, `DEFAULT_RUN_TIMEOUT_MS`, `COMPONENT_LIBRARIES`, etc.
 - **`PascalCase` for types/interfaces:** `ProjectConfig`, `WizardStep`, `Feature`, `PackageManagerEntry`, `Mergeable`, `RunOptions`, `ConflictAction`.
 - **`kebab-case` file names, one concept per file:** `pm-detector.ts`, `build-config.ts`, `run-post-steps.ts`, `next-steps.ts`. Tests live in a sibling `__tests__/` as `<subject>.test.ts`.
-- **Analogous things named analogously:** every prompt exports `select*`/`confirm*`/`input*`; every mergeable is `{ file, merge }`; every PM is `{ id, label, exec, dlx, installEnv? }`.
+- **Analogous things named analogously:** every prompt exports `select*`/`confirm*`/`input*`; every mergeable is `{ file, merge }`; every PM is `{ id, label, exec, dlx, installEnv?, overridesPath? }`.
 
 ### JSDoc
 
