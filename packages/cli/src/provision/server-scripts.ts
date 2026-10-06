@@ -21,8 +21,9 @@ export const buildServerSetupScript = (
   deploy: DeployTarget,
   publicKey: string,
 ): string => {
-  // Checked before useradd and again right before chown/chmod, which follow
-  // symlinks: whoever can write to /srv/www could plant one.
+  // Whoever can write to /srv/www could plant a symlink: checked before
+  // useradd, and chown/chmod then act on `.` after `cd -P`, which stays bound
+  // to the checked directory even if the path is swapped afterwards.
   const refuseSymlink = `[ -L ${deploy.path} ] && { echo "${deploy.path} is a symlink — refusing to touch it." >&2; exit 1; }`;
   return `set -eu
 install -d /srv/www
@@ -35,9 +36,10 @@ else
   useradd -m -d ${deploy.path} -s /bin/bash ${deploy.user}
 fi
 mkdir -p ${deploy.path}
-${refuseSymlink}
-chown -h ${deploy.user}:${deploy.user} ${deploy.path}
-chmod 3755 ${deploy.path}
+cd -P ${deploy.path} && [ "$(pwd -P)" = "${deploy.path}" ] || { echo "${deploy.path} is a symlink — refusing to touch it." >&2; exit 1; }
+chown ${deploy.user}:${deploy.user} .
+chmod 3755 .
+cd /
 getent group docker >/dev/null && usermod -aG docker ${deploy.user} || true
 getent group deploy >/dev/null && usermod -aG deploy ${deploy.user} || true
 runuser -u ${deploy.user} -- sh -c ${quoteShellWord(AUTHORIZED_KEYS_ROTATION)} sh ${deploy.path}/.ssh/authorized_keys ${quoteShellWord(getDeployKeyComment(deploy.name))} ${quoteShellWord(publicKey)}
