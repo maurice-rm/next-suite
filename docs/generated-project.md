@@ -106,6 +106,10 @@ Each feature then adds its own files. The conditions are the `when` predicates i
 | `features/github-actions/ci`               | at least one CI step was selected                           | `.github/actions/setup/action.yml`, `.github/workflows/ci.yml`, `renovate.json`                                                                                                                                                                                                   |
 | `features/github-actions/cd`               | production is on and at least one CD step was selected      | `.github/workflows/cd.yml`                                                                                                                                                                                                                                                        |
 
+## Security headers
+
+`next.config.ts` sets the security headers on every route through `headers()`, so they apply in development, behind any proxy and in both deployment modes: a Content-Security-Policy following the Next.js guide's version without nonces (`'unsafe-eval'` in development only), `Strict-Transport-Security` (two years, **without** `includeSubDomains` — a scaffold cannot know whether the app runs on an apex domain), `X-Content-Type-Options`, `Referrer-Policy`, a `Permissions-Policy` that disables unused device features, and the cross-origin policies. With the Scalar docs UI, the `/api/v1` page gets a CSP that additionally allows the Scalar script from `cdn.jsdelivr.net`, its fonts from `fonts.scalar.com` and the `eval` it uses. The standalone nginx sets no headers of its own. `next.config.ts` imports `src/env.ts`, which also validates the environment at build time.
+
 ## Feature matrix
 
 Packages are listed with the version the generator writes. Files marked as fragments are merged rather than written; see [How files are composed](#how-files-are-composed).

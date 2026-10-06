@@ -368,10 +368,11 @@ deploy — nginx refuses to start without them and the container crash-loops.
    \`# TODO\`: the \`server_name\` in the \`:80\` and the \`:443\` block, and the two
    \`ssl_certificate*\` paths. The shipped value is \`example.com\`.
 
-   While you are there: the \`Strict-Transport-Security\` line ships **without**
-   \`includeSubDomains\`, deliberately. Add it only once you know this domain is a
-   subdomain whose siblings all speak HTTPS — on an apex it commits **every**
-   subdomain of the zone for two years, with no server-side way back.
+   The security headers are set by the app in \`next.config.ts\`, not here. Its
+   \`Strict-Transport-Security\` header ships **without** \`includeSubDomains\`,
+   deliberately. Add it only once you know this domain is a subdomain whose
+   siblings all speak HTTPS — on an apex it commits **every** subdomain of the
+   zone for two years, with no server-side way back.
 
 2. **Obtain the certificate.** The ACME challenge is served by this same nginx,
    which cannot start yet, so the first certificate has to come from outside the
@@ -885,6 +886,59 @@ ENTRYPOINT ["./entrypoint.sh"]
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
@@ -893,6 +947,10 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
 };
 
 export default nextConfig;
@@ -1004,17 +1062,8 @@ http {
         ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem; # TODO: set your certificate path
         ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem; # TODO: set your certificate path
 
-        # Any location that sets its own add_header drops all of these.
-        # No includeSubDomains: a 3-label name can still be an apex (co.uk), and
-        # guessing wrong pins the zone for two years. Add it by hand if it applies.
-        add_header Strict-Transport-Security "max-age=63072000" always;
-        add_header X-Content-Type-Options    "nosniff"                         always;
-        add_header X-Frame-Options           "SAMEORIGIN"                      always;
-        add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
-        add_header Permissions-Policy        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
-        add_header Cross-Origin-Opener-Policy        "same-origin-allow-popups" always;
-        add_header Cross-Origin-Resource-Policy      "same-origin"              always;
-        add_header X-Permitted-Cross-Domain-Policies "none"                     always;
+        # Security headers come from the app (next.config.ts), so they also apply
+        # behind any other proxy and in development.
 
         proxy_http_version 1.1;
         proxy_set_header Upgrade    $http_upgrade;
@@ -2710,6 +2759,59 @@ export default eslintConfig;
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
@@ -2717,6 +2819,10 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
 };
 
 export default nextConfig;
@@ -3941,6 +4047,59 @@ export default eslintConfig;
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
@@ -3948,6 +4107,10 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
 };
 
 export default nextConfig;
@@ -5359,6 +5522,59 @@ CMD ["node", "server.js"]
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
@@ -5367,6 +5583,10 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
 };
 
 export default nextConfig;
@@ -6447,6 +6667,64 @@ export default eslintConfig;
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
+const SCALAR_SOURCES: ExtraSources = {
+  scripts: ["'unsafe-eval'", "https://cdn.jsdelivr.net"],
+  fonts: ["https://fonts.scalar.com"],
+};
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
@@ -6454,6 +6732,19 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+      {
+        source: "/api/v1",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: buildContentSecurityPolicy(SCALAR_SOURCES),
+          },
+        ],
+      },
+    ]),
 };
 
 export default nextConfig;
@@ -7622,6 +7913,59 @@ export default eslintConfig;
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
@@ -7629,6 +7973,10 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
 };
 
 export default nextConfig;
@@ -8886,10 +9234,11 @@ deploy — nginx refuses to start without them and the container crash-loops.
    \`# TODO\`: the \`server_name\` in the \`:80\` and the \`:443\` block, and the two
    \`ssl_certificate*\` paths. The shipped value is \`example.com\`.
 
-   While you are there: the \`Strict-Transport-Security\` line ships **without**
-   \`includeSubDomains\`, deliberately. Add it only once you know this domain is a
-   subdomain whose siblings all speak HTTPS — on an apex it commits **every**
-   subdomain of the zone for two years, with no server-side way back.
+   The security headers are set by the app in \`next.config.ts\`, not here. Its
+   \`Strict-Transport-Security\` header ships **without** \`includeSubDomains\`,
+   deliberately. Add it only once you know this domain is a subdomain whose
+   siblings all speak HTTPS — on an apex it commits **every** subdomain of the
+   zone for two years, with no server-side way back.
 
 2. **Obtain the certificate.** The ACME challenge is served by this same nginx,
    which cannot start yet, so the first certificate has to come from outside the
@@ -9437,6 +9786,59 @@ ENTRYPOINT ["./entrypoint.sh"]
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
@@ -9445,6 +9847,10 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
 };
 
 export default nextConfig;
@@ -9556,17 +9962,8 @@ http {
         ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem; # TODO: set your certificate path
         ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem; # TODO: set your certificate path
 
-        # Any location that sets its own add_header drops all of these.
-        # No includeSubDomains: a 3-label name can still be an apex (co.uk), and
-        # guessing wrong pins the zone for two years. Add it by hand if it applies.
-        add_header Strict-Transport-Security "max-age=63072000" always;
-        add_header X-Content-Type-Options    "nosniff"                         always;
-        add_header X-Frame-Options           "SAMEORIGIN"                      always;
-        add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
-        add_header Permissions-Policy        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
-        add_header Cross-Origin-Opener-Policy        "same-origin-allow-popups" always;
-        add_header Cross-Origin-Resource-Policy      "same-origin"              always;
-        add_header X-Permitted-Cross-Domain-Policies "none"                     always;
+        # Security headers come from the app (next.config.ts), so they also apply
+        # behind any other proxy and in development.
 
         proxy_http_version 1.1;
         proxy_set_header Upgrade    $http_upgrade;
@@ -11681,6 +12078,59 @@ ENTRYPOINT ["./entrypoint.sh"]
 === next.config.ts ===
 import type { NextConfig } from "next";
 
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
@@ -11689,6 +12139,10 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
 };
 
 export default nextConfig;
