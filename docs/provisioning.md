@@ -163,9 +163,10 @@ One script runs as root and is safe to repeat:
 - The project directory becomes `<project>:<project>`, mode `3755`.
 - The user joins the `docker` group and the `deploy` group — each only if the
   group already exists on the host.
-- `~/.ssh` is created mode `700`, and `authorized_keys` (mode `600`) is
-  rewritten — as the deploy user, through `runuser`, so a symlink in the home
-  directory cannot redirect a root write — to hold exactly one key with this
+- `~/.ssh` (mode `700`) and `authorized_keys` (mode `600`) are created and
+  rewritten as the deploy user, through `runuser`, so a symlink the user plants
+  in their home cannot redirect a root write. `authorized_keys` is rewritten to
+  hold exactly one key with this
   project's comment (`<project>@next-suite`): the current one. Other keys stay
   untouched, and a rotated key no longer lingers.
 
@@ -198,10 +199,12 @@ comment, and blank line survives; only known keys are rewritten:
 | `POSTGRES_PASSWORD`, `MYSQL_PASSWORD`, `BETTER_AUTH_SECRET` | 32 fresh random bytes, base64url |
 
 If `.env.example` carries no `APP_PORT`, one is inserted directly after
-`COMPOSE_PROJECT_NAME`; if it carries neither, both are prepended. The file is
-uploaded to a temporary path, then moved into place — a partially written upload
-never replaces a working `.env` on a running host. The result is owned by the
-deploy user, mode `600`.
+`COMPOSE_PROJECT_NAME`; if it carries neither, both are prepended. The existing
+`.env` is read, and the new one written, as the deploy user (through `runuser`),
+so a symlink in the project directory cannot make root read or overwrite
+another file. It is written to a `mktemp` file, then moved into place — a
+partially written upload never replaces a working `.env` on a running host. The
+result is owned by the deploy user, mode `600`.
 
 ### Certificate
 

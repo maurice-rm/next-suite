@@ -8,6 +8,8 @@ import { quoteShellWord } from "./shell-quote";
 // the project's comment — the current one — and every other key untouched.
 const AUTHORIZED_KEYS_ROTATION = `set -eu
 keys=$1; comment=$2; key=$3
+mkdir -p "\${keys%/*}"
+chmod 700 "\${keys%/*}"
 touch "$keys"
 next=$(mktemp "$keys.XXXXXX")
 awk -v comment="$comment" -v key="$key" '$0 != key && $NF != comment' "$keys" > "$next"
@@ -32,7 +34,6 @@ chown ${deploy.user}:${deploy.user} ${deploy.path}
 chmod 3755 ${deploy.path}
 getent group docker >/dev/null && usermod -aG docker ${deploy.user} || true
 getent group deploy >/dev/null && usermod -aG deploy ${deploy.user} || true
-install -d -m 700 -o ${deploy.user} -g ${deploy.user} ${deploy.path}/.ssh
 runuser -u ${deploy.user} -- sh -c ${quoteShellWord(AUTHORIZED_KEYS_ROTATION)} sh ${deploy.path}/.ssh/authorized_keys ${quoteShellWord(getDeployKeyComment(deploy.name))} ${quoteShellWord(publicKey)}
 `;
 

@@ -114,6 +114,13 @@ const fakeGh = () => {
   return { gh, calls };
 };
 
+const ENV_READ =
+  "runuser -u acme -- sh -c 'if [ -e \"$1\" ]; then cat \"$1\"; else exit 3; fi' sh '/srv/www/acme/.env'";
+const isEnvWrite = (command: string | undefined): boolean =>
+  command?.startsWith("runuser -u acme -- sh -c") === true &&
+  command.includes("mktemp") &&
+  command.endsWith("'/srv/www/acme/.env'");
+
 test("a resolved repo pins every gh call, so the key cannot land in another repository", async () => {
   const { run } = buildRun({ certExitCode: 0 });
   const { gh, calls: ghCalls } = fakeGh();
@@ -159,17 +166,7 @@ test("fresh domain with DNS already pointing: bootstrap, then cert, then the ful
   const serverIdx = sshCalls.findIndex((call) =>
     call.input?.includes("useradd"),
   );
-  const envInstallIdx = sshCalls.findIndex((call) =>
-    call.input?.includes(
-      "install -m 600 -o acme -g acme /dev/null /srv/www/acme/.env",
-    ),
-  );
-  const envIdx = sshCalls.findIndex(
-    (call) => call.args[1] === "cat > /srv/www/acme/.env.tmp",
-  );
-  const envRenameIdx = sshCalls.findIndex((call) =>
-    call.input?.includes("mv /srv/www/acme/.env.tmp /srv/www/acme/.env"),
-  );
+  const envIdx = sshCalls.findIndex((call) => isEnvWrite(call.args[1]));
   const bootstrapIdx = sshCalls.findIndex((call) =>
     call.input?.includes("return 404;"),
   );
@@ -181,10 +178,8 @@ test("fresh domain with DNS already pointing: bootstrap, then cert, then the ful
   );
 
   expect(serverIdx).toBeGreaterThanOrEqual(0);
-  expect(envInstallIdx).toBeGreaterThan(serverIdx);
-  expect(envIdx).toBeGreaterThan(envInstallIdx);
-  expect(envRenameIdx).toBeGreaterThan(envIdx);
-  expect(bootstrapIdx).toBeGreaterThan(envRenameIdx);
+  expect(envIdx).toBeGreaterThan(serverIdx);
+  expect(bootstrapIdx).toBeGreaterThan(envIdx);
   expect(certbotIdx).toBeGreaterThan(bootstrapIdx);
   expect(fullBlockIdx).toBeGreaterThan(certbotIdx);
 
@@ -294,7 +289,7 @@ test("the log is compact — no raw script bodies (useradd / NGINX_EOF)", async 
   expect(text).not.toContain("NGINX_EOF");
 });
 
-test("uploaded .env reflects the derived values (postgres host, generated secrets, inserted APP_PORT) and the pre-create still runs", async () => {
+test("uploaded .env reflects the derived values (postgres host, generated secrets, inserted APP_PORT) and is written as the deploy user", async () => {
   const { run, calls } = buildRun({ certExitCode: 0 });
   const { gh } = fakeGh();
   const lookup = () => Promise.resolve(["203.0.113.7"]);
@@ -312,21 +307,12 @@ test("uploaded .env reflects the derived values (postgres host, generated secret
   );
 
   const sshCalls = calls.filter((call) => call.args[0] === dest);
-  const envUpload = sshCalls.find(
-    (call) => call.args[1] === "cat > /srv/www/acme/.env.tmp",
-  );
+  const envUpload = sshCalls.find((call) => isEnvWrite(call.args[1]));
 
   expect(envUpload?.input).toContain("POSTGRES_HOST=postgres");
   expect(envUpload?.input).not.toContain("POSTGRES_HOST=localhost");
   expect(envUpload?.input).toMatch(/POSTGRES_PASSWORD=[A-Za-z0-9_-]{40,}/);
   expect(envUpload?.input).toContain("APP_PORT=8100");
-
-  const installCall = sshCalls.find((call) =>
-    call.input?.includes(
-      "install -m 600 -o acme -g acme /dev/null /srv/www/acme/.env",
-    ),
-  );
-  expect(installCall).toBeDefined();
 });
 
 test(".env line reports upload/kept counts for a postgres+better-auth manifest with an empty existing .env", async () => {
@@ -354,10 +340,7 @@ test(".env line reports the full upload count (not just the delta) when some des
   const existingEnvContent =
     "COMPOSE_PROJECT_NAME=acme\nAPP_PORT=8100\nPOSTGRES_PASSWORD=alreadyset\n";
   const run: Runner = (file, args, runOptions) => {
-    if (
-      args[1] ===
-      "if [ -e /srv/www/acme/.env ]; then cat /srv/www/acme/.env; else exit 3; fi"
-    ) {
+    if (args[1] === ENV_READ) {
       return Promise.resolve(ok(existingEnvContent));
     }
     return base(file, args, runOptions);
@@ -385,10 +368,7 @@ test(".env warns when the existing NEXT_PUBLIC_APP_URL doesn't match the new dom
   const existingEnvContent =
     "COMPOSE_PROJECT_NAME=acme\nAPP_PORT=8100\nNEXT_PUBLIC_APP_URL=https://old.example.com\n";
   const run: Runner = (file, args, runOptions) => {
-    if (
-      args[1] ===
-      "if [ -e /srv/www/acme/.env ]; then cat /srv/www/acme/.env; else exit 3; fi"
-    ) {
+    if (args[1] === ENV_READ) {
       return Promise.resolve(ok(existingEnvContent));
     }
     return base(file, args, runOptions);
@@ -417,10 +397,7 @@ test(".env does not warn when the existing NEXT_PUBLIC_APP_URL already matches t
   const { run: base } = buildRun({ certExitCode: 0 });
   const existingEnvContent = `COMPOSE_PROJECT_NAME=acme\nAPP_PORT=8100\nNEXT_PUBLIC_APP_URL=https://${domain}\n`;
   const run: Runner = (file, args, runOptions) => {
-    if (
-      args[1] ===
-      "if [ -e /srv/www/acme/.env ]; then cat /srv/www/acme/.env; else exit 3; fi"
-    ) {
+    if (args[1] === ENV_READ) {
       return Promise.resolve(ok(existingEnvContent));
     }
     return base(file, args, runOptions);
@@ -852,19 +829,15 @@ test("ss -ltn failure aborts port allocation instead of silently proceeding", as
   ).rejects.toThrow(/ss -ltn/);
 });
 
-test("a failed .env pre-create rejects the whole provision run and never uploads the secrets", async () => {
+test("a failed .env upload rejects the whole provision run before nginx is touched", async () => {
   const { run: base } = buildRun({ certExitCode: 0 });
   const calls: { args: string[]; input?: string }[] = [];
   const run: Runner = (file, args, runOptions) => {
     calls.push({ args, input: runOptions?.input });
-    if (
-      runOptions?.input?.includes(
-        "install -m 600 -o acme -g acme /dev/null /srv/www/acme/.env",
-      )
-    ) {
+    if (isEnvWrite(args[1])) {
       return Promise.resolve({
         stdout: "",
-        stderr: "install: no such user",
+        stderr: "runuser: user acme does not exist",
         exitCode: 1,
       });
     }
@@ -885,11 +858,9 @@ test("a failed .env pre-create rejects the whole provision run and never uploads
       },
       { run, gh, lookup, generateKeypair },
     ),
-  ).rejects.toThrow(/install: no such user/);
+  ).rejects.toThrow(/runuser: user acme does not exist/);
 
-  expect(
-    calls.some((call) => call.args[1] === "cat > /srv/www/acme/.env.tmp"),
-  ).toBe(false);
+  expect(calls.some((call) => call.input?.includes("return 404;"))).toBe(false);
 });
 
 test("runProvision reuses the persisted deploy key and the allocated port on a second run", async () => {

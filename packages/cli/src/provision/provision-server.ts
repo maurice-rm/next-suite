@@ -21,9 +21,10 @@ import {
 import {
   formatDestination,
   readRemoteFile,
+  readUserFile,
   runRemote,
-  uploadFile,
   uploadFileAtomic,
+  writeUserFile,
 } from "./ssh";
 
 export const assertDomainUnclaimed = async ({
@@ -121,26 +122,28 @@ const reportStaleEnvValues = (
   }
 };
 
+const getEnvFile = ({ deploy }: ProvisionContext) => ({
+  user: deploy.user,
+  path: `${deploy.path}/.env`,
+});
+
 const writePrivateEnv = async (
-  { target, deploy, run }: ProvisionContext,
+  context: ProvisionContext,
   content: string,
 ): Promise<void> => {
-  const stagedPath = `${deploy.path}/.env.tmp`;
-  await runRemote(
-    target,
-    `install -m 600 -o ${deploy.user} -g ${deploy.user} /dev/null ${stagedPath}`,
-    run,
+  await writeUserFile(
+    context.target,
+    { ...getEnvFile(context), content },
+    context.run,
   );
-  await uploadFile(target, { path: stagedPath, content }, run);
-  await runRemote(target, `mv ${stagedPath} ${deploy.path}/.env`, run);
 };
 
 export const uploadServerEnv = async (
   context: ProvisionContext,
   port: number,
 ): Promise<void> => {
-  const { request, target, deploy, run, stepLog } = context;
-  const existingEnv = await readRemoteFile(target, `${deploy.path}/.env`, run);
+  const { request, target, run, stepLog } = context;
+  const existingEnv = await readUserFile(target, getEnvFile(context), run);
   const derivedEnv = deriveServerEnv(request.envExample, {
     name: request.manifest.name,
     port,

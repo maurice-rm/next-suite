@@ -1,5 +1,6 @@
 import { execa } from "execa";
 
+import { quoteShellWord } from "./shell-quote";
 import {
   buildSshOptions,
   createControlDirectory,
@@ -96,22 +97,68 @@ export const uploadFileAtomic = async (
   await runRemote(target, `mv ${stagedPath} ${file.path}`, run);
 };
 
+const readOrAbsent = async (
+  target: SshTarget,
+  command: string,
+  run: Runner,
+): Promise<string> => {
+  const result = await run("ssh", [formatDestination(target), command]);
+  if (result.exitCode === ABSENT_EXIT_CODE) return "";
+  assertSucceeded(target, result);
+  return result.stdout;
+};
+
 /**
  * The file's content, or `""` when it does not exist. Unreadable throws rather
  * than reading as empty: callers create an absent `.env` with fresh secrets.
  */
-export const readRemoteFile = async (
+export const readRemoteFile = (
   target: SshTarget,
   remotePath: string,
   run: Runner = defaultRunner,
-): Promise<string> => {
-  const result = await run("ssh", [
-    formatDestination(target),
+): Promise<string> =>
+  readOrAbsent(
+    target,
     `if [ -e ${remotePath} ]; then cat ${remotePath}; else exit ${String(ABSENT_EXIT_CODE)}; fi`,
-  ]);
-  if (result.exitCode === ABSENT_EXIT_CODE) return "";
+    run,
+  );
+
+/** A file inside a user's own directory, touched only as that user — root would follow a symlink the user planted there. */
+export interface UserFile {
+  user: string;
+  path: string;
+}
+
+const READ_IF_PRESENT = `if [ -e "$1" ]; then cat "$1"; else exit ${String(ABSENT_EXIT_CODE)}; fi`;
+
+// umask 077 + mktemp + mv: the file appears complete and private, or not at all.
+const WRITE_PRIVATE_ATOMICALLY =
+  'set -eu; umask 077; next=$(mktemp "$1.XXXXXX"); cat > "$next"; mv "$next" "$1"';
+
+const asUser = (user: string, script: string, path: string): string =>
+  `runuser -u ${user} -- sh -c ${quoteShellWord(script)} sh ${quoteShellWord(path)}`;
+
+export const readUserFile = (
+  target: SshTarget,
+  file: UserFile,
+  run: Runner = defaultRunner,
+): Promise<string> =>
+  readOrAbsent(target, asUser(file.user, READ_IF_PRESENT, file.path), run);
+
+export const writeUserFile = async (
+  target: SshTarget,
+  file: UserFile & { content: string },
+  run: Runner = defaultRunner,
+): Promise<void> => {
+  const result = await run(
+    "ssh",
+    [
+      formatDestination(target),
+      asUser(file.user, WRITE_PRIVATE_ATOMICALLY, file.path),
+    ],
+    { input: file.content },
+  );
   assertSucceeded(target, result);
-  return result.stdout;
 };
 
 export const listRemoteIps = async (
