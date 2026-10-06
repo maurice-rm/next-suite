@@ -34,19 +34,29 @@ const CIRCULAR = "[Circular]";
 const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
   "params" in error && Array.isArray(error.params);
 
-const isPlainObject = (value: object): value is Record<string, unknown> => {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-};
+// What JSON output — and so the log line — would walk into: every object
+// except those that render themselves (Date, Buffer and other toJSON types).
+const isSerializedByFields = (value: object): boolean =>
+  !("toJSON" in value && typeof value.toJSON === "function");
 
 const listChildren = (value: object): unknown[] => {
   if (Array.isArray(value)) return value;
-  if (isPlainObject(value)) return Object.values(value);
-  if (!(value instanceof Error)) return [];
+  if (!(value instanceof Error)) {
+    return isSerializedByFields(value) ? Object.values(value) : [];
+  }
   const fields: unknown[] = Object.values(value);
   const aggregated: unknown[] =
     "errors" in value && Array.isArray(value.errors) ? value.errors : [];
   return [value.cause, ...fields, ...aggregated];
+};
+
+// The text Drizzle wrote; params that cannot become text cannot be in it.
+const describeParams = (params: unknown[]): string[] => {
+  try {
+    return [`params: ${String(params)}`];
+  } catch {
+    return [];
+  }
 };
 
 // Visits each object once, so a cyclic graph ends.
@@ -60,7 +70,7 @@ const collectQueryParams = (root: Error): string[] => {
     if (seen.has(current)) continue;
     seen.add(current);
     if (current instanceof Error && isQueryError(current)) {
-      found.push(`params: ${String(current.params)}`);
+      found.push(...describeParams(current.params));
     }
     pending.push(...listChildren(current));
   }
@@ -70,7 +80,6 @@ const collectQueryParams = (root: Error): string[] => {
 type RedactionContext = {
   queryParams: string[];
   ancestors: Set<object>;
-  errorPrototype: unknown;
 };
 
 const redactText = (text: string, queryParams: string[]): string =>
@@ -79,12 +88,9 @@ const redactText = (text: string, queryParams: string[]): string =>
     text,
   );
 
-// Walks plain objects, arrays and serialized errors; class instances (Date,
-// Buffer, sockets) pass untouched. Cycles are cut along the current path only.
-const isWalkable = (value: object, errorPrototype: unknown): boolean =>
-  Array.isArray(value) ||
-  isPlainObject(value) ||
-  Object.getPrototypeOf(value) === errorPrototype;
+// Cycles are cut along the current path only, so shared references survive.
+const isWalkable = (value: object): boolean =>
+  Array.isArray(value) || isSerializedByFields(value);
 
 const walkChildren = (value: object, context: RedactionContext): unknown => {
   if (Array.isArray(value)) {
@@ -103,7 +109,7 @@ const redactValue = (value: unknown, context: RedactionContext): unknown => {
   if (value === null || typeof value !== "object") return value;
   if (context.ancestors.has(value)) return CIRCULAR;
   const isError = value instanceof Error;
-  if (!isError && !isWalkable(value, context.errorPrototype)) return value;
+  if (!isError && !isWalkable(value)) return value;
   context.ancestors.add(value);
   const redacted = walkChildren(
     isError ? pino.stdSerializers.err(value) : value,
@@ -115,11 +121,11 @@ const redactValue = (value: unknown, context: RedactionContext): unknown => {
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  return redactValue(error, {
-    queryParams: collectQueryParams(error),
-    ancestors: new Set(),
-    errorPrototype: Object.getPrototypeOf(pino.stdSerializers.err(error)),
-  });
+  // Longest first: one query's params can be a prefix of another's.
+  const queryParams = collectQueryParams(error).sort(
+    (left, right) => right.length - left.length,
+  );
+  return redactValue(error, { queryParams, ancestors: new Set() });
 };
 
 export const logger = pino({
