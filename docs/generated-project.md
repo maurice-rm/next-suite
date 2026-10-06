@@ -278,7 +278,7 @@ Each layer contributes a JSON fragment, base first, and the resolved dependency 
 - Every other top-level field is replaced outright by the last fragment that declares it. A field no later fragment mentions keeps the earlier value.
 - Those three maps are emitted with their keys sorted alphabetically.
 - The output is two-space-indented JSON with a trailing newline.
-- An unparsable fragment aborts generation with `Invalid package.json fragment at index <n>: <reason>.`
+- A fragment that does not parse, is not a JSON object, or carries a `dependencies`, `devDependencies` or `scripts` field that is not an object aborts generation with `Invalid package.json fragment at index <n>: <reason>.`
 
 ### `.env.example`
 
@@ -301,7 +301,7 @@ Once merged, `.env.example` is copied verbatim to `.env`. Nothing in the project
 - The `plugins` arrays are concatenated in layer order and deduplicated last-seen-wins, so a plugin that a later layer re-declares moves to the end of the list. That is what guarantees `prettier-plugin-tailwindcss` runs last.
 - An empty or absent `plugins` array is omitted from the output.
 - The output is two-space-indented JSON with a trailing newline.
-- An unparsable fragment aborts generation with `Invalid .prettierrc.json fragment at index <n>: <reason>.`
+- A fragment that does not parse, is not a JSON object, or carries a `plugins` field that is not an array of strings aborts generation with `Invalid .prettierrc.json fragment at index <n>: <reason>.`
 
 Finally, the manifest `next-suite.json` is added to the map, and the whole map is written to disk.
 

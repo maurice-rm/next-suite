@@ -24,10 +24,12 @@ continue — the generated project is never invalidated by one of them.
 | `--yes requires --domain.`                                                               | Non-interactive mode has no domain to use              | —                                       | [`--yes` without `--domain`](#--yes-without---domain)                                  |
 | `No next-suite.json here.`                                                               | Wrong working directory, or the file was not committed | `ls next-suite.json`                    | [No manifest, or the wrong production mode](#no-manifest-or-the-wrong-production-mode) |
 | `provision supports only the 'proxied' production mode`                                  | The project was scaffolded standalone                  | `cat next-suite.json`                   | [No manifest, or the wrong production mode](#no-manifest-or-the-wrong-production-mode) |
-| `gh is not authenticated`, `no GitHub remote`, `could not resolve the GitHub repository` | `gh` cannot reach the target repo                      | `gh auth status`                        | [GitHub is not reachable](#github-is-not-reachable)                                    |
+| `gh is not authenticated`, `No GitHub remote`, `Could not resolve the GitHub repository` | `gh` cannot reach the target repo                      | `gh auth status`                        | [GitHub is not reachable](#github-is-not-reachable)                                    |
+| `Only half of the deploy keypair exists at …`                                            | One of the two local deploy key files is missing       | `ls ~/.config/next-suite/keys/`         | [Half of the deploy keypair is missing](#half-of-the-deploy-keypair-is-missing)        |
 | `TLS: deferred`, usually after `<domain> does not resolve to this server`                | The domain does not point at this server               | `dig +short A <domain>`                 | [The certificate request fails](#the-certificate-request-fails)                        |
 | `nginx -t failed; reverted /etc/nginx/conf.d/<project>.conf`                             | The host's nginx config rejects the new site           | `ssh root@<host> nginx -t`              | [`nginx -t` fails](#nginx--t-fails)                                                    |
 | A 502 after a re-run, or `No free port in 8100-8199`                                     | The assigned port is taken, or the range is full       | `ssh root@<host> ss -ltn`               | [The port is already taken](#the-port-is-already-taken)                                |
+| `/srv/ports.json must be a JSON object of project names to port numbers.`                | The shared port registry was hand-edited or corrupted  | `ssh root@<host> cat /srv/ports.json`   | [The port registry is malformed](#the-port-registry-is-malformed)                      |
 
 ## Scaffolding
 
@@ -243,11 +245,11 @@ own sidecar, so there is no host nginx for provision to configure.
 Unless `--skip-github` is passed, three things are verified before any secret is
 written:
 
-| Message                                                               | Fix                                                        |
-| --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `no GitHub remote — add one or pass --skip-github`                    | `git remote add origin …`                                  |
-| `gh is not authenticated — run 'gh auth login' or pass --skip-github` | `gh auth login`                                            |
-| `could not resolve the GitHub repository (gh repo view) …`            | Fix the remote so `gh repo view` resolves an `owner/repo`. |
+| Message                                                                | Fix                                                        |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `No GitHub remote — add one or pass --skip-github.`                    | `git remote add origin …`                                  |
+| `gh is not authenticated — run 'gh auth login' or pass --skip-github.` | `gh auth login`                                            |
+| `Could not resolve the GitHub repository (gh repo view) …`             | Fix the remote so `gh repo view` resolves an `owner/repo`. |
 
 The last one is a refusal, not a bug: the deploy key must not be written to an
 unknown target. Every `gh` call is pinned to the resolved repository with
@@ -256,6 +258,26 @@ fork is not necessarily `origin`.
 
 `--skip-github` prints the full checklist instead, **including the private deploy
 key in clear text**. Treat your scrollback accordingly.
+
+### Half of the deploy keypair is missing
+
+```text
+Only half of the deploy keypair exists at <path> — restore or delete both <path> and <path>.pub, then run again.
+```
+
+The deploy key lives in two files under `~/.config/next-suite/keys/` (or
+`$XDG_CONFIG_HOME/next-suite/keys/`): `<project>` holds the private key,
+`<project>.pub` the public one. Provision generates a new pair only when both are
+missing. With one of them gone it stops before it changes the server, because
+generating a fresh pair would overwrite the surviving half.
+
+Pick one:
+
+- **Restore the missing file** from a backup. The existing key on the server and
+  in the GitHub secret keeps working.
+- **Delete both files** and re-run. Provision mints a new pair, appends the new
+  public key to the server's `authorized_keys`, and overwrites `DEPLOY_SSH_KEY`.
+  The old public key stays in `authorized_keys` until you remove it by hand.
 
 ### The certificate request fails
 
@@ -274,7 +296,10 @@ warns on a mismatch:
 publishes only an AAAA record warns on every run even when DNS is correct. It
 also compares against the server's own `hostname -I` output, which is wrong
 behind NAT. The warning never blocks the request; certbot's exit code is the
-real answer.
+real answer. Only a lookup that fails for a reason other than a missing or
+temporarily unreachable record — anything but `ENOTFOUND`, `ENODATA`,
+`ETIMEOUT`, `ESERVFAIL`, `ECONNREFUSED` or `EAI_AGAIN` — stops the run, with
+the resolver's error.
 
 When it is genuinely DNS, mind the rate limits before retrying: Let's Encrypt
 allows five failed validations per hostname per hour, with one slot returning
@@ -291,8 +316,8 @@ nginx -t failed; reverted /etc/nginx/conf.d/<project>.conf
 ```
 
 **Nothing is left broken.** The write is staged: the existing file is backed up,
-the new one written, `nginx -t` run, and only on success is the backup dropped
-and nginx reloaded. On failure the backup is moved back, or the new file removed
+the new one written, `nginx -t` run, and only on success is the backup kept as
+`<project>.conf.prev` and nginx reloaded. On failure the backup is moved back, or the new file removed
 if there was none — and the run aborts rather than reloading.
 
 The generated block is self-contained, so a failure is almost always a collision
@@ -327,6 +352,25 @@ ssh root@<host> ss -ltn
 Note also that the registry is written without a lock. Two provision runs against
 the same host at the same time can hand out the same port or lose one another's
 entry — provision one project at a time per host.
+
+### The port registry is malformed
+
+```text
+/srv/ports.json must be a JSON object of project names to port numbers.
+```
+
+Provision and deprovision both read the shared registry and refuse to guess when
+it does not parse as `{"<project>": <port>, …}` with integer ports — treating it
+as empty would hand out ports that other projects already use. Inspect it, then
+repair it by hand from the ports the projects on the host actually use:
+
+```bash
+ssh root@<host> cat /srv/ports.json
+ssh root@<host> grep -H APP_PORT /srv/www/*/.env
+```
+
+A registry that is not valid JSON at all stops the run with the JSON parser's
+error instead; the fix is the same.
 
 ---
 

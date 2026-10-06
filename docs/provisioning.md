@@ -21,6 +21,10 @@ Three things must be in place locally before the command does anything:
 | `.env.example` in the cwd      | file exists                                              | `No .env.example here — it ships with the scaffold; restore it …`             |
 | A global config                | `~/.config/next-suite/config.json`                       | none — you are prompted for it and it is written on the spot                  |
 
+A `next-suite.json` or global config that exists but cannot be read — any error
+other than "file not found", such as a permission error — stops the run with
+that error instead of being treated as missing.
+
 The project name is also validated: it must match `^[a-z][a-z0-9._-]*$`, because
 it becomes a Linux user name, a directory name, and an nginx config file name.
 
@@ -133,7 +137,10 @@ An ed25519 keypair is loaded from `~/.config/next-suite/keys/<project>` or
 generated there if absent (private key mode `600`, directory mode `700`). It is
 never reminted on a later run: a fresh key would append to the server's
 `authorized_keys` forever and orphan the GitHub secret that still holds the old
-one.
+one. Only a keypair with both files missing is generated. If exactly one of
+`<project>` and `<project>.pub` exists, the run stops before it changes the server
+rather than overwrite the surviving half — restore the missing file, or delete
+both to start over with a new key.
 
 ### Server setup
 
@@ -157,7 +164,10 @@ The user gets no password and no sudo rule.
 project on the host. If the project already has an entry, that port is reused
 and nothing is written. Otherwise `ss -ltn` is run, the first port in
 **8100–8199** that is neither in the registry nor currently listening is taken,
-and the updated registry is written back.
+and the updated registry is written back through a temporary file and a `mv`.
+A registry that is not a JSON object of project names to port numbers stops the
+run with `/srv/ports.json must be a JSON object of project names to port
+numbers.` rather than being treated as empty.
 
 ### Server `.env`
 
@@ -196,6 +206,9 @@ deploy user, mode `600`.
 Before certbot runs, the domain is resolved and compared against the server's
 own addresses. This is advisory only — a mismatch prints a warning and the
 request is attempted anyway, because certbot's exit code is the real answer.
+A missing or temporarily unreachable record (`ENOTFOUND`, `ENODATA`, `ETIMEOUT`,
+`ESERVFAIL`, `ECONNREFUSED`, `EAI_AGAIN`) counts as a mismatch; any other lookup
+error stops the run.
 
 If certbot fails, the previous nginx config is restored when there was one for a
 different domain, and the run continues with TLS deferred. The outro then tells
@@ -208,7 +221,7 @@ limits: five failed validations per hostname per hour, one slot back every
 The full site config is written to `/etc/nginx/conf.d/<project>.conf` only once
 the certificate exists. The write is validated before it is committed: the old
 file is copied to `<name>.conf.bak`, the new one is written, `nginx -t` runs, and
-only on success is the backup dropped and nginx reloaded. On failure the backup
+only on success is the backup kept as `<name>.conf.prev` and nginx reloaded. On failure the backup
 is moved back (or the new file removed) and the step fails. After a successful
 reload the `nginx-limit-req` and `nginx-botsearch` fail2ban jails are reloaded,
 because their `*error.log` glob is resolved only at jail start and would
@@ -298,11 +311,11 @@ fields with the current values pre-filled, and writes the file back.
 Unless `--skip-github` is passed, three preconditions are checked after preflight
 and before anything is written to GitHub:
 
-| Precondition              | Checked with                        | Error                                                                            |
-| ------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
-| An `origin` remote exists | `git remote get-url origin`         | `no GitHub remote — add one or pass --skip-github`                               |
-| `gh` is authenticated     | `gh auth status`                    | `gh is not authenticated — run 'gh auth login' or pass --skip-github`            |
-| The repository resolves   | `gh repo view --json nameWithOwner` | `could not resolve the GitHub repository … fix the remote or pass --skip-github` |
+| Precondition              | Checked with                        | Error                                                                             |
+| ------------------------- | ----------------------------------- | --------------------------------------------------------------------------------- |
+| An `origin` remote exists | `git remote get-url origin`         | `No GitHub remote — add one or pass --skip-github.`                               |
+| `gh` is authenticated     | `gh auth status`                    | `gh is not authenticated — run 'gh auth login' or pass --skip-github.`            |
+| The repository resolves   | `gh repo view --json nameWithOwner` | `Could not resolve the GitHub repository … fix the remote or pass --skip-github.` |
 
 The resolved `owner/repo` is passed to every `gh` call as `--repo`. Without it
 `gh` picks its target from the remotes, which in a fork is not necessarily

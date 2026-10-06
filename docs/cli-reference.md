@@ -194,7 +194,7 @@ Answering `Yes` to the quick-start confirm skips every step listed after it. The
 
 ## Navigation
 
-Back-navigation is wired onto every prompt through `src/ui/navigable.ts`, and the footer of each prompt lists the keys that apply.
+Back-navigation is wired onto every prompt through `withGoBack` in `src/ui/go-back.ts`, which the `src/ui/navigable-*.ts` prompts share, and the footer of each prompt lists the keys that apply.
 
 | Prompt type                  | Back key | Other keys                                             |
 | ---------------------------- | -------- | ------------------------------------------------------ |

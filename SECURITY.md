@@ -46,23 +46,23 @@ Checks 5 to 9 are host prerequisites provision refuses to create for you. That i
 
 The complete list, in the order a run produces it:
 
-| Resource                                                   | Change                                                                                                                                                                                                                                                    | Source                    |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| `/srv/www`                                                 | Created; `chown www-data:www-data` when that user exists; mode `3775`.                                                                                                                                                                                    | `commands.ts`             |
-| System user `<project>`                                    | Created with `useradd -m -d /srv/www/<project> -s /bin/bash` if absent. No password is set and no sudo rule is added. If the user already exists with a _different_ home, the script aborts and touches nothing.                                          | `commands.ts`             |
-| Group membership `docker`                                  | `usermod -aG docker <project>`, only if the group exists.                                                                                                                                                                                                 | `commands.ts`             |
-| Group membership `deploy`                                  | `usermod -aG deploy <project>`, only if the group exists.                                                                                                                                                                                                 | `commands.ts`             |
-| `/srv/www/<project>`                                       | Created, `chown <project>:<project>`, mode `3755`.                                                                                                                                                                                                        | `commands.ts`             |
-| `/srv/www/<project>/.ssh`                                  | Created, owner `<project>`, mode `700`.                                                                                                                                                                                                                   | `commands.ts`             |
-| `/srv/www/<project>/.ssh/authorized_keys`                  | The deploy public key is appended if not already present (exact-line match); mode `600`, owner `<project>`.                                                                                                                                               | `commands.ts`             |
-| `/srv/ports.json`                                          | Read, and rewritten with this project's port when it has none yet. A shared registry across all projects on the host.                                                                                                                                     | `steps.ts`                |
-| `/srv/www/<project>/.env.tmp`                              | Created with `install -m 600 -o <project> -g <project>`, filled, then `mv`d over `.env`. Staged so a failed upload cannot leave an empty `.env` on a running host.                                                                                        | `steps.ts`                |
-| `/srv/www/<project>/.env`                                  | Replaced by the staged file. Mode `600`, owner `<project>`.                                                                                                                                                                                               | `steps.ts`                |
-| `/etc/nginx/conf.d/<project>.conf`                         | Written — first an ACME-challenge-only block if no certificate exists yet, then the full TLS and proxy block. A `.conf.bak` copy is taken during the write and removed on success; a failed `nginx -t` restores it and the run fails.                     | `commands.ts`, `nginx.ts` |
-| nginx process                                              | Reloaded via `systemctl reload nginx`, falling back to `nginx -s reload`.                                                                                                                                                                                 | `commands.ts`             |
-| fail2ban jails `nginx-limit-req`, `nginx-botsearch`        | `fail2ban-client reload` per jail, best effort, so the new project's `error.log` enters the jail's glob. Failures are ignored.                                                                                                                            | `commands.ts`             |
-| `/etc/letsencrypt/…`                                       | `certbot certonly --webroot -w /var/www/certbot -d <domain> --non-interactive --agree-tos -m <configured email>` — certbot writes the certificate, archive and renewal configuration itself. `--staging` and `--force-renewal` are added when applicable. | `commands.ts`, `steps.ts` |
-| `/var/log/nginx/<domain>.access.log`, `<domain>.error.log` | Created by nginx as a result of the site config.                                                                                                                                                                                                          | `nginx.ts`                |
+| Resource                                                   | Change                                                                                                                                                                                                                                                    | Source                                    |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `/srv/www`                                                 | Created; `chown www-data:www-data` when that user exists; mode `3775`.                                                                                                                                                                                    | `server-scripts.ts`                       |
+| System user `<project>`                                    | Created with `useradd -m -d /srv/www/<project> -s /bin/bash` if absent. No password is set and no sudo rule is added. If the user already exists with a _different_ home, the script aborts and touches nothing.                                          | `server-scripts.ts`                       |
+| Group membership `docker`                                  | `usermod -aG docker <project>`, only if the group exists.                                                                                                                                                                                                 | `server-scripts.ts`                       |
+| Group membership `deploy`                                  | `usermod -aG deploy <project>`, only if the group exists.                                                                                                                                                                                                 | `server-scripts.ts`                       |
+| `/srv/www/<project>`                                       | Created, `chown <project>:<project>`, mode `3755`.                                                                                                                                                                                                        | `server-scripts.ts`                       |
+| `/srv/www/<project>/.ssh`                                  | Created, owner `<project>`, mode `700`.                                                                                                                                                                                                                   | `server-scripts.ts`                       |
+| `/srv/www/<project>/.ssh/authorized_keys`                  | The deploy public key is appended if not already present (exact-line match); mode `600`, owner `<project>`.                                                                                                                                               | `server-scripts.ts`                       |
+| `/srv/ports.json`                                          | Read, and rewritten with this project's port when it has none yet — staged as `ports.json.tmp` and `mv`d into place. A shared registry across all projects on the host. A malformed registry stops the run instead of being treated as empty.             | `provision-server.ts`, `port-registry.ts` |
+| `/srv/www/<project>/.env.tmp`                              | Created with `install -m 600 -o <project> -g <project>`, filled, then `mv`d over `.env`. Staged so a failed upload cannot leave an empty `.env` on a running host.                                                                                        | `provision-server.ts`                     |
+| `/srv/www/<project>/.env`                                  | Replaced by the staged file. Mode `600`, owner `<project>`.                                                                                                                                                                                               | `provision-server.ts`                     |
+| `/etc/nginx/conf.d/<project>.conf`                         | Written — first an ACME-challenge-only block if no certificate exists yet, then the full TLS and proxy block. A `.conf.bak` copy is taken during the write and kept as `.conf.prev` on success; a failed `nginx -t` restores it and the run fails.        | `server-scripts.ts`, `nginx.ts`           |
+| nginx process                                              | Reloaded via `systemctl reload nginx`, falling back to `nginx -s reload`.                                                                                                                                                                                 | `server-scripts.ts`                       |
+| fail2ban jails `nginx-limit-req`, `nginx-botsearch`        | `fail2ban-client reload` per jail, best effort, so the new project's `error.log` enters the jail's glob. Failures are ignored.                                                                                                                            | `server-scripts.ts`                       |
+| `/etc/letsencrypt/…`                                       | `certbot certonly --webroot -w /var/www/certbot -d <domain> --non-interactive --agree-tos -m <configured email>` — certbot writes the certificate, archive and renewal configuration itself. `--staging` and `--force-renewal` are added when applicable. | `server-scripts.ts`, `provision-tls.ts`   |
+| `/var/log/nginx/<domain>.access.log`, `<domain>.error.log` | Created by nginx as a result of the site config.                                                                                                                                                                                                          | `nginx.ts`                                |
 
 Read-only commands the run also issues: `ss -ltn` (to find a free port in `8100`–`8199`), `hostname -I` (advisory DNS check), `cat` on the files above, and `openssl x509 -noout -issuer` to detect a leftover staging certificate.
 
@@ -72,11 +72,11 @@ Outside the server, provision writes GitHub Actions configuration for the reposi
 
 ### The deploy user joins the `docker` group
 
-`serverSetupScript` runs `usermod -aG docker <project>` whenever the `docker` group exists. This is what lets the deploy workflow run `docker compose` over SSH without sudo, and it is the single most consequential decision in the whole command.
+`buildServerSetupScript` (`server-scripts.ts`) runs `usermod -aG docker <project>` whenever the `docker` group exists. This is what lets the deploy workflow run `docker compose` over SSH without sudo, and it is the single most consequential decision in the whole command.
 
 **Membership in the `docker` group is equivalent to root on that host.** Anyone who can talk to the Docker socket can start a container that mounts `/` and read or write anything on the machine. There is no privilege boundary between the deploy user and root.
 
-The CLI warns about this itself before it does anything. The confirmation note in `src/provision/index.ts` reads:
+The CLI warns about this itself before it does anything. The plan note the interactive wizard shows before its confirm gate (`renderProvisionPlan` in `src/provision/provision-wizard.ts`) reads:
 
 ```text
 ⚠ The deploy user joins the docker group, which on this
@@ -106,16 +106,18 @@ Verified by reading every script the command sends:
 
 `XDG_CONFIG_HOME` is respected: `configPath()` uses `$XDG_CONFIG_HOME/next-suite/config.json` when the variable is set, and falls back to `~/.config/next-suite/config.json` otherwise. The key directory is derived from the same base.
 
-The key directory is created with mode `0700`, and the private key file is written with mode `0600`. The keypair is deliberately persisted and reused across runs — a fresh key every run would append to the server's `authorized_keys` forever and orphan the previous GitHub secret.
+The key directory is created with mode `0700`, and the private key file is written with mode `0600`. The keypair is deliberately persisted and reused across runs — a fresh key every run would append to the server's `authorized_keys` forever and orphan the previous GitHub secret. A pair with only one of its two files present stops the run instead of being regenerated over the surviving half (`loadOrCreateKeypair` in `deploy-keypair.ts`).
 
 ### Known inconsistency: the config file's permissions depend on which command created it
 
 There are two code paths that write `config.json`, and they do not agree on the mode:
 
-- `src/provision/index.ts` (`loadOrPromptConfig`, reached when `provision` finds no config and prompts for one) writes it with an explicit mode:
+- `src/provision/index.ts` (`loadOrPromptConfig`, reached when `provision` finds no config and prompts for one) writes it with an explicit mode (`PRIVATE_FILE_MODE` is `0o600`, from `file-modes.ts`):
 
   ```ts
-  await fs.outputFile(file, serializeGlobalConfig(config), { mode: 0o600 });
+  await fs.outputFile(configPath(), serializeGlobalConfig(config), {
+    mode: PRIVATE_FILE_MODE,
+  });
   ```
 
 - `src/provision/config-command.ts` (the `next-suite config` command) writes it with no mode at all:
@@ -142,18 +144,22 @@ One more local artifact: on non-Windows platforms the CLI multiplexes its roughl
 
 ### Warning: `--skip-github` prints the private deploy key in clear text
 
-When you pass `--skip-github`, provision cannot store the secrets for you, so it prints them for manual entry. That checklist includes `DEPLOY_SSH_KEY` — the **private** key, in full, unredacted. In `src/provision/steps.ts`:
+When you pass `--skip-github`, provision cannot store the secrets for you, so it prints them for manual entry. That checklist includes `DEPLOY_SSH_KEY` — the **private** key, in full, unredacted. In `src/provision/run-provision.ts`:
 
 ```ts
-} else {
+const reportManualChecklist = (
+  { stepLog }: ProvisionContext,
+  entries: GithubEntry[],
+  onBlock?: (title: string, body: string) => void,
+): void => {
   const title = "Skipped GitHub config (--skip-github) — set these manually";
   const body = formatManualChecklist(entries);
-  log.push(title, body);
-  onBlock(title, body);
-}
+  stepLog.lines.push(title, body);
+  onBlock?.(title, body);
+};
 ```
 
-`entries` comes from `ghDeployConfig(deploy, domain, privateKey, …)`, whose first entry is `{ kind: "secret", name: "DEPLOY_SSH_KEY", value: privateKey }`. `formatManualChecklist` exists specifically to render that multi-line value verbatim so it survives copy-paste. The block is written to the terminal _and_ appended to the returned log.
+`entries` comes from `buildGithubDeployEntries(deploy, privateKey, appUrl)` (`github-deploy.ts`), whose first entry is `{ kind: "secret", name: "DEPLOY_SSH_KEY", value: privateKey }`. `formatManualChecklist` exists specifically to render that multi-line value verbatim so it survives copy-paste. The block is written to the terminal _and_ appended to the returned log.
 
 The consequences are the ones you would expect, and they are easy to overlook:
 
@@ -186,7 +192,7 @@ The one thing that is reported rather than changed: if the server `.env` carries
 next-suite provision --dry-run
 ```
 
-The dry run is the recommended first step and is side-effect free by construction. It makes no server connection, and it does not even persist the global config — `loadOrPromptConfig(false)` skips the write precisely because a dry run promises to change nothing.
+The dry run is the recommended first step and is side-effect free by construction. It makes no server connection, and it does not even persist the global config — `printDryRunPlan` (`src/provision/index.ts`) reads a saved config or prompts through `promptConfig` without writing, precisely because a dry run promises to change nothing.
 
 What it prints, from `buildDryRunPlan` in `src/provision/plan.ts`: the admin target, the user and directory to be created (flagged `(docker group)`), the port, the derived `.env`, the full server setup script, the nginx write script with the rendered site block, the exact `certbot` command line, the preflight check names — derived from `remoteChecks()` rather than hand-written, so the list cannot drift — and the GitHub entries.
 
