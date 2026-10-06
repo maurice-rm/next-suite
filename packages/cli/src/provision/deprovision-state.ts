@@ -68,6 +68,8 @@ export const discoverState = async (
     hasUser,
     hasAppDirectory,
     hasPortEntry: name in registry,
-    hasLocalKeys: await isExistingFile(getDeployKeyPath(name)),
+    hasLocalKeys: await isExistingFile(
+      getDeployKeyPath({ host: target.host, name }),
+    ),
   };
 };

@@ -51,8 +51,10 @@ const prepareDeployKeypair = async (
   const { name } = request.manifest;
   const keys = generate
     ? await generate(`${deploy.user}@${deploy.host}`)
-    : await loadOrCreateKeypair(name);
-  stepLog.step(`Deploy key ready (~/.config/next-suite/keys/${name})`);
+    : await loadOrCreateKeypair({ host: deploy.host, name });
+  stepLog.step(
+    `Deploy key ready (~/.config/next-suite/keys/${deploy.host}/${name})`,
+  );
   return keys;
 };
 

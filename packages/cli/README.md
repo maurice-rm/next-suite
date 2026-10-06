@@ -86,7 +86,7 @@ next-suite provision
 **What a run does, in order:**
 
 1. **Preflight** — checks the server is reachable and has the prerequisites below; aborts before changing anything if not.
-2. **Deploy keypair** — generates (or reuses) an SSH keypair, persisted at `~/.config/next-suite/keys/<name>`.
+2. **Deploy keypair** — generates (or reuses) an SSH keypair, persisted per server at `~/.config/next-suite/keys/<host>/<name>`.
 3. **Server user + `/srv/www/<name>`** — creates a user named after the project, home `/srv/www/<name>`. `/srv/www` itself is `www-data:www-data` mode `3775`; the project dir is `<user>:<user>` mode `3755`. The user joins the `docker` group and the `deploy` group — each only if that group already exists — and gets no password and no sudo. The `deploy` group is what takes SSH tunneling away from the deploy key; see [Server requirements](https://github.com/maurice-rm/next-suite/blob/main/docs/server-requirements.md).
 4. **Port allocation** — assigns a free port in `8100`–`8199` from the shared registry `/srv/ports.json`; reused on re-run.
 5. **`.env`** — derived from the project's own `.env.example`: structure (comments, blank lines) is preserved, known keys get server-appropriate values, secrets are freshly generated. Uploaded to `/srv/www/<name>/.env`, owned by the deploy user, mode `600`. **Additive merge** — keys already present on the server are never overwritten.

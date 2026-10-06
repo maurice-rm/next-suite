@@ -54,7 +54,7 @@ The complete list, in the order a run produces it:
 | Group membership `deploy`                                  | `usermod -aG deploy <project>`, only if the group exists.                                                                                                                                                                                                 | `server-scripts.ts`                       |
 | `/srv/www/<project>`                                       | Created, `chown <project>:<project>`, mode `3755`.                                                                                                                                                                                                        | `server-scripts.ts`                       |
 | `/srv/www/<project>/.ssh`                                  | Created, owner `<project>`, mode `700`.                                                                                                                                                                                                                   | `server-scripts.ts`                       |
-| `/srv/www/<project>/.ssh/authorized_keys`                  | The deploy public key is appended if not already present (exact-line match); mode `600`, owner `<project>`.                                                                                                                                               | `server-scripts.ts`                       |
+| `/srv/www/<project>/.ssh/authorized_keys`                  | Rewritten to hold exactly one key with the project's comment (`<project>@next-suite`), the current one; other keys are kept; mode `600`, owner `<project>`.                                                                                               | `server-scripts.ts`                       |
 | `/srv/ports.json`                                          | Read, and rewritten with this project's port when it has none yet — staged as `ports.json.tmp` and `mv`d into place. A shared registry across all projects on the host. A malformed registry stops the run instead of being treated as empty.             | `provision-server.ts`, `port-registry.ts` |
 | `/srv/www/<project>/.env.tmp`                              | Created with `install -m 600 -o <project> -g <project>`, filled, then `mv`d over `.env`. Staged so a failed upload cannot leave an empty `.env` on a running host.                                                                                        | `provision-server.ts`                     |
 | `/srv/www/<project>/.env`                                  | Replaced by the staged file. Mode `600`, owner `<project>`.                                                                                                                                                                                               | `provision-server.ts`                     |
@@ -98,15 +98,15 @@ Verified by reading every script the command sends:
 
 ### Where secrets live locally
 
-| Path                                      | Content                                                                                                                  |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `~/.config/next-suite/config.json`        | The global config: `host`, `adminUser`, `certbotEmail`. Not a credential, but it names your server and your admin login. |
-| `~/.config/next-suite/keys/<project>`     | The **private** SSH deploy key for that project, in plain text.                                                          |
-| `~/.config/next-suite/keys/<project>.pub` | The matching public key.                                                                                                 |
+| Path                                             | Content                                                                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `~/.config/next-suite/config.json`               | The global config: `host`, `adminUser`, `certbotEmail`. Not a credential, but it names your server and your admin login. |
+| `~/.config/next-suite/keys/<host>/<project>`     | The **private** SSH deploy key for that project on that server, in plain text.                                           |
+| `~/.config/next-suite/keys/<host>/<project>.pub` | The matching public key.                                                                                                 |
 
 `XDG_CONFIG_HOME` is respected: `configPath()` uses `$XDG_CONFIG_HOME/next-suite/config.json` when the variable is set, and falls back to `~/.config/next-suite/config.json` otherwise. The key directory is derived from the same base.
 
-The key directory is created with mode `0700`, and the private key file is written with mode `0600`. The keypair is deliberately persisted and reused across runs — a fresh key every run would append to the server's `authorized_keys` forever and orphan the previous GitHub secret. A pair with only one of its two files present stops the run instead of being regenerated over the surviving half (`loadOrCreateKeypair` in `deploy-keypair.ts`).
+The key directory is created with mode `0700`, and the private key file is written with mode `0600`. The keypair is deliberately persisted and reused across runs against the same server, so the GitHub secret stays valid; it is keyed by host and project, so two same-named projects on different servers never share a key that opens both. A pair with only one of its two files present stops the run instead of being regenerated over the surviving half (`loadOrCreateKeypair` in `deploy-keypair.ts`).
 
 ### Known inconsistency: the config file's permissions depend on which command created it
 
@@ -167,7 +167,7 @@ The consequences are the ones you would expect, and they are easy to overlook:
 - **CI logs.** `--skip-github` combined with `--yes` in an automated context writes a root-equivalent private key into the job log, where everyone with read access to the run can retrieve it. GitHub's secret masking does not help — this value was never registered as a secret.
 - **`script`, `tee`, `tmux` capture panes** and anything else recording the session.
 
-If you use `--skip-github`, run it interactively, transfer the key to its destination, then clear the scrollback. Never use it in CI. Note that the key remains available at `~/.config/next-suite/keys/<project>`, so you never need to recover it from a log.
+If you use `--skip-github`, run it interactively, transfer the key to its destination, then clear the scrollback. Never use it in CI. Note that the key remains available at `~/.config/next-suite/keys/<host>/<project>`, so you never need to recover it from a log.
 
 ### How generated secrets are made, and what survives a re-run
 

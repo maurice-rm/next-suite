@@ -25,7 +25,7 @@ continue — the generated project is never invalidated by one of them.
 | `No next-suite.json here.`                                                               | Wrong working directory, or the file was not committed | `ls next-suite.json`                    | [No manifest, or the wrong production mode](#no-manifest-or-the-wrong-production-mode) |
 | `provision supports only the 'proxied' production mode`                                  | The project was scaffolded standalone                  | `cat next-suite.json`                   | [No manifest, or the wrong production mode](#no-manifest-or-the-wrong-production-mode) |
 | `gh is not authenticated`, `No GitHub remote`, `Could not resolve the GitHub repository` | `gh` cannot reach the target repo                      | `gh auth status`                        | [GitHub is not reachable](#github-is-not-reachable)                                    |
-| `Only half of the deploy keypair exists at …`                                            | One of the two local deploy key files is missing       | `ls ~/.config/next-suite/keys/`         | [Half of the deploy keypair is missing](#half-of-the-deploy-keypair-is-missing)        |
+| `Only half of the deploy keypair exists at …`                                            | One of the two local deploy key files is missing       | `ls ~/.config/next-suite/keys/<host>/`  | [Half of the deploy keypair is missing](#half-of-the-deploy-keypair-is-missing)        |
 | `TLS: deferred`, usually after `<domain> does not resolve to this server`                | The domain does not point at this server               | `dig +short A <domain>`                 | [The certificate request fails](#the-certificate-request-fails)                        |
 | `nginx -t failed; reverted /etc/nginx/conf.d/<project>.conf`                             | The host's nginx config rejects the new site           | `ssh root@<host> nginx -t`              | [`nginx -t` fails](#nginx--t-fails)                                                    |
 | A 502 after a re-run, or `No free port in 8100-8199`                                     | The assigned port is taken, or the range is full       | `ssh root@<host> ss -ltn`               | [The port is already taken](#the-port-is-already-taken)                                |
@@ -265,8 +265,8 @@ key in clear text**. Treat your scrollback accordingly.
 Only half of the deploy keypair exists at <path> — restore or delete both <path> and <path>.pub, then run again.
 ```
 
-The deploy key lives in two files under `~/.config/next-suite/keys/` (or
-`$XDG_CONFIG_HOME/next-suite/keys/`): `<project>` holds the private key,
+The deploy key lives in two files under `~/.config/next-suite/keys/<host>/` (or
+`$XDG_CONFIG_HOME/next-suite/keys/<host>/`): `<project>` holds the private key,
 `<project>.pub` the public one. Provision generates a new pair only when both are
 missing. With one of them gone it stops before it changes the server, because
 generating a fresh pair would overwrite the surviving half.
@@ -275,9 +275,9 @@ Pick one:
 
 - **Restore the missing file** from a backup. The existing key on the server and
   in the GitHub secret keeps working.
-- **Delete both files** and re-run. Provision mints a new pair, appends the new
-  public key to the server's `authorized_keys`, and overwrites `DEPLOY_SSH_KEY`.
-  The old public key stays in `authorized_keys` until you remove it by hand.
+- **Delete both files** and re-run. Provision mints a new pair, replaces the
+  project's old public key in the server's `authorized_keys`, and overwrites
+  `DEPLOY_SSH_KEY`.
 
 ### The certificate request fails
 

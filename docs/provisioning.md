@@ -133,11 +133,14 @@ real one — see [Idempotence](#idempotence).
 
 ### Deploy keypair
 
-An ed25519 keypair is loaded from `~/.config/next-suite/keys/<project>` or
-generated there if absent (private key mode `600`, directory mode `700`). It is
-never reminted on a later run: a fresh key would append to the server's
-`authorized_keys` forever and orphan the GitHub secret that still holds the old
-one. Only a keypair with both files missing is generated. If exactly one of
+An ed25519 keypair is loaded from `~/.config/next-suite/keys/<host>/<project>` or
+generated there if absent (private key mode `600`, directory mode `700`). The
+key belongs to one project on one server: two projects with the same name on
+different servers never share a key, so a repository's `DEPLOY_SSH_KEY` opens
+only its own server. It is reused on a later run against the same server, so the
+GitHub secret stays valid. Only a keypair with both files missing is generated.
+Keys from versions before 1.4 lived at `keys/<project>`; they are no longer read
+— the next run mints a per-server key, and the old files can be deleted. If exactly one of
 `<project>` and `<project>.pub` exists, the run stops before it changes the server
 rather than overwrite the surviving half — restore the missing file, or delete
 both to start over with a new key.
@@ -153,8 +156,10 @@ One script runs as root and is safe to repeat:
 - The project directory becomes `<project>:<project>`, mode `3755`.
 - The user joins the `docker` group and the `deploy` group — each only if the
   group already exists on the host.
-- `~/.ssh` is created mode `700`, and the deploy public key is appended to
-  `authorized_keys` (mode `600`) unless the exact line is already there.
+- `~/.ssh` is created mode `700`, and `authorized_keys` (mode `600`) is
+  rewritten so it holds exactly one key with this project's comment
+  (`<project>@next-suite`): the current one. Other keys stay untouched, and a
+  rotated key no longer lingers.
 
 The user gets no password and no sudo rule.
 
@@ -338,11 +343,11 @@ it as secret material, and prefer letting `gh` transfer the key.
 
 ## Configuration and local files
 
-| Path                                      | Contents                                                     |
-| ----------------------------------------- | ------------------------------------------------------------ |
-| `~/.config/next-suite/config.json`        | `host`, `adminUser`, `certbotEmail` — shared by all projects |
-| `~/.config/next-suite/keys/<project>`     | The deploy private key, mode `600`                           |
-| `~/.config/next-suite/keys/<project>.pub` | The matching public key                                      |
+| Path                                             | Contents                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| `~/.config/next-suite/config.json`               | `host`, `adminUser`, `certbotEmail` — shared by all projects |
+| `~/.config/next-suite/keys/<host>/<project>`     | The deploy private key, mode `600`                           |
+| `~/.config/next-suite/keys/<host>/<project>.pub` | The matching public key                                      |
 
 `XDG_CONFIG_HOME` is respected: when it is set, both paths live under
 `$XDG_CONFIG_HOME/next-suite/` instead of `~/.config/next-suite/`.

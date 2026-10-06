@@ -18,8 +18,22 @@ export type KeypairGenerator = (comment: string) => Promise<Keypair>;
 const getDeployKeyDirectory = (): string =>
   path.join(path.dirname(configPath()), "keys");
 
-export const getDeployKeyPath = (name: string): string =>
-  path.join(getDeployKeyDirectory(), name);
+/** One project on one server: a key is never shared across servers. */
+export interface DeployKeyOwner {
+  host: string;
+  name: string;
+}
+
+export const getDeployKeyComment = (name: string): string =>
+  `${name}@next-suite`;
+
+const getDeployKeyFile = (
+  keyDirectory: string,
+  { host, name }: DeployKeyOwner,
+): string => path.join(keyDirectory, host, name);
+
+export const getDeployKeyPath = (owner: DeployKeyOwner): string =>
+  getDeployKeyFile(getDeployKeyDirectory(), owner);
 
 export const generateKeypair: KeypairGenerator = async (comment) => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "ns-ssh-"));
@@ -56,17 +70,17 @@ const persistKeypair = async (
 };
 
 /**
- * Reuses the deploy keypair persisted from a prior run instead of minting a
- * new one each time — a fresh key would append to authorized_keys forever
- * (the dedup grep never matches) and orphan the previous GitHub secret.
+ * Reuses the keypair a prior run persisted for this project on this server,
+ * so the GitHub secret stays valid across runs. Keyed by host as well as
+ * name: two projects named alike on different servers never share a key.
  */
 export const loadOrCreateKeypair = async (
-  name: string,
+  owner: DeployKeyOwner,
   options?: { keyDirectory?: string; generate?: KeypairGenerator },
 ): Promise<Keypair> => {
   const keyDirectory = options?.keyDirectory ?? getDeployKeyDirectory();
   const generate = options?.generate ?? generateKeypair;
-  const keyFile = path.join(keyDirectory, name);
+  const keyFile = getDeployKeyFile(keyDirectory, owner);
 
   const [privateKey, publicKey] = await Promise.all([
     readFileIfExists(keyFile),
@@ -81,7 +95,7 @@ export const loadOrCreateKeypair = async (
     );
   }
 
-  const keys = await generate(`${name}@next-suite`);
+  const keys = await generate(getDeployKeyComment(owner.name));
   await persistKeypair(keyFile, keys);
   return keys;
 };

@@ -1,3 +1,4 @@
+import { getDeployKeyComment } from "./deploy-keypair";
 import type { DeployTarget } from "./deploy-target";
 import { getNginxConfPath } from "./server-paths";
 import { quoteShellWord } from "./shell-quote";
@@ -21,7 +22,9 @@ getent group docker >/dev/null && usermod -aG docker ${deploy.user} || true
 getent group deploy >/dev/null && usermod -aG deploy ${deploy.user} || true
 install -d -m 700 -o ${deploy.user} -g ${deploy.user} ${deploy.path}/.ssh
 touch ${deploy.path}/.ssh/authorized_keys
-grep -qxF ${quoteShellWord(publicKey)} ${deploy.path}/.ssh/authorized_keys || echo ${quoteShellWord(publicKey)} >> ${deploy.path}/.ssh/authorized_keys
+awk -v comment=${quoteShellWord(getDeployKeyComment(deploy.name))} '$NF != comment' ${deploy.path}/.ssh/authorized_keys > ${deploy.path}/.ssh/authorized_keys.next
+echo ${quoteShellWord(publicKey)} >> ${deploy.path}/.ssh/authorized_keys.next
+mv ${deploy.path}/.ssh/authorized_keys.next ${deploy.path}/.ssh/authorized_keys
 chmod 600 ${deploy.path}/.ssh/authorized_keys
 chown ${deploy.user}:${deploy.user} ${deploy.path}/.ssh/authorized_keys
 `;

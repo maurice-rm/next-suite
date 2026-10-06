@@ -20,6 +20,7 @@ test("buildServerSetupScript is idempotent, guards foreign homes, and installs t
   expect(script).toContain("usermod -aG docker acme");
   expect(script).toContain("usermod -aG deploy acme");
   expect(script).toContain("authorized_keys");
+  expect(script).toContain("awk -v comment='acme@next-suite' '$NF != comment'");
   expect(script).toContain("ssh-ed25519 AAAA... deploy");
   expect(script).not.toContain("/home/");
   expect(script).not.toContain("deploy-");

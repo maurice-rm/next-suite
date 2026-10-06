@@ -190,7 +190,7 @@ Both `runProvision` and `runDeprovision` take `StepHandlers` (`onStep?`, `onStep
 
 `--dry-run` never touches the network for planning — `index.ts` calls `buildDryRunPlan` directly instead of `runProvision`, so the preview and the real run share the same builders but diverge at the execution layer.
 
-The deploy SSH keypair is generated once per project and persisted under `~/.config/next-suite/keys/` (`loadOrCreateKeypair(name, { keyDirectory, generate })` in `deploy-keypair.ts`) — reused on re-run rather than minted fresh, so `authorized_keys` and the GitHub secret stay stable. Only a missing pair (`ENOENT` on both files) is regenerated; a half-present pair throws rather than overwrite the surviving key. `runProvision` takes a `generateKeypair` dep for tests. `deprovision` deletes it locally on request.
+The deploy SSH keypair is generated once per project and persisted per server under `~/.config/next-suite/keys/<host>/<name>` (`loadOrCreateKeypair({ host, name }, { keyDirectory, generate })` in `deploy-keypair.ts`) — never shared between two servers — reused on re-run rather than minted fresh, so `authorized_keys` and the GitHub secret stay stable. Only a missing pair (`ENOENT` on both files) is regenerated; a half-present pair throws rather than overwrite the surviving key. `runProvision` takes a `generateKeypair` dep for tests. `deprovision` deletes it locally on request.
 
 ---
 

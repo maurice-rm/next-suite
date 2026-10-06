@@ -101,7 +101,7 @@ const withXdg = async <T>(fn: (keysDir: string) => Promise<T>): Promise<T> => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "ns-depro-"));
   const prev = process.env.XDG_CONFIG_HOME;
   process.env.XDG_CONFIG_HOME = root;
-  const keysDir = path.join(root, "next-suite", "keys");
+  const keysDir = path.join(root, "next-suite", "keys", target.host);
   await fs.mkdir(keysDir, { recursive: true });
   try {
     return await fn(keysDir);

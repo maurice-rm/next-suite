@@ -903,8 +903,11 @@ test("runProvision reuses the persisted deploy key and the allocated port on a s
         privateKey: FAKE_PRIVATE_KEY,
       });
     };
-    const keypair = (name: string) =>
-      loadOrCreateKeypair(name, { keyDirectory: keyDir, generate });
+    const keypair = () =>
+      loadOrCreateKeypair(
+        { host: "server.example.com", name: "acme" },
+        { keyDirectory: keyDir, generate },
+      );
 
     let portsJson = "";
     let portsStaged = "";

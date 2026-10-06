@@ -278,7 +278,10 @@ const removeLocalKeys = async ({
   request,
   stepLog,
 }: DeprovisionContext): Promise<void> => {
-  const keyFile = getDeployKeyPath(request.name);
+  const keyFile = getDeployKeyPath({
+    host: request.target.host,
+    name: request.name,
+  });
   await fs.rm(keyFile, { force: true });
   await fs.rm(`${keyFile}.pub`, { force: true });
   stepLog.step(`local keys: ${keyFile} removed`);
