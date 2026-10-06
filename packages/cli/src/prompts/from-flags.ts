@@ -63,11 +63,6 @@ const selectableValuesOf = <T extends string>(
     (value): value is Exclude<T, typeof NONE> => value !== NONE,
   );
 
-/**
- * Match a flag value against the accepted values of its dimension.
- *
- * @throws If `flag` is none of `choices`, naming the accepted values.
- */
 const resolveChoice = <T extends string>(
   choices: readonly T[],
   flag: string,

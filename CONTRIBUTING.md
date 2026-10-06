@@ -26,12 +26,12 @@ cd next-suite
 pnpm install
 ```
 
-| Step                                                        | Expected result                                                                                                                                                             |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `git clone …`                                               | A working copy on the default branch `main`.                                                                                                                                |
-| `pnpm install`                                              | All workspace packages resolve from `pnpm-lock.yaml`; `esbuild` is the only dependency allowed to run a build script (`onlyBuiltDependencies` in `pnpm-workspace.yaml`).    |
-| `prepare` (runs automatically at the end of `pnpm install`) | Husky sets git's `core.hooksPath` to `.husky/_`, which activates `.husky/pre-commit` and `.husky/pre-push`. Verify with `git config core.hooksPath` — it prints `.husky/_`. |
-| `pnpm build`                                                | Turbo builds every package; `packages/cli/dist` exists afterwards.                                                                                                          |
+| Step                                                        | Expected result                                                                                                                                                                                                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `git clone …`                                               | A working copy on the default branch `main`.                                                                                                                                                                                               |
+| `pnpm install`                                              | All workspace packages resolve from `pnpm-lock.yaml`; `esbuild` is the only dependency allowed to run a build script (`allowBuilds` in `pnpm-workspace.yaml`), and only releases at least one day old are installed (`minimumReleaseAge`). |
+| `prepare` (runs automatically at the end of `pnpm install`) | Husky sets git's `core.hooksPath` to `.husky/_`, which activates `.husky/pre-commit` and `.husky/pre-push`. Verify with `git config core.hooksPath` — it prints `.husky/_`.                                                                |
+| `pnpm build`                                                | Turbo builds every package; `packages/cli/dist` exists afterwards.                                                                                                                                                                         |
 
 If `git config core.hooksPath` prints nothing, the hooks are not active. Re-run `pnpm install` (or `pnpm exec husky`) before you commit.
 

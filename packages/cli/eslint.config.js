@@ -89,6 +89,11 @@ const LAYER_ZONES = [
     target: "./src/provision",
     from: ["./src/prompts", "./src/post-steps", ...ENTRY_POINTS],
   },
+  { target: "./src/index.ts", from: "./src/provision" },
+  {
+    target: "./src/suite.ts",
+    from: ["./src/prompts", "./src/generator", "./src/post-steps"],
+  },
   {
     target: "./src/provision",
     from: "./src/generator",
@@ -141,6 +146,23 @@ export default defineConfig([
         },
       ],
       "simple-import-sort/exports": "error",
+    },
+  },
+  {
+    files: ["src/ui/**"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/core/*"],
+              allowTypeImports: true,
+              message: "ui/ imports only types from core/.",
+            },
+          ],
+        },
+      ],
     },
   },
   {

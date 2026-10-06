@@ -265,7 +265,7 @@ This is the rulebook. Match it from the first line of new code.
 
 - **Names and types carry the meaning; JSDoc is the exception.** An export gets JSDoc only for what its name and signature cannot say — a thrown error, a side effect, a non-obvious contract (e.g. `getPackageManagerEntry` throws, `composeProject` writes nothing to disk). A doc that restates the signature is deleted, not written.
 - **Do not restate the type system** — no `@param` that repeats the parameter name, no "optional" for an already-`?` param.
-- **Private helpers get no doc**; a helper that needs one wants a better name or a split.
+- **Private helpers get a doc only for what the code cannot say** — a constraint or a non-obvious why; a helper whose behaviour needs explaining wants a better name or a split.
 - **Use `{@link ...}`** to cross-reference registries/types.
 - **`@example` blocks on extension seams** — `Feature` carries a worked example, because adding a feature is the main future task.
 
