@@ -20,23 +20,29 @@ mv "$next" "$keys"`;
 export const buildServerSetupScript = (
   deploy: DeployTarget,
   publicKey: string,
-): string => `set -eu
+): string => {
+  // Checked before useradd and again right before chown/chmod, which follow
+  // symlinks: whoever can write to /srv/www could plant one.
+  const refuseSymlink = `[ -L ${deploy.path} ] && { echo "${deploy.path} is a symlink — refusing to touch it." >&2; exit 1; }`;
+  return `set -eu
 install -d /srv/www
 getent passwd www-data >/dev/null && chown www-data:www-data /srv/www || true
 chmod 3775 /srv/www
+${refuseSymlink}
 if id -u ${deploy.user} >/dev/null 2>&1; then
   [ "$(getent passwd ${deploy.user} | cut -d: -f6)" = "${deploy.path}" ] || { echo "User '${deploy.user}' already exists with a different home — refusing to touch it." >&2; exit 1; }
 else
   useradd -m -d ${deploy.path} -s /bin/bash ${deploy.user}
 fi
-[ -L ${deploy.path} ] && { echo "${deploy.path} is a symlink — refusing to touch it." >&2; exit 1; }
 mkdir -p ${deploy.path}
-chown ${deploy.user}:${deploy.user} ${deploy.path}
+${refuseSymlink}
+chown -h ${deploy.user}:${deploy.user} ${deploy.path}
 chmod 3755 ${deploy.path}
 getent group docker >/dev/null && usermod -aG docker ${deploy.user} || true
 getent group deploy >/dev/null && usermod -aG deploy ${deploy.user} || true
 runuser -u ${deploy.user} -- sh -c ${quoteShellWord(AUTHORIZED_KEYS_ROTATION)} sh ${deploy.path}/.ssh/authorized_keys ${quoteShellWord(getDeployKeyComment(deploy.name))} ${quoteShellWord(publicKey)}
 `;
+};
 
 const HEREDOC_TERMINATOR = "NGINX_EOF";
 
