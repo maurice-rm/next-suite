@@ -1,28 +1,45 @@
+import "server-only";
+
 {{#if (eq database.orm "drizzle")}}
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+{{else}}
+import { prismaAdapter } from "better-auth/adapters/prisma";
+{{/if}}
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
 import { database } from "@/lib/database";
+{{#if (eq database.orm "drizzle")}}
 import { account, session, user, verification } from "@/lib/database/schema";
+{{/if}}
+import { logger } from "@/lib/logger";
+
+const CLIENT_IP_HEADER = "x-real-ip";
+
+const logFailedSignIn = createAuthMiddleware((context) => {
+  const isFailedSignIn =
+    context.path.startsWith("/sign-in") &&
+    context.context.returned instanceof APIError;
+  if (isFailedSignIn) {
+    logger.warn(
+      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
+      "Sign-in failed",
+    );
+  }
+  return Promise.resolve();
+});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
+  secret: env.BETTER_AUTH_SECRET,
+{{#if (eq database.orm "drizzle")}}
   database: drizzleAdapter(database, {
     provider: "{{#if (eq database.engine "postgres")}}pg{{else}}mysql{{/if}}",
     schema: { account, session, user, verification },
   }),
 {{else}}
-import { prismaAdapter } from "better-auth/adapters/prisma";
-import { betterAuth } from "better-auth/minimal";
-import { nextCookies } from "better-auth/next-js";
-
-import { env } from "@/env";
-import { database } from "@/lib/database";
-
-export const auth = betterAuth({
-  baseURL: env.NEXT_PUBLIC_APP_URL,
   database: prismaAdapter(database, {
     provider: "{{#if (eq database.engine "postgres")}}postgresql{{else}}mysql{{/if}}",
   }),
@@ -30,5 +47,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  advanced: {
+    ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
+  },
+  logger: {
+    log: (level, message, ...details: unknown[]) => {
+      logger[level]({ details }, message);
+    },
+  },
+  hooks: { after: logFailedSignIn },
   plugins: [nextCookies()],
 });

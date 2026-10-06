@@ -1,3 +1,5 @@
+import { STATUS_CODES } from "node:http";
+
 {{#unless api.openapi.scalar}}
 import { OpenAPIGenerator } from "@orpc/openapi";
 {{/unless}}
@@ -5,62 +7,97 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 {{#if api.openapi.scalar}}
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 {{/if}}
-import { onError } from "@orpc/server";
+import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { logger } from "@/lib/logger";
+import { logProcedureError } from "@/orpc/log-procedure-error";
 import { appRouter } from "@/orpc/routers/app-router";
 
-{{#if api.openapi.scalar}}
+const API_PREFIX = "/api/v1";
+const API_VERSION = "1.0.0";
+const PROBLEM_CONTENT_TYPE = "application/problem+json";
+const NOT_FOUND_STATUS = 404;
+
+const SPEC_INFO = {
+  info: { title: "{{projectName}} API", version: API_VERSION },
+  servers: [{ url: API_PREFIX }],
+};
+
+type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+const toProblemDetails = (
+  error: ORPCError<string, unknown>,
+): ProblemDetails => ({
+  type: "about:blank",
+  title: STATUS_CODES[error.status] ?? error.code,
+  status: error.status,
+  detail: error.message,
+  code: error.code,
+  ...(error.data !== undefined && { errors: error.data }),
+});
+
 const handler = new OpenAPIHandler(appRouter, {
+{{#if api.openapi.scalar}}
   plugins: [
     new OpenAPIReferencePlugin({
       schemaConverters: [new ZodToJsonSchemaConverter()],
-      specGenerateOptions: {
-        info: { title: "{{projectName}} API", version: "1.0.0" },
-        servers: [{ url: "/api/v1" }],
-      },
+      specGenerateOptions: SPEC_INFO,
     }),
   ],
+{{/if}}
+  customErrorResponseBodyEncoder: toProblemDetails,
   interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC OpenAPI request failed");
+    onError((error, { context }) => {
+      logProcedureError(error, context.headers);
     }),
   ],
 });
-{{else}}
-const handler = new OpenAPIHandler(appRouter, {
-  interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC OpenAPI request failed");
-    }),
-  ],
-});
+{{#unless api.openapi.scalar}}
 
 const generator = new OpenAPIGenerator({
   schemaConverters: [new ZodToJsonSchemaConverter()],
 });
-{{/if}}
+{{/unless}}
+
+const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
 
 const handleRequest = async (request: Request) => {
   const { matched, response } = await handler.handle(request, {
-    prefix: "/api/v1",
+    prefix: API_PREFIX,
     context: { headers: request.headers },
   });
 
-  if (matched) return response;
+  if (matched) {
+    if (!response.ok) response.headers.set("Content-Type", PROBLEM_CONTENT_TYPE);
+    return response;
+  }
 {{#unless api.openapi.scalar}}
 
-  if (new URL(request.url).pathname === "/api/v1/spec.json") {
-    const spec = await generator.generate(appRouter, {
-      info: { title: "{{projectName}} API", version: "1.0.0" },
-      servers: [{ url: "/api/v1" }],
-    });
-    return Response.json(spec);
+  if (new URL(request.url).pathname === `${API_PREFIX}/spec.json`) {
+    return Response.json(await generator.generate(appRouter, SPEC_INFO));
   }
 {{/unless}}
 
-  return new Response("Not found", { status: 404 });
+  return notFoundResponse();
 };
 
 export {

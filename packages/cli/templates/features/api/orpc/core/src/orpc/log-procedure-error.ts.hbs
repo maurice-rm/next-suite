@@ -1,0 +1,20 @@
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureError = (error: unknown, headers: Headers) => {
+  const { status } = toORPCError(error);
+  if (status >= SERVER_ERROR_STATUS) {
+    logger.error({ err: error }, "oRPC procedure failed");
+    return;
+  }
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};

@@ -64,7 +64,8 @@ RUN npm install -g bun && bun run build
 {{#if (eq database.orm "drizzle")}}
 # Bundle scripts/migrate.ts into a self-contained migrate.cjs — drizzle-orm and
 # the driver included — so the runner needs nothing from node_modules for it.
-RUN npx --no -- esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --alias:@=./src --outfile=migrate.cjs
+# The react-server condition resolves the server-only marker to its no-op build.
+RUN npx --no -- esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --conditions=react-server --alias:@=./src --outfile=migrate.cjs
 {{/if}}
 
 FROM node:${NODE_VERSION} AS runner

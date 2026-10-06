@@ -35,9 +35,10 @@ export interface Feature {
 }
 
 // The logger exists only where generated server code logs: the API route
-// handlers and the production health check's database probe.
+// handlers, Better-Auth, and the production health check and migrations.
 const usesLogger = (config: ProjectConfig): boolean =>
   config.api !== undefined ||
+  config.auth === "better-auth" ||
   (config.production !== undefined && config.database !== undefined);
 
 export const FEATURES: Feature[] = [
@@ -99,6 +100,7 @@ export const FEATURES: Feature[] = [
     dependencies: (config) => [
       "drizzle-orm",
       "dotenv",
+      "server-only",
       config.database?.engine === "postgres" ? "pg" : "mysql2",
     ],
     devDependencies: (config) =>
@@ -112,11 +114,16 @@ export const FEATURES: Feature[] = [
     dependencies: (config) => [
       "@prisma/client",
       "dotenv",
+      "server-only",
       config.database?.engine === "postgres"
         ? "@prisma/adapter-pg"
         : "@prisma/adapter-mariadb",
     ],
     devDependencies: ["prisma"],
+  },
+  {
+    dir: "features/api/shared",
+    when: (config) => config.api !== undefined,
   },
   {
     dir: "features/api/trpc",
@@ -167,7 +174,7 @@ export const FEATURES: Feature[] = [
   {
     dir: "features/email/resend",
     when: (config) => config.email === "resend",
-    dependencies: ["resend"],
+    dependencies: ["resend", "server-only"],
   },
   {
     dir: "features/logging",

@@ -1726,13 +1726,15 @@ export const GET = async (): Promise<Response> => {
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logger } from "@/lib/logger";
+import { logProcedureError } from "@/orpc/log-procedure-error";
 import { appRouter } from "@/orpc/routers/app-router";
+
+const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC request failed");
+    onError((error, { context }) => {
+      logProcedureError(error, context.headers);
     }),
   ],
 });
@@ -1743,7 +1745,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: 404 });
+  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
 };
 
 export {
@@ -1953,8 +1955,34 @@ export const healthRouter = {
 
 
 === src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
 export const register = async () => {
+  if (!isNodeRuntime) return;
   await import("./orpc/client.server");
+};
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
 };
 
 
@@ -1969,21 +1997,50 @@ export const authClient = createAuthClient({
 
 
 === src/lib/auth/index.ts ===
+import "server-only";
+
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
 import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
+
+const CLIENT_IP_HEADER = "x-real-ip";
+
+const logFailedSignIn = createAuthMiddleware((context) => {
+  const isFailedSignIn =
+    context.path.startsWith("/sign-in") &&
+    context.context.returned instanceof APIError;
+  if (isFailedSignIn) {
+    logger.warn(
+      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
+      "Sign-in failed",
+    );
+  }
+  return Promise.resolve();
+});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
+  secret: env.BETTER_AUTH_SECRET,
   database: prismaAdapter(database, {
     provider: "mysql",
   }),
   emailAndPassword: {
     enabled: true,
   },
+  advanced: {
+    ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
+  },
+  logger: {
+    log: (level, message, ...details: unknown[]) => {
+      logger[level]({ details }, message);
+    },
+  },
+  hooks: { after: logFailedSignIn },
   plugins: [nextCookies()],
 });
 
@@ -2004,6 +2061,8 @@ export type Session = typeof auth.$Infer.Session;
 
 
 === src/lib/database/index.ts ===
+import "server-only";
+
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 import { env } from "@/env";
@@ -2036,6 +2095,22 @@ export const closeDatabase = async () => {
 };
 
 
+=== src/lib/domain-error.ts ===
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}
+
+
 === src/lib/logger.ts ===
 import "server-only";
 
@@ -2043,13 +2118,23 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
 ];
 
 export const logger = pino({
@@ -2103,25 +2188,70 @@ export const orpc = createTanstackQueryUtils(client);
 
 
 === src/orpc/index.ts ===
+import "server-only";
+
 import { ORPCError, os } from "@orpc/server";
 
 import { auth } from "@/lib/auth";
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
 
-export const publicProcedure = os.$context<{ headers: Headers }>();
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, string>;
 
-const authMiddleware = publicProcedure.middleware(async ({ context, next }) => {
-  const sessionData = await auth.api.getSession({ headers: context.headers });
+const base = os.$context<{ headers: Headers }>();
 
-  if (!sessionData) {
+const mapDomainErrors = base.middleware(async ({ next }) => {
+  try {
+    return await next();
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    throw new ORPCError(ERROR_CODE_BY_KIND[error.kind], {
+      message: error.code,
+      cause: error,
+    });
+  }
+});
+
+export const publicProcedure = base.use(mapDomainErrors);
+
+const requireSession = base.middleware(async ({ context, next }) => {
+  const session = await auth.api.getSession({ headers: context.headers });
+
+  if (!session) {
     throw new ORPCError("UNAUTHORIZED");
   }
 
-  return next({
-    context: { session: sessionData.session, user: sessionData.user },
-  });
+  return next({ context: { session } });
 });
 
-export const protectedProcedure = publicProcedure.use(authMiddleware);
+export const protectedProcedure = publicProcedure.use(requireSession);
+
+
+=== src/orpc/log-procedure-error.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureError = (error: unknown, headers: Headers) => {
+  const { status } = toORPCError(error);
+  if (status >= SERVER_ERROR_STATUS) {
+    logger.error({ err: error }, "oRPC procedure failed");
+    return;
+  }
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/query-client.ts ===
@@ -2736,7 +2866,8 @@ export default eslintConfig;
     "src/lib/**/*.{ts,tsx}"
   ],
   "ignoreDependencies": [
-    "eslint-plugin-import"
+    "eslint-plugin-import",
+    "pino-pretty"
   ]
 }
 
@@ -2862,6 +2993,7 @@ export default nextConfig;
     "drizzle-orm": "^0.45.2",
     "mysql2": "^3.22.5",
     "next": "16.3.6",
+    "pino": "^10.3.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
@@ -2885,6 +3017,7 @@ export default nextConfig;
     "husky": "^9.1.7",
     "knip": "^6.39.0",
     "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
@@ -3290,6 +3423,33 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
+};
+
+
 === src/lib/auth/client.ts ===
 import { createAuthClient } from "better-auth/react";
 
@@ -3301,16 +3461,36 @@ export const authClient = createAuthClient({
 
 
 === src/lib/auth/index.ts ===
+import "server-only";
+
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
+import { logger } from "@/lib/logger";
+
+const CLIENT_IP_HEADER = "x-real-ip";
+
+const logFailedSignIn = createAuthMiddleware((context) => {
+  const isFailedSignIn =
+    context.path.startsWith("/sign-in") &&
+    context.context.returned instanceof APIError;
+  if (isFailedSignIn) {
+    logger.warn(
+      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
+      "Sign-in failed",
+    );
+  }
+  return Promise.resolve();
+});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
+  secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(database, {
     provider: "mysql",
     schema: { account, session, user, verification },
@@ -3318,6 +3498,15 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  advanced: {
+    ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
+  },
+  logger: {
+    log: (level, message, ...details: unknown[]) => {
+      logger[level]({ details }, message);
+    },
+  },
+  hooks: { after: logFailedSignIn },
   plugins: [nextCookies()],
 });
 
@@ -3338,6 +3527,8 @@ export type Session = typeof auth.$Infer.Session;
 
 
 === src/lib/database/index.ts ===
+import "server-only";
+
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 
@@ -3479,6 +3670,41 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 === src/lib/database/schema/index.ts ===
 export * from "./auth";
+
+
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const SECRET_FIELDS = [
+  "password",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
+  "cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
+});
 
 
 === tsconfig.json ===
@@ -4418,13 +4644,15 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logger } from "@/lib/logger";
+import { logProcedureError } from "@/orpc/log-procedure-error";
 import { appRouter } from "@/orpc/routers/app-router";
+
+const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC request failed");
+    onError((error, { context }) => {
+      logProcedureError(error, context.headers);
     }),
   ],
 });
@@ -4435,7 +4663,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: 404 });
+  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
 };
 
 export {
@@ -4648,12 +4876,40 @@ export const healthRouter = {
 
 
 === src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
 export const register = async () => {
+  if (!isNodeRuntime) return;
   await import("./orpc/client.server");
+};
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
 };
 
 
 === src/lib/database/index.ts ===
+import "server-only";
+
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 
@@ -4692,6 +4948,22 @@ export const closeDatabase = async () => {
 export {};
 
 
+=== src/lib/domain-error.ts ===
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}
+
+
 === src/lib/logger.ts ===
 import "server-only";
 
@@ -4699,13 +4971,23 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
 ];
 
 export const logger = pino({
@@ -4759,9 +5041,57 @@ export const orpc = createTanstackQueryUtils(client);
 
 
 === src/orpc/index.ts ===
-import { os } from "@orpc/server";
+import "server-only";
 
-export const publicProcedure = os.$context<{ headers: Headers }>();
+import { ORPCError, os } from "@orpc/server";
+
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
+
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, string>;
+
+const base = os.$context<{ headers: Headers }>();
+
+const mapDomainErrors = base.middleware(async ({ next }) => {
+  try {
+    return await next();
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    throw new ORPCError(ERROR_CODE_BY_KIND[error.kind], {
+      message: error.code,
+      cause: error,
+    });
+  }
+});
+
+export const publicProcedure = base.use(mapDomainErrors);
+
+
+=== src/orpc/log-procedure-error.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureError = (error: unknown, headers: Headers) => {
+  const { status } = toORPCError(error);
+  if (status >= SERVER_ERROR_STATUS) {
+    logger.error({ err: error }, "oRPC procedure failed");
+    return;
+  }
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/query-client.ts ===
@@ -6986,13 +7316,15 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logger } from "@/lib/logger";
+import { logProcedureError } from "@/orpc/log-procedure-error";
 import { appRouter } from "@/orpc/routers/app-router";
+
+const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC request failed");
+    onError((error, { context }) => {
+      logProcedureError(error, context.headers);
     }),
   ],
 });
@@ -7003,7 +7335,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: 404 });
+  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
 };
 
 export {
@@ -7017,40 +7349,87 @@ export {
 
 
 === src/app/api/v1/[[...rest]]/route.ts ===
+import { STATUS_CODES } from "node:http";
+
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
-import { onError } from "@orpc/server";
+import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { logger } from "@/lib/logger";
+import { logProcedureError } from "@/orpc/log-procedure-error";
 import { appRouter } from "@/orpc/routers/app-router";
+
+const API_PREFIX = "/api/v1";
+const API_VERSION = "1.0.0";
+const PROBLEM_CONTENT_TYPE = "application/problem+json";
+const NOT_FOUND_STATUS = 404;
+
+const SPEC_INFO = {
+  info: { title: "orpc-scalar API", version: API_VERSION },
+  servers: [{ url: API_PREFIX }],
+};
+
+type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+const toProblemDetails = (
+  error: ORPCError<string, unknown>,
+): ProblemDetails => ({
+  type: "about:blank",
+  title: STATUS_CODES[error.status] ?? error.code,
+  status: error.status,
+  detail: error.message,
+  code: error.code,
+  ...(error.data !== undefined && { errors: error.data }),
+});
 
 const handler = new OpenAPIHandler(appRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
       schemaConverters: [new ZodToJsonSchemaConverter()],
-      specGenerateOptions: {
-        info: { title: "orpc-scalar API", version: "1.0.0" },
-        servers: [{ url: "/api/v1" }],
-      },
+      specGenerateOptions: SPEC_INFO,
     }),
   ],
+  customErrorResponseBodyEncoder: toProblemDetails,
   interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC OpenAPI request failed");
+    onError((error, { context }) => {
+      logProcedureError(error, context.headers);
     }),
   ],
 });
 
+const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
 const handleRequest = async (request: Request) => {
   const { matched, response } = await handler.handle(request, {
-    prefix: "/api/v1",
+    prefix: API_PREFIX,
     context: { headers: request.headers },
   });
 
-  if (matched) return response;
+  if (matched) {
+    if (!response.ok) response.headers.set("Content-Type", PROBLEM_CONTENT_TYPE);
+    return response;
+  }
 
-  return new Response("Not found", { status: 404 });
+  return notFoundResponse();
 };
 
 export {
@@ -7061,6 +7440,7 @@ export {
   handleRequest as POST,
   handleRequest as PUT,
 };
+
 
 === src/app/error.tsx ===
 "use client";
@@ -7262,9 +7642,51 @@ export const healthRouter = {
 
 
 === src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
 export const register = async () => {
+  if (!isNodeRuntime) return;
   await import("./orpc/client.server");
 };
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
+};
+
+
+=== src/lib/domain-error.ts ===
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}
 
 
 === src/lib/logger.ts ===
@@ -7274,13 +7696,23 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
 ];
 
 export const logger = pino({
@@ -7334,9 +7766,57 @@ export const orpc = createTanstackQueryUtils(client);
 
 
 === src/orpc/index.ts ===
-import { os } from "@orpc/server";
+import "server-only";
 
-export const publicProcedure = os.$context<{ headers: Headers }>();
+import { ORPCError, os } from "@orpc/server";
+
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
+
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, string>;
+
+const base = os.$context<{ headers: Headers }>();
+
+const mapDomainErrors = base.middleware(async ({ next }) => {
+  try {
+    return await next();
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    throw new ORPCError(ERROR_CODE_BY_KIND[error.kind], {
+      message: error.code,
+      cause: error,
+    });
+  }
+});
+
+export const publicProcedure = base.use(mapDomainErrors);
+
+
+=== src/orpc/log-procedure-error.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureError = (error: unknown, headers: Headers) => {
+  const { status } = toORPCError(error);
+  if (status >= SERVER_ERROR_STATUS) {
+    logger.error({ err: error }, "oRPC procedure failed");
+    return;
+  }
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/query-client.ts ===
@@ -8218,13 +8698,15 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logger } from "@/lib/logger";
+import { logProcedureError } from "@/orpc/log-procedure-error";
 import { appRouter } from "@/orpc/routers/app-router";
+
+const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC request failed");
+    onError((error, { context }) => {
+      logProcedureError(error, context.headers);
     }),
   ],
 });
@@ -8235,7 +8717,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: 404 });
+  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
 };
 
 export {
@@ -8249,18 +8731,51 @@ export {
 
 
 === src/app/api/v1/[[...rest]]/route.ts ===
+import { STATUS_CODES } from "node:http";
+
 import { OpenAPIGenerator } from "@orpc/openapi";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
-import { onError } from "@orpc/server";
+import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { logger } from "@/lib/logger";
+import { logProcedureError } from "@/orpc/log-procedure-error";
 import { appRouter } from "@/orpc/routers/app-router";
 
+const API_PREFIX = "/api/v1";
+const API_VERSION = "1.0.0";
+const PROBLEM_CONTENT_TYPE = "application/problem+json";
+const NOT_FOUND_STATUS = 404;
+
+const SPEC_INFO = {
+  info: { title: "orpc-openapi API", version: API_VERSION },
+  servers: [{ url: API_PREFIX }],
+};
+
+type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+const toProblemDetails = (
+  error: ORPCError<string, unknown>,
+): ProblemDetails => ({
+  type: "about:blank",
+  title: STATUS_CODES[error.status] ?? error.code,
+  status: error.status,
+  detail: error.message,
+  code: error.code,
+  ...(error.data !== undefined && { errors: error.data }),
+});
+
 const handler = new OpenAPIHandler(appRouter, {
+  customErrorResponseBodyEncoder: toProblemDetails,
   interceptors: [
-    onError((error) => {
-      logger.error({ err: error }, "oRPC OpenAPI request failed");
+    onError((error, { context }) => {
+      logProcedureError(error, context.headers);
     }),
   ],
 });
@@ -8269,23 +8784,36 @@ const generator = new OpenAPIGenerator({
   schemaConverters: [new ZodToJsonSchemaConverter()],
 });
 
+const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
 const handleRequest = async (request: Request) => {
   const { matched, response } = await handler.handle(request, {
-    prefix: "/api/v1",
+    prefix: API_PREFIX,
     context: { headers: request.headers },
   });
 
-  if (matched) return response;
-
-  if (new URL(request.url).pathname === "/api/v1/spec.json") {
-    const spec = await generator.generate(appRouter, {
-      info: { title: "orpc-openapi API", version: "1.0.0" },
-      servers: [{ url: "/api/v1" }],
-    });
-    return Response.json(spec);
+  if (matched) {
+    if (!response.ok) response.headers.set("Content-Type", PROBLEM_CONTENT_TYPE);
+    return response;
   }
 
-  return new Response("Not found", { status: 404 });
+  if (new URL(request.url).pathname === \`\${API_PREFIX}/spec.json\`) {
+    return Response.json(await generator.generate(appRouter, SPEC_INFO));
+  }
+
+  return notFoundResponse();
 };
 
 export {
@@ -8296,6 +8824,7 @@ export {
   handleRequest as POST,
   handleRequest as PUT,
 };
+
 
 === src/app/error.tsx ===
 "use client";
@@ -8497,9 +9026,51 @@ export const healthRouter = {
 
 
 === src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
 export const register = async () => {
+  if (!isNodeRuntime) return;
   await import("./orpc/client.server");
 };
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
+};
+
+
+=== src/lib/domain-error.ts ===
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}
 
 
 === src/lib/logger.ts ===
@@ -8509,13 +9080,23 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
 ];
 
 export const logger = pino({
@@ -8569,9 +9150,57 @@ export const orpc = createTanstackQueryUtils(client);
 
 
 === src/orpc/index.ts ===
-import { os } from "@orpc/server";
+import "server-only";
 
-export const publicProcedure = os.$context<{ headers: Headers }>();
+import { ORPCError, os } from "@orpc/server";
+
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
+
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, string>;
+
+const base = os.$context<{ headers: Headers }>();
+
+const mapDomainErrors = base.middleware(async ({ next }) => {
+  try {
+    return await next();
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    throw new ORPCError(ERROR_CODE_BY_KIND[error.kind], {
+      message: error.code,
+      cause: error,
+    });
+  }
+});
+
+export const publicProcedure = base.use(mapDomainErrors);
+
+
+=== src/orpc/log-procedure-error.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureError = (error: unknown, headers: Headers) => {
+  const { status } = toORPCError(error);
+  if (status >= SERVER_ERROR_STATUS) {
+    logger.error({ err: error }, "oRPC procedure failed");
+    return;
+  }
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/query-client.ts ===
@@ -9747,7 +10376,8 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 RUN corepack enable pnpm && pnpm build
 # Bundle scripts/migrate.ts into a self-contained migrate.cjs — drizzle-orm and
 # the driver included — so the runner needs nothing from node_modules for it.
-RUN npx --no -- esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --alias:@=./src --outfile=migrate.cjs
+# The react-server condition resolves the server-only marker to its no-op build.
+RUN npx --no -- esbuild scripts/migrate.ts --bundle --platform=node --format=cjs --conditions=react-server --alias:@=./src --outfile=migrate.cjs
 
 FROM node:\${NODE_VERSION} AS runner
 
@@ -10106,11 +10736,14 @@ export default config;
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 import { closeDatabase, database } from "@/lib/database";
+import { logger } from "@/lib/logger";
+
+const MIGRATIONS_FOLDER = "./drizzle";
 
 const runMigrations = async () => {
   try {
-    await migrate(database, { migrationsFolder: "./drizzle" });
-    console.log("Database migrations completed successfully");
+    await migrate(database, { migrationsFolder: MIGRATIONS_FOLDER });
+    logger.info("Database migrations completed");
   } finally {
     await closeDatabase();
   }
@@ -10121,7 +10754,7 @@ const main = async () => {
     await runMigrations();
     process.exit(0);
   } catch (error) {
-    console.error("Migration failed:", error);
+    logger.error({ err: error }, "Database migration failed");
     process.exit(1);
   }
 };
@@ -10573,10 +11206,20 @@ export const GET = async (): Promise<Response> => {
 
 === src/app/api/trpc/[trpc]/route.ts ===
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { appRouter } from "@/trpc/routers/app-router";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_CODES = new Set([
+  "BAD_REQUEST",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "TOO_MANY_REQUESTS",
+]);
 
 const handler = (request: Request) =>
   fetchRequestHandler({
@@ -10584,8 +11227,21 @@ const handler = (request: Request) =>
     req: request,
     router: appRouter,
     createContext: createTRPCContext,
-    onError: ({ error, path }) => {
-      logger.error({ err: error, path }, "tRPC request failed");
+    onError: ({ error, path, ctx }) => {
+      if (getHTTPStatusCodeFromError(error) >= SERVER_ERROR_STATUS) {
+        logger.error({ err: error, path }, "tRPC procedure failed");
+        return;
+      }
+      if (!REJECTED_REQUEST_CODES.has(error.code)) return;
+      logger.warn(
+        {
+          code: error.code,
+          path,
+          userId: ctx?.session?.user.id,
+          ip: request.headers.get("x-real-ip"),
+        },
+        "tRPC request rejected",
+      );
     },
   });
 
@@ -10824,6 +11480,33 @@ export const healthRouter = router({
 });
 
 
+=== src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
+};
+
+
 === src/lib/auth/client.ts ===
 import { createAuthClient } from "better-auth/react";
 
@@ -10835,16 +11518,36 @@ export const authClient = createAuthClient({
 
 
 === src/lib/auth/index.ts ===
+import "server-only";
+
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
+import { logger } from "@/lib/logger";
+
+const CLIENT_IP_HEADER = "x-real-ip";
+
+const logFailedSignIn = createAuthMiddleware((context) => {
+  const isFailedSignIn =
+    context.path.startsWith("/sign-in") &&
+    context.context.returned instanceof APIError;
+  if (isFailedSignIn) {
+    logger.warn(
+      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
+      "Sign-in failed",
+    );
+  }
+  return Promise.resolve();
+});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
+  secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(database, {
     provider: "pg",
     schema: { account, session, user, verification },
@@ -10852,6 +11555,15 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  advanced: {
+    ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
+  },
+  logger: {
+    log: (level, message, ...details: unknown[]) => {
+      logger[level]({ details }, message);
+    },
+  },
+  hooks: { after: logFailedSignIn },
   plugins: [nextCookies()],
 });
 
@@ -10872,6 +11584,8 @@ export type Session = typeof auth.$Infer.Session;
 
 
 === src/lib/database/index.ts ===
+import "server-only";
+
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
@@ -11007,7 +11721,25 @@ export const accountRelations = relations(account, ({ one }) => ({
 export * from "./auth";
 
 
+=== src/lib/domain-error.ts ===
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}
+
+
 === src/lib/email/index.ts ===
+import "server-only";
+
 import { Resend } from "resend";
 
 import { env } from "@/env";
@@ -11033,13 +11765,23 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
 ];
 
 export const logger = pino({
@@ -11062,13 +11804,26 @@ export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 
 
 === src/trpc/index.ts ===
+import "server-only";
+
 import { cache } from "react";
 
 import { initTRPC, TRPCError } from "@trpc/server";
+import type { TRPC_ERROR_CODE_KEY } from "@trpc/server/rpc";
 import superjson from "superjson";
 import { z } from "zod";
 
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
 import { getSession } from "@/lib/auth/session";
+
+const UNEXPECTED_ERROR_MESSAGE = "Internal server error";
+
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, TRPC_ERROR_CODE_KEY>;
 
 export const createTRPCContext = cache(async () => ({
   session: await getSession(),
@@ -11078,31 +11833,46 @@ export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
-    return {
-      ...shape,
-      data: {
-        ...shape.data,
-        zodError:
-          error.code === "BAD_REQUEST" && error.cause instanceof z.ZodError
-            ? z.treeifyError(error.cause)
-            : null,
-      },
-    };
-  },
+  errorFormatter: ({ shape, error }) => ({
+    ...shape,
+    message:
+      error.code === "INTERNAL_SERVER_ERROR"
+        ? UNEXPECTED_ERROR_MESSAGE
+        : shape.message,
+    data: {
+      ...shape.data,
+      zodError:
+        error.code === "BAD_REQUEST" && error.cause instanceof z.ZodError
+          ? z.treeifyError(error.cause)
+          : null,
+    },
+  }),
+});
+
+const mapDomainErrors = t.middleware(async ({ next }) => {
+  const result = await next();
+  if (result.ok || !(result.error.cause instanceof DomainError)) {
+    return result;
+  }
+  const domainError = result.error.cause;
+  throw new TRPCError({
+    code: ERROR_CODE_BY_KIND[domainError.kind],
+    message: domainError.code,
+    cause: domainError,
+  });
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+export const publicProcedure = t.procedure.use(mapDomainErrors);
 
-const isAuthed = t.middleware(({ ctx, next }) => {
+const requireSession = t.middleware(({ ctx, next }) => {
   if (!ctx.session) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
   return next({ ctx: { session: ctx.session } });
 });
 
-export const protectedProcedure = publicProcedure.use(isAuthed);
+export const protectedProcedure = publicProcedure.use(requireSession);
 
 
 === src/trpc/query-client.ts ===
@@ -13003,6 +13773,33 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
+};
+
+
 === src/lib/auth/client.ts ===
 import { createAuthClient } from "better-auth/react";
 
@@ -13014,21 +13811,50 @@ export const authClient = createAuthClient({
 
 
 === src/lib/auth/index.ts ===
+import "server-only";
+
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
 import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
+
+const CLIENT_IP_HEADER = "x-real-ip";
+
+const logFailedSignIn = createAuthMiddleware((context) => {
+  const isFailedSignIn =
+    context.path.startsWith("/sign-in") &&
+    context.context.returned instanceof APIError;
+  if (isFailedSignIn) {
+    logger.warn(
+      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
+      "Sign-in failed",
+    );
+  }
+  return Promise.resolve();
+});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
+  secret: env.BETTER_AUTH_SECRET,
   database: prismaAdapter(database, {
     provider: "postgresql",
   }),
   emailAndPassword: {
     enabled: true,
   },
+  advanced: {
+    ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
+  },
+  logger: {
+    log: (level, message, ...details: unknown[]) => {
+      logger[level]({ details }, message);
+    },
+  },
+  hooks: { after: logFailedSignIn },
   plugins: [nextCookies()],
 });
 
@@ -13049,6 +13875,8 @@ export type Session = typeof auth.$Infer.Session;
 
 
 === src/lib/database/index.ts ===
+import "server-only";
+
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { env } from "@/env";
@@ -13082,6 +13910,8 @@ export const closeDatabase = async () => {
 
 
 === src/lib/email/index.ts ===
+import "server-only";
+
 import { Resend } from "resend";
 
 import { env } from "@/env";
@@ -13107,13 +13937,23 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
 ];
 
 export const logger = pino({

@@ -1,8 +1,18 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { appRouter } from "@/trpc/routers/app-router";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_CODES = new Set([
+  "BAD_REQUEST",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "TOO_MANY_REQUESTS",
+]);
 
 const handler = (request: Request) =>
   fetchRequestHandler({
@@ -10,8 +20,23 @@ const handler = (request: Request) =>
     req: request,
     router: appRouter,
     createContext: createTRPCContext,
-    onError: ({ error, path }) => {
-      logger.error({ err: error, path }, "tRPC request failed");
+    onError: ({ error, path{{#if (eq auth "better-auth")}}, ctx{{/if}} }) => {
+      if (getHTTPStatusCodeFromError(error) >= SERVER_ERROR_STATUS) {
+        logger.error({ err: error, path }, "tRPC procedure failed");
+        return;
+      }
+      if (!REJECTED_REQUEST_CODES.has(error.code)) return;
+      logger.warn(
+        {
+          code: error.code,
+          path,
+{{#if (eq auth "better-auth")}}
+          userId: ctx?.session?.user.id,
+{{/if}}
+          ip: request.headers.get("x-real-ip"),
+        },
+        "tRPC request rejected",
+      );
     },
   });
 

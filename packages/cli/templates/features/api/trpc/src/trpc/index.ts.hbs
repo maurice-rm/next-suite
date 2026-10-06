@@ -1,12 +1,25 @@
+import "server-only";
+
 import { cache } from "react";
 
-import { initTRPC{{#if (eq auth "better-auth")}}, TRPCError{{/if}} } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
+import type { TRPC_ERROR_CODE_KEY } from "@trpc/server/rpc";
 import superjson from "superjson";
 import { z } from "zod";
-{{#if (eq auth "better-auth")}}
 
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
+{{#if (eq auth "better-auth")}}
 import { getSession } from "@/lib/auth/session";
 {{/if}}
+
+const UNEXPECTED_ERROR_MESSAGE = "Internal server error";
+
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, TRPC_ERROR_CODE_KEY>;
 
 {{#if (eq auth "better-auth")}}
 export const createTRPCContext = cache(async () => ({
@@ -20,30 +33,45 @@ export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
-    return {
-      ...shape,
-      data: {
-        ...shape.data,
-        zodError:
-          error.code === "BAD_REQUEST" && error.cause instanceof z.ZodError
-            ? z.treeifyError(error.cause)
-            : null,
-      },
-    };
-  },
+  errorFormatter: ({ shape, error }) => ({
+    ...shape,
+    message:
+      error.code === "INTERNAL_SERVER_ERROR"
+        ? UNEXPECTED_ERROR_MESSAGE
+        : shape.message,
+    data: {
+      ...shape.data,
+      zodError:
+        error.code === "BAD_REQUEST" && error.cause instanceof z.ZodError
+          ? z.treeifyError(error.cause)
+          : null,
+    },
+  }),
+});
+
+const mapDomainErrors = t.middleware(async ({ next }) => {
+  const result = await next();
+  if (result.ok || !(result.error.cause instanceof DomainError)) {
+    return result;
+  }
+  const domainError = result.error.cause;
+  throw new TRPCError({
+    code: ERROR_CODE_BY_KIND[domainError.kind],
+    message: domainError.code,
+    cause: domainError,
+  });
 });
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+export const publicProcedure = t.procedure.use(mapDomainErrors);
 {{#if (eq auth "better-auth")}}
 
-const isAuthed = t.middleware(({ ctx, next }) => {
+const requireSession = t.middleware(({ ctx, next }) => {
   if (!ctx.session) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
   return next({ ctx: { session: ctx.session } });
 });
 
-export const protectedProcedure = publicProcedure.use(isAuthed);
+export const protectedProcedure = publicProcedure.use(requireSession);
 {{/if}}

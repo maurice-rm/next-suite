@@ -4,13 +4,23 @@ import pino from "pino";
 
 import { env } from "@/env";
 
-const REDACTED_PATHS = [
+const SECRET_FIELDS = [
   "password",
-  "*.password",
   "token",
-  "*.token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
   "cookie",
-  "*.cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => `*.${field}`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
 ];
 
 export const logger = pino({
