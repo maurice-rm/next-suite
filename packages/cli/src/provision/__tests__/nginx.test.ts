@@ -69,6 +69,16 @@ test("ships the edge-safe extra headers, but no CSP", () => {
   expect(block).not.toContain("Content-Security-Policy");
 });
 
+test("hides the upstream copy of every header it adds, so none is sent twice", () => {
+  const block = renderNginxBlock("app.example.com", 8100);
+  const added = [...block.matchAll(/^\s*add_header (\S+)/gm)].map((m) => m[1]);
+  const hidden = [...block.matchAll(/proxy_hide_header (\S+);/g)].map(
+    (m) => m[1],
+  );
+  expect(added.length).toBeGreaterThan(0);
+  expect(hidden).toEqual(added);
+});
+
 test("no location sets its own add_header, which would drop the inherited four", () => {
   const block = renderNginxBlock("app.example.com", 8100);
   const afterFirstLocation = block

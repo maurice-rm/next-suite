@@ -1,17 +1,13 @@
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 
 const handleRequest = async (request: Request) => {
@@ -20,7 +16,9 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  logRejectedRequest(response.status, request.headers);
+  return response;
 };
 
 export {

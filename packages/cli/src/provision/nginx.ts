@@ -57,6 +57,17 @@ server {
     add_header Cross-Origin-Resource-Policy      "same-origin"              always;
     add_header X-Permitted-Cross-Domain-Policies "none"                     always;
 
+    # Apps generated since the headers moved into next.config.ts send the same
+    # ones; hide those copies, or COOP and CORP arrive twice and stop parsing.
+    proxy_hide_header Strict-Transport-Security;
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header X-Frame-Options;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Permissions-Policy;
+    proxy_hide_header Cross-Origin-Opener-Policy;
+    proxy_hide_header Cross-Origin-Resource-Policy;
+    proxy_hide_header X-Permitted-Cross-Domain-Policies;
+
     client_max_body_size 25m;
 
     # In server{}: on http{} level a second project would duplicate it.

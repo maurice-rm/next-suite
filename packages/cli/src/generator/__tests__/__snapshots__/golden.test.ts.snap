@@ -1749,17 +1749,13 @@ export const GET = async (): Promise<Response> => {
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 
 const handleRequest = async (request: Request) => {
@@ -1768,7 +1764,9 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  logRejectedRequest(response.status, request.headers);
+  return response;
 };
 
 export {
@@ -2023,7 +2021,7 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
@@ -2036,7 +2034,7 @@ const CLIENT_IP_HEADER = "x-real-ip";
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
     context.path.startsWith("/sign-in") &&
-    context.context.returned instanceof APIError;
+    isAPIError(context.context.returned);
   if (isFailedSignIn) {
     logger.warn(
       { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
@@ -2060,7 +2058,8 @@ export const auth = betterAuth({
   },
   logger: {
     log: (level, message, ...details: unknown[]) => {
-      logger[level]({ details }, message);
+      const err = details.find((detail) => detail instanceof Error);
+      logger[level]({ err, details }, message);
     },
   },
   hooks: { after: logFailedSignIn },
@@ -2254,29 +2253,6 @@ const requireSession = base.middleware(async ({ context, next }) => {
 export const protectedProcedure = publicProcedure.use(requireSession);
 
 
-=== src/orpc/log-procedure-error.ts ===
-import { toORPCError } from "@orpc/client";
-
-import { logger } from "@/lib/logger";
-
-const SERVER_ERROR_STATUS = 500;
-
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
-
-export const logProcedureError = (error: unknown, headers: Headers) => {
-  const { status } = toORPCError(error);
-  if (status >= SERVER_ERROR_STATUS) {
-    logger.error({ err: error }, "oRPC procedure failed");
-    return;
-  }
-  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
-  logger.warn(
-    { status, ip: headers.get("x-real-ip") },
-    "oRPC request rejected",
-  );
-};
-
-
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -2324,6 +2300,29 @@ export const createQueryClient = () =>
       },
     },
   });
+
+
+=== src/orpc/request-logging.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureFailure = (error: unknown) => {
+  if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
+  logger.error({ err: error }, "oRPC procedure failed");
+};
+
+export const logRejectedRequest = (status: number, headers: Headers) => {
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/routers/app-router.ts ===
@@ -3497,7 +3496,7 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
@@ -3511,7 +3510,7 @@ const CLIENT_IP_HEADER = "x-real-ip";
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
     context.path.startsWith("/sign-in") &&
-    context.context.returned instanceof APIError;
+    isAPIError(context.context.returned);
   if (isFailedSignIn) {
     logger.warn(
       { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
@@ -3536,7 +3535,8 @@ export const auth = betterAuth({
   },
   logger: {
     log: (level, message, ...details: unknown[]) => {
-      logger[level]({ details }, message);
+      const err = details.find((detail) => detail instanceof Error);
+      logger[level]({ err, details }, message);
     },
   },
   hooks: { after: logFailedSignIn },
@@ -4687,17 +4687,13 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 
 const handleRequest = async (request: Request) => {
@@ -4706,7 +4702,9 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  logRejectedRequest(response.status, request.headers);
+  return response;
 };
 
 export {
@@ -5114,29 +5112,6 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
-=== src/orpc/log-procedure-error.ts ===
-import { toORPCError } from "@orpc/client";
-
-import { logger } from "@/lib/logger";
-
-const SERVER_ERROR_STATUS = 500;
-
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
-
-export const logProcedureError = (error: unknown, headers: Headers) => {
-  const { status } = toORPCError(error);
-  if (status >= SERVER_ERROR_STATUS) {
-    logger.error({ err: error }, "oRPC procedure failed");
-    return;
-  }
-  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
-  logger.warn(
-    { status, ip: headers.get("x-real-ip") },
-    "oRPC request rejected",
-  );
-};
-
-
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -5184,6 +5159,29 @@ export const createQueryClient = () =>
       },
     },
   });
+
+
+=== src/orpc/request-logging.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureFailure = (error: unknown) => {
+  if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
+  logger.error({ err: error }, "oRPC procedure failed");
+};
+
+export const logRejectedRequest = (status: number, headers: Headers) => {
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/routers/app-router.ts ===
@@ -7379,17 +7377,13 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 
 const handleRequest = async (request: Request) => {
@@ -7398,7 +7392,9 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  logRejectedRequest(response.status, request.headers);
+  return response;
 };
 
 export {
@@ -7419,7 +7415,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const API_PREFIX = "/api/v1";
@@ -7460,11 +7456,7 @@ const handler = new OpenAPIHandler(appRouter, {
     }),
   ],
   customErrorResponseBodyEncoder: toProblemDetails,
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 
 const notFoundResponse = () =>
@@ -7488,6 +7480,7 @@ const handleRequest = async (request: Request) => {
   });
 
   if (matched) {
+    logRejectedRequest(response.status, request.headers);
     if (!response.ok) response.headers.set("Content-Type", PROBLEM_CONTENT_TYPE);
     return response;
   }
@@ -7859,29 +7852,6 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
-=== src/orpc/log-procedure-error.ts ===
-import { toORPCError } from "@orpc/client";
-
-import { logger } from "@/lib/logger";
-
-const SERVER_ERROR_STATUS = 500;
-
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
-
-export const logProcedureError = (error: unknown, headers: Headers) => {
-  const { status } = toORPCError(error);
-  if (status >= SERVER_ERROR_STATUS) {
-    logger.error({ err: error }, "oRPC procedure failed");
-    return;
-  }
-  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
-  logger.warn(
-    { status, ip: headers.get("x-real-ip") },
-    "oRPC request rejected",
-  );
-};
-
-
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -7929,6 +7899,29 @@ export const createQueryClient = () =>
       },
     },
   });
+
+
+=== src/orpc/request-logging.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureFailure = (error: unknown) => {
+  if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
+  logger.error({ err: error }, "oRPC procedure failed");
+};
+
+export const logRejectedRequest = (status: number, headers: Headers) => {
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/routers/app-router.ts ===
@@ -8771,17 +8764,13 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 
 const handleRequest = async (request: Request) => {
@@ -8790,7 +8779,9 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  return response ?? new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  logRejectedRequest(response.status, request.headers);
+  return response;
 };
 
 export {
@@ -8811,7 +8802,7 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const API_PREFIX = "/api/v1";
@@ -8846,11 +8837,7 @@ const toProblemDetails = (
 
 const handler = new OpenAPIHandler(appRouter, {
   customErrorResponseBodyEncoder: toProblemDetails,
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 
 const generator = new OpenAPIGenerator({
@@ -8878,6 +8865,7 @@ const handleRequest = async (request: Request) => {
   });
 
   if (matched) {
+    logRejectedRequest(response.status, request.headers);
     if (!response.ok) response.headers.set("Content-Type", PROBLEM_CONTENT_TYPE);
     return response;
   }
@@ -9253,29 +9241,6 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
-=== src/orpc/log-procedure-error.ts ===
-import { toORPCError } from "@orpc/client";
-
-import { logger } from "@/lib/logger";
-
-const SERVER_ERROR_STATUS = 500;
-
-const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
-
-export const logProcedureError = (error: unknown, headers: Headers) => {
-  const { status } = toORPCError(error);
-  if (status >= SERVER_ERROR_STATUS) {
-    logger.error({ err: error }, "oRPC procedure failed");
-    return;
-  }
-  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
-  logger.warn(
-    { status, ip: headers.get("x-real-ip") },
-    "oRPC request rejected",
-  );
-};
-
-
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -9323,6 +9288,29 @@ export const createQueryClient = () =>
       },
     },
   });
+
+
+=== src/orpc/request-logging.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([400, 401, 403, 429]);
+
+export const logProcedureFailure = (error: unknown) => {
+  if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
+  logger.error({ err: error }, "oRPC procedure failed");
+};
+
+export const logRejectedRequest = (status: number, headers: Headers) => {
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
 
 
 === src/orpc/routers/app-router.ts ===
@@ -11599,7 +11587,7 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
@@ -11613,7 +11601,7 @@ const CLIENT_IP_HEADER = "x-real-ip";
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
     context.path.startsWith("/sign-in") &&
-    context.context.returned instanceof APIError;
+    isAPIError(context.context.returned);
   if (isFailedSignIn) {
     logger.warn(
       { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
@@ -11638,7 +11626,8 @@ export const auth = betterAuth({
   },
   logger: {
     log: (level, message, ...details: unknown[]) => {
-      logger[level]({ details }, message);
+      const err = details.find((detail) => detail instanceof Error);
+      logger[level]({ err, details }, message);
     },
   },
   hooks: { after: logFailedSignIn },
@@ -13903,7 +13892,7 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
@@ -13916,7 +13905,7 @@ const CLIENT_IP_HEADER = "x-real-ip";
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
     context.path.startsWith("/sign-in") &&
-    context.context.returned instanceof APIError;
+    isAPIError(context.context.returned);
   if (isFailedSignIn) {
     logger.warn(
       { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
@@ -13940,7 +13929,8 @@ export const auth = betterAuth({
   },
   logger: {
     log: (level, message, ...details: unknown[]) => {
-      logger[level]({ details }, message);
+      const err = details.find((detail) => detail instanceof Error);
+      logger[level]({ err, details }, message);
     },
   },
   hooks: { after: logFailedSignIn },

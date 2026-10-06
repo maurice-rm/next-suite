@@ -10,7 +10,7 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
-import { logProcedureError } from "@/orpc/log-procedure-error";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
 const API_PREFIX = "/api/v1";
@@ -53,11 +53,7 @@ const handler = new OpenAPIHandler(appRouter, {
   ],
 {{/if}}
   customErrorResponseBodyEncoder: toProblemDetails,
-  interceptors: [
-    onError((error, { context }) => {
-      logProcedureError(error, context.headers);
-    }),
-  ],
+  clientInterceptors: [onError(logProcedureFailure)],
 });
 {{#unless api.openapi.scalar}}
 
@@ -87,6 +83,7 @@ const handleRequest = async (request: Request) => {
   });
 
   if (matched) {
+    logRejectedRequest(response.status, request.headers);
     if (!response.ok) response.headers.set("Content-Type", PROBLEM_CONTENT_TYPE);
     return response;
   }

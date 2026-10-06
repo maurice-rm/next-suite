@@ -5,7 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 {{else}}
 import { prismaAdapter } from "better-auth/adapters/prisma";
 {{/if}}
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
@@ -21,7 +21,7 @@ const CLIENT_IP_HEADER = "x-real-ip";
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
     context.path.startsWith("/sign-in") &&
-    context.context.returned instanceof APIError;
+    isAPIError(context.context.returned);
   if (isFailedSignIn) {
     logger.warn(
       { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
@@ -52,7 +52,8 @@ export const auth = betterAuth({
   },
   logger: {
     log: (level, message, ...details: unknown[]) => {
-      logger[level]({ details }, message);
+      const err = details.find((detail) => detail instanceof Error);
+      logger[level]({ err, details }, message);
     },
   },
   hooks: { after: logFailedSignIn },

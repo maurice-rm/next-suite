@@ -219,7 +219,9 @@ header, its own `limit_req_zone`, and its own `upstream`, each suffixed with the
 port so several projects can share the one `http{}` namespace. It terminates TLS,
 redirects `:80` to `:443` while keeping the ACME location open, sets the usual
 security headers, rate-limits everything except `/_next/static/`, and proxies to
-`127.0.0.1:<port>`.
+`127.0.0.1:<port>`. Generated apps set the same headers in `next.config.ts`; the
+block hides the app's copies with `proxy_hide_header`, so each header arrives
+once, and lets the app's Content-Security-Policy through.
 
 ### GitHub secrets and variables
 
