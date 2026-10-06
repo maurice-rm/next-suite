@@ -171,6 +171,19 @@ export const genKeypair = async (
   }
 };
 
+const isMissingFileError = (error: unknown): boolean =>
+  error instanceof Error && "code" in error && error.code === "ENOENT";
+
+/** A file's content, or `undefined` when it does not exist; other errors throw. */
+const readExistingFile = async (file: string): Promise<string | undefined> => {
+  try {
+    return await fs.readFile(file, "utf8");
+  } catch (error) {
+    if (isMissingFileError(error)) return undefined;
+    throw error;
+  }
+};
+
 /**
  * Reuses the deploy keypair persisted from a prior run instead of minting a
  * new one each time — a fresh key would append to authorized_keys forever
@@ -189,17 +202,22 @@ export const loadOrCreateKeypair = async (
   const gen = opts?.gen ?? genKeypair;
   const keyFile = path.join(keyDir, name);
 
-  try {
-    const [privateKey, publicKey] = await Promise.all([
-      fs.readFile(keyFile, "utf8"),
-      fs.readFile(`${keyFile}.pub`, "utf8"),
-    ]);
+  const [privateKey, publicKey] = await Promise.all([
+    readExistingFile(keyFile),
+    readExistingFile(`${keyFile}.pub`),
+  ]);
+  if (privateKey !== undefined && publicKey !== undefined) {
     return { publicKey: publicKey.trim(), privateKey };
-  } catch {
-    const keys = await gen(`${name}@next-suite`);
-    await fs.mkdir(keyDir, { recursive: true, mode: 0o700 });
-    await fs.writeFile(keyFile, keys.privateKey, { mode: 0o600 });
-    await fs.writeFile(`${keyFile}.pub`, `${keys.publicKey}\n`);
-    return keys;
   }
+  if (privateKey !== undefined || publicKey !== undefined) {
+    throw new Error(
+      `Only half of the deploy keypair exists at ${keyFile} — restore or delete both ${keyFile} and ${keyFile}.pub, then run again.`,
+    );
+  }
+
+  const keys = await gen(`${name}@next-suite`);
+  await fs.mkdir(keyDir, { recursive: true, mode: 0o700 });
+  await fs.writeFile(keyFile, keys.privateKey, { mode: 0o600 });
+  await fs.writeFile(`${keyFile}.pub`, `${keys.publicKey}\n`);
+  return keys;
 };

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import {
   genKeypair,
@@ -149,6 +149,24 @@ test("loadOrCreateKeypair reuses persisted key files without calling gen", async
       publicKey: "ssh-ed25519 AAA acme",
       privateKey: "PRIVATE\n",
     });
+  } finally {
+    await fs.rm(keyDir, { recursive: true, force: true });
+  }
+});
+
+test("loadOrCreateKeypair refuses to overwrite a private key whose public half is missing", async () => {
+  const keyDir = await fs.mkdtemp(path.join(os.tmpdir(), "ns-keys-"));
+  try {
+    await fs.writeFile(path.join(keyDir, "acme"), "PRIVATE\n", { mode: 0o600 });
+    const gen = vi.fn();
+
+    await expect(loadOrCreateKeypair("acme", { keyDir, gen })).rejects.toThrow(
+      /Only half of the deploy keypair exists/,
+    );
+    expect(gen).not.toHaveBeenCalled();
+    expect(await fs.readFile(path.join(keyDir, "acme"), "utf8")).toBe(
+      "PRIVATE\n",
+    );
   } finally {
     await fs.rm(keyDir, { recursive: true, force: true });
   }
