@@ -18,11 +18,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },

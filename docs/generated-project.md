@@ -149,7 +149,7 @@ Packages are listed with the version the generator writes. Files marked as fragm
 - **Rejected requests** (400, 401, 403, 429, including malformed bodies) are logged at `warn` with the client IP from `x-real-ip` (and the user ID with tRPC); failed sign-ins are logged the same way through a Better-Auth hook, and Better-Auth's own log lines go through pino.
 - **Domain errors:** a feature throws a subclass of `DomainError` (`src/lib/domain-error.ts`) with a stable code and a kind (`invalid`, `not-found`, `conflict`, `forbidden`). One middleware on `publicProcedure` maps the kind to the matching tRPC or oRPC error code; the client receives the stable code as the message.
 - **OpenAPI** errors are Problem Details (RFC 9457, `application/problem+json`), including the 404 for an unknown path; validation errors carry their issues under `errors`.
-- **Redaction:** the logger redacts passwords, tokens (`token`, `accessToken`, `refreshToken`, `idToken`), secrets, cookies and the `authorization` header, also inside `headers` objects.
+- **Redaction:** the logger redacts passwords, tokens (`token`, `accessToken`, `refreshToken`, `idToken`), secrets, cookies and the `authorization` header, also inside `headers` objects. Its error serializer replaces the bound values Drizzle appends to a failed query's message (`params: …`), and `onRequestError` logs the path without its query string. A database driver's own message can still quote the single value it rejected.
 
 ### How the two workflows relate
 

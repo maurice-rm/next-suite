@@ -2158,11 +2158,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -2323,9 +2324,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
@@ -3768,11 +3789,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -4038,9 +4060,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
@@ -5361,11 +5403,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -5457,9 +5500,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
@@ -8367,11 +8430,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -8422,9 +8486,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
@@ -9883,11 +9967,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -9938,9 +10023,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
@@ -12503,11 +12608,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -12798,9 +12904,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
@@ -14303,11 +14429,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -14358,9 +14485,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
@@ -16504,11 +16651,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 ) => {
   if (!isNodeRuntime) return;
   const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
   logger.error(
     {
       err: error,
       method: request.method,
-      path: request.path,
+      path,
       routePath: context.routePath,
       routeType: context.routeType,
     },
@@ -16670,9 +16818,29 @@ const REDACTED_PATHS = [
   '*.headers["set-cookie"]',
 ];
 
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
 export const logger = pino({
   level: env.NODE_ENV === "production" ? "info" : "debug",
   redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
   ...(env.NODE_ENV === "development" && {
     transport: { target: "pino-pretty" },
   }),
