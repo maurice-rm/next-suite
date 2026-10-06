@@ -98,9 +98,7 @@ pnpm lint
 
 Add `pnpm format:check` if you edited anything outside the pre-commit hook's reach — CI runs it and fails on a formatting diff.
 
-One honest caveat about the lint step: `packages/eslint-config/base.js` registers `eslint-plugin-only-warn`, which downgrades every rule violation to a warning. No `--max-warnings` flag is set anywhere in this repository, so `pnpm lint` exits `0` even when it prints warnings. **The lint job cannot fail on a rule violation.** It still fails on things ESLint cannot even evaluate — a broken flat config, an unparsable file, a missing plugin — but that is all. Read the lint output; do not treat a green exit code as "no findings".
-
-`pnpm check-types`, `pnpm build` and `pnpm test` are the steps that actually fail, and `pnpm build` catches errors `tsc` alone does not.
+Every lint rule is an error and `lint` runs with `--max-warnings 0`, so a rule violation fails the step like a type error does. CI additionally runs `pnpm audit` and `pnpm knip` (unused files, exports and dependencies).
 
 ## Git hooks
 

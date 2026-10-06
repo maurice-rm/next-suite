@@ -27,6 +27,8 @@ Run from the repo root:
 | Build everything               | `pnpm build` (turbo)                                                                 |
 | Type-check everything          | `pnpm check-types`                                                                   |
 | Lint everything                | `pnpm lint`                                                                          |
+| Unused code and dependencies   | `pnpm knip`                                                                          |
+| Audit dependencies             | `pnpm audit`                                                                         |
 | Test everything                | `pnpm test`                                                                          |
 | Format                         | `pnpm format`                                                                        |
 | Build + run the CLI end-to-end | `pnpm cli` (builds `create-next-suite`, then runs `node packages/cli/dist/index.js`) |
@@ -41,7 +43,7 @@ CLI package (`packages/cli`) — work here:
 | Run all tests (vitest)                      | `pnpm --filter create-next-suite test`                  |
 | Run one test file / pattern                 | `pnpm --filter create-next-suite exec vitest run merge` |
 
-After any change to the CLI, the verification bar is **`check-types` + `build` + `test` + `lint` all green**.
+After any change to the CLI, the verification bar is **`check-types` + `build` + `test` + `lint` + `knip` all green**.
 
 ## Process
 

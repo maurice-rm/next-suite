@@ -78,11 +78,11 @@ Six layers over four leaf modules. The dependency direction is **strictly downwa
 | `core/`                      | pure logic: contract, target/path safety, validation, fs-checks, pm-detector, version checks | leaves only                                                                  |
 | `ui/`                        | Clack renderers (`navigable.ts`), banner, outro summary, next-steps                          | `@/wizard`, `@/core` (types only), leaves; **public surface is `@/ui` only** |
 | `prompts/`                   | one file per wizard question + assembly                                                      | `core`, `ui`, `wizard`, leaves                                               |
-| `generator/`                 | `ProjectConfig` → files on disk                                                              | `@/core/types`, its own `config/`, leaves                                    |
-| `post-steps/`                | external tooling after generation                                                            | `@/core/types`, leaves                                                       |
+| `generator/`                 | `ProjectConfig` → files on disk                                                              | `@/core`, its own `config/`, leaves                                          |
+| `post-steps/`                | external tooling after generation                                                            | `@/core`, leaves                                                             |
 | `provision/`                 | the `next-suite` bin: SSH server setup, nginx, certbot, GitHub secrets                       | `@/core`, `@/ui`, `@/wizard`, `@/generator/manifest`, leaves                 |
 
-Hard rules:
+Hard rules — enforced by `import-x/no-restricted-paths` zones and `import-x/no-cycle` in `eslint.config.js`, so a crossing fails lint:
 
 - **`core/` never imports** from `prompts`/`ui`/`generator`/`post-steps`. It is imported _by_ them; any reverse import is a cycle.
 - **`ui/style.ts` is internal** — not re-exported by `ui/index.ts`. Consumers import from `@/ui`; `navigable.ts` imports `style.ts` via the relative `./style`, never `@/ui`.
@@ -262,9 +262,9 @@ This is the rulebook. Match it from the first line of new code.
 
 ### JSDoc
 
-- **Document exports where they carry intent**, with `@param`/`@returns`/`@throws` matching existing density (e.g. `getPackageManagerEntry`, `composeProject`).
-- **Do not restate the type system** — an already-`?` param is not re-described as "optional"; add meaning instead (`@param initialName - Optional name to pre-fill the first prompt with.`).
-- **Private helpers get a one-line doc only when non-obvious** (`lastShownBefore` — "Find the last step before `index` that produced UI."). Trivial helpers (`sortKeys`, `hint`, `parseVersion`) get nothing.
+- **Names and types carry the meaning; JSDoc is the exception.** An export gets JSDoc only for what its name and signature cannot say — a thrown error, a side effect, a non-obvious contract (e.g. `getPackageManagerEntry` throws, `composeProject` writes nothing to disk). A doc that restates the signature is deleted, not written.
+- **Do not restate the type system** — no `@param` that repeats the parameter name, no "optional" for an already-`?` param.
+- **Private helpers get no doc**; a helper that needs one wants a better name or a split.
 - **Use `{@link ...}`** to cross-reference registries/types.
 - **`@example` blocks on extension seams** — `Feature` carries a worked example, because adding a feature is the main future task.
 
@@ -293,7 +293,7 @@ This is the rulebook. Match it from the first line of new code.
 - **`core/`** = pure logic, imports only `core/`/leaves and node/npm.
 - **`ui/`** consumers import only from `@/ui`; `style.ts` is UI-internal and re-exports nothing publicly.
 - **`prompts/`** may import `core`, `ui`, `wizard`, `options`, `package-managers` — never `generator`/`post-steps`.
-- **`generator/`** imports `@/core/types`, its own `config/`, node/npm — not `prompts`/`ui`.
+- **`generator/`** imports `@/core`, its own `config/`, node/npm — not `prompts`/`ui`/`post-steps`.
 - **`post-steps/`** uses the `run`/`isCommandAvailable` wrappers in `run.ts` and `package-managers` for `exec`/`dlx`/`installEnv`.
 
 ### Async / sync discipline
@@ -314,20 +314,21 @@ This is the rulebook. Match it from the first line of new code.
 ### Commits & process
 
 - **Conventional Commits**, English imperative subject with a scope — e.g. `refactor(cli): wrap the dimension options in a typed const helper`.
-- **Code-only commits — never commit planning/design/scratch docs** (`docs/**`); they get reset out of the tree.
+- **Never commit planning/design/scratch docs** (`docs/superpowers/**`, gitignored); the rest of `docs/**` is published documentation and is committed with the change it describes.
 - **Branch, don't commit straight to `main`** unless asked; commit/push only on request.
 
 ---
 
 ## Verification
 
-After **any** change to the CLI, all four must be green (run from the repo root):
+After **any** change to the CLI, all of these must be green (run from the repo root):
 
 ```bash
 pnpm --filter create-next-suite check-types
 pnpm --filter create-next-suite build
 pnpm --filter create-next-suite test
-pnpm lint
+pnpm lint    # every rule is an error, --max-warnings 0
+pnpm knip    # unused files, exports and dependencies
 ```
 
 Single test file/pattern: `pnpm --filter create-next-suite exec vitest run merge`. End-to-end smoke: `pnpm cli` (builds, then runs `node packages/cli/dist/index.js`).
@@ -342,7 +343,7 @@ GitHub Actions live in `.github/`; a reusable `.github/actions/setup` composite 
 
 ### Workflows
 
-- **`ci.yml`** (PRs + pushes to `main`): `verify` (check-types, lint, format:check, build, `publint`) · `test` across **Node 24 and 26** · a PR-only `changeset` job that fails when a `src/`/`templates/` change ships without a changeset (skipped on the `changeset-release/main` version PR, which has consumed its own).
+- **`ci.yml`** (PRs + pushes to `main`): `verify` (`pnpm audit`, check-types, lint, knip, format:check, build, `publint`) · `test` across **Node 24 and 26** · a PR-only `changeset` job that fails when a `src/`/`templates/` change ships without a changeset (skipped on the `changeset-release/main` version PR, which has consumed its own).
 - **`generated-build.yml`** (PRs touching `packages/cli/src`, `templates`, or `scripts`, + `main`): a dynamic matrix that scaffolds each `SCENARIOS` project through the **real CLI** (`create-next-suite app --yes <flags>`) — installing with the scenario's package manager and running **shadcn init + the fix step** — then runs `build → typecheck` on the _output_. This is the proof the golden snapshot cannot give: that a scaffolded project actually **builds end-to-end**, post-steps included, not merely that its `FileMap` matches. A `matrix` job emits the entries from `packages/cli/scripts/matrix.ts` (`pnpm --filter create-next-suite run matrix` → `{ name, pm, flags }` per scenario).
 - **`zizmor.yml`** (PRs that touch `.github/workflows/**` or `.github/actions/**`, plus every push to `main`): runs [zizmor](https://github.com/zizmorcore/zizmor) over the workflow definitions with `permissions: {}`. Editing a workflow therefore triggers a job the other three do not cover.
 - **`release.yml`** (pushes to `main`): `changesets/action` opens/updates a `chore(release): version packages` PR; merging it runs `changeset version` and **`changeset publish`** — tagging the release, creating a GitHub Release from the changelog, and publishing to npm under `latest`. Authenticates to npm through a trusted publisher (OIDC, hence `id-token: write` and no npm secret), which also turns provenance on by itself as long as the repository stays public.

@@ -107,7 +107,8 @@ A Turborepo monorepo; the product is the CLI in [`packages/cli`](packages/cli).
 ```bash
 pnpm build                             # build everything (turbo)
 pnpm check-types                       # type-check
-pnpm lint                              # lint
+pnpm lint                              # lint (warnings fail)
+pnpm knip                              # unused files, exports and dependencies
 pnpm test                              # tests (vitest)
 pnpm cli                               # build the CLI and run it end-to-end
 ```

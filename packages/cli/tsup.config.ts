@@ -7,8 +7,9 @@ export default defineConfig({
   format: ["esm"],
   target: "node24",
   clean: true,
-  onSuccess: async () => {
+  onSuccess: () => {
     rmSync("dist/templates", { recursive: true, force: true });
     cpSync("templates", "dist/templates", { recursive: true });
+    return Promise.resolve();
   },
 });

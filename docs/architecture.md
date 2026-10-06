@@ -41,7 +41,7 @@ Run these from the repository root.
 | ------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `pnpm build`        | `turbo run build`                                                          | `tsup` in `packages/cli`                                                     |
 | `pnpm check-types`  | `turbo run check-types`                                                    | `tsc --noEmit` in `packages/cli`                                             |
-| `pnpm lint`         | `turbo run lint`                                                           | `eslint .` in `packages/cli` (see the caveat under Testing and verification) |
+| `pnpm lint`         | `turbo run lint`                                                           | `eslint . --max-warnings 0` in `packages/cli`                                |
 | `pnpm lint:fix`     | `turbo run lint -- --fix`                                                  | `eslint . --fix` in `packages/cli`                                           |
 | `pnpm test`         | `turbo run test`                                                           | `vitest run` in `packages/cli`; does not build first                         |
 | `pnpm dev`          | `turbo run dev`                                                            | `tsup --watch` in `packages/cli`; persistent and uncached                    |
@@ -175,6 +175,7 @@ Four leaf modules are the single sources of truth. Adding a capability means edi
 | Package managers    | `src/package-managers.ts`              | `PACKAGE_MANAGERS` with `id`, `label`, `exec`, `dlx` and an optional `installEnv` and `overridesPath`, plus `findPackageManagerEntry` and `getPackageManagerEntry`                                                        | The prompt list and its display order; the runner the post-steps spawn; the `execPrefix` Handlebars helper that writes the local-binary runner into generated scripts. The `PackageManager` union itself is hand-written at the top of the file, not derived |
 | Generation features | `src/generator/config/features.ts`     | `FEATURES`, an ordered list of `{ dir, when?, dependencies?, devDependencies?, overrides? }`; a missing `when` means always-on                                                                                            | Which template layers render, in which order; which dependency names each layer contributes. `dependencies` may be a function of the config, which is how an ORM picks its engine-specific driver                                                            |
 | Dependency versions | `src/generator/config/dependencies.ts` | `VERSIONS`, a flat name-to-version map for everything a generated project can depend on                                                                                                                                   | The `DependencyName` type (`keyof typeof VERSIONS`), so a feature can only name a package declared here; the version written into the generated `package.json`; the input to `deps:check`                                                                    |
+| Accepted advisories | `src/generator/config/advisories.ts`   | `ACCEPTED_ADVISORIES`, the dependency-audit advisories every generated project ignores, each with GHSA ID, npm ID and reason                                                                                              | `pnpm-workspace.yaml` (`auditConfig.ignoreGhsas`), `.yarnrc.yml` (`npmAuditIgnoreAdvisories`) and the Bun audit step, through the `acceptedAdvisories` helpers; see [ADR 0003](adr/0003-dependency-audit-policy-for-generated-projects.md)                   |
 
 ## Testing and verification
 
@@ -184,11 +185,11 @@ The safety net for refactoring is the golden snapshot test in `src/generator/__t
 
 `scenarios.ts` is deliberately not a test file, because it has a second consumer. `scripts/matrix.ts` imports `SCENARIOS` and `scenarioToFlags`, and prints a JSON matrix of `{ name, pm, flags }`. The `.github/workflows/generated-build.yml` workflow reads that output into its job matrix, then for each entry builds the CLI, scaffolds a project through the real binary (`node packages/cli/dist/index.js app --yes <flags>`, with install, shadcn init and the fix step running), and finally runs `<pm> run build` and `<pm> run typecheck` inside the generated project. So the same scenario list is checked twice: byte-exact in the snapshot, and actually buildable in CI.
 
-`.github/workflows/ci.yml` adds the repository-level checks: a verify job (`check-types`, `lint`, `format:check`, `build`, then `publint` against the publishable package), a test job on Node 24 and 26, and a changeset job that requires a changeset for package changes.
+`.github/workflows/ci.yml` adds the repository-level checks: a verify job (`pnpm audit`, `check-types`, `lint`, `knip`, `format:check`, `build`, then `publint` against the publishable package), a test job on Node 24 and 26, and a changeset job that requires a changeset for package changes.
 
-After any change to the CLI, the bar is **`check-types` + `build` + `test` + `lint` all green**.
+After any change to the CLI, the bar is **`check-types` + `build` + `test` + `lint` + `knip` all green**.
 
-One honest caveat about that last one. `packages/eslint-config/base.js` loads `eslint-plugin-only-warn`, which downgrades every rule to `warn` across the whole config, and `packages/cli/package.json` runs `eslint .` without `--max-warnings`. ESLint therefore reports zero errors and exits 0 no matter what the rules find — including rules the config sets to `"error"` explicitly, such as `simple-import-sort/imports`. Treat `lint` as a report you read, not as a gate that stops you. `check-types`, `build` and `test` are the checks that can actually fail.
+Lint is a real gate: every rule in `@next-suite/eslint-config` is an error, `packages/cli/package.json` runs `eslint . --max-warnings 0`, and `packages/cli/eslint.config.js` enforces the import layering with `import-x/no-restricted-paths` and `import-x/no-cycle`. Knip (`pnpm knip`, root `knip.json`) reports unused files, exports and dependencies.
 
 ## Build output
 
