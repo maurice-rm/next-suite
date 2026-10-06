@@ -16,6 +16,8 @@ import { account, session, user, verification } from "@/lib/database/schema";
 {{/if}}
 import { logger } from "@/lib/logger";
 
+// Rate limits key on this header, so it must come from a proxy that overwrites
+// it (the generated nginx does). Behind another proxy, name the header it sets.
 const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {

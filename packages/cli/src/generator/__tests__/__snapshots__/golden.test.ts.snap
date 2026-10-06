@@ -341,6 +341,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -2194,6 +2195,8 @@ import { env } from "@/env";
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
 
+// Rate limits key on this header, so it must come from a proxy that overwrites
+// it (the generated nginx does). Behind another proxy, name the header it sets.
 const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
@@ -2818,6 +2821,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -3826,6 +3830,8 @@ import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
 import { logger } from "@/lib/logger";
 
+// Rate limits key on this header, so it must come from a proxy that overwrites
+// it (the generated nginx does). Behind another proxy, name the header it sets.
 const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
@@ -10747,6 +10753,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -12645,6 +12652,8 @@ import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
 import { logger } from "@/lib/logger";
 
+// Rate limits key on this header, so it must come from a proxy that overwrites
+// it (the generated nginx does). Behind another proxy, name the header it sets.
 const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
@@ -15025,6 +15034,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -16687,6 +16697,8 @@ import { env } from "@/env";
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
 
+// Rate limits key on this header, so it must come from a proxy that overwrites
+// it (the generated nginx does). Behind another proxy, name the header it sets.
 const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
