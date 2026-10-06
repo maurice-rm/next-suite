@@ -32,3 +32,9 @@ test("parsePortRegistry rejects a registry whose values are not port numbers", (
 test("parsePortRegistry reads an empty file as an empty registry", () => {
   expect(parsePortRegistry("  \n")).toEqual({});
 });
+
+test("parsePortRegistry reports text that is not JSON with the same message", () => {
+  expect(() => parsePortRegistry("{not json")).toThrow(
+    /must be a JSON object of project names to port numbers/,
+  );
+});

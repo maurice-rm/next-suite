@@ -369,8 +369,8 @@ ssh root@<host> cat /srv/ports.json
 ssh root@<host> grep -H APP_PORT /srv/www/*/.env
 ```
 
-A registry that is not valid JSON at all stops the run with the JSON parser's
-error instead; the fix is the same.
+A registry that is not valid JSON at all stops the run with the same message;
+the fix is the same.
 
 ---
 

@@ -8,14 +8,20 @@ const isPortRegistry = (value: unknown): value is PortRegistry =>
   isJsonObject(value) &&
   Object.values(value).every((port) => Number.isInteger(port));
 
+const MALFORMED_REGISTRY_MESSAGE = `${PORT_REGISTRY_PATH} must be a JSON object of project names to port numbers.`;
+
+const parseJson = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    throw new Error(MALFORMED_REGISTRY_MESSAGE, { cause: error });
+  }
+};
+
 export const parsePortRegistry = (raw: string): PortRegistry => {
   if (raw.trim() === "") return {};
-  const data: unknown = JSON.parse(raw);
-  if (!isPortRegistry(data)) {
-    throw new Error(
-      `${PORT_REGISTRY_PATH} must be a JSON object of project names to port numbers.`,
-    );
-  }
+  const data = parseJson(raw);
+  if (!isPortRegistry(data)) throw new Error(MALFORMED_REGISTRY_MESSAGE);
   return data;
 };
 
