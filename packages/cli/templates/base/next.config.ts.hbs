@@ -26,21 +26,26 @@ const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 };
 
 // No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
-// where it would pin every subdomain of the zone to HTTPS for two years.
+// where it would pin every subdomain of the zone to HTTPS for two years. HSTS
+// and upgrade-insecure-requests stay out of development, where localhost is HTTP.
 const SECURITY_HEADERS = [
   {
     key: "Content-Security-Policy",
     value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
   },
-  {
-    key: "Strict-Transport-Security",
-    value: `max-age=${String(TWO_YEARS_IN_SECONDS)}`,
-  },
+  ...(isDevelopment
+    ? []
+    : [
+        {
+          key: "Strict-Transport-Security",
+          value: `max-age=${String(TWO_YEARS_IN_SECONDS)}`,
+        },
+      ]),
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
