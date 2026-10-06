@@ -3,6 +3,7 @@ import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
+import { TRPC_ENDPOINT } from "@/trpc/endpoint";
 import { appRouter } from "@/trpc/routers/app-router";
 
 const SERVER_ERROR_STATUS = 500;
@@ -16,7 +17,7 @@ const REJECTED_REQUEST_CODES = new Set([
 
 const handler = (request: Request) =>
   fetchRequestHandler({
-    endpoint: "/api/trpc",
+    endpoint: TRPC_ENDPOINT,
     req: request,
     router: appRouter,
     createContext: createTRPCContext,

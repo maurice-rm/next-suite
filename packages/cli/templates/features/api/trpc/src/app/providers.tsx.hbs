@@ -18,19 +18,34 @@ import superjson from "superjson";
 
 import { env } from "@/env";
 import { TRPCProvider } from "@/trpc/client";
+import { TRPC_ENDPOINT } from "@/trpc/endpoint";
 import { createQueryClient } from "@/trpc/query-client";
 import type { AppRouter } from "@/trpc/routers/app-router";
+
+const SERVER_REQUEST_TIMEOUT_MS = 10_000;
 
 let browserQueryClient: QueryClient | undefined;
 let browserTRPCClient: TRPCClient<AppRouter> | undefined;
 
+const isServer = () => typeof window === "undefined";
+
 const getUrl = () => {
-  if (typeof window !== "undefined") return "/api/trpc";
-  return `${env.NEXT_PUBLIC_APP_URL}/api/trpc`;
+  if (!isServer()) return TRPC_ENDPOINT;
+  return `${env.NEXT_PUBLIC_APP_URL}${TRPC_ENDPOINT}`;
 };
 
+// Server-side rendering calls the app's own API over HTTP; bound that wait.
+const fetchWithTimeout: typeof fetch = (input, init) =>
+  fetch(input, {
+    ...init,
+    signal: AbortSignal.any([
+      ...(init?.signal ? [init.signal] : []),
+      AbortSignal.timeout(SERVER_REQUEST_TIMEOUT_MS),
+    ]),
+  });
+
 const getQueryClient = () => {
-  if (typeof window === "undefined") return createQueryClient();
+  if (isServer()) return createQueryClient();
   return (browserQueryClient ??= createQueryClient());
 };
 
@@ -42,6 +57,7 @@ const makeTRPCClient = () =>
         condition: (op) => isNonJsonSerializable(op.input),
         true: httpLink({
           url: getUrl(),
+          fetch: isServer() ? fetchWithTimeout : undefined,
           transformer: {
             serialize: (data: unknown) => data,
             deserialize: superjson.deserialize,
@@ -49,6 +65,7 @@ const makeTRPCClient = () =>
         }),
         false: httpBatchLink({
           url: getUrl(),
+          fetch: isServer() ? fetchWithTimeout : undefined,
           transformer: superjson,
         }),
       }),
@@ -56,7 +73,7 @@ const makeTRPCClient = () =>
   });
 
 const getTRPCClient = () => {
-  if (typeof window === "undefined") return makeTRPCClient();
+  if (isServer()) return makeTRPCClient();
   return (browserTRPCClient ??= makeTRPCClient());
 };
 

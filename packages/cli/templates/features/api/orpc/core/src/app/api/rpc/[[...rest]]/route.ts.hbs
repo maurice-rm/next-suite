@@ -1,6 +1,7 @@
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
@@ -12,7 +13,7 @@ const handler = new RPCHandler(appRouter, {
 
 const handleRequest = async (request: Request) => {
   const { response } = await handler.handle(request, {
-    prefix: "/api/rpc",
+    prefix: RPC_ENDPOINT,
     context: { headers: request.headers },
   });
 

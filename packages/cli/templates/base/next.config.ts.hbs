@@ -65,9 +65,11 @@ const nextConfig: NextConfig = {
 {{#if production}}
   output: "standalone",
 {{/if}}
+{{#unless api}}
   experimental: {
     serverActions: { bodySizeLimit: "25mb" },
   },
+{{/unless}}
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>

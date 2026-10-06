@@ -6,13 +6,9 @@ import { env } from "@/env";
 
 export const EMAIL_FROM = env.EMAIL_FROM;
 
-let instance: Resend | null = null;
+let resend: Resend | undefined;
 
-// Lazy: instantiating at import breaks builds without secrets
-// (e.g. Docker builds running with SKIP_ENV_VALIDATION).
-export const resend = new Proxy({} as Resend, {
-  get(_, prop) {
-    instance ??= new Resend(env.RESEND_API_KEY);
-    return Reflect.get(instance, prop) as unknown;
-  },
-});
+// Created on first use: constructing it at import breaks builds without
+// secrets (e.g. Docker builds running with SKIP_ENV_VALIDATION).
+export const getResend = (): Resend =>
+  (resend ??= new Resend(env.RESEND_API_KEY));

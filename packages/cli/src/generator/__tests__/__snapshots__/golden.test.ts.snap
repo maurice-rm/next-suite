@@ -1041,9 +1041,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -1845,6 +1842,7 @@ export const GET = async (): Promise<Response> => {
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
@@ -1856,7 +1854,7 @@ const handler = new RPCHandler(appRouter, {
 
 const handleRequest = async (request: Request) => {
   const { response } = await handler.handle(request, {
-    prefix: "/api/rpc",
+    prefix: RPC_ENDPOINT,
     context: { headers: request.headers },
   });
 
@@ -2134,7 +2132,7 @@ import { publicProcedure } from "@/orpc";
 
 export const healthRouter = {
   status: publicProcedure.handler(() => ({
-    status: "ok" as const,
+    status: "ok",
     time: new Date(),
   })),
 };
@@ -2353,6 +2351,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
@@ -2364,7 +2363,7 @@ const link = new RPCLink({
     if (typeof window === "undefined") {
       throw new Error("RPCLink is not allowed on the server side.");
     }
-    return \`\${window.location.origin}/api/rpc\`;
+    return \`\${window.location.origin}\${RPC_ENDPOINT}\`;
   },
 });
 
@@ -2372,6 +2371,10 @@ export const client: RouterClient<typeof appRouter> =
   globalThis.$client ?? createORPCClient(link);
 
 export const orpc = createTanstackQueryUtils(client);
+
+
+=== src/orpc/endpoint.ts ===
+export const RPC_ENDPOINT = "/api/rpc";
 
 
 === src/orpc/index.ts ===
@@ -4750,9 +4753,6 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -5071,6 +5071,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
@@ -5082,7 +5083,7 @@ const handler = new RPCHandler(appRouter, {
 
 const handleRequest = async (request: Request) => {
   const { response } = await handler.handle(request, {
-    prefix: "/api/rpc",
+    prefix: RPC_ENDPOINT,
     context: { headers: request.headers },
   });
 
@@ -5332,7 +5333,7 @@ import { publicProcedure } from "@/orpc";
 
 export const healthRouter = {
   status: publicProcedure.handler(() => ({
-    status: "ok" as const,
+    status: "ok",
     time: new Date(),
   })),
 };
@@ -5482,6 +5483,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
@@ -5493,7 +5495,7 @@ const link = new RPCLink({
     if (typeof window === "undefined") {
       throw new Error("RPCLink is not allowed on the server side.");
     }
-    return \`\${window.location.origin}/api/rpc\`;
+    return \`\${window.location.origin}\${RPC_ENDPOINT}\`;
   },
 });
 
@@ -5501,6 +5503,10 @@ export const client: RouterClient<typeof appRouter> =
   globalThis.$client ?? createORPCClient(link);
 
 export const orpc = createTanstackQueryUtils(client);
+
+
+=== src/orpc/endpoint.ts ===
+export const RPC_ENDPOINT = "/api/rpc";
 
 
 === src/orpc/index.ts ===
@@ -7711,9 +7717,6 @@ const SCALAR_SOURCES: ExtraSources = {
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -7975,6 +7978,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
@@ -7986,7 +7990,7 @@ const handler = new RPCHandler(appRouter, {
 
 const handleRequest = async (request: Request) => {
   const { response } = await handler.handle(request, {
-    prefix: "/api/rpc",
+    prefix: RPC_ENDPOINT,
     context: { headers: request.headers },
   });
 
@@ -8327,7 +8331,7 @@ export const healthRouter = {
     .route({ method: "GET", path: "/health" })
     .output(z.object({ status: z.literal("ok"), time: z.date() }))
     .handler(() => ({
-      status: "ok" as const,
+      status: "ok",
       time: new Date(),
     })),
 };
@@ -8436,6 +8440,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
@@ -8447,7 +8452,7 @@ const link = new RPCLink({
     if (typeof window === "undefined") {
       throw new Error("RPCLink is not allowed on the server side.");
     }
-    return \`\${window.location.origin}/api/rpc\`;
+    return \`\${window.location.origin}\${RPC_ENDPOINT}\`;
   },
 });
 
@@ -8455,6 +8460,10 @@ export const client: RouterClient<typeof appRouter> =
   globalThis.$client ?? createORPCClient(link);
 
 export const orpc = createTanstackQueryUtils(client);
+
+
+=== src/orpc/endpoint.ts ===
+export const RPC_ENDPOINT = "/api/rpc";
 
 
 === src/orpc/index.ts ===
@@ -9230,9 +9239,6 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -9485,6 +9491,7 @@ main
 import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
 
@@ -9496,7 +9503,7 @@ const handler = new RPCHandler(appRouter, {
 
 const handleRequest = async (request: Request) => {
   const { response } = await handler.handle(request, {
-    prefix: "/api/rpc",
+    prefix: RPC_ENDPOINT,
     context: { headers: request.headers },
   });
 
@@ -9839,7 +9846,7 @@ export const healthRouter = {
     .route({ method: "GET", path: "/health" })
     .output(z.object({ status: z.literal("ok"), time: z.date() }))
     .handler(() => ({
-      status: "ok" as const,
+      status: "ok",
       time: new Date(),
     })),
 };
@@ -9948,6 +9955,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
@@ -9959,7 +9967,7 @@ const link = new RPCLink({
     if (typeof window === "undefined") {
       throw new Error("RPCLink is not allowed on the server side.");
     }
-    return \`\${window.location.origin}/api/rpc\`;
+    return \`\${window.location.origin}\${RPC_ENDPOINT}\`;
   },
 });
 
@@ -9967,6 +9975,10 @@ export const client: RouterClient<typeof appRouter> =
   globalThis.$client ?? createORPCClient(link);
 
 export const orpc = createTanstackQueryUtils(client);
+
+
+=== src/orpc/endpoint.ts ===
+export const RPC_ENDPOINT = "/api/rpc";
 
 
 === src/orpc/index.ts ===
@@ -11388,9 +11400,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -12136,6 +12145,7 @@ import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
+import { TRPC_ENDPOINT } from "@/trpc/endpoint";
 import { appRouter } from "@/trpc/routers/app-router";
 
 const SERVER_ERROR_STATUS = 500;
@@ -12149,7 +12159,7 @@ const REJECTED_REQUEST_CODES = new Set([
 
 const handler = (request: Request) =>
   fetchRequestHandler({
-    endpoint: "/api/trpc",
+    endpoint: TRPC_ENDPOINT,
     req: request,
     router: appRouter,
     createContext: createTRPCContext,
@@ -12323,19 +12333,34 @@ import superjson from "superjson";
 
 import { env } from "@/env";
 import { TRPCProvider } from "@/trpc/client";
+import { TRPC_ENDPOINT } from "@/trpc/endpoint";
 import { createQueryClient } from "@/trpc/query-client";
 import type { AppRouter } from "@/trpc/routers/app-router";
+
+const SERVER_REQUEST_TIMEOUT_MS = 10_000;
 
 let browserQueryClient: QueryClient | undefined;
 let browserTRPCClient: TRPCClient<AppRouter> | undefined;
 
+const isServer = () => typeof window === "undefined";
+
 const getUrl = () => {
-  if (typeof window !== "undefined") return "/api/trpc";
-  return \`\${env.NEXT_PUBLIC_APP_URL}/api/trpc\`;
+  if (!isServer()) return TRPC_ENDPOINT;
+  return \`\${env.NEXT_PUBLIC_APP_URL}\${TRPC_ENDPOINT}\`;
 };
 
+// Server-side rendering calls the app's own API over HTTP; bound that wait.
+const fetchWithTimeout: typeof fetch = (input, init) =>
+  fetch(input, {
+    ...init,
+    signal: AbortSignal.any([
+      ...(init?.signal ? [init.signal] : []),
+      AbortSignal.timeout(SERVER_REQUEST_TIMEOUT_MS),
+    ]),
+  });
+
 const getQueryClient = () => {
-  if (typeof window === "undefined") return createQueryClient();
+  if (isServer()) return createQueryClient();
   return (browserQueryClient ??= createQueryClient());
 };
 
@@ -12347,6 +12372,7 @@ const makeTRPCClient = () =>
         condition: (op) => isNonJsonSerializable(op.input),
         true: httpLink({
           url: getUrl(),
+          fetch: isServer() ? fetchWithTimeout : undefined,
           transformer: {
             serialize: (data: unknown) => data,
             deserialize: superjson.deserialize,
@@ -12354,6 +12380,7 @@ const makeTRPCClient = () =>
         }),
         false: httpBatchLink({
           url: getUrl(),
+          fetch: isServer() ? fetchWithTimeout : undefined,
           transformer: superjson,
         }),
       }),
@@ -12361,7 +12388,7 @@ const makeTRPCClient = () =>
   });
 
 const getTRPCClient = () => {
-  if (typeof window === "undefined") return makeTRPCClient();
+  if (isServer()) return makeTRPCClient();
   return (browserTRPCClient ??= makeTRPCClient());
 };
 
@@ -12444,7 +12471,7 @@ import { publicProcedure, router } from "@/trpc";
 
 export const healthRouter = router({
   status: publicProcedure.query(() => ({
-    status: "ok" as const,
+    status: "ok",
     time: new Date(),
   })),
 });
@@ -12725,16 +12752,12 @@ import { env } from "@/env";
 
 export const EMAIL_FROM = env.EMAIL_FROM;
 
-let instance: Resend | null = null;
+let resend: Resend | undefined;
 
-// Lazy: instantiating at import breaks builds without secrets
-// (e.g. Docker builds running with SKIP_ENV_VALIDATION).
-export const resend = new Proxy({} as Resend, {
-  get(_, prop) {
-    instance ??= new Resend(env.RESEND_API_KEY);
-    return Reflect.get(instance, prop) as unknown;
-  },
-});
+// Created on first use: constructing it at import breaks builds without
+// secrets (e.g. Docker builds running with SKIP_ENV_VALIDATION).
+export const getResend = (): Resend =>
+  (resend ??= new Resend(env.RESEND_API_KEY));
 
 
 === src/lib/logger.ts ===
@@ -12780,6 +12803,10 @@ import { createTRPCContext } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "@/trpc/routers/app-router";
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
+
+
+=== src/trpc/endpoint.ts ===
+export const TRPC_ENDPOINT = "/api/trpc";
 
 
 === src/trpc/index.ts ===
@@ -13605,9 +13632,6 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -13891,6 +13915,7 @@ import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
+import { TRPC_ENDPOINT } from "@/trpc/endpoint";
 import { appRouter } from "@/trpc/routers/app-router";
 
 const SERVER_ERROR_STATUS = 500;
@@ -13904,7 +13929,7 @@ const REJECTED_REQUEST_CODES = new Set([
 
 const handler = (request: Request) =>
   fetchRequestHandler({
-    endpoint: "/api/trpc",
+    endpoint: TRPC_ENDPOINT,
     req: request,
     router: appRouter,
     createContext: createTRPCContext,
@@ -14118,19 +14143,34 @@ import superjson from "superjson";
 
 import { env } from "@/env";
 import { TRPCProvider } from "@/trpc/client";
+import { TRPC_ENDPOINT } from "@/trpc/endpoint";
 import { createQueryClient } from "@/trpc/query-client";
 import type { AppRouter } from "@/trpc/routers/app-router";
+
+const SERVER_REQUEST_TIMEOUT_MS = 10_000;
 
 let browserQueryClient: QueryClient | undefined;
 let browserTRPCClient: TRPCClient<AppRouter> | undefined;
 
+const isServer = () => typeof window === "undefined";
+
 const getUrl = () => {
-  if (typeof window !== "undefined") return "/api/trpc";
-  return \`\${env.NEXT_PUBLIC_APP_URL}/api/trpc\`;
+  if (!isServer()) return TRPC_ENDPOINT;
+  return \`\${env.NEXT_PUBLIC_APP_URL}\${TRPC_ENDPOINT}\`;
 };
 
+// Server-side rendering calls the app's own API over HTTP; bound that wait.
+const fetchWithTimeout: typeof fetch = (input, init) =>
+  fetch(input, {
+    ...init,
+    signal: AbortSignal.any([
+      ...(init?.signal ? [init.signal] : []),
+      AbortSignal.timeout(SERVER_REQUEST_TIMEOUT_MS),
+    ]),
+  });
+
 const getQueryClient = () => {
-  if (typeof window === "undefined") return createQueryClient();
+  if (isServer()) return createQueryClient();
   return (browserQueryClient ??= createQueryClient());
 };
 
@@ -14142,6 +14182,7 @@ const makeTRPCClient = () =>
         condition: (op) => isNonJsonSerializable(op.input),
         true: httpLink({
           url: getUrl(),
+          fetch: isServer() ? fetchWithTimeout : undefined,
           transformer: {
             serialize: (data: unknown) => data,
             deserialize: superjson.deserialize,
@@ -14149,6 +14190,7 @@ const makeTRPCClient = () =>
         }),
         false: httpBatchLink({
           url: getUrl(),
+          fetch: isServer() ? fetchWithTimeout : undefined,
           transformer: superjson,
         }),
       }),
@@ -14156,7 +14198,7 @@ const makeTRPCClient = () =>
   });
 
 const getTRPCClient = () => {
-  if (typeof window === "undefined") return makeTRPCClient();
+  if (isServer()) return makeTRPCClient();
   return (browserTRPCClient ??= makeTRPCClient());
 };
 
@@ -14229,7 +14271,7 @@ import { publicProcedure, router } from "@/trpc";
 
 export const healthRouter = router({
   status: publicProcedure.query(() => ({
-    status: "ok" as const,
+    status: "ok",
     time: new Date(),
   })),
 });
@@ -14321,6 +14363,10 @@ import { createTRPCContext } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "@/trpc/routers/app-router";
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
+
+
+=== src/trpc/endpoint.ts ===
+export const TRPC_ENDPOINT = "/api/trpc";
 
 
 === src/trpc/index.ts ===
@@ -16577,16 +16623,12 @@ import { env } from "@/env";
 
 export const EMAIL_FROM = env.EMAIL_FROM;
 
-let instance: Resend | null = null;
+let resend: Resend | undefined;
 
-// Lazy: instantiating at import breaks builds without secrets
-// (e.g. Docker builds running with SKIP_ENV_VALIDATION).
-export const resend = new Proxy({} as Resend, {
-  get(_, prop) {
-    instance ??= new Resend(env.RESEND_API_KEY);
-    return Reflect.get(instance, prop) as unknown;
-  },
-});
+// Created on first use: constructing it at import breaks builds without
+// secrets (e.g. Docker builds running with SKIP_ENV_VALIDATION).
+export const getResend = (): Resend =>
+  (resend ??= new Resend(env.RESEND_API_KEY));
 
 
 === src/lib/logger.ts ===

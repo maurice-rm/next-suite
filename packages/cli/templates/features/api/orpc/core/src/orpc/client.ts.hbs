@@ -3,6 +3,7 @@ import { RPCLink } from "@orpc/client/fetch";
 import type { RouterClient } from "@orpc/server";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
 import type { appRouter } from "@/orpc/routers/app-router";
 
 declare global {
@@ -14,7 +15,7 @@ const link = new RPCLink({
     if (typeof window === "undefined") {
       throw new Error("RPCLink is not allowed on the server side.");
     }
-    return `${window.location.origin}/api/rpc`;
+    return `${window.location.origin}${RPC_ENDPOINT}`;
   },
 });
 

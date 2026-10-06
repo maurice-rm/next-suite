@@ -10,12 +10,12 @@ export const healthRouter = {
     .route({ method: "GET", path: "/health" })
     .output(z.object({ status: z.literal("ok"), time: z.date() }))
     .handler(() => ({
-      status: "ok" as const,
+      status: "ok",
       time: new Date(),
     })),
 {{else}}
   status: publicProcedure.handler(() => ({
-    status: "ok" as const,
+    status: "ok",
     time: new Date(),
   })),
 {{/if}}
