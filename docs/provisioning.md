@@ -41,6 +41,7 @@ with the full list of what failed. Setting these up once is described in
 | Check           | Command run over SSH                                                                                   | A failure means                                                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `root`          | `[ "$(id -u)" = 0 ]`                                                                                   | The admin user is not root. Every remote step runs the bare command (`useradd`, `cat > /etc/nginx/…`, `certbot`), so sudo is not enough. |
+| `runuser`       | `command -v runuser >/dev/null`                                                                        | runuser (util-linux) is missing. The deploy key is written to `authorized_keys` as the deploy user through it, not as root.              |
 | `nginx`         | `command -v nginx >/dev/null`                                                                          | nginx is not installed.                                                                                                                  |
 | `certbot`       | `command -v certbot >/dev/null`                                                                        | certbot is not installed.                                                                                                                |
 | `docker`        | `docker compose version >/dev/null 2>&1 && docker info >/dev/null 2>&1`                                | Docker or the Compose plugin is missing, or the daemon is down. Provision would succeed and the first deploy would fail.                 |
@@ -139,8 +140,14 @@ key belongs to one project on one server: two projects with the same name on
 different servers never share a key, so a repository's `DEPLOY_SSH_KEY` opens
 only its own server. It is reused on a later run against the same server, so the
 GitHub secret stays valid. Only a keypair with both files missing is generated.
-Keys from versions before 1.4 lived at `keys/<project>`; they are no longer read
-— the next run mints a per-server key, and the old files can be deleted. If exactly one of
+Keys from versions before 1.4 lived at `keys/<project>` and were shared by every
+same-named project. They are no longer read: the next run against a server mints
+a per-server key, removes the old key from that server's `authorized_keys` and
+replaces the repository's `DEPLOY_SSH_KEY`. Until a project is provisioned again,
+its server still accepts the old key, so re-run `provision` for every project
+that shared a name with one on another server, then delete `keys/<project>` and
+`keys/<project>.pub`. With `--skip-github`, store the newly printed key as the
+`DEPLOY_SSH_KEY` secret yourself, or CD loses access after the run. If exactly one of
 `<project>` and `<project>.pub` exists, the run stops before it changes the server
 rather than overwrite the surviving half — restore the missing file, or delete
 both to start over with a new key.
@@ -157,9 +164,10 @@ One script runs as root and is safe to repeat:
 - The user joins the `docker` group and the `deploy` group — each only if the
   group already exists on the host.
 - `~/.ssh` is created mode `700`, and `authorized_keys` (mode `600`) is
-  rewritten so it holds exactly one key with this project's comment
-  (`<project>@next-suite`): the current one. Other keys stay untouched, and a
-  rotated key no longer lingers.
+  rewritten — as the deploy user, through `runuser`, so a symlink in the home
+  directory cannot redirect a root write — to hold exactly one key with this
+  project's comment (`<project>@next-suite`): the current one. Other keys stay
+  untouched, and a rotated key no longer lingers.
 
 The user gets no password and no sudo rule.
 
@@ -352,11 +360,13 @@ it as secret material, and prefer letting `gh` transfer the key.
 `XDG_CONFIG_HOME` is respected: when it is set, both paths live under
 `$XDG_CONFIG_HOME/next-suite/` instead of `~/.config/next-suite/`.
 
-The config is parsed strictly. All three fields must be non-empty strings, and
-`certbotEmail` must look like an address, otherwise the command aborts and names
-the offending field. When provision creates the file itself on a first run it
-writes it with mode `600`; `next-suite config` writes it with your default file
-mode.
+The config is parsed strictly. All three fields must be non-empty strings, the
+host and admin user may only contain letters, digits, dot, dash and underscore,
+and `certbotEmail` must look like an address. The prompts apply the same rules
+as you type. `provision` and `deprovision` abort on a file that breaks them and
+name the offending field; `next-suite config` warns and asks for the values
+again, so the command that fixes the file never fails on it. Both commands write
+the file with mode `600` (a file created before 1.4 keeps the mode it has).
 
 ## Deprovisioning
 

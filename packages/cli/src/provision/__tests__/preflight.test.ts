@@ -17,9 +17,10 @@ const scriptedRunner = (failWhen: (script: string) => boolean): Runner => {
   };
 };
 
-test("remoteChecks lists the 9 baseline checks in order", () => {
+test("remoteChecks lists the 10 baseline checks in order", () => {
   expect(remoteChecks().map((check) => check.name)).toEqual([
     "root",
+    "runuser",
     "nginx",
     "certbot",
     "docker",

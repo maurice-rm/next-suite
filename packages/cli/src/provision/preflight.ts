@@ -19,6 +19,11 @@ export const remoteChecks = (): Check[] => [
     fail: "The admin user must be root — provision writes to /etc and /srv directly, without sudo.",
   },
   {
+    name: "runuser",
+    script: "command -v runuser >/dev/null",
+    fail: "runuser is missing (util-linux) — provision installs the deploy key as the deploy user through it.",
+  },
+  {
     name: "nginx",
     script: "command -v nginx >/dev/null",
     fail: "nginx is not installed on the server.",

@@ -6,7 +6,11 @@ import {
 } from "./nginx";
 import type { ProvisionContext } from "./provision-context";
 import { getCertificateDirectory, getNginxConfPath } from "./server-paths";
-import { buildCertbotArgs, buildNginxWriteScript } from "./server-scripts";
+import {
+  assertHeredocSafe,
+  buildCertbotArgs,
+  buildNginxWriteScript,
+} from "./server-scripts";
 import { quoteShellWord } from "./shell-quote";
 import {
   formatDestination,
@@ -69,6 +73,9 @@ export const readPreviousConf = async ({
     getNginxConfPath(deploy.name),
     run,
   );
+  // Checked before anything is written: the restore after a failed certificate
+  // must not be the step that discovers the conf cannot be re-uploaded.
+  assertHeredocSafe(content);
   const serverNames = extractServerNames(content);
   return {
     content,

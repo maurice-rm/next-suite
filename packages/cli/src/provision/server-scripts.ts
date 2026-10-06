@@ -3,6 +3,18 @@ import type { DeployTarget } from "./deploy-target";
 import { getNginxConfPath } from "./server-paths";
 import { quoteShellWord } from "./shell-quote";
 
+// Runs as the deploy user, not root: the user owns ~/.ssh, so a symlink planted
+// there must not let a root write land elsewhere. Keeps exactly one key with
+// the project's comment — the current one — and every other key untouched.
+const AUTHORIZED_KEYS_ROTATION = `set -eu
+keys=$1; comment=$2; key=$3
+touch "$keys"
+next=$(mktemp "$keys.XXXXXX")
+awk -v comment="$comment" -v key="$key" '$0 != key && $NF != comment' "$keys" > "$next"
+printf '%s\\n' "$key" >> "$next"
+chmod 600 "$next"
+mv "$next" "$keys"`;
+
 export const buildServerSetupScript = (
   deploy: DeployTarget,
   publicKey: string,
@@ -21,17 +33,12 @@ chmod 3755 ${deploy.path}
 getent group docker >/dev/null && usermod -aG docker ${deploy.user} || true
 getent group deploy >/dev/null && usermod -aG deploy ${deploy.user} || true
 install -d -m 700 -o ${deploy.user} -g ${deploy.user} ${deploy.path}/.ssh
-touch ${deploy.path}/.ssh/authorized_keys
-awk -v comment=${quoteShellWord(getDeployKeyComment(deploy.name))} '$NF != comment' ${deploy.path}/.ssh/authorized_keys > ${deploy.path}/.ssh/authorized_keys.next
-echo ${quoteShellWord(publicKey)} >> ${deploy.path}/.ssh/authorized_keys.next
-mv ${deploy.path}/.ssh/authorized_keys.next ${deploy.path}/.ssh/authorized_keys
-chmod 600 ${deploy.path}/.ssh/authorized_keys
-chown ${deploy.user}:${deploy.user} ${deploy.path}/.ssh/authorized_keys
+runuser -u ${deploy.user} -- sh -c ${quoteShellWord(AUTHORIZED_KEYS_ROTATION)} sh ${deploy.path}/.ssh/authorized_keys ${quoteShellWord(getDeployKeyComment(deploy.name))} ${quoteShellWord(publicKey)}
 `;
 
 const HEREDOC_TERMINATOR = "NGINX_EOF";
 
-const assertHeredocSafe = (block: string): void => {
+export const assertHeredocSafe = (block: string): void => {
   if (block.split("\n").includes(HEREDOC_TERMINATOR)) {
     throw new Error(
       `The nginx config contains a line "${HEREDOC_TERMINATOR}", which would end the upload early — remove that line, then run again.`,

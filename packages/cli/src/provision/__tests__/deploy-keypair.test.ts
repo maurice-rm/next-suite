@@ -126,3 +126,20 @@ test("loadOrCreateKeypair never shares a key between two servers", async () => {
     await fs.rm(keyDir, { recursive: true, force: true });
   }
 });
+
+test("loadOrCreateKeypair explains a pre-1.4 key file where the host directory belongs", async () => {
+  const keyDir = await fs.mkdtemp(path.join(os.tmpdir(), "ns-keys-"));
+  try {
+    await fs.writeFile(path.join(keyDir, "myapp"), "OLD PRIVATE\n");
+    await expect(
+      loadOrCreateKeypair(
+        { host: "myapp", name: "myapp" },
+        { keyDirectory: keyDir, generate: vi.fn() },
+      ),
+    ).rejects.toThrow(
+      /is a file, probably a deploy key from a version before 1\.4/,
+    );
+  } finally {
+    await fs.rm(keyDir, { recursive: true, force: true });
+  }
+});

@@ -57,6 +57,20 @@ export const generateKeypair: KeypairGenerator = async (comment) => {
   }
 };
 
+const assertNoFileInTheWay = async (directory: string): Promise<void> => {
+  const stat = await fs.lstat(directory).catch((error: unknown) => {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return undefined;
+    }
+    throw error;
+  });
+  if (stat && !stat.isDirectory()) {
+    throw new Error(
+      `${directory} is a file, probably a deploy key from a version before 1.4 — move it and ${directory}.pub aside, then run again.`,
+    );
+  }
+};
+
 const persistKeypair = async (
   keyFile: string,
   keys: Keypair,
@@ -81,6 +95,7 @@ export const loadOrCreateKeypair = async (
   const keyDirectory = options?.keyDirectory ?? getDeployKeyDirectory();
   const generate = options?.generate ?? generateKeypair;
   const keyFile = getDeployKeyFile(keyDirectory, owner);
+  await assertNoFileInTheWay(path.dirname(keyFile));
 
   const [privateKey, publicKey] = await Promise.all([
     readFileIfExists(keyFile),
