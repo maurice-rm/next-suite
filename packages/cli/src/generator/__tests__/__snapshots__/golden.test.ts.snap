@@ -10358,6 +10358,2468 @@ export const prefetchInfinite = <
 "
 `;
 
+exports[`golden FileMap > pnpm · prisma + mysql in production 1`] = `
+"=== .dockerignore ===
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+Dockerfile*
+next.Dockerfile
+docker-compose*.yml
+.dockerignore
+README.md
+AGENTS.md
+.vscode
+.idea
+npm-debug.log*
+.DS_Store
+
+
+=== .editorconfig ===
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Trailing whitespace is significant in Markdown (two spaces = line break).
+[*.md]
+trim_trailing_whitespace = false
+
+=== .env ===
+COMPOSE_PROJECT_NAME=pnpm-prisma
+
+MYSQL_PORT=3306
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=next
+MYSQL_DATABASE=pnpm-prisma
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+BETTER_AUTH_SECRET=insecure-dev-secret-change-me-32chars!
+
+# Loopback port of the nginx sidecar; must match the host's proxy_pass. See DEPLOY.md.
+APP_PORT=8100
+
+# Production image for docker-compose.prod.yml. Leave unset to build locally;
+# set to ghcr.io/OWNER/REPO:TAG to pull a prebuilt image instead.
+DOCKER_IMAGE=
+
+
+=== .env.example ===
+COMPOSE_PROJECT_NAME=pnpm-prisma
+
+MYSQL_PORT=3306
+MYSQL_HOST=localhost
+MYSQL_USER=root
+MYSQL_PASSWORD=next
+MYSQL_DATABASE=pnpm-prisma
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+BETTER_AUTH_SECRET=insecure-dev-secret-change-me-32chars!
+
+# Loopback port of the nginx sidecar; must match the host's proxy_pass. See DEPLOY.md.
+APP_PORT=8100
+
+# Production image for docker-compose.prod.yml. Leave unset to build locally;
+# set to ghcr.io/OWNER/REPO:TAG to pull a prebuilt image instead.
+DOCKER_IMAGE=
+
+
+=== .gitattributes ===
+# Normalize line endings to LF on checkin and checkout.
+* text=auto eol=lf
+
+# Treat common binary assets as binary (no EOL or diff munging).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# Lockfiles — collapse in diffs + mark generated. Only the chosen package
+# manager's lockfile exists; entries for absent files are harmless no-ops.
+package-lock.json -diff linguist-generated
+pnpm-lock.yaml -diff linguist-generated
+yarn.lock -diff linguist-generated
+bun.lock -diff linguist-generated
+bun.lockb binary linguist-generated
+
+=== .github/actions/setup/action.yml ===
+name: Setup
+description: Install Node, the package manager, and project dependencies.
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 24
+        cache: pnpm
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      shell: bash
+
+
+=== .github/workflows/ci.yml ===
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Use the example environment
+        run: cp .env.example .env
+      - name: Audit dependencies
+        run: pnpm audit
+      - name: Lint
+        run: pnpm run lint
+      - name: Unused code
+        run: pnpm run knip
+      - name: Type-check
+        run: pnpm run typecheck
+
+
+=== .gitignore ===
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# generated code (the prisma client)
+/src/generated/
+
+# editors
+.idea/
+*.iml
+
+
+=== .husky/commit-msg ===
+pnpm exec commitlint --edit "$1"
+
+
+=== .husky/pre-commit ===
+pnpm exec lint-staged
+
+
+=== .lintstagedrc.json ===
+{
+  "*.{js,jsx,ts,tsx,mjs,cjs}": ["eslint --fix", "prettier --write"],
+  "!*.{js,jsx,ts,tsx,mjs,cjs}": "prettier --ignore-unknown --write"
+}
+
+
+=== .nvmrc ===
+24
+
+=== .prettierignore ===
+node_modules
+.next
+out
+build
+src/generated
+
+# Lockfiles (any package manager)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+next-env.d.ts
+AGENTS.md
+
+=== .prettierrc.json ===
+{
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "printWidth": 80,
+  "tabWidth": 2,
+  "plugins": [
+    "prettier-plugin-packagejson"
+  ]
+}
+
+
+=== AGENTS.md ===
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
+# Project conventions
+
+- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
+
+=== DEPLOY.md ===
+# 🚀 Deployment
+
+This project ships as a Docker image via \`docker-compose.prod.yml\`. The deploy pipeline only updates the \`DOCKER_IMAGE\` line in \`.env\` — it never creates \`.env\`. So before your **first** deploy, create \`.env\` on the server by hand, with the keys below.
+
+## 🤖 Automated setup (beta)
+
+> **⚠️ Beta** — \`next-suite provision\` is new and experimental: it changes a real server (creates a user, writes nginx config, obtains a certificate, sets the GitHub secrets below). Run \`next-suite provision --dry-run\` first to see the exact commands.
+
+\`next-suite provision\` comes from installing the CLI globally: \`npm i -g create-next-suite@latest\`. Run \`next-suite provision\` from this project directory to perform the server setup below automatically — server user, \`.env\`, nginx + TLS, and the GitHub secrets/variables. \`next-suite deprovision\` rolls it back. The manual steps below remain the fallback/reference.
+
+## 📋 Required \`.env\` keys
+
+\`\`\`dotenv
+COMPOSE_PROJECT_NAME=pnpm-prisma
+APP_PORT=8100
+MYSQL_PORT=3306
+MYSQL_HOST=mysql
+MYSQL_USER=root
+MYSQL_PASSWORD=change-me-before-production
+MYSQL_DATABASE=pnpm-prisma
+BETTER_AUTH_SECRET=generate-with-openssl-rand-base64-32
+NEXT_PUBLIC_APP_URL=https://your-domain.example
+\`\`\`
+
+Generate a secret with \`openssl rand -base64 32\`.
+
+\`APP_PORT\` is the loopback port the nginx sidecar publishes; it must match the \`proxy_pass\` port in the host's \`/etc/nginx/conf.d/<name>.conf\`. \`next-suite provision\` assigns and sets it for you. Compose refuses to start without it rather than falling back to a port another service may already own.
+
+### 🤝 What the host proxy must send
+
+The sidecar binds \`127.0.0.1\` only, so **the host proxy is the trust boundary** — the sidecar forwards these headers rather than setting them, and the app trusts what arrives. \`next-suite provision\` writes a host block that gets this right; a hand-written one must too:
+
+\`\`\`nginx
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $remote_addr;   # NOT $proxy_add_x_forwarded_for —
+                                                   # that appends the client's own value
+proxy_set_header X-Forwarded-Proto https;
+proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host: Next.js
+                                                   # compares it against Origin for
+                                                   # Server Action CSRF
+client_max_body_size 25m;                          # host default is 1m and would 413 first
+\`\`\`
+
+Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+
+A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
+
+## 🚦 First deploy
+
+1. On the server, create \`<deploy-path>/.env\` with real values for the keys above — or let the shipped script do it: \`bash scripts/prod.sh bootstrap\`.
+2. Trigger the deploy (push to \`main\`) — it ships \`docker-compose.prod.yml\`, \`nginx\`, and \`scripts\`, then pulls the built image.
+
+## 📡 Streaming responses
+
+nginx cuts a proxied connection after 120s without data (\`proxy_read_timeout\`). Streaming SSR is unaffected — it keeps flushing — but an idle Server-Sent-Events or WebSocket connection is not. Keep them alive from the app rather than raising the timeout: send an SSE comment (\`: ping\\n\\n\`) or a WebSocket ping every 25–30s.
+
+\`X-Accel-Buffering: no\` — the usual advice — does **not** help here: nginx consumes \`X-Accel-*\` rather than forwarding it, so it never reaches the hop that would act on it. It is also unnecessary, because the location serving the app runs with \`proxy_buffering off\` already; only the static-asset locations buffer, and those serve finite files.
+
+## 🛠️ Operating the app
+
+The deploy also ships \`scripts/prod.sh\`:
+
+\`\`\`bash
+bash scripts/prod.sh bootstrap  # create .env from .env.example + generate the auth secret
+bash scripts/prod.sh up       # migrate, then start (builds the image locally if none is set)
+bash scripts/prod.sh logs     # follow logs
+bash scripts/prod.sh down     # stop
+bash scripts/prod.sh restart  # restart
+bash scripts/prod.sh ps       # status
+\`\`\`
+
+\`up\` applies pending migrations **before** it touches the stack, in a
+short-lived \`migrate\` container. That ordering is deliberate: \`docker compose
+up\` stops the running containers to recreate them, so a migration that fails
+during \`up\` leaves the site down — run on its own it fails while the current
+release is still serving, and nothing has been changed.
+
+
+=== README.md ===
+# pnpm-prisma
+
+A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/next-suite).
+
+## 🧩 Stack
+
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 16 (App Router) |
+| UI | React 19 + React Compiler |
+| Language | TypeScript |
+| Database | MySQL |
+| ORM | Prisma |
+| API | oRPC |
+| Auth | Better-Auth |
+| Deployment | Docker + nginx |
+
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **pnpm** — the version in \`package.json#packageManager\`, activated with \`corepack enable\`.
+- **Docker** with Compose — runs the local MySQL database.
+- **openssl** — the setup script generates the auth secret with it.
+
+## 🚀 Getting started
+
+Fresh clone? The setup script creates \`.env\` from \`.env.example\` (generating the auth secret), installs dependencies, starts the database and applies the schema:
+
+\`\`\`bash
+bash scripts/setup.sh          # interactive
+bash scripts/setup.sh --yes    # non-interactive
+\`\`\`
+
+Then start the dev server:
+
+\`\`\`bash
+pnpm run dev
+\`\`\`
+
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
+## 📜 Scripts
+
+| Command | Description |
+| --- | --- |
+| \`pnpm run setup\` | Create \`.env\`, install dependencies and prepare the database |
+| \`pnpm run dev\` | Start the dev server |
+| \`pnpm run build\` | Build for production |
+| \`pnpm run start\` | Start the production server |
+| \`pnpm run check\` | Type-check, lint, format-check and unused-code check |
+| \`pnpm run fix\` | Fix lint findings and format |
+| \`pnpm run typecheck\` | Type-check |
+| \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run db:generate\` | Generate the Prisma client |
+| \`pnpm run db:migrate\` | Create and apply a migration from the schema |
+| \`pnpm run db:push\` | Push the schema without a migration (local throwaway databases only) |
+| \`pnpm run db:studio\` | Open Prisma Studio |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure: database client and schema, auth, logger, domain errors
+  orpc/                 the API layer: procedure builders, router, clients
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
+
+## 🐳 Deployment
+
+[DEPLOY.md](DEPLOY.md) walks through the production stack (Docker, nginx) and the first deploy.
+
+## ✅ Conventions
+
+- **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
+
+
+=== commitlint.config.mjs ===
+const config = {
+  extends: ["@commitlint/config-conventional"],
+};
+
+export default config;
+
+
+=== docker-compose.prod.yml ===
+services:
+  app:
+    image: \${DOCKER_IMAGE:-pnpm-prisma:latest}
+    build:
+      context: .
+      dockerfile: next.Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: \${NEXT_PUBLIC_APP_URL}
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: mysql
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: always
+
+  nginx:
+    image: nginx:1.29-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:\${APP_PORT:?APP_PORT is required in .env — see DEPLOY.md}:80"
+    networks:
+      - app-network
+    restart: always
+
+  mysql:
+    image: mysql:8.4
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: \${MYSQL_PASSWORD:?MYSQL_PASSWORD is required in .env — see DEPLOY.md}
+      MYSQL_DATABASE: \${MYSQL_DATABASE:?MYSQL_DATABASE is required in .env — see DEPLOY.md}
+    expose:
+      - "3306"
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p\${MYSQL_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - app-network
+
+volumes:
+  mysql:
+
+networks:
+  app-network:
+    driver: bridge
+
+
+=== docker-compose.yml ===
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: \${MYSQL_PASSWORD}
+      MYSQL_DATABASE: \${MYSQL_DATABASE}
+    ports:
+      - "127.0.0.1:\${MYSQL_PORT}:3306"
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p\${MYSQL_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql:
+
+=== entrypoint.sh ===
+#!/bin/sh
+set -e
+
+# \`migrate\` migrates and exits, so a deploy can run it before touching the
+# stack — see DEPLOY.md.
+
+echo "Waiting for database..."
+RETRIES=30
+until mysqladmin ping -h "\${MYSQL_HOST}" -P "\${MYSQL_PORT}" -u "\${MYSQL_USER}" -p"\${MYSQL_PASSWORD}" --silent >/dev/null 2>&1; do
+  RETRIES=$((RETRIES - 1))
+  if [ "$RETRIES" -le 0 ]; then
+    echo "Database not reachable — exiting."
+    exit 1
+  fi
+  echo "Database not ready yet, retrying in 2s... (\${RETRIES} left)"
+  sleep 2
+done
+echo "Database is ready."
+
+echo "Running database migrations..."
+npx --no -- prisma migrate deploy
+
+if [ "\${1:-}" = "migrate" ]; then
+  echo "Migrations done."
+  exit 0
+fi
+
+echo "Starting the server..."
+exec node server.js
+
+
+=== eslint.config.mjs ===
+import { defineConfig } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
+
+const eslintConfig = defineConfig([
+  { ignores: ["src/generated/**"] },
+  ...nextVitals,
+  ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    plugins: { "simple-import-sort": simpleImportSort },
+    rules: {
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [
+            ["^\\\\u0000"],
+            ["^node:"],
+            ["^react", "^next"],
+            ["^@?\\\\w"],
+            ["^@/"],
+            ["^"],
+            ["^\\\\."],
+          ],
+        },
+      ],
+      "simple-import-sort/exports": "error",
+      "import/first": "error",
+      "import/newline-after-import": "error",
+      "import/no-duplicates": "error",
+      "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        {
+          selector: ["variable", "parameter"],
+          types: ["boolean"],
+          format: ["PascalCase"],
+          prefix: ["is", "has", "can", "should", "uses", "was", "will"],
+        },
+        {
+          selector: ["variable", "parameter"],
+          modifiers: ["destructured"],
+          types: ["boolean"],
+          format: null,
+        },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      complexity: ["error", 15],
+      "no-magic-numbers": "off",
+      "@typescript-eslint/no-magic-numbers": [
+        "error",
+        {
+          ignore: [-1, 0, 1, 2],
+          ignoreArrayIndexes: true,
+          ignoreDefaultValues: true,
+          ignoreEnums: true,
+          ignoreNumericLiteralTypes: true,
+          ignoreReadonlyClassProperties: true,
+          ignoreTypeIndexes: true,
+        },
+      ],
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-magic-numbers": "off",
+    },
+  },
+  {
+    files: ["*.config.{ts,mjs}"],
+    rules: { "@typescript-eslint/no-magic-numbers": "off" },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    rules: { "@typescript-eslint/naming-convention": "off" },
+  },
+  prettier,
+]);
+
+export default eslintConfig;
+
+
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/lib/**/*.{ts,tsx}",
+    "src/orpc/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "@prisma/client",
+    "pino-pretty"
+  ]
+}
+
+
+=== next-suite.json ===
+{
+  "version": 1,
+  "name": "pnpm-prisma",
+  "packageManager": "pnpm",
+  "database": {
+    "engine": "mysql",
+    "orm": "prisma"
+  },
+  "api": {
+    "type": "orpc"
+  },
+  "auth": "better-auth",
+  "email": "none",
+  "production": {
+    "mode": "proxied"
+  },
+  "githubActions": [
+    "lint",
+    "typecheck"
+  ]
+}
+
+
+=== next.Dockerfile ===
+ARG NODE_VERSION=24-slim
+
+FROM node:\${NODE_VERSION} AS dependencies
+
+WORKDIR /app
+
+# Prisma's postinstall (prisma generate) needs the schema + config at install time.
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \\
+  corepack enable pnpm && pnpm install --frozen-lockfile
+
+FROM node:\${NODE_VERSION} AS builder
+
+WORKDIR /app
+
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY . .
+# Reuse the client the deps stage generated (schema output: src/generated/prisma).
+COPY --from=dependencies /app/src/generated ./src/generated
+
+ENV SKIP_ENV_VALIDATION=true
+
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+
+RUN corepack enable pnpm && pnpm build
+
+FROM node:\${NODE_VERSION} AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false
+
+# curl for the app healthcheck; the DB client for the entrypoint's readiness check; OpenSSL for Prisma's engines — node:slim omits these.
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+  curl \\
+  default-mysql-client \\
+  openssl \\
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder --chown=node:node /app/public ./public
+
+RUN mkdir .next && chown node:node .next
+
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+# prisma migrate deploy needs the full CLI + engines + transitive deps (not
+# traced into standalone), so the complete node_modules is copied, per the
+# Prisma Docker guide. The schema + config supply the connection URL.
+COPY --from=builder --chown=node:node /app/prisma ./prisma
+COPY --from=builder --chown=node:node /app/prisma.config.ts ./prisma.config.ts
+COPY --from=dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+USER node
+
+EXPOSE 3000
+
+ENTRYPOINT ["./entrypoint.sh"]
+
+
+=== next.config.ts ===
+import type { NextConfig } from "next";
+
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years. HSTS
+// and upgrade-insecure-requests stay out of development, where localhost is HTTP.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  ...(isDevelopment
+    ? []
+    : [
+        {
+          key: "Strict-Transport-Security",
+          value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+        },
+      ]),
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
+const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  output: "standalone",
+  reactCompiler: true,
+  typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
+};
+
+export default nextConfig;
+
+
+=== nginx/nginx.conf ===
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include      /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    sendfile    on;
+    tcp_nopush  on;
+    tcp_nodelay on;
+    server_tokens off;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+    error_log  /var/log/nginx/error.log warn;
+
+    client_max_body_size  25m;
+    client_header_timeout 15s;
+    client_body_timeout   30s;
+    send_timeout          30s;
+    keepalive_timeout     65s;
+
+    proxy_connect_timeout 10s;
+    proxy_send_timeout    60s;
+    proxy_read_timeout    120s;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      "";
+    }
+
+    # Fail safe: a proxy omitting X-Forwarded-Proto must not downgrade the app.
+    map $http_x_forwarded_proto $forwarded_proto {
+        default $http_x_forwarded_proto;
+        ''      https;
+    }
+
+    # Without resolve+zone nginx caches app's IP from startup and 502s forever.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    upstream app {
+        zone   upstream_app 64k;
+        server app:3000 resolve;
+        keepalive 32;
+    }
+
+    # Passed through, not set: the front proxy is the trust boundary. What it must
+    # send is the contract in DEPLOY.md.
+    server {
+        listen      80;
+        listen      [::]:80;
+        server_name _;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $http_x_real_ip;
+        proxy_set_header X-Forwarded-For   $http_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+        proxy_set_header X-Forwarded-Host  $http_x_forwarded_host;
+
+        proxy_buffering off;
+        proxy_request_buffering off; # the host nginx already buffered the body
+
+        location / {
+            proxy_pass http://app;
+        }
+    }
+}
+
+
+=== package.json ===
+{
+  "name": "pnpm-prisma",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "check": "tsc --noEmit && eslint --max-warnings 0 && prettier --check . && knip",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "dev": "next dev",
+    "fix": "eslint --fix && prettier --write .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip",
+    "lint": "eslint --max-warnings 0",
+    "lint:fix": "eslint --fix",
+    "postinstall": "prisma generate",
+    "prepare": "husky",
+    "setup": "bash scripts/setup.sh",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "packageManager": "pnpm@10.34.3",
+  "dependencies": {
+    "@orpc/client": "^1.14.6",
+    "@orpc/server": "^1.14.6",
+    "@orpc/tanstack-query": "^1.14.6",
+    "@prisma/adapter-mariadb": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@t3-oss/env-nextjs": "^0.13.11",
+    "@tanstack/react-query": "^5.104.0",
+    "better-auth": "^1.6.23",
+    "dotenv": "^17.4.2",
+    "next": "16.3.6",
+    "pino": "^10.3.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "16.3.6",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "husky": "^9.1.7",
+    "knip": "^6.39.0",
+    "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
+    "prettier": "^3.8.4",
+    "prettier-plugin-packagejson": "^3.0.2",
+    "prisma": "^7.8.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
+  }
+}
+
+
+=== pnpm-workspace.yaml ===
+minimumReleaseAge: 1440
+allowBuilds:
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+    - GHSA-67mh-4wv8-2f99
+    - GHSA-ggr8-5vv4-36mx
+overrides:
+  "mysql2": "^3.24.5"
+  "mariadb": "~3.4.7"
+
+
+=== prisma.config.ts ===
+import "dotenv/config";
+
+import { defineConfig } from "prisma/config";
+
+const urlPart = (value: string | undefined) => encodeURIComponent(value ?? "");
+
+const url = \`mysql://\${urlPart(process.env.MYSQL_USER)}:\${urlPart(process.env.MYSQL_PASSWORD)}@\${urlPart(process.env.MYSQL_HOST)}:\${urlPart(process.env.MYSQL_PORT)}/\${urlPart(process.env.MYSQL_DATABASE)}\`;
+
+export default defineConfig({
+  schema: "prisma/",
+  datasource: {
+    url,
+  },
+});
+
+
+=== prisma/models/auth.prisma ===
+model User {
+  id            String    @id
+  name          String    @db.Text
+  email         String
+  emailVerified Boolean   @default(false) @map("email_verified")
+  image         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  sessions      Session[]
+  accounts      Account[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at")
+  token     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  ipAddress String?  @map("ip_address") @db.Text
+  userAgent String?  @map("user_agent") @db.Text
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId(length: 191)])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id") @db.Text
+  providerId            String    @map("provider_id") @db.Text
+  userId                String    @map("user_id")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  idToken               String?   @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?   @db.Text
+  password              String?   @db.Text
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId(length: 191)])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String   @db.Text
+  value      String   @db.Text
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier(length: 191)])
+  @@map("verification")
+}
+
+
+=== prisma/schema.prisma ===
+// Every .prisma file below prisma/ is part of this schema.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+
+=== public/.gitkeep ===
+
+
+=== renovate.json ===
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "1 day"
+}
+
+
+=== scripts/prod.sh ===
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s extglob
+
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
+if [ -t 1 ]; then
+  C_RESET='\\033[0m'
+  C_BOLD='\\033[1m'
+  C_DIM='\\033[2m'
+  C_SUCCESS='\\033[38;5;114m'
+  C_WARNING='\\033[38;5;221m'
+  C_ERROR='\\033[38;5;204m'
+  C_MUTED='\\033[38;5;245m'
+else
+  C_RESET='' C_BOLD='' C_DIM='' C_SUCCESS='' C_WARNING='' C_ERROR='' C_MUTED=''
+fi
+
+S_SUCCESS="✓"
+S_ERROR="✗"
+S_WARN="!"
+S_INFO="→"
+S_WORKING="●"
+
+print_action() { echo -e "    \${C_MUTED}\${S_WORKING}\${C_RESET}  \${C_DIM}$1\${C_RESET}"; }
+print_success() { echo -e "    \${C_SUCCESS}\${S_SUCCESS}\${C_RESET}  $1"; }
+print_error() { echo -e "    \${C_ERROR}\${S_ERROR}\${C_RESET}  \${C_BOLD}$1\${C_RESET}" >&2; }
+print_warning() { echo -e "    \${C_WARNING}\${S_WARN}\${C_RESET}  $1"; }
+print_info() { echo -e "    \${C_MUTED}\${S_INFO}\${C_RESET}  $1"; }
+
+print_indented() {
+  local width line rest pending=0 seen=0
+  width=$(($(tput cols 2>/dev/null || echo 80) - 7))
+  [ "$width" -lt 20 ] && width=20
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="\${line##*$'\\r'}"
+    line="\${line//$'\\033'\\[*([0-9;?])[A-Za-z]/}"
+    line="\${line#"\${line%%[![:space:]]*}"}"
+    if [ -z "$line" ]; then
+      [ "$seen" -eq 1 ] && pending=$((pending + 1))
+      continue
+    fi
+    if [ "$seen" -eq 0 ]; then
+      echo ""
+      seen=1
+    fi
+    while [ "$pending" -gt 0 ]; do
+      echo ""
+      pending=$((pending - 1))
+    done
+    while [ "\${#line}" -gt "$width" ]; do
+      rest="\${line:0:$width}"
+      rest="\${rest% *}"
+      [ -z "$rest" ] && rest="\${line:0:$width}"
+      echo -e "       \${C_DIM}\${rest}\${C_RESET}"
+      line="\${line:\${#rest}}"
+      line="\${line# }"
+    done
+    echo -e "       \${C_DIM}\${line}\${C_RESET}"
+  done
+  if [ "$seen" -eq 1 ]; then
+    echo ""
+  fi
+}
+
+run_step() {
+  "$@" 2>&1 | print_indented
+  local status=\${PIPESTATUS[0]}
+  return "$status"
+}
+
+fail() {
+  print_error "$1"
+  echo ""
+  exit 1
+}
+
+compose() { docker compose -f docker-compose.prod.yml "$@"; }
+
+require_docker() {
+  if ! docker compose version >/dev/null 2>&1; then
+    fail "Docker Compose is not available"
+  fi
+}
+
+usage() {
+  echo "Usage: bash scripts/prod.sh <bootstrap|up|down|restart|logs|ps>"
+}
+
+cmd_bootstrap() {
+  echo ""
+
+  if [ -f .env ]; then
+    print_warning ".env already exists"
+    print_info "Keeping your existing configuration"
+    echo ""
+    return 0
+  fi
+
+  if [ ! -f .env.example ]; then
+    fail "No .env.example found — nothing to create"
+  fi
+
+  print_action "Creating .env from .env.example..."
+  cp .env.example .env || fail "Failed to create .env"
+  print_success "Environment file created"
+
+  print_action "Generating a secure BETTER_AUTH_SECRET..."
+  local secret
+  if ! secret=$(openssl rand -base64 32 2>/dev/null); then
+    fail "Failed to generate a secret (is openssl installed?)"
+  fi
+  if [[ "\${OSTYPE:-}" == "darwin"* ]]; then
+    sed -i '' "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || fail "Failed to write the secret to .env"
+  else
+    sed -i "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || fail "Failed to write the secret to .env"
+  fi
+  print_success "Authentication secret generated"
+  print_warning "Set a real POSTGRES_PASSWORD / MYSQL_PASSWORD in .env before production"
+  echo ""
+}
+
+cmd_up() {
+  echo ""
+  require_docker
+  print_action "Applying database migrations..."
+  if run_step compose run --rm app migrate; then
+    print_success "Migrations applied"
+  else
+    fail "Migration failed — the running stack was left untouched"
+  fi
+  print_action "Starting the production stack..."
+  if run_step compose up -d --wait; then
+    print_success "Production stack started"
+  else
+    fail "Failed to start the production stack"
+  fi
+}
+
+cmd_down() {
+  echo ""
+  require_docker
+  print_action "Stopping the production stack..."
+  if run_step compose down; then
+    print_success "Production stack stopped"
+  else
+    fail "Failed to stop the production stack"
+  fi
+}
+
+cmd_restart() {
+  echo ""
+  require_docker
+  print_action "Restarting the production stack..."
+  if run_step compose down && run_step compose up -d --wait; then
+    print_success "Production stack restarted"
+  else
+    fail "Failed to restart the production stack"
+  fi
+}
+
+case "\${1:-}" in
+  bootstrap) cmd_bootstrap ;;
+  up) cmd_up ;;
+  down) cmd_down ;;
+  restart) cmd_restart ;;
+  logs)
+    require_docker
+    compose logs -f
+    ;;
+  ps)
+    require_docker
+    compose ps
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
+
+
+=== scripts/setup.sh ===
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s extglob
+
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
+ASSUME_YES=false
+SKIP_DATABASE=false
+for arg in "$@"; do
+  case "$arg" in
+    --yes) ASSUME_YES=true ;;
+    --skip-db) SKIP_DATABASE=true ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Usage: $0 [--yes] [--skip-db]"
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$SKIP_DATABASE" = true ]; then
+  TOTAL_STEPS=2
+else
+  TOTAL_STEPS=3
+fi
+
+if [ -t 1 ]; then
+  C_RESET='\\033[0m'
+  C_BOLD='\\033[1m'
+  C_DIM='\\033[2m'
+  if [ "\${COLORTERM:-}" = truecolor ] || [ "\${COLORTERM:-}" = 24bit ]; then
+    C_PRIMARY='\\033[38;2;37;99;235m'
+  else
+    C_PRIMARY='\\033[38;5;69m'
+  fi
+  C_SUCCESS='\\033[38;5;114m'
+  C_WARNING='\\033[38;5;221m'
+  C_ERROR='\\033[38;5;204m'
+  C_MUTED='\\033[38;5;245m'
+else
+  C_RESET='' C_BOLD='' C_DIM='' C_PRIMARY='' C_SUCCESS='' C_WARNING='' C_ERROR='' C_MUTED=''
+fi
+
+S_SUCCESS="✓"
+S_ERROR="✗"
+S_WARN="!"
+S_INFO="→"
+S_WORKING="●"
+
+print_step() {
+  local step=$1 title=$2
+  local progress=$((step * 100 / TOTAL_STEPS))
+  echo ""
+  echo -e "\${C_MUTED}  ────────────────────────────────────────────────────────────\${C_RESET}"
+  echo ""
+  echo -e "  \${C_BOLD}\${C_PRIMARY}Step \${step}/\${TOTAL_STEPS}\${C_RESET}  \${C_BOLD}\${title}\${C_RESET}"
+  echo -e "  \${C_DIM}Progress: \${progress}%\${C_RESET}"
+  echo ""
+}
+
+print_action() { echo -e "    \${C_MUTED}\${S_WORKING}\${C_RESET}  \${C_DIM}$1\${C_RESET}"; }
+print_success() { echo -e "    \${C_SUCCESS}\${S_SUCCESS}\${C_RESET}  $1"; }
+print_error() { echo -e "    \${C_ERROR}\${S_ERROR}\${C_RESET}  \${C_BOLD}$1\${C_RESET}" >&2; }
+print_warning() { echo -e "    \${C_WARNING}\${S_WARN}\${C_RESET}  $1"; }
+print_info() { echo -e "    \${C_MUTED}\${S_INFO}\${C_RESET}  $1"; }
+
+print_footer() {
+  echo ""
+  echo -e "\${C_MUTED}  ────────────────────────────────────────────────────────────\${C_RESET}"
+  echo ""
+  echo -e "  \${C_SUCCESS}\${S_SUCCESS}\${C_RESET}  \${C_BOLD}\${C_SUCCESS}Setup complete\${C_RESET}"
+  echo ""
+  echo -e "  \${C_BOLD}Next steps:\${C_RESET}"
+  echo -e "    \${C_PRIMARY}1.\${C_RESET} Review your \${C_BOLD}.env\${C_RESET} file and fill in any remaining values"
+  echo -e "    \${C_PRIMARY}2.\${C_RESET} Run \${C_BOLD}\${C_SUCCESS}pnpm run dev\${C_RESET} to start the dev server"
+  echo ""
+}
+
+print_indented() {
+  local width line rest pending=0 seen=0
+  width=$(($(tput cols 2>/dev/null || echo 80) - 7))
+  [ "$width" -lt 20 ] && width=20
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="\${line##*$'\\r'}"
+    line="\${line//$'\\033'\\[*([0-9;?])[A-Za-z]/}"
+    line="\${line#"\${line%%[![:space:]]*}"}"
+    if [ -z "$line" ]; then
+      [ "$seen" -eq 1 ] && pending=$((pending + 1))
+      continue
+    fi
+    if [ "$seen" -eq 0 ]; then
+      echo ""
+      seen=1
+    fi
+    while [ "$pending" -gt 0 ]; do
+      echo ""
+      pending=$((pending - 1))
+    done
+    while [ "\${#line}" -gt "$width" ]; do
+      rest="\${line:0:$width}"
+      rest="\${rest% *}"
+      [ -z "$rest" ] && rest="\${line:0:$width}"
+      echo -e "       \${C_DIM}\${rest}\${C_RESET}"
+      line="\${line:\${#rest}}"
+      line="\${line# }"
+    done
+    echo -e "       \${C_DIM}\${line}\${C_RESET}"
+  done
+  if [ "$seen" -eq 1 ]; then
+    echo ""
+  fi
+}
+
+run_step() {
+  "$@" 2>&1 | print_indented
+  local status=\${PIPESTATUS[0]}
+  return "$status"
+}
+
+handle_error() {
+  local step=$1 message=$2
+  print_error "$message"
+  echo ""
+  echo -e "  \${C_MUTED}Setup failed at step \${step}/\${TOTAL_STEPS}\${C_RESET}"
+  echo ""
+  exit 1
+}
+
+step_environment() {
+  print_step 1 "Environment"
+
+  if [ -f .env ]; then
+    print_warning ".env already exists"
+    print_info "Keeping your existing configuration"
+    return 0
+  fi
+
+  if [ ! -f .env.example ]; then
+    print_warning "No .env.example found — nothing to create"
+    return 0
+  fi
+
+  print_action "Creating .env from .env.example..."
+  cp .env.example .env || handle_error 1 "Failed to create .env"
+  print_success "Environment file created"
+
+  print_action "Generating a secure BETTER_AUTH_SECRET..."
+  local secret
+  if ! secret=$(openssl rand -base64 32 2>/dev/null); then
+    handle_error 1 "Failed to generate a secret (is openssl installed?)"
+  fi
+  if [[ "\${OSTYPE:-}" == "darwin"* ]]; then
+    sed -i '' "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || handle_error 1 "Failed to write the secret to .env"
+  else
+    sed -i "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$secret|" .env || handle_error 1 "Failed to write the secret to .env"
+  fi
+  print_success "Authentication secret generated"
+}
+
+step_dependencies() {
+  print_step 2 "Dependencies"
+
+  print_action "Installing packages (pnpm)..."
+  if run_step pnpm install; then
+    print_success "Dependencies installed"
+  else
+    handle_error 2 "Failed to install dependencies"
+  fi
+}
+
+step_database() {
+  print_step 3 "Database"
+
+  local db_hint="docker compose up -d && pnpm run db:migrate"
+
+  if [ "$ASSUME_YES" = false ]; then
+    if [ -t 0 ]; then
+      echo -ne "    \${C_BOLD}Start the database container now?\${C_RESET} [Y/n] "
+      local reply
+      read -r reply || reply="n"
+      case "$reply" in
+        "" | y | Y) ;;
+        *)
+          print_info "Skipped — later: $db_hint"
+          return 0
+          ;;
+      esac
+    else
+      print_info "Skipped (non-interactive; pass --yes to start it)"
+      print_info "Later: $db_hint"
+      return 0
+    fi
+  fi
+
+  if ! docker compose version >/dev/null 2>&1; then
+    print_warning "Docker is not available — skipping the database"
+    print_info "Later: $db_hint"
+    return 0
+  fi
+
+  print_action "Starting the database container..."
+  if run_step docker compose up -d --wait; then
+    print_success "Database container ready"
+  else
+    handle_error 3 "Failed to start the database container"
+  fi
+
+  print_action "Applying migrations..."
+  if run_step pnpm exec prisma migrate dev --name init; then
+    print_success "Migrations applied"
+  else
+    handle_error 3 "Failed to apply the migrations"
+  fi
+}
+
+main() {
+  step_environment
+  step_dependencies
+  if [ "$SKIP_DATABASE" = false ]; then
+    step_database
+  fi
+  print_footer
+}
+
+main
+
+
+=== src/app/api/auth/[...all]/route.ts ===
+import { toNextJsHandler } from "better-auth/next-js";
+
+import { auth } from "@/lib/auth";
+
+export const { GET, POST } = toNextJsHandler(auth);
+
+
+=== src/app/api/health/route.ts ===
+import "@/env";
+
+import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
+
+const SERVICE_UNAVAILABLE_STATUS = 503;
+
+// Never prerendered: at build time there is no database to reach.
+export const dynamic = "force-dynamic";
+
+export const GET = async (): Promise<Response> => {
+  try {
+    await database.$queryRaw\`SELECT 1\`;
+    return Response.json({ status: "ok" });
+  } catch (error) {
+    logger.error({ err: error }, "Health check failed");
+    return Response.json(
+      { status: "error" },
+      { status: SERVICE_UNAVAILABLE_STATUS },
+    );
+  }
+};
+
+
+=== src/app/api/rpc/[[...rest]]/route.ts ===
+import { onError } from "@orpc/server";
+import { RPCHandler } from "@orpc/server/fetch";
+
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
+import { appRouter } from "@/orpc/routers/app-router";
+
+const NOT_FOUND_STATUS = 404;
+
+const handler = new RPCHandler(appRouter, {
+  clientInterceptors: [onError(logProcedureFailure)],
+});
+
+const handleRequest = async (request: Request) => {
+  const { response } = await handler.handle(request, {
+    prefix: RPC_ENDPOINT,
+    context: { headers: request.headers },
+  });
+
+  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  logRejectedRequest(response.status, request.headers);
+  return response;
+};
+
+export {
+  handleRequest as DELETE,
+  handleRequest as GET,
+  handleRequest as HEAD,
+  handleRequest as PATCH,
+  handleRequest as POST,
+  handleRequest as PUT,
+};
+
+
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
+=== src/app/favicon.ico ===
+<binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+import "./globals.css";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <title>Something went wrong</title>
+      <main>
+        <h1>Something went wrong</h1>
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
+
+=== src/app/globals.css ===
+:root {
+  color-scheme: light dark;
+  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-geist-mono), monospace;
+}
+
+
+=== src/app/layout.tsx ===
+import "./globals.css";
+import "@/orpc/client.server";
+
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import { Geist, Geist_Mono } from "next/font/google";
+
+import { Providers } from "@/app/providers";
+import { env } from "@/env";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
+  title: {
+    default: "pnpm-prisma",
+    template: "%s · pnpm-prisma",
+  },
+  description: "pnpm-prisma, a Next.js application.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main>
+    <h1>Page not found</h1>
+    <p>The page you requested does not exist or has moved.</p>
+    <Link href="/">Back to the start page</Link>
+  </main>
+);
+
+export default NotFoundPage;
+
+
+=== src/app/page.tsx ===
+const Page = () => (
+  <main>
+    <h1>pnpm-prisma</h1>
+  </main>
+);
+
+export default Page;
+
+
+=== src/app/providers.tsx ===
+"use client";
+
+import { type ReactNode } from "react";
+
+import {
+  type QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+
+import { createQueryClient } from "@/orpc/query-client";
+
+let browserQueryClient: QueryClient | undefined;
+
+const getQueryClient = () => {
+  if (typeof window === "undefined") return createQueryClient();
+  return (browserQueryClient ??= createQueryClient());
+};
+
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => (
+  <QueryClientProvider client={getQueryClient()}>
+    {children}
+  </QueryClientProvider>
+);
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
+
+
+=== src/env.ts ===
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
+
+const AUTH_SECRET_MIN_LENGTH = 32;
+
+export const env = createEnv({
+  server: {
+    MYSQL_PORT: z.coerce.number(),
+    MYSQL_HOST: z.string(),
+    MYSQL_USER: z.string(),
+    MYSQL_PASSWORD: z.string(),
+    MYSQL_DATABASE: z.string(),
+    BETTER_AUTH_SECRET: z.string().min(AUTH_SECRET_MIN_LENGTH),
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: z.url(),
+  },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
+  experimental__runtimeEnv: {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
+  },
+  emptyStringAsUndefined: true,
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+});
+
+=== src/features/health/server/router.ts ===
+import { publicProcedure } from "@/orpc";
+
+export const healthRouter = {
+  status: publicProcedure.handler(() => ({
+    status: "ok",
+    time: new Date(),
+  })),
+};
+
+
+=== src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
+export const register = async () => {
+  if (!isNodeRuntime) return;
+  await import("./orpc/client.server");
+};
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  const [path] = request.path.split("?");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
+};
+
+
+=== src/lib/auth/client.ts ===
+import { createAuthClient } from "better-auth/react";
+
+import { env } from "@/env";
+
+export const authClient = createAuthClient({
+  baseURL: env.NEXT_PUBLIC_APP_URL,
+});
+
+
+=== src/lib/auth/index.ts ===
+import "server-only";
+
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { createAuthMiddleware, isAPIError } from "better-auth/api";
+import { betterAuth } from "better-auth/minimal";
+import { nextCookies } from "better-auth/next-js";
+
+import { env } from "@/env";
+import { database } from "@/lib/database";
+import { logger } from "@/lib/logger";
+
+// Rate limits key on this header, so it must come from a proxy that overwrites
+// it (the generated nginx does). Behind another proxy, name the header it sets.
+const CLIENT_IP_HEADER = "x-real-ip";
+
+const logFailedSignIn = createAuthMiddleware((context) => {
+  const isFailedSignIn =
+    context.path.startsWith("/sign-in") &&
+    isAPIError(context.context.returned);
+  if (isFailedSignIn) {
+    logger.warn(
+      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
+      "Sign-in failed",
+    );
+  }
+  return Promise.resolve();
+});
+
+export const auth = betterAuth({
+  baseURL: env.NEXT_PUBLIC_APP_URL,
+  secret: env.BETTER_AUTH_SECRET,
+  database: prismaAdapter(database, {
+    provider: "mysql",
+  }),
+  emailAndPassword: {
+    enabled: true,
+  },
+  advanced: {
+    ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
+  },
+  logger: {
+    log: (level, message, ...details: unknown[]) => {
+      const err = details.find((detail) => detail instanceof Error);
+      logger[level]({ err, details }, message);
+    },
+  },
+  hooks: { after: logFailedSignIn },
+  plugins: [nextCookies()],
+});
+
+
+=== src/lib/auth/session.ts ===
+import "server-only";
+
+import { cache } from "react";
+import { headers } from "next/headers";
+
+import { auth } from "@/lib/auth";
+
+export const getSession = cache(async () =>
+  auth.api.getSession({ headers: await headers() }),
+);
+
+export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/database/index.ts ===
+import "server-only";
+
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
+
+import { env } from "@/env";
+import { PrismaClient } from "@/generated/prisma/client";
+
+const POOL_MAX_CONNECTIONS = 20;
+const POOL_IDLE_TIMEOUT_SECONDS = 30;
+const POOL_CONNECTION_TIMEOUT_MS = 5_000;
+
+const adapter = new PrismaMariaDb({
+  host: env.MYSQL_HOST,
+  port: env.MYSQL_PORT,
+  database: env.MYSQL_DATABASE,
+  user: env.MYSQL_USER,
+  password: env.MYSQL_PASSWORD,
+  connectionLimit: POOL_MAX_CONNECTIONS,
+  idleTimeout: POOL_IDLE_TIMEOUT_SECONDS,
+  connectTimeout: POOL_CONNECTION_TIMEOUT_MS,
+});
+
+// Reuse one client across dev hot-reloads — fresh modules would leak connections.
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const database = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+
+if (env.NODE_ENV !== "production") globalForPrisma.prisma = database;
+
+export const closeDatabase = async () => {
+  await database.$disconnect();
+};
+
+
+=== src/lib/domain-error.ts ===
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}
+
+
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const SECRET_FIELDS = [
+  "password",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
+  "cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
+];
+
+// Drizzle appends the bound values of a failed query to the error message,
+// where key-based redaction cannot reach them.
+const QUERY_PARAMS_LINE = /\\nparams: .*/g;
+const REDACTED_PARAMS_LINE = "\\nparams: [Redacted]";
+
+const redactQueryParams = (text: string | undefined) =>
+  text?.replace(QUERY_PARAMS_LINE, REDACTED_PARAMS_LINE);
+
+const serializeError = (error: unknown) => {
+  if (!(error instanceof Error)) return error;
+  const serialized = pino.stdSerializers.err(error);
+  return {
+    ...serialized,
+    message: redactQueryParams(serialized.message),
+    stack: redactQueryParams(serialized.stack),
+    ...("params" in serialized && { params: "[Redacted]" }),
+  };
+};
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  serializers: { err: serializeError },
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
+});
+
+
+=== src/orpc/client.server.ts ===
+import "server-only";
+
+import { headers } from "next/headers";
+
+import { createRouterClient } from "@orpc/server";
+
+import { appRouter } from "@/orpc/routers/app-router";
+
+globalThis.$client = createRouterClient(appRouter, {
+  context: async () => ({ headers: await headers() }),
+});
+
+
+=== src/orpc/client.ts ===
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import type { RouterClient } from "@orpc/server";
+import { createTanstackQueryUtils } from "@orpc/tanstack-query";
+
+import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import type { appRouter } from "@/orpc/routers/app-router";
+
+declare global {
+  var $client: RouterClient<typeof appRouter> | undefined;
+}
+
+const link = new RPCLink({
+  url: () => {
+    if (typeof window === "undefined") {
+      throw new Error("RPCLink is not allowed on the server side.");
+    }
+    return \`\${window.location.origin}\${RPC_ENDPOINT}\`;
+  },
+});
+
+export const client: RouterClient<typeof appRouter> =
+  globalThis.$client ?? createORPCClient(link);
+
+export const orpc = createTanstackQueryUtils(client);
+
+
+=== src/orpc/endpoint.ts ===
+export const RPC_ENDPOINT = "/api/rpc";
+
+
+=== src/orpc/index.ts ===
+import "server-only";
+
+import { ORPCError, os } from "@orpc/server";
+
+import { auth } from "@/lib/auth";
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
+
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, string>;
+
+const base = os.$context<{ headers: Headers }>();
+
+const mapDomainErrors = base.middleware(async ({ next }) => {
+  try {
+    return await next();
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
+    throw new ORPCError(ERROR_CODE_BY_KIND[error.kind], {
+      message: error.code,
+      cause: error,
+    });
+  }
+});
+
+export const publicProcedure = base.use(mapDomainErrors);
+
+const requireSession = base.middleware(async ({ context, next }) => {
+  const session = await auth.api.getSession({ headers: context.headers });
+
+  if (!session) {
+    throw new ORPCError("UNAUTHORIZED");
+  }
+
+  return next({ context: { session } });
+});
+
+export const protectedProcedure = publicProcedure.use(requireSession);
+
+
+=== src/orpc/query-client.ts ===
+import { StandardRPCJsonSerializer } from "@orpc/client/standard";
+import {
+  defaultShouldDehydrateQuery,
+  QueryClient,
+} from "@tanstack/react-query";
+
+// Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
+const serializer = new StandardRPCJsonSerializer();
+
+type DehydratedData = {
+  json: unknown;
+  meta: ReturnType<StandardRPCJsonSerializer["serialize"]>[1];
+};
+
+const STALE_TIME_MS = 300_000;
+const GARBAGE_COLLECTION_TIME_MS = 600_000;
+
+export const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        queryKeyHashFn: (queryKey) => {
+          const [json, meta] = serializer.serialize(queryKey);
+          return JSON.stringify({ json, meta });
+        },
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
+        refetchOnWindowFocus: false,
+      },
+      dehydrate: {
+        shouldDehydrateQuery: (query) =>
+          defaultShouldDehydrateQuery(query) ||
+          query.state.status === "pending",
+        shouldRedactErrors: () => false,
+        serializeData: (data): DehydratedData => {
+          const [json, meta] = serializer.serialize(data);
+          return { json, meta };
+        },
+      },
+      hydrate: {
+        deserializeData: (data: DehydratedData) =>
+          serializer.deserialize(data.json, data.meta),
+      },
+    },
+  });
+
+
+=== src/orpc/request-logging.ts ===
+import { toORPCError } from "@orpc/client";
+
+import { logger } from "@/lib/logger";
+
+const BAD_REQUEST_STATUS = 400;
+const UNAUTHORIZED_STATUS = 401;
+const FORBIDDEN_STATUS = 403;
+const TOO_MANY_REQUESTS_STATUS = 429;
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_STATUSES = new Set([
+  BAD_REQUEST_STATUS,
+  UNAUTHORIZED_STATUS,
+  FORBIDDEN_STATUS,
+  TOO_MANY_REQUESTS_STATUS,
+]);
+
+export const logProcedureFailure = (error: unknown) => {
+  if (toORPCError(error).status < SERVER_ERROR_STATUS) return;
+  logger.error({ err: error }, "oRPC procedure failed");
+};
+
+export const logRejectedRequest = (status: number, headers: Headers) => {
+  if (!REJECTED_REQUEST_STATUSES.has(status)) return;
+  logger.warn(
+    { status, ip: headers.get("x-real-ip") },
+    "oRPC request rejected",
+  );
+};
+
+
+=== src/orpc/routers/app-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
+
+export const appRouter = {
+  health: healthRouter,
+};
+
+
+=== src/orpc/server.tsx ===
+import "server-only";
+
+import { cache, type ReactNode } from "react";
+
+import {
+  dehydrate,
+  HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
+  type QueryKey,
+} from "@tanstack/react-query";
+
+import { createQueryClient } from "@/orpc/query-client";
+
+export const getQueryClient = cache(createQueryClient);
+
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
+  const state = dehydrate(getQueryClient());
+  return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryData,
+  TQueryKey extends QueryKey,
+>(
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
+) => {
+  getQueryClient().query(options).catch(noop);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: InfiniteQueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  getQueryClient().infiniteQuery(options).catch(noop);
+};
+
+
+=== tsconfig.json ===
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+"
+`;
+
 exports[`golden FileMap > pnpm · shadcn + full stack 1`] = `
 "=== .dockerignore ===
 node_modules

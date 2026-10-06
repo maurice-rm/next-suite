@@ -105,6 +105,19 @@ export const SCENARIOS: { name: string; config: ProjectConfig }[] = [
     },
   },
   {
+    name: "pnpm · prisma + mysql in production",
+    config: {
+      ...baseConfig,
+      projectName: "pnpm-prisma",
+      packageManager: "pnpm",
+      database: { engine: "mysql", orm: "prisma" },
+      api: { type: "orpc" },
+      auth: "better-auth",
+      production: { mode: "proxied" },
+      githubActions: ["lint", "typecheck"],
+    },
+  },
+  {
     name: "pnpm · tRPC without auth",
     config: {
       ...baseConfig,

@@ -6,6 +6,7 @@ import { VERSIONS } from "../config/dependencies";
 import {
   activeFeatures,
   dependenciesFragment,
+  dependencyOverrides,
   featureDependencies,
   overridesFragment,
 } from "../resolve";
@@ -59,4 +60,16 @@ test("overridesFragment leaves pnpm's overrides to pnpm-workspace.yaml", () => {
 
 test("overridesFragment returns undefined when nothing is overridden", () => {
   expect(overridesFragment({}, "npm")).toBeUndefined();
+});
+
+test("dependencyOverrides pins what the active features override", () => {
+  const mysqlPrisma = {
+    ...baseConfig,
+    database: { engine: "mysql", orm: "prisma" },
+  } satisfies ProjectConfig;
+  expect(dependencyOverrides(mysqlPrisma)).toEqual({
+    mysql2: VERSIONS.mysql2,
+    mariadb: VERSIONS.mariadb,
+  });
+  expect(dependencyOverrides(baseConfig)).toEqual({});
 });
