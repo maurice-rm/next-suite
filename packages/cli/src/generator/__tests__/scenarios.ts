@@ -108,6 +108,17 @@ export const SCENARIOS: { name: string; config: ProjectConfig }[] = [
     },
   },
   {
+    name: "pnpm · tRPC without auth",
+    config: {
+      ...baseConfig,
+      projectName: "trpc-open",
+      packageManager: "pnpm",
+      tailwind: true,
+      api: { type: "trpc" },
+      githubActions: ["lint", "typecheck"],
+    },
+  },
+  {
     name: "orpc · openapi + scalar",
     config: {
       ...baseConfig,

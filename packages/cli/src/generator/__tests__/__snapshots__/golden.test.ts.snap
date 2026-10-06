@@ -12695,6 +12695,1503 @@ export const prefetchInfinite = <
 "
 `;
 
+exports[`golden FileMap > pnpm · tRPC without auth 1`] = `
+"=== .editorconfig ===
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Trailing whitespace is significant in Markdown (two spaces = line break).
+[*.md]
+trim_trailing_whitespace = false
+
+=== .env ===
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+
+=== .env.example ===
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+
+=== .gitattributes ===
+# Normalize line endings to LF on checkin and checkout.
+* text=auto eol=lf
+
+# Treat common binary assets as binary (no EOL or diff munging).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# Lockfiles — collapse in diffs + mark generated. Only the chosen package
+# manager's lockfile exists; entries for absent files are harmless no-ops.
+package-lock.json -diff linguist-generated
+pnpm-lock.yaml -diff linguist-generated
+yarn.lock -diff linguist-generated
+bun.lock -diff linguist-generated
+bun.lockb binary linguist-generated
+
+=== .github/actions/setup/action.yml ===
+name: Setup
+description: Install Node, the package manager, and project dependencies.
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 24
+        cache: pnpm
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      shell: bash
+
+
+=== .github/workflows/ci.yml ===
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Use the example environment
+        run: cp .env.example .env
+      - name: Audit dependencies
+        run: pnpm audit
+      - name: Lint
+        run: pnpm run lint
+      - name: Unused code
+        run: pnpm run knip
+      - name: Type-check
+        run: pnpm run typecheck
+
+
+=== .gitignore ===
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# editors
+.idea/
+*.iml
+
+
+=== .husky/commit-msg ===
+pnpm exec commitlint --edit "$1"
+
+
+=== .husky/pre-commit ===
+pnpm exec lint-staged
+
+
+=== .lintstagedrc.json ===
+{
+  "*.{js,jsx,ts,tsx,mjs,cjs}": ["eslint --fix", "prettier --write"],
+  "!*.{js,jsx,ts,tsx,mjs,cjs}": "prettier --ignore-unknown --write"
+}
+
+
+=== .nvmrc ===
+24
+
+=== .prettierignore ===
+node_modules
+.next
+out
+build
+
+# Lockfiles (any package manager)
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+next-env.d.ts
+AGENTS.md
+
+=== .prettierrc.json ===
+{
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "printWidth": 80,
+  "tabWidth": 2,
+  "tailwindStylesheet": "./src/app/globals.css",
+  "plugins": [
+    "prettier-plugin-packagejson",
+    "prettier-plugin-tailwindcss"
+  ]
+}
+
+
+=== AGENTS.md ===
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+
+# Project conventions
+
+- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
+- **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+
+## Design direction
+
+Fix these before the first screen and keep every screen to them:
+
+- Typefaces: _to be decided_
+- Accent hue: _to be decided_
+- Radius: _to be decided_
+- Density: _to be decided_
+- Image style: _to be decided_
+
+
+=== README.md ===
+# trpc-open
+
+A Next.js app scaffolded with [create-next-suite](https://github.com/maurice-rm/next-suite).
+
+## 🧩 Stack
+
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 16 (App Router) |
+| UI | React 19 + React Compiler |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
+| API | tRPC |
+
+## 📋 Prerequisites
+
+- **Node.js 24** — the version in \`.nvmrc\` (\`nvm use\`).
+- **pnpm** — the version in \`package.json#packageManager\`, activated with \`corepack enable\`.
+
+## 🚀 Getting started
+
+Fresh clone? The setup script creates \`.env\` from \`.env.example\`, installs dependencies:
+
+\`\`\`bash
+bash scripts/setup.sh          # interactive
+bash scripts/setup.sh --yes    # non-interactive
+\`\`\`
+
+Then start the dev server:
+
+\`\`\`bash
+pnpm run dev
+\`\`\`
+
+\`src/env.ts\` validates the environment at build and start; every variable it reads is listed in \`.env.example\`.
+
+## 📜 Scripts
+
+| Command | Description |
+| --- | --- |
+| \`pnpm run setup\` | Create \`.env\`, install dependencies |
+| \`pnpm run dev\` | Start the dev server |
+| \`pnpm run build\` | Build for production |
+| \`pnpm run start\` | Start the production server |
+| \`pnpm run check\` | Type-check, lint, format-check and unused-code check |
+| \`pnpm run fix\` | Fix lint findings and format |
+| \`pnpm run typecheck\` | Type-check |
+| \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
+| \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
+| \`pnpm run knip\` | Report unused files, exports and dependencies |
+
+## 🗂️ Project structure
+
+\`\`\`text
+src/
+  app/                  routing only: pages, layouts, route handlers
+  features/<domain>/    one vertical slice per domain: components, server code, schemas
+  components/           domain-free building blocks
+  lib/                  infrastructure, logger, domain errors
+  trpc/                 the API layer: procedure builders, router, clients
+  env.ts                the only place that reads process.env
+\`\`\`
+
+Features import only from themselves, \`lib/\`, \`components/\` and the project infrastructure; ESLint enforces these boundaries.
+
+## ✅ Conventions
+
+- **Commits** — [Conventional Commits](https://www.conventionalcommits.org/) (\`type(scope): description\`), enforced by a \`commit-msg\` hook.
+- **Imports** — \`@/\` maps to \`./src/\`, e.g. \`import { env } from "@/env"\`.
+- **Environment** — a new variable goes into \`src/env.ts\` and \`.env.example\` in the same commit.
+
+
+=== commitlint.config.mjs ===
+const config = {
+  extends: ["@commitlint/config-conventional"],
+};
+
+export default config;
+
+
+=== eslint.config.mjs ===
+import { defineConfig } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import prettier from "eslint-config-prettier/flat";
+import boundaries from "eslint-plugin-boundaries";
+import checkFile from "eslint-plugin-check-file";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import tseslint from "typescript-eslint";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  ...tseslint.configs.strictTypeChecked,
+  ...tseslint.configs.stylisticTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    plugins: { "simple-import-sort": simpleImportSort },
+    rules: {
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [
+            ["^\\\\u0000"],
+            ["^node:"],
+            ["^react", "^next"],
+            ["^@?\\\\w"],
+            ["^@/"],
+            ["^"],
+            ["^\\\\."],
+          ],
+        },
+      ],
+      "simple-import-sort/exports": "error",
+      "import/first": "error",
+      "import/newline-after-import": "error",
+      "import/no-duplicates": "error",
+      "no-console": ["warn", { allow: ["warn", "error"] }],
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/naming-convention": [
+        "error",
+        { selector: "default", format: ["camelCase"] },
+        { selector: "import", format: null },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+        },
+        { selector: "variable", modifiers: ["destructured"], format: null },
+        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        { selector: "typeLike", format: ["PascalCase"] },
+        {
+          selector: [
+            "objectLiteralProperty",
+            "objectLiteralMethod",
+            "typeProperty",
+          ],
+          format: null,
+        },
+      ],
+      "max-params": ["error", 3],
+      "max-depth": ["error", 2],
+      complexity: "error",
+      "react/function-component-definition": [
+        "error",
+        {
+          namedComponents: "arrow-function",
+          unnamedComponents: "arrow-function",
+        },
+      ],
+      "import/no-cycle": "error",
+      "import/no-restricted-paths": [
+        "error",
+        {
+          zones: [
+            { target: "./src/lib", from: ["./src/features", "./src/app"] },
+            {
+              target: "./src/components",
+              from: ["./src/features", "./src/app"],
+            },
+            { target: "./src/features", from: "./src/app" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "check-file": checkFile },
+    rules: {
+      "check-file/filename-naming-convention": [
+        "error",
+        { "src/**/*.{ts,tsx}": "KEBAB_CASE" },
+        { ignoreMiddleExtensions: true },
+      ],
+      "check-file/folder-naming-convention": [
+        "error",
+        {
+          "src/app/**/": "NEXT_JS_APP_ROUTER_CASE",
+          "src/!(app)/**/": "KEBAB_CASE",
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { boundaries },
+    settings: {
+      "boundaries/elements": [
+        {
+          type: "feature",
+          pattern: "src/features/*",
+          capture: ["featureName"],
+        },
+      ],
+      "boundaries/legacy-templates": false,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          policies: [
+            {
+              from: { element: { type: "feature" } },
+              disallow: {
+                to: {
+                  element: {
+                    type: "feature",
+                    captured: {
+                      featureName: "!{{ from.element.captured.featureName }}",
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/components/ui/**"],
+    rules: {
+      "react/function-component-definition": "off",
+    },
+  },
+  prettier,
+]);
+
+export default eslintConfig;
+
+
+=== knip.json ===
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/env.ts",
+    "src/trpc/*.{ts,tsx}"
+  ],
+  "ignoreDependencies": [
+    "eslint-plugin-import",
+    "pino-pretty"
+  ]
+}
+
+
+=== next-suite.json ===
+{
+  "version": 1,
+  "name": "trpc-open",
+  "packageManager": "pnpm",
+  "api": {
+    "type": "trpc"
+  },
+  "auth": "none",
+  "email": "none",
+  "githubActions": [
+    "lint",
+    "typecheck"
+  ]
+}
+
+
+=== next.config.ts ===
+import type { NextConfig } from "next";
+
+import { env } from "./src/env";
+
+const TWO_YEARS_IN_SECONDS = 63_072_000;
+
+const isDevelopment = env.NODE_ENV === "development";
+
+type ExtraSources = { scripts: string[]; fonts: string[] };
+
+const buildContentSecurityPolicy = (extraSources: ExtraSources) => {
+  const scriptSources = new Set([
+    "'self'",
+    "'unsafe-inline'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+    ...extraSources.scripts,
+  ]);
+  const fontSources = ["'self'", ...extraSources.fonts];
+  return [
+    "default-src 'self'",
+    \`script-src \${[...scriptSources].join(" ")}\`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    \`font-src \${fontSources.join(" ")}\`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+};
+
+// No includeSubDomains: a scaffold cannot know whether the app runs on an apex,
+// where it would pin every subdomain of the zone to HTTPS for two years.
+const SECURITY_HEADERS = [
+  {
+    key: "Content-Security-Policy",
+    value: buildContentSecurityPolicy({ scripts: [], fonts: [] }),
+  },
+  {
+    key: "Strict-Transport-Security",
+    value: \`max-age=\${String(TWO_YEARS_IN_SECONDS)}\`,
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+];
+
+const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  experimental: {
+    serverActions: { bodySizeLimit: "25mb" },
+  },
+  reactCompiler: true,
+  typedRoutes: true,
+  headers: () =>
+    Promise.resolve([
+      { source: "/(.*)", headers: SECURITY_HEADERS },
+    ]),
+};
+
+export default nextConfig;
+
+
+=== package.json ===
+{
+  "name": "trpc-open",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "check": "tsc --noEmit && eslint && prettier --check . && knip",
+    "dev": "next dev",
+    "fix": "eslint --fix && prettier --write .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "knip": "knip",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "prepare": "husky",
+    "setup": "bash scripts/setup.sh",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "packageManager": "pnpm@10.34.3",
+  "dependencies": {
+    "@t3-oss/env-nextjs": "^0.13.11",
+    "@tanstack/react-query": "^5.104.0",
+    "@trpc/client": "^11.18.0",
+    "@trpc/server": "^11.18.0",
+    "@trpc/tanstack-react-query": "^11.18.0",
+    "next": "16.3.6",
+    "pino": "^10.3.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
+    "superjson": "^2.2.6",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "@tailwindcss/postcss": "^4.3.1",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "16.3.6",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-boundaries": "^7.2.0",
+    "eslint-plugin-check-file": "^3.3.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "husky": "^9.1.7",
+    "knip": "^6.39.0",
+    "lint-staged": "^17.0.7",
+    "pino-pretty": "^13.1.3",
+    "postcss": "^8.5.15",
+    "prettier": "^3.8.4",
+    "prettier-plugin-packagejson": "^3.0.2",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "tailwindcss": "^4.3.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
+  }
+}
+
+
+=== pnpm-workspace.yaml ===
+minimumReleaseAge: 1440
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+auditConfig:
+  ignoreGhsas:
+    - GHSA-vfj7-8cjw-p6xm
+    - GHSA-67mh-4wv8-2f99
+    - GHSA-ggr8-5vv4-36mx
+
+
+=== postcss.config.mjs ===
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+
+=== public/.gitkeep ===
+
+
+=== renovate.json ===
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "1 day"
+}
+
+
+=== scripts/setup.sh ===
+#!/usr/bin/env bash
+set -euo pipefail
+shopt -s extglob
+
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.." || exit 1
+
+ASSUME_YES=false
+SKIP_DATABASE=false
+for arg in "$@"; do
+  case "$arg" in
+    --yes) ASSUME_YES=true ;;
+    --skip-db) SKIP_DATABASE=true ;;
+    *)
+      echo "Unknown option: $arg"
+      echo "Usage: $0 [--yes] [--skip-db]"
+      exit 1
+      ;;
+  esac
+done
+
+TOTAL_STEPS=2
+
+if [ -t 1 ]; then
+  C_RESET='\\033[0m'
+  C_BOLD='\\033[1m'
+  C_DIM='\\033[2m'
+  if [ "\${COLORTERM:-}" = truecolor ] || [ "\${COLORTERM:-}" = 24bit ]; then
+    C_PRIMARY='\\033[38;2;37;99;235m'
+  else
+    C_PRIMARY='\\033[38;5;69m'
+  fi
+  C_SUCCESS='\\033[38;5;114m'
+  C_WARNING='\\033[38;5;221m'
+  C_ERROR='\\033[38;5;204m'
+  C_MUTED='\\033[38;5;245m'
+else
+  C_RESET='' C_BOLD='' C_DIM='' C_PRIMARY='' C_SUCCESS='' C_WARNING='' C_ERROR='' C_MUTED=''
+fi
+
+S_SUCCESS="✓"
+S_ERROR="✗"
+S_WARN="!"
+S_INFO="→"
+S_WORKING="●"
+
+print_step() {
+  local step=$1 title=$2
+  local progress=$((step * 100 / TOTAL_STEPS))
+  echo ""
+  echo -e "\${C_MUTED}  ────────────────────────────────────────────────────────────\${C_RESET}"
+  echo ""
+  echo -e "  \${C_BOLD}\${C_PRIMARY}Step \${step}/\${TOTAL_STEPS}\${C_RESET}  \${C_BOLD}\${title}\${C_RESET}"
+  echo -e "  \${C_DIM}Progress: \${progress}%\${C_RESET}"
+  echo ""
+}
+
+print_action() { echo -e "    \${C_MUTED}\${S_WORKING}\${C_RESET}  \${C_DIM}$1\${C_RESET}"; }
+print_success() { echo -e "    \${C_SUCCESS}\${S_SUCCESS}\${C_RESET}  $1"; }
+print_error() { echo -e "    \${C_ERROR}\${S_ERROR}\${C_RESET}  \${C_BOLD}$1\${C_RESET}" >&2; }
+print_warning() { echo -e "    \${C_WARNING}\${S_WARN}\${C_RESET}  $1"; }
+print_info() { echo -e "    \${C_MUTED}\${S_INFO}\${C_RESET}  $1"; }
+
+print_footer() {
+  echo ""
+  echo -e "\${C_MUTED}  ────────────────────────────────────────────────────────────\${C_RESET}"
+  echo ""
+  echo -e "  \${C_SUCCESS}\${S_SUCCESS}\${C_RESET}  \${C_BOLD}\${C_SUCCESS}Setup complete\${C_RESET}"
+  echo ""
+  echo -e "  \${C_BOLD}Next steps:\${C_RESET}"
+  echo -e "    \${C_PRIMARY}1.\${C_RESET} Review your \${C_BOLD}.env\${C_RESET} file and fill in any remaining values"
+  echo -e "    \${C_PRIMARY}2.\${C_RESET} Run \${C_BOLD}\${C_SUCCESS}pnpm run dev\${C_RESET} to start the dev server"
+  echo ""
+}
+
+print_indented() {
+  local width line rest pending=0 seen=0
+  width=$(($(tput cols 2>/dev/null || echo 80) - 7))
+  [ "$width" -lt 20 ] && width=20
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="\${line##*$'\\r'}"
+    line="\${line//$'\\033'\\[*([0-9;?])[A-Za-z]/}"
+    line="\${line#"\${line%%[![:space:]]*}"}"
+    if [ -z "$line" ]; then
+      [ "$seen" -eq 1 ] && pending=$((pending + 1))
+      continue
+    fi
+    if [ "$seen" -eq 0 ]; then
+      echo ""
+      seen=1
+    fi
+    while [ "$pending" -gt 0 ]; do
+      echo ""
+      pending=$((pending - 1))
+    done
+    while [ "\${#line}" -gt "$width" ]; do
+      rest="\${line:0:$width}"
+      rest="\${rest% *}"
+      [ -z "$rest" ] && rest="\${line:0:$width}"
+      echo -e "       \${C_DIM}\${rest}\${C_RESET}"
+      line="\${line:\${#rest}}"
+      line="\${line# }"
+    done
+    echo -e "       \${C_DIM}\${line}\${C_RESET}"
+  done
+  if [ "$seen" -eq 1 ]; then
+    echo ""
+  fi
+}
+
+run_step() {
+  "$@" 2>&1 | print_indented
+  local status=\${PIPESTATUS[0]}
+  return "$status"
+}
+
+handle_error() {
+  local step=$1 message=$2
+  print_error "$message"
+  echo ""
+  echo -e "  \${C_MUTED}Setup failed at step \${step}/\${TOTAL_STEPS}\${C_RESET}"
+  echo ""
+  exit 1
+}
+
+step_environment() {
+  print_step 1 "Environment"
+
+  if [ -f .env ]; then
+    print_warning ".env already exists"
+    print_info "Keeping your existing configuration"
+    return 0
+  fi
+
+  if [ ! -f .env.example ]; then
+    print_warning "No .env.example found — nothing to create"
+    return 0
+  fi
+
+  print_action "Creating .env from .env.example..."
+  cp .env.example .env || handle_error 1 "Failed to create .env"
+  print_success "Environment file created"
+}
+
+step_dependencies() {
+  print_step 2 "Dependencies"
+
+  print_action "Installing packages (pnpm)..."
+  if run_step pnpm install; then
+    print_success "Dependencies installed"
+  else
+    handle_error 2 "Failed to install dependencies"
+  fi
+}
+
+main() {
+  step_environment
+  step_dependencies
+  print_footer
+}
+
+main
+
+
+=== src/app/api/trpc/[trpc]/route.ts ===
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { getHTTPStatusCodeFromError } from "@trpc/server/http";
+
+import { logger } from "@/lib/logger";
+import { createTRPCContext } from "@/trpc";
+import { appRouter } from "@/trpc/routers/app-router";
+
+const SERVER_ERROR_STATUS = 500;
+
+const REJECTED_REQUEST_CODES = new Set([
+  "BAD_REQUEST",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "TOO_MANY_REQUESTS",
+]);
+
+const handler = (request: Request) =>
+  fetchRequestHandler({
+    endpoint: "/api/trpc",
+    req: request,
+    router: appRouter,
+    createContext: createTRPCContext,
+    onError: ({ error, path }) => {
+      if (getHTTPStatusCodeFromError(error) >= SERVER_ERROR_STATUS) {
+        logger.error({ err: error, path }, "tRPC procedure failed");
+        return;
+      }
+      if (!REJECTED_REQUEST_CODES.has(error.code)) return;
+      logger.warn(
+        {
+          code: error.code,
+          path,
+          ip: request.headers.get("x-real-ip"),
+        },
+        "tRPC request rejected",
+      );
+    },
+  });
+
+export { handler as GET, handler as POST };
+
+
+=== src/app/error.tsx ===
+"use client";
+
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const ErrorPage = ({ retry }: ErrorPageProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+export default ErrorPage;
+
+
+=== src/app/favicon.ico ===
+<binary 25931 bytes sha256:2b8ad2d33455a8f736fc3a8ebf8f0bdea8848ad4c0db48a2833bd0f9cd775932>
+
+=== src/app/global-error.tsx ===
+"use client";
+
+import "./globals.css";
+
+type GlobalErrorPageProps = {
+  error: Error & { digest?: string };
+  retry: () => void;
+};
+
+const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
+  <html lang="en">
+    <body>
+      <title>Something went wrong</title>
+      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-semibold text-balance">
+          Something went wrong
+        </h1>
+        <button
+          type="button"
+          onClick={retry}
+          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+        >
+          Try again
+        </button>
+      </main>
+    </body>
+  </html>
+);
+
+export default GlobalErrorPage;
+
+
+=== src/app/globals.css ===
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+    --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+    --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+    --muted-foreground: light-dark(oklch(0.556 0 0), oklch(0.708 0 0));
+    --primary: light-dark(oklch(0.205 0 0), oklch(0.922 0 0));
+    --primary-foreground: light-dark(oklch(0.985 0 0), oklch(0.205 0 0));
+    --ring: light-dark(oklch(0.708 0 0), oklch(0.556 0 0));
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
+
+
+=== src/app/layout.tsx ===
+import "./globals.css";
+
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import { Geist, Geist_Mono } from "next/font/google";
+
+import { Providers } from "@/app/providers";
+import { env } from "@/env";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  metadataBase: URL.parse(env.NEXT_PUBLIC_APP_URL),
+  title: {
+    default: "trpc-open",
+    template: "%s · trpc-open",
+  },
+  description: "trpc-open, a Next.js application.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
+type RootLayoutProps = Readonly<{ children: ReactNode }>;
+
+const RootLayout = ({ children }: RootLayoutProps) => (
+  <html lang="en" className={\`\${geistSans.variable} \${geistMono.variable}\`}>
+    <body>
+      <Providers>{children}</Providers>
+    </body>
+  </html>
+);
+
+export default RootLayout;
+
+
+=== src/app/not-found.tsx ===
+import Link from "next/link";
+
+const NotFoundPage = () => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Page not found</h1>
+    <p className="text-pretty text-muted-foreground">
+      The page you requested does not exist or has moved.
+    </p>
+    <Link href="/" className="text-primary underline underline-offset-4">
+      Back to the start page
+    </Link>
+  </main>
+);
+
+export default NotFoundPage;
+
+
+=== src/app/page.tsx ===
+const Page = () => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">trpc-open</h1>
+  </main>
+);
+
+export default Page;
+
+
+=== src/app/providers.tsx ===
+"use client";
+
+import { type ReactNode } from "react";
+
+import {
+  type QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import {
+  createTRPCClient,
+  httpBatchLink,
+  httpLink,
+  isNonJsonSerializable,
+  splitLink,
+  type TRPCClient,
+} from "@trpc/client";
+import superjson from "superjson";
+
+import { env } from "@/env";
+import { TRPCProvider } from "@/trpc/client";
+import { createQueryClient } from "@/trpc/query-client";
+import type { AppRouter } from "@/trpc/routers/app-router";
+
+let browserQueryClient: QueryClient | undefined;
+let browserTRPCClient: TRPCClient<AppRouter> | undefined;
+
+const getUrl = () => {
+  if (typeof window !== "undefined") return "/api/trpc";
+  return \`\${env.NEXT_PUBLIC_APP_URL}/api/trpc\`;
+};
+
+const getQueryClient = () => {
+  if (typeof window === "undefined") return createQueryClient();
+  return (browserQueryClient ??= createQueryClient());
+};
+
+// FormData & friends bypass superjson serialization via the split link.
+const makeTRPCClient = () =>
+  createTRPCClient<AppRouter>({
+    links: [
+      splitLink({
+        condition: (op) => isNonJsonSerializable(op.input),
+        true: httpLink({
+          url: getUrl(),
+          transformer: {
+            serialize: (data: unknown) => data,
+            deserialize: superjson.deserialize,
+          },
+        }),
+        false: httpBatchLink({
+          url: getUrl(),
+          transformer: superjson,
+        }),
+      }),
+    ],
+  });
+
+const getTRPCClient = () => {
+  if (typeof window === "undefined") return makeTRPCClient();
+  return (browserTRPCClient ??= makeTRPCClient());
+};
+
+type ProvidersProps = { children: ReactNode };
+
+export const Providers = ({ children }: ProvidersProps) => {
+  const queryClient = getQueryClient();
+  const trpcClient = getTRPCClient();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
+        {children}
+      </TRPCProvider>
+    </QueryClientProvider>
+  );
+};
+
+
+=== src/app/robots.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const robots = (): MetadataRoute.Robots => ({
+  rules: { userAgent: "*", allow: "/" },
+  sitemap: new URL("/sitemap.xml", env.NEXT_PUBLIC_APP_URL).href,
+});
+
+export default robots;
+
+
+=== src/app/sitemap.ts ===
+import type { MetadataRoute } from "next";
+
+import { env } from "@/env";
+
+const sitemap = (): MetadataRoute.Sitemap => [
+  { url: new URL("/", env.NEXT_PUBLIC_APP_URL).href },
+];
+
+export default sitemap;
+
+
+=== src/env.ts ===
+import { createEnv } from "@t3-oss/env-nextjs";
+import { z } from "zod";
+
+export const env = createEnv({
+  server: {
+  },
+  client: {
+    NEXT_PUBLIC_APP_URL: z.url(),
+  },
+  shared: {
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+  },
+  experimental__runtimeEnv: {
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NODE_ENV: process.env.NODE_ENV,
+  },
+  emptyStringAsUndefined: true,
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+});
+
+=== src/features/health/server/router.ts ===
+import { publicProcedure, router } from "@/trpc";
+
+export const healthRouter = router({
+  status: publicProcedure.query(() => ({
+    status: "ok" as const,
+    time: new Date(),
+  })),
+});
+
+
+=== src/instrumentation.ts ===
+import type { Instrumentation } from "next";
+
+// Next inlines NEXT_RUNTIME at build time, which keeps the Node-only modules out
+// of the edge build of this file; read through env.ts it would not be inlined.
+const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  error,
+  request,
+  context,
+) => {
+  if (!isNodeRuntime) return;
+  const { logger } = await import("@/lib/logger");
+  logger.error(
+    {
+      err: error,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+    },
+    "Request failed",
+  );
+};
+
+
+=== src/lib/domain-error.ts ===
+export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
+
+export class DomainError extends Error {
+  readonly code: string;
+  readonly kind: DomainErrorKind;
+
+  constructor(code: string, kind: DomainErrorKind, options?: ErrorOptions) {
+    super(code, options);
+    this.name = new.target.name;
+    this.code = code;
+    this.kind = kind;
+  }
+}
+
+
+=== src/lib/logger.ts ===
+import "server-only";
+
+import pino from "pino";
+
+import { env } from "@/env";
+
+const SECRET_FIELDS = [
+  "password",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "idToken",
+  "secret",
+  "cookie",
+  "authorization",
+];
+
+const REDACTED_PATHS = [
+  ...SECRET_FIELDS,
+  ...SECRET_FIELDS.map((field) => \`*.\${field}\`),
+  "*.headers.cookie",
+  "*.headers.authorization",
+  '*.headers["set-cookie"]',
+];
+
+export const logger = pino({
+  level: env.NODE_ENV === "production" ? "info" : "debug",
+  redact: REDACTED_PATHS,
+  ...(env.NODE_ENV === "development" && {
+    transport: { target: "pino-pretty" },
+  }),
+});
+
+
+=== src/trpc/client.ts ===
+"use client";
+
+import { createTRPCContext } from "@trpc/tanstack-react-query";
+
+import type { AppRouter } from "@/trpc/routers/app-router";
+
+export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
+
+
+=== src/trpc/index.ts ===
+import "server-only";
+
+import { cache } from "react";
+
+import { initTRPC, TRPCError } from "@trpc/server";
+import type { TRPC_ERROR_CODE_KEY } from "@trpc/server/rpc";
+import superjson from "superjson";
+import { z } from "zod";
+
+import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
+
+const UNEXPECTED_ERROR_MESSAGE = "Internal server error";
+
+const ERROR_CODE_BY_KIND = {
+  invalid: "BAD_REQUEST",
+  "not-found": "NOT_FOUND",
+  conflict: "CONFLICT",
+  forbidden: "FORBIDDEN",
+} satisfies Record<DomainErrorKind, TRPC_ERROR_CODE_KEY>;
+
+export const createTRPCContext = cache(
+  (): Promise<Record<string, never>> => Promise.resolve({}),
+);
+
+export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
+
+const t = initTRPC.context<Context>().create({
+  transformer: superjson,
+  errorFormatter: ({ shape, error }) => ({
+    ...shape,
+    message:
+      error.code === "INTERNAL_SERVER_ERROR"
+        ? UNEXPECTED_ERROR_MESSAGE
+        : shape.message,
+    data: {
+      ...shape.data,
+      zodError:
+        error.code === "BAD_REQUEST" && error.cause instanceof z.ZodError
+          ? z.treeifyError(error.cause)
+          : null,
+    },
+  }),
+});
+
+const mapDomainErrors = t.middleware(async ({ next }) => {
+  const result = await next();
+  if (result.ok || !(result.error.cause instanceof DomainError)) {
+    return result;
+  }
+  const domainError = result.error.cause;
+  throw new TRPCError({
+    code: ERROR_CODE_BY_KIND[domainError.kind],
+    message: domainError.code,
+    cause: domainError,
+  });
+});
+
+export const router = t.router;
+export const publicProcedure = t.procedure.use(mapDomainErrors);
+
+
+=== src/trpc/query-client.ts ===
+import {
+  defaultShouldDehydrateQuery,
+  QueryClient,
+} from "@tanstack/react-query";
+
+const MINUTE_MS = 60_000;
+const STALE_TIME_MS = 5 * MINUTE_MS;
+const GARBAGE_COLLECTION_TIME_MS = 10 * MINUTE_MS;
+
+export const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: STALE_TIME_MS,
+        gcTime: GARBAGE_COLLECTION_TIME_MS,
+        refetchOnWindowFocus: false,
+      },
+      dehydrate: {
+        shouldDehydrateQuery: (query) =>
+          defaultShouldDehydrateQuery(query) ||
+          query.state.status === "pending",
+        shouldRedactErrors: () => false,
+      },
+    },
+  });
+
+
+=== src/trpc/routers/app-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
+import { router } from "@/trpc";
+
+export const appRouter = router({
+  health: healthRouter,
+});
+
+export type AppRouter = typeof appRouter;
+
+
+=== src/trpc/server.tsx ===
+import "server-only";
+
+import { cache, type ReactNode } from "react";
+
+import {
+  dehydrate,
+  HydrationBoundary,
+  type InfiniteQueryExecuteOptions,
+  noop,
+  type QueryExecuteOptions,
+  type QueryKey,
+} from "@tanstack/react-query";
+import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
+
+import { createTRPCContext } from "@/trpc";
+import { createQueryClient } from "@/trpc/query-client";
+import { appRouter } from "@/trpc/routers/app-router";
+
+export const getQueryClient = cache(createQueryClient);
+
+export const trpc = createTRPCOptionsProxy({
+  ctx: createTRPCContext,
+  router: appRouter,
+  queryClient: getQueryClient,
+});
+
+type HydrateClientProps = { children: ReactNode };
+
+export const HydrateClient = ({ children }: HydrateClientProps) => {
+  const state = dehydrate(getQueryClient());
+  return <HydrationBoundary state={state}>{children}</HydrationBoundary>;
+};
+
+export const prefetch = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryData,
+  TQueryKey extends QueryKey,
+>(
+  options: QueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryData,
+    TQueryKey
+  >,
+) => {
+  getQueryClient().query(options).catch(noop);
+};
+
+export const prefetchInfinite = <
+  TQueryFnData,
+  TError,
+  TData,
+  TQueryKey extends QueryKey,
+  TPageParam,
+>(
+  options: InfiniteQueryExecuteOptions<
+    TQueryFnData,
+    TError,
+    TData,
+    TQueryKey,
+    TPageParam
+  >,
+) => {
+  getQueryClient().infiniteQuery(options).catch(noop);
+};
+
+
+=== tsconfig.json ===
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+"
+`;
+
 exports[`golden FileMap > yarn · shadcn base, no preset 1`] = `
 "=== .dockerignore ===
 node_modules
