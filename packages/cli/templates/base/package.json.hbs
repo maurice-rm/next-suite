@@ -47,7 +47,13 @@
   ]{{/if}}{{#if (eq packageManager "yarn")}},
   "packageManager": "yarn@4.17.1",
   "dependenciesMeta": {
+{{#if (eq database.orm "prisma")}}
+    "@prisma/engines": { "built": true },
+{{/if}}
     "esbuild": { "built": true },
+{{#if (eq database.orm "prisma")}}
+    "prisma": { "built": true },
+{{/if}}
     "sharp": { "built": true },
     "unrs-resolver": { "built": true }
   }{{/if}}

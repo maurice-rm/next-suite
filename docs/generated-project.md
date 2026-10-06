@@ -161,7 +161,7 @@ The job first copies `.env.example` to `.env`, so every step — including the b
 
 ### Supply chain
 
-Every package manager installs only releases at least one day old and runs install scripts only for an allowlist (`esbuild`, `sharp`, `unrs-resolver`, plus `prisma` and `@prisma/engines` with npm and Bun in Prisma projects):
+Every package manager installs only releases at least one day old and runs install scripts only for an allowlist (`esbuild`, `sharp`, `unrs-resolver`, plus `prisma` and `@prisma/engines` in Prisma projects):
 
 | Package manager | Release-age delay                            | Install-script allowlist                                             | Pinned through                           |
 | --------------- | -------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------- |

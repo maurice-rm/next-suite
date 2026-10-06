@@ -15891,7 +15891,13 @@ http {
   },
   "packageManager": "yarn@4.17.1",
   "dependenciesMeta": {
+    "@prisma/engines": {
+      "built": true
+    },
     "esbuild": {
+      "built": true
+    },
+    "prisma": {
       "built": true
     },
     "sharp": {
