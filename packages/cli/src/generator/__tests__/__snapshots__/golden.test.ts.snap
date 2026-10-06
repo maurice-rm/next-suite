@@ -2334,40 +2334,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -4097,40 +4114,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -5561,40 +5595,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -8576,40 +8627,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -10137,40 +10205,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -12605,40 +12690,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -15526,40 +15628,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -17131,40 +17250,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
@@ -19497,40 +19633,57 @@ const REDACTED_PATHS = [
 
 // Drizzle appends the bound values of a failed query to the error message
 // (\`params: \${params}\`), where key-based redaction cannot reach them; the
-// exact text is rebuilt from the error so multi-line values go too.
+// exact text is rebuilt from the error so multi-line values go too, also in
+// nested and aggregated errors.
 const REDACTED_PARAMS = "params: [Redacted]";
 
-const collectQueryParams = (error: unknown): string[] => {
+const isQueryError = (error: Error): error is Error & { params: unknown[] } =>
+  "params" in error && Array.isArray(error.params);
+
+// Walks causes, aggregated errors and Error-valued fields, each once: a cyclic
+// chain must not hang the logger.
+const collectQueryParams = (error: Error): string[] => {
   const found: string[] = [];
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ("params" in current && Array.isArray(current.params)) {
-      found.push(\`params: \${String(current.params)}\`);
-    }
-    current = current.cause;
+  const seen = new Set<Error>();
+  const pending: unknown[] = [error];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!(current instanceof Error) || seen.has(current)) continue;
+    seen.add(current);
+    if (isQueryError(current)) found.push(\`params: \${String(current.params)}\`);
+    const fields: unknown[] = Object.values(current);
+    const aggregated: unknown[] =
+      current instanceof AggregateError ? current.errors : [];
+    pending.push(current.cause, ...fields, ...aggregated);
   }
   return found;
 };
 
-const redactQueryParams = (
-  text: string | undefined,
-  queryParams: string[],
-): string | undefined =>
-  queryParams.reduce(
-    (redacted, params) => redacted?.split(params).join(REDACTED_PARAMS),
-    text,
+const redactSerialized = (value: unknown, queryParams: string[]): unknown => {
+  if (typeof value === "string") {
+    return queryParams.reduce(
+      (redacted, params) => redacted.split(params).join(REDACTED_PARAMS),
+      value,
+    );
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSerialized(item, queryParams));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, field]) => [
+      key,
+      key === "params" ? "[Redacted]" : redactSerialized(field, queryParams),
+    ]),
   );
+};
 
 const serializeError = (error: unknown) => {
   if (!(error instanceof Error)) return error;
-  const queryParams = collectQueryParams(error);
-  const serialized = pino.stdSerializers.err(error);
-  return {
-    ...serialized,
-    message: redactQueryParams(serialized.message, queryParams),
-    stack: redactQueryParams(serialized.stack, queryParams),
-    ...("params" in serialized && { params: "[Redacted]" }),
-  };
+  return redactSerialized(
+    pino.stdSerializers.err(error),
+    collectQueryParams(error),
+  );
 };
 
 export const logger = pino({
