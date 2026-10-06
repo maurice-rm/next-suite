@@ -93,3 +93,9 @@ test("per-project logs are locked down to 0640, not nginx's 0644 default", () =>
   expect(script).toContain("chown www-data:adm");
   expect(script).toContain("getent group adm");
 });
+
+test("buildNginxWriteScript refuses a block whose line would end the heredoc", () => {
+  expect(() =>
+    buildNginxWriteScript("acme", "server {}\nNGINX_EOF\nrm -rf /\n"),
+  ).toThrow(/would end the upload early/);
+});

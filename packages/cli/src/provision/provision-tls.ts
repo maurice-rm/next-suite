@@ -1,4 +1,4 @@
-import { resolvesToAny } from "./dns";
+import { resolvesToAny, toTrustedDomain } from "./dns";
 import {
   extractServerNames,
   renderAcmeBootstrap,
@@ -181,10 +181,13 @@ const reportStaleCertificates = async (
   { target, run, stepLog }: ProvisionContext,
   droppedNames: string[],
 ): Promise<void> => {
-  for (const staleName of droppedNames) {
+  const trustedNames = droppedNames.flatMap(
+    (droppedName) => toTrustedDomain(droppedName) ?? [],
+  );
+  for (const staleName of trustedNames) {
     const hasLineage = await isRemoteSuccess(
       target,
-      `test -d ${getCertificateDirectory(staleName)}`,
+      `test -d ${quoteShellWord(getCertificateDirectory(staleName))}`,
       run,
     );
     if (!hasLineage) continue;

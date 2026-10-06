@@ -29,15 +29,24 @@ chmod 600 ${deploy.path}/.ssh/authorized_keys
 chown ${deploy.user}:${deploy.user} ${deploy.path}/.ssh/authorized_keys
 `;
 
+const HEREDOC_TERMINATOR = "NGINX_EOF";
+
+const assertHeredocSafe = (block: string): void => {
+  if (block.split("\n").includes(HEREDOC_TERMINATOR)) {
+    throw new Error(
+      `The nginx config contains a line "${HEREDOC_TERMINATOR}", which would end the upload early — remove that line, then run again.`,
+    );
+  }
+};
+
 /** Validates before committing: a failed `nginx -t` reverts the file instead of leaving a broken conf.d entry. */
-export const buildNginxWriteScript = (
-  name: string,
-  block: string,
-): string => `set -eu
+export const buildNginxWriteScript = (name: string, block: string): string => {
+  assertHeredocSafe(block);
+  return `set -eu
 conf=${getNginxConfPath(name)}
 [ -f "$conf" ] && cp "$conf" "$conf.bak" || true
-cat > "$conf" <<'NGINX_EOF'
-${block}NGINX_EOF
+cat > "$conf" <<'${HEREDOC_TERMINATOR}'
+${block}${HEREDOC_TERMINATOR}
 if nginx -t; then
   [ -f "$conf.bak" ] && mv "$conf.bak" "$conf.prev" || true
   if getent group adm >/dev/null && getent passwd www-data >/dev/null; then
@@ -56,6 +65,7 @@ else
   exit 1
 fi
 `;
+};
 
 export const NGINX_RELOAD_SCRIPT =
   'nginx -t && (systemctl reload nginx 2>/dev/null || nginx -s reload); rc=$?; for j in nginx-limit-req nginx-botsearch; do fail2ban-client reload "$j" >/dev/null 2>&1 || true; done; exit $rc';
