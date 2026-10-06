@@ -40,3 +40,10 @@ test("the control socket path stays inside the unix socket length limit", () => 
 test("without a control directory the ssh options skip multiplexing", () => {
   expect(buildSshOptions()).toEqual(["-o", "StrictHostKeyChecking=accept-new"]);
 });
+
+test("createControlDirectory makes a fresh private directory each time", () => {
+  const first = createControlDirectory();
+  const second = createControlDirectory();
+  expect(second).not.toBe(first);
+  expect(fs.statSync(first).mode & 0o777).toBe(0o700);
+});

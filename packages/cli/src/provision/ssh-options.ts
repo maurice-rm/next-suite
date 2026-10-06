@@ -18,9 +18,12 @@ const removeDirectory = (directory: string): void => {
   fs.rmSync(directory, { recursive: true, force: true });
 };
 
+// mkdtemp: a fresh, unguessable directory only this user can enter — a
+// predictable path could be pre-created by another local user to hijack the
+// control socket. Kept short for the socket path length limit.
 export const createControlDirectory = (): string => {
-  const directory = path.join(os.tmpdir(), `nsm${String(process.pid)}`);
-  fs.mkdirSync(directory, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "nsm-"));
+  fs.chmodSync(directory, PRIVATE_DIRECTORY_MODE);
   process.on("exit", () => {
     removeDirectory(directory);
   });
