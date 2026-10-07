@@ -1,0 +1,28 @@
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
