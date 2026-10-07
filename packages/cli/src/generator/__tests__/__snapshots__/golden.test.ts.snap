@@ -1279,6 +1279,7 @@ http {
     "typescript-eslint": "8.71.0"
   },
   "overrides": {
+    "typescript-eslint": "8.71.0",
     "mysql2": "^3.24.5",
     "mariadb": "~3.4.7"
   }
@@ -3434,6 +3435,9 @@ export default nextConfig;
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
     "typescript-eslint": "8.71.0"
+  },
+  "overrides": {
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -5072,6 +5076,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
+  },
+  "overrides": {
     "typescript-eslint": "8.71.0"
   }
 }
@@ -6968,6 +6975,9 @@ http {
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
     "typescript-eslint": "8.71.0"
+  },
+  "overrides": {
+    "typescript-eslint": "8.71.0"
   }
 }
 
@@ -8161,6 +8171,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
+  },
+  "overrides": {
     "typescript-eslint": "8.71.0"
   }
 }
@@ -9790,6 +9803,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
+    "typescript-eslint": "8.71.0"
+  },
+  "overrides": {
     "typescript-eslint": "8.71.0"
   }
 }
@@ -11921,6 +11937,7 @@ auditConfig:
     - GHSA-67mh-4wv8-2f99
     - GHSA-ggr8-5vv4-36mx
 overrides:
+  "typescript-eslint": "8.71.0"
   "mysql2": "^3.24.5"
   "mariadb": "~3.4.7"
 
@@ -14777,6 +14794,8 @@ auditConfig:
     - GHSA-vfj7-8cjw-p6xm
     - GHSA-67mh-4wv8-2f99
     - GHSA-ggr8-5vv4-36mx
+overrides:
+  "typescript-eslint": "8.71.0"
 
 
 === postcss.config.mjs ===
@@ -16973,6 +16992,8 @@ auditConfig:
     - GHSA-vfj7-8cjw-p6xm
     - GHSA-67mh-4wv8-2f99
     - GHSA-ggr8-5vv4-36mx
+overrides:
+  "typescript-eslint": "8.71.0"
 
 
 === postcss.config.mjs ===
@@ -19100,6 +19121,7 @@ http {
     "typescript-eslint": "8.71.0"
   },
   "resolutions": {
+    "typescript-eslint": "8.71.0",
     "mysql2": "^3.24.5"
   }
 }
