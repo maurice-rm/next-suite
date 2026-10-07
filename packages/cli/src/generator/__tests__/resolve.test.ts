@@ -68,8 +68,11 @@ test("dependencyOverrides pins what the active features override", () => {
     database: { engine: "mysql", orm: "prisma" },
   } satisfies ProjectConfig;
   expect(dependencyOverrides(mysqlPrisma)).toEqual({
+    "typescript-eslint": VERSIONS["typescript-eslint"],
     mysql2: VERSIONS.mysql2,
     mariadb: VERSIONS.mariadb,
   });
-  expect(dependencyOverrides(baseConfig)).toEqual({});
+  expect(dependencyOverrides(baseConfig)).toEqual({
+    "typescript-eslint": VERSIONS["typescript-eslint"],
+  });
 });

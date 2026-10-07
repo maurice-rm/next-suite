@@ -72,6 +72,9 @@ export const FEATURES: Feature[] = [
       "@commitlint/config-conventional",
       "babel-plugin-react-compiler",
     ],
+    // eslint-config-next brings its own typescript-eslint; a second copy makes
+    // ESLint refuse to load the "@typescript-eslint" plugin twice (Yarn installs one).
+    overrides: ["typescript-eslint"],
   },
   {
     dir: "features/pnpm",
