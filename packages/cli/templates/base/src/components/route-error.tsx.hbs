@@ -1,0 +1,23 @@
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+{{#if tailwind}}
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+{{else}}
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+{{/if}}
+);

@@ -345,7 +345,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -1820,8 +1820,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -1886,23 +1890,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -1915,6 +1910,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -1924,18 +1921,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -2106,6 +2092,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -2195,30 +2198,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -2232,15 +2218,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -2256,6 +2304,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -2622,6 +2676,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -2645,7 +2700,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -2950,7 +3005,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -3389,9 +3444,6 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -3712,26 +3764,25 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/error.tsx ===
 "use client";
+
+import { RouteError } from "@/components/route-error";
 
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -3744,6 +3795,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -3753,12 +3806,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -3882,6 +3930,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -3955,31 +4016,14 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -3994,15 +4038,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -4018,6 +4124,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -4587,6 +4699,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -5384,19 +5497,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -5409,6 +5517,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -5418,12 +5528,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -5579,6 +5684,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -5649,6 +5767,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -6008,6 +6132,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -6031,7 +6156,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -6398,7 +6523,7 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -6894,9 +7019,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -7391,19 +7513,14 @@ export const GET = (): Response => Response.json({ status: "ok" });
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -7416,6 +7533,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -7425,12 +7544,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -7524,6 +7638,19 @@ const Page = () => (
 );
 
 export default Page;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -7756,6 +7883,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 - **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
@@ -8526,19 +8654,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -8551,6 +8674,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -8560,12 +8685,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -8721,6 +8841,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -8791,6 +8924,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/domain-error.ts ===
@@ -9109,6 +9248,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -9132,7 +9272,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -9427,6 +9567,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 - **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
@@ -10179,19 +10320,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -10204,6 +10340,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -10213,12 +10351,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -10374,6 +10507,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -10444,6 +10590,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/domain-error.ts ===
@@ -10762,6 +10914,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -10785,7 +10938,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -11184,7 +11337,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -11243,7 +11396,9 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+
+\`X-Real-IP\` is the one header the app reads the client IP from, for the security logs and for Better-Auth's rate limits. The sidecar passes it on as it arrives, so a host proxy that does not overwrite it with \`$remote_addr\` lets every client send its own value and choose the IP the security logs record and the key Better-Auth rate-limits on. A proxy that sends no \`X-Real-IP\` at all leaves the logs without a client IP and puts every client into one shared rate-limit bucket per path.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -12577,8 +12732,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -12643,19 +12802,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -12668,6 +12822,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -12677,12 +12833,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -12838,6 +12989,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -12927,30 +13091,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -12964,15 +13111,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -12988,6 +13197,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -13354,6 +13569,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -13377,7 +13593,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -13925,7 +14141,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -15409,8 +15625,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -15444,6 +15664,7 @@ export const GET = async (): Promise<Response> => {
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
@@ -15475,7 +15696,7 @@ const handler = (request: Request) =>
           code: error.code,
           path,
           userId: ctx?.session?.user.id,
-          ip: request.headers.get("x-real-ip"),
+          ip: request.headers.get(CLIENT_IP_HEADER),
         },
         "tRPC request rejected",
       );
@@ -15488,23 +15709,14 @@ export { handler as GET, handler as POST };
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -15517,6 +15729,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -15526,18 +15740,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -15734,6 +15937,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -15820,31 +16040,14 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -15859,15 +16062,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -15883,6 +16148,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -16658,6 +16929,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -17332,6 +17604,7 @@ main
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
@@ -17362,7 +17635,7 @@ const handler = (request: Request) =>
         {
           code: error.code,
           path,
-          ip: request.headers.get("x-real-ip"),
+          ip: request.headers.get(CLIENT_IP_HEADER),
         },
         "tRPC request rejected",
       );
@@ -17375,23 +17648,14 @@ export { handler as GET, handler as POST };
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -17404,6 +17668,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -17413,18 +17679,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -17662,6 +17917,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -17722,6 +17994,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/domain-error.ts ===
@@ -18396,7 +18674,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -18456,7 +18734,9 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+
+\`X-Real-IP\` is the one header the app reads the client IP from, for the security logs and for Better-Auth's rate limits. The sidecar passes it on as it arrives, so a host proxy that does not overwrite it with \`$remote_addr\` lets every client send its own value and choose the IP the security logs record and the key Better-Auth rate-limits on. A proxy that sends no \`X-Real-IP\` at all leaves the logs without a client IP and puts every client into one shared rate-limit bucket per path.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -19090,9 +19370,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -19808,8 +20085,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -19840,23 +20121,14 @@ export const GET = async (): Promise<Response> => {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -19869,6 +20141,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -19878,18 +20152,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -19987,6 +20250,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -20062,30 +20342,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -20099,15 +20362,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -20123,6 +20448,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===

@@ -16,8 +16,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 {{#if (or api (eq auth "better-auth") (and production database))}}
 - **Logging:** server code logs through `@/lib/logger` (pino), object first, message second, the error under `err`. Never `console`.
 {{/if}}
-{{#if (eq auth "better-auth")}}
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from `x-real-ip`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch `CLIENT_IP_HEADER` in `src/lib/auth/index.ts` to the header that proxy sets.
+{{#if (or api (eq auth "better-auth"))}}
+- **Client IP:** {{#if (eq auth "better-auth")}}Better-Auth's rate limits and {{/if}}the security logs read the client IP from `x-real-ip`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch `CLIENT_IP_HEADER` in `src/lib/client-ip.ts` to the header that proxy sets.
 {{/if}}
 {{#if api}}
 - **Errors:** a feature throws a subclass of `DomainError` (`@/lib/domain-error`) with a stable code; `publicProcedure` maps it to the API error once. Procedures start from `{{#if (eq auth "better-auth")}}protectedProcedure{{else}}publicProcedure{{/if}}`.
