@@ -3374,9 +3374,6 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -6871,9 +6868,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -19041,9 +19035,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
