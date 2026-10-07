@@ -1,0 +1,20 @@
+import { describe, expect, it } from "vitest";
+
+import { auth } from "@/lib/auth";
+import { callAuth } from "@/lib/auth/errors/call-auth";
+import { AppError } from "@/lib/errors/app-error";
+
+describe("callAuth", () => {
+  it("turns a Better-Auth error into an app error with its code and status", async () => {
+    const error = await callAuth(() =>
+      auth.api.signInEmail({
+        body: { email: "nobody@example.test", password: "wrong-password" },
+      }),
+    ).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AppError);
+    expect(error).toMatchObject({
+      code: "INVALID_EMAIL_OR_PASSWORD",
+      status: 401,
+    });
+  });
+});

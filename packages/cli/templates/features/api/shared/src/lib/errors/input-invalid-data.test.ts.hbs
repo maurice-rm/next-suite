@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+
+import { toInputInvalidData } from "@/lib/errors/input-invalid-data";
+
+describe("toInputInvalidData", () => {
+  it("names nested fields the way TanStack Form does", () => {
+    expect(
+      toInputInvalidData([
+        { message: "Email is missing.", path: ["contacts", 1, "email"] },
+        { message: "Too short.", path: [{ key: "address" }, { key: "city" }] },
+      ]).fieldErrors,
+    ).toEqual({
+      "contacts[1].email": ["Email is missing."],
+      "address.city": ["Too short."],
+    });
+  });
+
+  it("keeps issues without a path as form errors", () => {
+    expect(toInputInvalidData([{ message: "Nothing to save." }])).toEqual({
+      formErrors: ["Nothing to save."],
+      fieldErrors: {},
+    });
+  });
+
+  it("collects issues for fields named like object members", () => {
+    expect(
+      toInputInvalidData([
+        { message: "Not a number.", path: ["toString"] },
+        { message: "Not a number.", path: ["__proto__"] },
+      ]).fieldErrors,
+    ).toEqual(
+      Object.fromEntries([
+        ["toString", ["Not a number."]],
+        ["__proto__", ["Not a number."]],
+      ]),
+    );
+  });
+});

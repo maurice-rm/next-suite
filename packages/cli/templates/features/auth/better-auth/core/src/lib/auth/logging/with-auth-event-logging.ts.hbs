@@ -1,17 +1,12 @@
 import "server-only";
 
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { HTTP_STATUS, isClientErrorStatus } from "@/lib/http-status";
 import { logger } from "@/lib/logger";
 
 const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
-const TOO_MANY_REQUESTS_STATUS = 429;
-const CLIENT_ERROR_MIN_STATUS = 400;
-const SERVER_ERROR_MIN_STATUS = 500;
 
 type AuthHandler = (request: Request) => Promise<Response>;
-
-const isClientErrorStatus = (status: number) =>
-  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
 
 const logAuthEvent = (request: Request, response: Response) => {
   const event = {
@@ -19,7 +14,7 @@ const logAuthEvent = (request: Request, response: Response) => {
     path: new URL(request.url).pathname,
     status: response.status,
   };
-  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+  if (response.status === HTTP_STATUS.TOO_MANY_REQUESTS) {
     logger.warn(event, "Auth rate limit hit");
     return;
   }

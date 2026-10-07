@@ -1,0 +1,21 @@
+type AppErrorInit = {
+  code: string;
+  status: number;
+  message: string;
+  data?: unknown;
+  cause?: unknown;
+};
+
+export class AppError extends Error {
+  readonly code: string;
+  readonly status: number;
+  readonly data: unknown;
+
+  constructor({ code, status, message, data, cause }: AppErrorInit) {
+    super(message, { cause });
+    this.name = "AppError";
+    this.code = code;
+    this.status = status;
+    this.data = data;
+  }
+}

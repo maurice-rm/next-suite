@@ -1,0 +1,24 @@
+import "server-only";
+
+import { isAPIError } from "better-auth/api";
+
+import { AppError } from "@/lib/errors/app-error";
+import { HTTP_STATUS } from "@/lib/http-status";
+
+// Better-Auth's codes keep their names and statuses; nothing renames them.
+// Redirects are thrown as APIErrors too and pass unchanged, with their headers.
+export const callAuth = async <Result>(request: () => Promise<Result>) => {
+  try {
+    return await request();
+  } catch (error) {
+    if (!isAPIError(error) || error.statusCode < HTTP_STATUS.BAD_REQUEST) {
+      throw error;
+    }
+    throw new AppError({
+      code: error.body?.code ?? String(error.status),
+      status: error.statusCode,
+      message: error.message,
+      cause: error,
+    });
+  }
+};

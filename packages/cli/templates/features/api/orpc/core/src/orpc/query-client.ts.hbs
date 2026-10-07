@@ -2,6 +2,7 @@ import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
   defaultShouldDehydrateQuery,
   QueryClient,
+  type QueryClientConfig,
 } from "@tanstack/react-query";
 
 // Serializes oRPC types (Date, Map, …) across query keys and (de)hydration.
@@ -15,8 +16,11 @@ type DehydratedData = {
 const STALE_TIME_MS = 300_000;
 const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
-export const createQueryClient = () =>
+type ErrorCaches = Pick<QueryClientConfig, "queryCache" | "mutationCache">;
+
+export const createQueryClient = (errorCaches: ErrorCaches = {}) =>
   new QueryClient({
+    ...errorCaches,
     defaultOptions: {
       queries: {
         queryKeyHashFn: (queryKey) => {

@@ -1,0 +1,25 @@
+import {
+  type ErrorMessages,
+  toErrorMessage,
+} from "@/lib/errors/display/error-messages";
+
+type AuthResult = { error: unknown };
+
+export const settleAuthRequest = async (request: Promise<AuthResult>) => {
+  try {
+    const { error } = await request;
+    return error ?? undefined;
+  } catch (error) {
+    // Better-Auth returns server failures as `error`; a request that never
+    // reached the server throws.
+    return error;
+  }
+};
+
+export const runAuthRequest = async (
+  request: Promise<AuthResult>,
+  overrides?: ErrorMessages,
+) => {
+  const failure = await settleAuthRequest(request);
+  return failure === undefined ? undefined : toErrorMessage(failure, overrides);
+};

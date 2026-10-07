@@ -1,0 +1,37 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  runAuthRequest,
+  settleAuthRequest,
+} from "@/lib/auth/errors/auth-request";
+
+const FAILURE = { code: "INVALID_EMAIL_OR_PASSWORD", status: 401 };
+
+describe("settleAuthRequest", () => {
+  it("returns nothing for a successful request", async () => {
+    await expect(
+      settleAuthRequest(Promise.resolve({ error: null })),
+    ).resolves.toBeUndefined();
+  });
+
+  it("returns the error Better-Auth reports", async () => {
+    await expect(
+      settleAuthRequest(Promise.resolve({ error: FAILURE })),
+    ).resolves.toBe(FAILURE);
+  });
+
+  it("returns the failure of a request that never reached the server", async () => {
+    const networkError = new TypeError("Failed to fetch");
+    await expect(
+      settleAuthRequest(Promise.reject(networkError)),
+    ).resolves.toBe(networkError);
+  });
+});
+
+describe("runAuthRequest", () => {
+  it("turns a failure into its message", async () => {
+    await expect(
+      runAuthRequest(Promise.resolve({ error: FAILURE })),
+    ).resolves.toBe("The email address or password is incorrect.");
+  });
+});

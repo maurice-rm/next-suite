@@ -1,0 +1,44 @@
+{{#if (eq api.type "trpc")}}
+import { TRPCClientError } from "@trpc/client";
+
+{{/if}}
+export const NETWORK_ERROR_CODE = "NETWORK_ERROR";
+
+type ClientError = { code?: string; status?: number };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const readErrorObject = (
+  error: Record<string, unknown>,
+  statusKey = "status",
+): ClientError => {
+  const { code } = error;
+  const status = error[statusKey];
+  return {
+    code: typeof code === "string" ? code : undefined,
+    status: typeof status === "number" ? status : undefined,
+  };
+};
+
+export const toClientError = (error: unknown): ClientError => {
+{{#if (eq api.type "trpc")}}
+  // tRPC's error formatter carries the app's code and the HTTP status in `data`;
+  // a request that never got an answer has no data, only its cause.
+  if (error instanceof TRPCClientError) {
+    return isRecord(error.data)
+      ? readErrorObject(error.data, "httpStatus")
+      : toClientError(error.cause);
+  }
+{{/if}}
+  // fetch rejects with a TypeError only when the request could not be sent at all.
+  if (error instanceof TypeError) {
+    return { code: NETWORK_ERROR_CODE };
+  }
+  // AppError, {{#if (eq api.type "orpc")}}ORPCError, {{/if}}{{#if (eq auth "better-auth")}}Better-Auth's client failures {{/if}}and the like carry
+  // `code` and `status` as plain properties.
+  if (isRecord(error)) {
+    return readErrorObject(error);
+  }
+  return {};
+};

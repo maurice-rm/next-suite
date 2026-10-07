@@ -1,8 +1,10 @@
 import { STATUS_CODES } from "node:http";
 
-{{#unless api.openapi.scalar}}
-import { OpenAPIGenerator } from "@orpc/openapi";
-{{/unless}}
+{{#if api.openapi.scalar}}
+import type { JSONSchema } from "@orpc/openapi";
+{{else}}
+import { type JSONSchema, OpenAPIGenerator } from "@orpc/openapi";
+{{/if}}
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 {{#if api.openapi.scalar}}
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -10,12 +12,12 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import { logRequestError } from "@/orpc/log-request-error";
 import {
   notFoundResponse,
   PROBLEM_CONTENT_TYPE,
   type ProblemDetails,
 } from "@/orpc/problem-details";
-import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { publicApiRouter } from "@/orpc/routers/public-api-router";
 
 const API_PREFIX = "/api/v1";
@@ -25,9 +27,23 @@ const SCALAR_SCRIPT_URL =
   "https://cdn.jsdelivr.net/npm/@scalar/api-reference@{{catalogVersion "@scalar/api-reference"}}";
 {{/if}}
 
-const SPEC_INFO = {
+const PROBLEM_DETAILS_SCHEMA = {
+  type: "object",
+  properties: {
+    type: { type: "string" },
+    title: { type: "string" },
+    status: { type: "integer" },
+    detail: { type: "string" },
+    code: { type: "string" },
+    data: {},
+  },
+  required: ["type", "title", "status", "detail", "code"],
+} satisfies JSONSchema;
+
+const SPEC_OPTIONS = {
   info: { title: "{{projectName}} API", version: API_VERSION },
   servers: [{ url: API_PREFIX }],
+  customErrorResponseBodySchema: PROBLEM_DETAILS_SCHEMA,
 };
 
 const toProblemDetails = (
@@ -38,7 +54,7 @@ const toProblemDetails = (
   status: error.status,
   detail: error.message,
   code: error.code,
-  ...(error.data !== undefined && { errors: error.data }),
+  ...(error.data !== undefined && { data: error.data }),
 });
 
 const handler = new OpenAPIHandler(publicApiRouter, {
@@ -47,12 +63,12 @@ const handler = new OpenAPIHandler(publicApiRouter, {
     new OpenAPIReferencePlugin({
       docsScriptUrl: SCALAR_SCRIPT_URL,
       schemaConverters: [new ZodToJsonSchemaConverter()],
-      specGenerateOptions: SPEC_INFO,
+      specGenerateOptions: SPEC_OPTIONS,
     }),
   ],
 {{/if}}
   customErrorResponseBodyEncoder: toProblemDetails,
-  clientInterceptors: [onError(logProcedureFailure)],
+  interceptors: [onError(logRequestError)],
 });
 {{#unless api.openapi.scalar}}
 
@@ -68,14 +84,13 @@ const handleRequest = async (request: Request) => {
   });
 
   if (matched) {
-    logRejectedRequest(response.status, request.headers);
     if (!response.ok) response.headers.set("Content-Type", PROBLEM_CONTENT_TYPE);
     return response;
   }
 {{#unless api.openapi.scalar}}
 
   if (new URL(request.url).pathname === `${API_PREFIX}/spec.json`) {
-    return Response.json(await generator.generate(publicApiRouter, SPEC_INFO));
+    return Response.json(await generator.generate(publicApiRouter, SPEC_OPTIONS));
   }
 {{/unless}}
 

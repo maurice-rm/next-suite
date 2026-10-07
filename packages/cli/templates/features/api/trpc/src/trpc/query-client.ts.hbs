@@ -1,13 +1,17 @@
 import {
   defaultShouldDehydrateQuery,
   QueryClient,
+  type QueryClientConfig,
 } from "@tanstack/react-query";
 
 const STALE_TIME_MS = 300_000;
 const GARBAGE_COLLECTION_TIME_MS = 600_000;
 
-export const createQueryClient = () =>
+type ErrorCaches = Pick<QueryClientConfig, "queryCache" | "mutationCache">;
+
+export const createQueryClient = (errorCaches: ErrorCaches = {}) =>
   new QueryClient({
+    ...errorCaches,
     defaultOptions: {
       queries: {
         staleTime: STALE_TIME_MS,

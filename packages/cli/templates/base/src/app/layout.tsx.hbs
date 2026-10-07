@@ -11,6 +11,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 {{#if (or api (eq auth "better-auth"))}}
 
 {{#if api}}
+import { Toaster } from "sonner";
+
 import { Providers } from "@/app/providers";
 {{/if}}
 import { env } from "@/env";
@@ -64,6 +66,7 @@ const RootLayout = ({ children }: RootLayoutProps) => (
 {{#if api}}
     <body>
       <Providers>{children}</Providers>
+      <Toaster{{#unless shadcn}} theme="system"{{/unless}} />
     </body>
 {{else}}
     <body>{children}</body>

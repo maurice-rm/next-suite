@@ -17,6 +17,10 @@ import {
 import superjson from "superjson";
 
 import { env } from "@/env";
+import {
+  createMutationCache,
+  createQueryCache,
+} from "@/lib/errors/display/query-error-toasts";
 import { TRPCProvider } from "@/trpc/client";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
 import { createQueryClient } from "@/trpc/query-client";
@@ -46,7 +50,10 @@ const fetchWithTimeout: typeof fetch = (input, init) =>
 
 const getQueryClient = () => {
   if (isServer()) return createQueryClient();
-  return (browserQueryClient ??= createQueryClient());
+  return (browserQueryClient ??= createQueryClient({
+    queryCache: createQueryCache(),
+    mutationCache: createMutationCache(),
+  }));
 };
 
 // FormData & friends bypass superjson serialization via the split link.

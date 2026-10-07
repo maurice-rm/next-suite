@@ -1,0 +1,28 @@
+import "server-only";
+
+import { ORPCError } from "@orpc/server";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { isServerErrorStatus } from "@/lib/http-status";
+import { logger } from "@/lib/logger";
+
+type RequestErrorOptions = { context: { headers: Headers } };
+
+export const logRequestError = (
+  error: unknown,
+  { context }: RequestErrorOptions,
+) => {
+  const ip = context.headers.get(CLIENT_IP_HEADER);
+  // Procedure errors arrive as ORPCError (errorMiddleware in orpc/index.ts);
+  // anything else failed outside a procedure, almost always while decoding the
+  // request (an output encoding failure lands here too).
+  if (!(error instanceof ORPCError)) {
+    logger.warn({ err: error, ip }, "oRPC request malformed");
+    return;
+  }
+  if (isServerErrorStatus(error.status)) {
+    logger.error({ err: error, ip }, "oRPC request failed");
+    return;
+  }
+  logger.warn({ err: error, ip }, "oRPC request rejected");
+};
