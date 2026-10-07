@@ -7757,7 +7757,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
-- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately, with a \`.route()\`.
+- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
 ## Design direction
 
@@ -9149,8 +9149,8 @@ export const appRouter = {
 === src/orpc/routers/public-api-router.ts ===
 import { healthRouter } from "@/features/health/server/router";
 
-// Only what is listed here is served under /api/v1 and in its spec; the RPC
-// endpoint serves the whole appRouter. A procedure joins with its \`.route()\`.
+// Served under /api/v1 and in its spec, unlike the RPC endpoint's appRouter.
+// List procedures one by one: a nested feature router would expose all of it.
 export const publicApiRouter = {
   health: { status: healthRouter.status },
 };
@@ -9428,7 +9428,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
-- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately, with a \`.route()\`.
+- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
 ## Design direction
 
@@ -10802,8 +10802,8 @@ export const appRouter = {
 === src/orpc/routers/public-api-router.ts ===
 import { healthRouter } from "@/features/health/server/router";
 
-// Only what is listed here is served under /api/v1 and in its spec; the RPC
-// endpoint serves the whole appRouter. A procedure joins with its \`.route()\`.
+// Served under /api/v1 and in its spec, unlike the RPC endpoint's appRouter.
+// List procedures one by one: a nested feature router would expose all of it.
 export const publicApiRouter = {
   health: { status: healthRouter.status },
 };
