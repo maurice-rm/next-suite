@@ -1,0 +1,7 @@
+import { healthRouter } from "@/features/health/server/router";
+
+// Only what is listed here is served under /api/v1 and in its spec; the RPC
+// endpoint serves the whole appRouter. A procedure joins with its `.route()`.
+export const publicApiRouter = {
+  health: { status: healthRouter.status },
+};

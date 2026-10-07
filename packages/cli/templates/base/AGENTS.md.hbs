@@ -22,6 +22,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 {{#if api}}
 - **Errors:** a feature throws a subclass of `DomainError` (`@/lib/domain-error`) with a stable code; `publicProcedure` maps it to the API error once. Procedures start from `{{#if (eq auth "better-auth")}}protectedProcedure{{else}}publicProcedure{{/if}}`.
 {{/if}}
+{{#if api.openapi}}
+- **Public API:** `/api/v1` and its spec serve only `publicApiRouter` (`src/orpc/routers/public-api-router.ts`), never the whole `appRouter`. A procedure joins it deliberately, with a `.route()`.
+{{/if}}
 
 ## Design direction
 
