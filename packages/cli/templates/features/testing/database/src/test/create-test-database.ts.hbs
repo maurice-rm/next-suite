@@ -1,0 +1,21 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+
+import * as schema from "@/lib/database/schema";
+
+const MIGRATIONS_FOLDER = resolve(import.meta.dirname, "../../drizzle");
+const MIGRATIONS_JOURNAL = resolve(MIGRATIONS_FOLDER, "meta/_journal.json");
+
+export const createTestDatabase = async () => {
+  const client = await PGlite.create();
+  const database = drizzle({ client, schema, casing: "snake_case" });
+  // A schema without tables has no migration yet, and migrate() needs a journal.
+  if (existsSync(MIGRATIONS_JOURNAL)) {
+    await migrate(database, { migrationsFolder: MIGRATIONS_FOLDER });
+  }
+  return { database, close: () => client.close() };
+};

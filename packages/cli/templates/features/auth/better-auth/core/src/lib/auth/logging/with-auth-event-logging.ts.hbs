@@ -1,0 +1,42 @@
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };

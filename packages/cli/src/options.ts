@@ -72,6 +72,7 @@ export const NGINX_MODES = defineOptions([
 export const GITHUB_ACTIONS_CI_STEPS = defineOptions([
   { value: "lint", label: "Lint", hint: "eslint" },
   { value: "typecheck", label: "Type-check", hint: "tsc" },
+  { value: "test", label: "Tests", hint: "vitest" },
   { value: "format", label: "Format check", hint: "prettier" },
   { value: "build", label: "Build", hint: "next build" },
 ]);

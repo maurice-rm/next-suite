@@ -1,0 +1,20 @@
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};

@@ -1,3 +1,4 @@
+import { usesTestDatabase } from "@/core/test-database";
 import type { ProjectConfig } from "@/core/types";
 import { isCdStep } from "@/options";
 
@@ -196,10 +197,30 @@ export const FEATURES: Feature[] = [
     dependencies: ["resend", "server-only"],
   },
   {
+    dir: "features/client-ip",
+    when: (config) =>
+      config.api !== undefined ||
+      (config.auth === "better-auth" && config.database !== undefined),
+  },
+  {
     dir: "features/logging",
     when: usesLogger,
     dependencies: ["pino", "server-only"],
     devDependencies: ["pino-pretty"],
+  },
+  {
+    dir: "features/testing/core",
+    // vite is a required peer of vitest that Yarn does not install by itself.
+    devDependencies: ["vitest", "vite"],
+  },
+  {
+    dir: "features/testing/database",
+    when: usesTestDatabase,
+    devDependencies: ["@electric-sql/pglite"],
+  },
+  {
+    dir: "features/testing/auth",
+    when: (config) => usesTestDatabase(config) && config.auth === "better-auth",
   },
   {
     dir: "features/production/core",

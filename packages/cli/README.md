@@ -23,7 +23,7 @@ Answer the guided wizard (with back-navigation) and the CLI generates the projec
 ⚡ and 🧰 ship in every project; the rest are optional integrations chosen in the wizard.
 
 - ⚡ **Next 16 · React 19 · TypeScript (strict)** — App Router, React Compiler, `@/*` alias
-- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Husky · lint-staged · commitlint · typed env (`@t3-oss/env-nextjs`)
+- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Vitest · Husky · lint-staged · commitlint · typed env (`@t3-oss/env-nextjs`)
 - 🎨 **Tailwind CSS + shadcn/ui** _(optional)_
 - 🗄️ **Database** _(optional)_ — PostgreSQL / MySQL with Drizzle or Prisma
 - 🔌 **API** _(optional)_ — tRPC / oRPC + TanStack Query, optional OpenAPI + Scalar
@@ -46,27 +46,27 @@ npx create-next-suite@latest my-app --yes --pm pnpm --tailwind \
   --database postgres --orm drizzle --auth better-auth
 ```
 
-| Flag                                 | Default (`--yes`)     | Description                                                  |
-| ------------------------------------ | --------------------- | ------------------------------------------------------------ |
-| `<name>`                             | required with `--yes` | Project name or path; `.` targets the current directory      |
-| `--yes`, `-y`                        | `false`               | Non-interactive                                              |
-| `--pm <npm\|pnpm\|yarn\|bun>`        | detected, else `npm`  | Package manager                                              |
-| `--tailwind`                         | `false`               | Tailwind CSS (forced on by `--shadcn`)                       |
-| `--shadcn`                           | `false`               | shadcn/ui — implies Tailwind                                 |
-| `--shadcn-base <base\|radix\|aria>`  | `base`                | shadcn base library                                          |
-| `--shadcn-preset <code>`             | shadcn's blank preset | Preset code from shadcn/create                               |
-| `--shadcn-pointer`                   | `false`               | Pointer cursor on buttons                                    |
-| `--database <postgres\|mysql>`       | none                  | Dockerized local database — pass with `--orm`                |
-| `--orm <drizzle\|prisma>`            | none                  | ORM — pass with `--database`                                 |
-| `--api <trpc\|orpc>`                 | none                  | API layer + TanStack Query                                   |
-| `--openapi`                          | `false`               | OpenAPI/REST layer — oRPC only                               |
-| `--scalar`                           | `false`               | Scalar API-docs UI — requires `--openapi`                    |
-| `--auth <better-auth>`               | none                  | Auth — requires `--database`                                 |
-| `--email <resend>`                   | none                  | Email provider                                               |
-| `--deployment <standalone\|proxied>` | none                  | Production Docker + nginx                                    |
-| `--github-actions <steps>`           | none                  | Comma-separated: `lint,typecheck,format,build,image,deploy`  |
-| `--no-git`, `--no-install`           | both on               | Skip git init / dependency install                           |
-| `--overwrite`, `--empty`             | `false`               | Proceed into a non-empty target — keep it, or clear it first |
+| Flag                                 | Default (`--yes`)     | Description                                                      |
+| ------------------------------------ | --------------------- | ---------------------------------------------------------------- |
+| `<name>`                             | required with `--yes` | Project name or path; `.` targets the current directory          |
+| `--yes`, `-y`                        | `false`               | Non-interactive                                                  |
+| `--pm <npm\|pnpm\|yarn\|bun>`        | detected, else `npm`  | Package manager                                                  |
+| `--tailwind`                         | `false`               | Tailwind CSS (forced on by `--shadcn`)                           |
+| `--shadcn`                           | `false`               | shadcn/ui — implies Tailwind                                     |
+| `--shadcn-base <base\|radix\|aria>`  | `base`                | shadcn base library                                              |
+| `--shadcn-preset <code>`             | shadcn's blank preset | Preset code from shadcn/create                                   |
+| `--shadcn-pointer`                   | `false`               | Pointer cursor on buttons                                        |
+| `--database <postgres\|mysql>`       | none                  | Dockerized local database — pass with `--orm`                    |
+| `--orm <drizzle\|prisma>`            | none                  | ORM — pass with `--database`                                     |
+| `--api <trpc\|orpc>`                 | none                  | API layer + TanStack Query                                       |
+| `--openapi`                          | `false`               | OpenAPI/REST layer — oRPC only                                   |
+| `--scalar`                           | `false`               | Scalar API-docs UI — requires `--openapi`                        |
+| `--auth <better-auth>`               | none                  | Auth — requires `--database`                                     |
+| `--email <resend>`                   | none                  | Email provider                                                   |
+| `--deployment <standalone\|proxied>` | none                  | Production Docker + nginx                                        |
+| `--github-actions <steps>`           | none                  | Comma-separated: `lint,typecheck,test,format,build,image,deploy` |
+| `--no-git`, `--no-install`           | both on               | Skip git init / dependency install                               |
+| `--overwrite`, `--empty`             | `false`               | Proceed into a non-empty target — keep it, or clear it first     |
 
 Note the asymmetry: in the wizard every yes/no question defaults to **yes**, while the matching flags default to **off**. `create-next-suite --help` prints the full list; the [CLI reference](https://github.com/maurice-rm/next-suite/blob/main/docs/cli-reference.md) documents every wizard step, validation rule, and exit code.
 

@@ -85,6 +85,7 @@ Then start the dev server:
 | `{{packageManager}} run lint` | Run ESLint (`lint:fix` to fix) |
 | `{{packageManager}} run format` | Format with Prettier (`format:check` to check) |
 | `{{packageManager}} run knip` | Report unused files, exports and dependencies |
+| `{{packageManager}} run test` | Run the tests (`test:watch` to watch) |
 {{#if (eq database.orm "drizzle")}}
 | `{{packageManager}} run db:generate` | Generate a migration from the schema |
 | `{{packageManager}} run db:migrate` | Apply pending migrations |

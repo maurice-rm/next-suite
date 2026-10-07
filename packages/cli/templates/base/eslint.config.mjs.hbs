@@ -194,7 +194,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {

@@ -330,18 +330,23 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`bun run check\` and \`bun run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`bun run check\`, \`bun run test\` and \`bun run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -497,6 +502,7 @@ bun run dev
 | \`bun run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`bun run format\` | Format with Prettier (\`format:check\` to check) |
 | \`bun run knip\` | Report unused files, exports and dependencies |
+| \`bun run test\` | Run the tests (\`test:watch\` to watch) |
 | \`bun run db:generate\` | Generate the Prisma client |
 | \`bun run db:migrate\` | Create and apply a migration from the schema |
 | \`bun run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -858,7 +864,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -1220,6 +1226,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -1276,7 +1284,9 @@ http {
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "mysql2": "^3.24.5",
@@ -1816,8 +1826,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -1850,10 +1864,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -1865,7 +1878,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -1883,23 +1896,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -1912,6 +1916,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -1921,18 +1927,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -2103,6 +2098,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -2133,6 +2145,22 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { publicProcedure } from "@/orpc";
@@ -2192,30 +2220,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -2229,15 +2240,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -2253,6 +2326,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -2537,6 +2616,37 @@ const requireSession = base.middleware(async ({ context, next }) => {
 export const protectedProcedure = publicProcedure.use(requireSession);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -2588,6 +2698,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -2611,7 +2722,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -2727,6 +2838,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -2901,18 +3041,23 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -2979,6 +3124,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`npm run db:generate\` | Generate a migration from the schema |
 | \`npm run db:migrate\` | Apply pending migrations |
 | \`npm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -3053,6 +3199,9 @@ export default defineConfig({
     database: env.MYSQL_DATABASE,
   },
 });
+
+=== drizzle/.gitkeep ===
+
 
 === eslint.config.mjs ===
 import { defineConfig } from "eslint/config";
@@ -3246,7 +3395,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -3351,9 +3500,6 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -3387,6 +3533,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -3433,7 +3581,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -3674,26 +3824,25 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/error.tsx ===
 "use client";
+
+import { RouteError } from "@/components/route-error";
 
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -3706,6 +3855,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -3715,12 +3866,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -3844,6 +3990,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -3917,31 +4076,14 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -3956,15 +4098,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -3980,6 +4184,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -4317,6 +4527,36 @@ export const logger = pino({
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    passWithNoTests: true,
+  },
+});
 "
 `;
 
@@ -4534,17 +4774,23 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -4611,6 +4857,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`npm run db:generate\` | Generate a migration from the schema |
 | \`npm run db:migrate\` | Apply pending migrations |
 | \`npm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -4686,6 +4933,9 @@ export default defineConfig({
     database: env.MYSQL_DATABASE,
   },
 });
+
+=== drizzle/.gitkeep ===
+
 
 === eslint.config.mjs ===
 import { defineConfig } from "eslint/config";
@@ -4879,7 +5129,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -5023,6 +5273,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -5072,7 +5324,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -5310,10 +5564,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -5325,7 +5578,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -5343,19 +5596,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -5368,6 +5616,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -5377,12 +5627,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -5538,6 +5783,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -5565,6 +5823,22 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { publicProcedure } from "@/orpc";
@@ -5608,6 +5882,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -5885,6 +6165,37 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -5936,6 +6247,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -5959,7 +6271,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -6075,6 +6387,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -6262,15 +6603,20 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 
 ## Design direction
@@ -6322,7 +6668,7 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -6401,6 +6747,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -6666,7 +7013,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -6818,9 +7165,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -6929,6 +7273,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -6967,7 +7313,9 @@ http {
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -7315,19 +7663,14 @@ export const GET = (): Response => Response.json({ status: "ok" });
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -7340,6 +7683,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -7349,12 +7694,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -7450,6 +7790,19 @@ const Page = () => (
 export default Page;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -7511,6 +7864,36 @@ export const env = createEnv({
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    passWithNoTests: true,
+  },
+});
 "
 `;
 
@@ -7665,18 +8048,25 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
 ## Design direction
 
@@ -7739,6 +8129,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -7961,7 +8352,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -8114,6 +8505,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -8161,7 +8554,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -8339,10 +8734,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -8354,7 +8748,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -8377,28 +8771,22 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import {
+  notFoundResponse,
+  PROBLEM_CONTENT_TYPE,
+  type ProblemDetails,
+} from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
-import { appRouter } from "@/orpc/routers/app-router";
+import { publicApiRouter } from "@/orpc/routers/public-api-router";
 
 const API_PREFIX = "/api/v1";
 const API_VERSION = "1.0.0";
-const PROBLEM_CONTENT_TYPE = "application/problem+json";
-const NOT_FOUND_STATUS = 404;
 const SCALAR_SCRIPT_URL =
   "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.73.0";
 
 const SPEC_INFO = {
   info: { title: "orpc-scalar API", version: API_VERSION },
   servers: [{ url: API_PREFIX }],
-};
-
-type ProblemDetails = {
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  code?: string;
-  errors?: unknown;
 };
 
 const toProblemDetails = (
@@ -8412,7 +8800,7 @@ const toProblemDetails = (
   ...(error.data !== undefined && { errors: error.data }),
 });
 
-const handler = new OpenAPIHandler(appRouter, {
+const handler = new OpenAPIHandler(publicApiRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
       docsScriptUrl: SCALAR_SCRIPT_URL,
@@ -8423,20 +8811,6 @@ const handler = new OpenAPIHandler(appRouter, {
   customErrorResponseBodyEncoder: toProblemDetails,
   clientInterceptors: [onError(logProcedureFailure)],
 });
-
-const notFoundResponse = () =>
-  Response.json(
-    {
-      type: "about:blank",
-      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
-      status: NOT_FOUND_STATUS,
-      detail: "No operation matches this path and method.",
-    } satisfies ProblemDetails,
-    {
-      status: NOT_FOUND_STATUS,
-      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
-    },
-  );
 
 const handleRequest = async (request: Request) => {
   const { matched, response } = await handler.handle(request, {
@@ -8466,19 +8840,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -8491,6 +8860,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -8500,12 +8871,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -8661,6 +9027,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -8683,6 +9062,22 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { z } from "zod";
@@ -8731,6 +9126,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/domain-error.ts ===
@@ -8967,6 +9368,37 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -9018,6 +9450,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -9041,7 +9474,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -9052,6 +9485,16 @@ import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
+};
+
+
+=== src/orpc/routers/public-api-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
+
+// Served under /api/v1 and in its spec, unlike the RPC endpoint's appRouter.
+// List procedures one by one: a nested feature router would expose all of it.
+export const publicApiRouter = {
+  health: { status: healthRouter.status },
 };
 
 
@@ -9157,6 +9600,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -9311,18 +9783,25 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
 ## Design direction
 
@@ -9385,6 +9864,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -9607,7 +10087,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -9743,6 +10223,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -9790,7 +10272,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -9968,10 +10452,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -9983,7 +10466,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -10006,26 +10489,20 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import {
+  notFoundResponse,
+  PROBLEM_CONTENT_TYPE,
+  type ProblemDetails,
+} from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
-import { appRouter } from "@/orpc/routers/app-router";
+import { publicApiRouter } from "@/orpc/routers/public-api-router";
 
 const API_PREFIX = "/api/v1";
 const API_VERSION = "1.0.0";
-const PROBLEM_CONTENT_TYPE = "application/problem+json";
-const NOT_FOUND_STATUS = 404;
 
 const SPEC_INFO = {
   info: { title: "orpc-openapi API", version: API_VERSION },
   servers: [{ url: API_PREFIX }],
-};
-
-type ProblemDetails = {
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  code?: string;
-  errors?: unknown;
 };
 
 const toProblemDetails = (
@@ -10039,7 +10516,7 @@ const toProblemDetails = (
   ...(error.data !== undefined && { errors: error.data }),
 });
 
-const handler = new OpenAPIHandler(appRouter, {
+const handler = new OpenAPIHandler(publicApiRouter, {
   customErrorResponseBodyEncoder: toProblemDetails,
   clientInterceptors: [onError(logProcedureFailure)],
 });
@@ -10047,20 +10524,6 @@ const handler = new OpenAPIHandler(appRouter, {
 const generator = new OpenAPIGenerator({
   schemaConverters: [new ZodToJsonSchemaConverter()],
 });
-
-const notFoundResponse = () =>
-  Response.json(
-    {
-      type: "about:blank",
-      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
-      status: NOT_FOUND_STATUS,
-      detail: "No operation matches this path and method.",
-    } satisfies ProblemDetails,
-    {
-      status: NOT_FOUND_STATUS,
-      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
-    },
-  );
 
 const handleRequest = async (request: Request) => {
   const { matched, response } = await handler.handle(request, {
@@ -10075,7 +10538,7 @@ const handleRequest = async (request: Request) => {
   }
 
   if (new URL(request.url).pathname === \`\${API_PREFIX}/spec.json\`) {
-    return Response.json(await generator.generate(appRouter, SPEC_INFO));
+    return Response.json(await generator.generate(publicApiRouter, SPEC_INFO));
   }
 
   return notFoundResponse();
@@ -10094,19 +10557,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -10119,6 +10577,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -10128,12 +10588,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -10289,6 +10744,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -10311,6 +10779,22 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { z } from "zod";
@@ -10359,6 +10843,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/domain-error.ts ===
@@ -10595,6 +11085,37 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -10646,6 +11167,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -10669,7 +11191,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -10680,6 +11202,16 @@ import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
+};
+
+
+=== src/orpc/routers/public-api-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
+
+// Served under /api/v1 and in its spec, unlike the RPC endpoint's appRouter.
+// List procedures one by one: a nested feature router would expose all of it.
+export const publicApiRouter = {
+  health: { status: healthRouter.status },
 };
 
 
@@ -10785,6 +11317,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -11043,18 +11604,23 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`pnpm run check\`, \`pnpm run test\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -11113,7 +11679,9 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+
+\`X-Real-IP\` is the one header the app reads the client IP from, for the security logs and for Better-Auth's rate limits. The sidecar passes it on as it arrives, so a host proxy that does not overwrite it with \`$remote_addr\` lets every client send its own value and choose the IP the security logs record and the key Better-Auth rate-limits on. A proxy that sends no \`X-Real-IP\` at all leaves the logs without a client IP and puts every client into one shared rate-limit bucket per path.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -11204,6 +11772,7 @@ pnpm run dev
 | \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`pnpm run db:generate\` | Generate the Prisma client |
 | \`pnpm run db:migrate\` | Create and apply a migration from the schema |
 | \`pnpm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -11557,7 +12126,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -11857,6 +12426,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -11902,7 +12473,9 @@ http {
     "prettier-plugin-packagejson": "^3.0.2",
     "prisma": "^7.8.0",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -12447,8 +13020,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -12481,10 +13058,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -12496,7 +13072,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -12514,19 +13090,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -12539,6 +13110,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -12548,12 +13121,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -12709,6 +13277,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -12739,6 +13320,22 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { publicProcedure } from "@/orpc";
@@ -12798,30 +13395,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -12835,15 +13415,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -12859,6 +13501,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -13143,6 +13791,37 @@ const requireSession = base.middleware(async ({ context, next }) => {
 export const protectedProcedure = publicProcedure.use(requireSession);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -13194,6 +13873,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -13217,7 +13897,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -13333,6 +14013,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -13635,6 +14344,8 @@ jobs:
         run: pnpm run knip
       - name: Type-check
         run: pnpm run typecheck
+      - name: Test
+        run: pnpm run test
       - name: Format check
         run: pnpm run format:check
       - name: Require NEXT_PUBLIC_APP_URL
@@ -13750,18 +14461,23 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`pnpm run check\`, \`pnpm run test\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`). \`@/lib/database\` is an in-process PGlite database per test file, migrated from \`./drizzle\` — run \`pnpm run db:generate\` after a schema change. \`createSignedInUser()\` (\`src/test/\`) returns a session's headers; resolve them with \`auth.api.getSession({ headers })\` for a tRPC caller's \`session\`.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -13961,6 +14677,7 @@ pnpm run dev
 | \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`pnpm run db:generate\` | Generate a migration from the schema |
 | \`pnpm run db:migrate\` | Apply pending migrations |
 | \`pnpm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -14348,7 +15065,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -14402,6 +15119,7 @@ export default eslintConfig;
   "githubActions": [
     "lint",
     "typecheck",
+    "test",
     "format",
     "build",
     "image",
@@ -14708,6 +15426,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -14736,6 +15456,7 @@ http {
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^24.13.3",
     "@types/pg": "^8.20.0",
@@ -14761,7 +15482,9 @@ http {
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -15245,8 +15968,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -15280,6 +16007,7 @@ export const GET = async (): Promise<Response> => {
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
@@ -15311,7 +16039,7 @@ const handler = (request: Request) =>
           code: error.code,
           path,
           userId: ctx?.session?.user.id,
-          ip: request.headers.get("x-real-ip"),
+          ip: request.headers.get(CLIENT_IP_HEADER),
         },
         "tRPC request rejected",
       );
@@ -15324,23 +16052,14 @@ export { handler as GET, handler as POST };
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -15353,6 +16072,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -15362,18 +16083,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -15570,6 +16280,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -15602,6 +16329,23 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+import { createCallerFactory } from "@/trpc";
+
+const createCaller = createCallerFactory(healthRouter);
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const caller = createCaller({ session: null });
+    const health = await caller.status();
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { publicProcedure, router } from "@/trpc";
@@ -15656,31 +16400,14 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -15695,15 +16422,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -15719,6 +16508,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -16041,6 +16836,99 @@ export const logger = pino({
 });
 
 
+=== src/test/create-signed-in-user.test.ts ===
+import { describe, expect, it } from "vitest";
+
+import { auth } from "@/lib/auth";
+import { createSignedInUser } from "@/test/create-signed-in-user";
+
+describe("createSignedInUser", () => {
+  it("returns headers that carry the new user's session", async () => {
+    const { user, headers } = await createSignedInUser();
+    const session = await auth.api.getSession({ headers });
+    expect(session?.user.id).toBe(user.id);
+  });
+});
+
+
+=== src/test/create-signed-in-user.ts ===
+import { randomUUID } from "node:crypto";
+
+import { auth } from "@/lib/auth";
+
+const TEST_PASSWORD = "test-password";
+
+const toCookieHeader = (headers: Headers) =>
+  headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .join("; ");
+
+export const createSignedInUser = async () => {
+  const email = \`user-\${randomUUID()}@example.test\`;
+  const { headers, response } = await auth.api.signUpEmail({
+    body: { name: "Test user", email, password: TEST_PASSWORD },
+    returnHeaders: true,
+  });
+  return {
+    user: response.user,
+    headers: new Headers({ cookie: toCookieHeader(headers) }),
+  };
+};
+
+
+=== src/test/create-test-database.test.ts ===
+import { sql } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+
+import { database } from "@/lib/database";
+
+describe("test database", () => {
+  it("answers queries in-process", async () => {
+    const { rows } = await database.execute(sql\`select 1 as answer\`);
+    expect(rows).toEqual([{ answer: 1 }]);
+  });
+});
+
+
+=== src/test/create-test-database.ts ===
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+
+import * as schema from "@/lib/database/schema";
+
+const MIGRATIONS_FOLDER = resolve(import.meta.dirname, "../../drizzle");
+const MIGRATIONS_JOURNAL = resolve(MIGRATIONS_FOLDER, "meta/_journal.json");
+
+export const createTestDatabase = async () => {
+  const client = await PGlite.create();
+  const database = drizzle({ client, schema, casing: "snake_case" });
+  // A schema without tables has no migration yet, and migrate() needs a journal.
+  if (existsSync(MIGRATIONS_JOURNAL)) {
+    await migrate(database, { migrationsFolder: MIGRATIONS_FOLDER });
+  }
+  return { database, close: () => client.close() };
+};
+
+
+=== src/test/use-test-database.ts ===
+import { afterAll, vi } from "vitest";
+
+import { closeDatabase } from "@/lib/database";
+
+vi.mock("@/lib/database", async () => {
+  const { createTestDatabase } = await import("@/test/create-test-database");
+  const { database, close } = await createTestDatabase();
+  return { database, closeDatabase: close };
+});
+
+afterAll(closeDatabase);
+
+
 === src/trpc/client.ts ===
 "use client";
 
@@ -16115,6 +17003,7 @@ const mapDomainErrors = t.middleware(async ({ next }) => {
 });
 
 export const router = t.router;
+export const createCallerFactory = t.createCallerFactory;
 export const publicProcedure = t.procedure.use(mapDomainErrors);
 
 const requireSession = t.middleware(({ ctx, next }) => {
@@ -16276,6 +17165,36 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    setupFiles: ["./src/test/use-test-database.ts"],
+  },
+});
 "
 `;
 
@@ -16479,17 +17398,23 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`pnpm run check\`, \`pnpm run test\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -16554,6 +17479,7 @@ pnpm run dev
 | \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -16776,7 +17702,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -16912,6 +17838,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -16957,7 +17885,9 @@ export default nextConfig;
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -17164,6 +18094,7 @@ main
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
@@ -17194,7 +18125,7 @@ const handler = (request: Request) =>
         {
           code: error.code,
           path,
-          ip: request.headers.get("x-real-ip"),
+          ip: request.headers.get(CLIENT_IP_HEADER),
         },
         "tRPC request rejected",
       );
@@ -17207,23 +18138,14 @@ export { handler as GET, handler as POST };
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -17236,6 +18158,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -17245,18 +18169,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -17494,6 +18407,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -17516,6 +18446,23 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+import { createCallerFactory } from "@/trpc";
+
+const createCaller = createCallerFactory(healthRouter);
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const caller = createCaller({});
+    const health = await caller.status();
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { publicProcedure, router } from "@/trpc";
@@ -17554,6 +18501,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/domain-error.ts ===
@@ -17786,6 +18739,7 @@ const mapDomainErrors = t.middleware(async ({ next }) => {
 });
 
 export const router = t.router;
+export const createCallerFactory = t.createCallerFactory;
 export const publicProcedure = t.procedure.use(mapDomainErrors);
 
 
@@ -17938,6 +18892,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -18213,18 +19196,23 @@ npmAuditIgnoreAdvisories:
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** \`yarn run check\` and \`yarn run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`yarn run check\`, \`yarn run test\` and \`yarn run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -18284,7 +19272,9 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+
+\`X-Real-IP\` is the one header the app reads the client IP from, for the security logs and for Better-Auth's rate limits. The sidecar passes it on as it arrives, so a host proxy that does not overwrite it with \`$remote_addr\` lets every client send its own value and choose the IP the security logs record and the key Better-Auth rate-limits on. A proxy that sends no \`X-Real-IP\` at all leaves the logs without a client IP and puts every client into one shared rate-limit bucket per path.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -18377,6 +19367,7 @@ yarn run dev
 | \`yarn run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`yarn run format\` | Format with Prettier (\`format:check\` to check) |
 | \`yarn run knip\` | Report unused files, exports and dependencies |
+| \`yarn run test\` | Run the tests (\`test:watch\` to watch) |
 | \`yarn run db:generate\` | Generate the Prisma client |
 | \`yarn run db:migrate\` | Create and apply a migration from the schema |
 | \`yarn run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -18731,7 +19722,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -18918,9 +19909,6 @@ const SECURITY_HEADERS = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: "standalone",
-  experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
-  },
   reactCompiler: true,
   typedRoutes: true,
   headers: () =>
@@ -19034,6 +20022,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -19097,7 +20087,9 @@ http {
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   },
   "resolutions": {
     "mysql2": "^3.24.5"
@@ -19636,8 +20628,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const handlers = toNextJsHandler(auth);
+
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -19668,23 +20664,14 @@ export const GET = async (): Promise<Response> => {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -19697,6 +20684,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -19706,18 +20695,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -19815,6 +20793,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 export default sitemap;
 
 
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
+
+
 === src/env.ts ===
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
@@ -19890,30 +20885,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -19927,15 +20905,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -19951,6 +20991,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -20186,5 +21232,35 @@ export const logger = pino({
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    passWithNoTests: true,
+  },
+});
 "
 `;

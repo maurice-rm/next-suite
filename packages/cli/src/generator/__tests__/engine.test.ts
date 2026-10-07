@@ -60,3 +60,31 @@ test("catalogVersion renders a catalog version and rejects unknown names", () =>
     /Unknown catalog dependency: left-pad\./,
   );
 });
+
+test("usesTestDatabase is true only for a Drizzle project on Postgres", () => {
+  const template = "{{#if (usesTestDatabase)}}Y{{else}}N{{/if}}";
+  const config = {
+    projectName: "app",
+    packageManager: "pnpm",
+    githubActions: [],
+  };
+  expect(
+    renderString(template, {
+      ...config,
+      database: { engine: "postgres", orm: "drizzle" },
+    }),
+  ).toBe("Y");
+  expect(
+    renderString(template, {
+      ...config,
+      database: { engine: "mysql", orm: "drizzle" },
+    }),
+  ).toBe("N");
+  expect(
+    renderString(template, {
+      ...config,
+      database: { engine: "postgres", orm: "prisma" },
+    }),
+  ).toBe("N");
+  expect(renderString(template, config)).toBe("N");
+});

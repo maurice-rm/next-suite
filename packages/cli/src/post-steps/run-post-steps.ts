@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
 
+import { usesTestDatabase } from "@/core/test-database";
 import type { ProjectConfig, ShadcnOptions } from "@/core/types";
 
 import { fixProject } from "./fix";
@@ -99,15 +100,23 @@ const runShadcnInit = (
     () => initShadcn(config.targetDir, config.packageManager, shadcn),
   );
 
+// Production deploys migrate from it; the PGlite test database does too.
+const needsInitialMigration = (config: ProjectConfig): boolean =>
+  config.production !== undefined || usesTestDatabase(config);
+
+const describeMissingMigration = (config: ProjectConfig): string =>
+  config.production === undefined
+    ? `Could not generate the initial migration — run \`${config.packageManager} run db:generate\` yourself, or the database tests start without the schema`
+    : "Could not generate the initial migration — create one yourself, or the first production deploy starts with an empty database";
+
 const runMigrationGeneration = async (config: ProjectConfig): Promise<void> => {
   const orm = config.database?.orm;
-  if (orm === undefined || config.production === undefined) return;
+  if (orm === undefined || !needsInitialMigration(config)) return;
   await runStep(
     {
       start: "Generating initial migration…",
       done: "Generated initial migration",
-      failed:
-        "Could not generate the initial migration — create one yourself, or the first production deploy starts with an empty database",
+      failed: describeMissingMigration(config),
     },
     () => generateMigrations(config.targetDir, config.packageManager, orm),
   );

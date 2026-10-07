@@ -1,22 +1,30 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed `next` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
 
-- **Done means green:** `{{packageManager}} run check` and `{{packageManager}} run build` pass. `check` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** `{{packageManager}} run check`, `{{packageManager}} run test` and `{{packageManager}} run build` pass. `check` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in `src/app/` stay thin and delegate to `src/features/<domain>/`; a feature imports only itself, `src/lib/`, `src/components/` and the project infrastructure. `src/lib/` knows no feature.
+- **Tests:** Vitest, next to the file under test (`*.test.ts`); server modules import as on the server.{{#if api}} Procedures are called in-process (see `src/features/health/server/router.test.ts`).{{/if}}{{#if (usesTestDatabase)}} `@/lib/database` is an in-process PGlite database per test file, migrated from `./drizzle` — run `{{packageManager}} run db:generate` after a schema change.{{/if}}{{#if (and (usesTestDatabase) (eq auth "better-auth"))}} `createSignedInUser()` (`src/test/`) returns a session's headers{{#if (eq api.type "trpc")}}; resolve them with `auth.api.getSession({ headers })` for a tRPC caller's `session`{{/if}}.{{/if}}
 - **Environment:** `src/env.ts` is the only module that reads `process.env`. A new variable goes into `src/env.ts` and `.env.example` together.
 {{#if (or api (eq auth "better-auth") (and production database))}}
 - **Logging:** server code logs through `@/lib/logger` (pino), object first, message second, the error under `err`. Never `console`.
 {{/if}}
-{{#if (eq auth "better-auth")}}
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from `x-real-ip`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch `CLIENT_IP_HEADER` in `src/lib/auth/index.ts` to the header that proxy sets.
+{{#if (or api (eq auth "better-auth"))}}
+- **Client IP:** {{#if (eq auth "better-auth")}}Better-Auth's rate limits and {{/if}}the security logs read the client IP from `x-real-ip`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch `CLIENT_IP_HEADER` in `src/lib/client-ip.ts` to the header that proxy sets.
 {{/if}}
 {{#if api}}
 - **Errors:** a feature throws a subclass of `DomainError` (`@/lib/domain-error`) with a stable code; `publicProcedure` maps it to the API error once. Procedures start from `{{#if (eq auth "better-auth")}}protectedProcedure{{else}}publicProcedure{{/if}}`.
+{{/if}}
+{{#if api.openapi}}
+- **Public API:** `/api/v1` and its spec serve only `publicApiRouter` (`src/orpc/routers/public-api-router.ts`), never the whole `appRouter`. A procedure joins it deliberately and one by one, with a `.route()`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without `.route()`, as `POST /api/v1/<path>`.
 {{/if}}
 
 ## Design direction

@@ -1,0 +1,12 @@
+import { describe, expect, it } from "vitest";
+
+import { auth } from "@/lib/auth";
+import { createSignedInUser } from "@/test/create-signed-in-user";
+
+describe("createSignedInUser", () => {
+  it("returns headers that carry the new user's session", async () => {
+    const { user, headers } = await createSignedInUser();
+    const session = await auth.api.getSession({ headers });
+    expect(session?.user.id).toBe(user.id);
+  });
+});

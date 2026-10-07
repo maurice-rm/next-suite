@@ -48,6 +48,10 @@ jobs:
       - name: Type-check
         run: {{packageManager}} run typecheck
 {{/if}}
+{{#if (includes githubActions "test")}}
+      - name: Test
+        run: {{packageManager}} run test
+{{/if}}
 {{#if (includes githubActions "format")}}
       - name: Format check
         run: {{packageManager}} run format:check

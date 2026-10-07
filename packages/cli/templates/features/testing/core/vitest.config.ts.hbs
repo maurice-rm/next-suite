@@ -1,0 +1,38 @@
+{{#if (or database api (eq auth "better-auth") (eq email "resend") production)}}
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+{{/if}}
+import { defineConfig } from "vitest/config";
+{{#if (or database api (eq auth "better-auth") (eq email "resend") production)}}
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+{{/if}}
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by `server-only`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+{{#if (or database api (eq auth "better-auth") (eq email "resend") production)}}
+    env: EXAMPLE_ENV,
+{{/if}}
+{{#if (usesTestDatabase)}}
+    setupFiles: ["./src/test/use-test-database.ts"],
+{{/if}}
+{{#unless (or api (usesTestDatabase))}}
+    passWithNoTests: true,
+{{/unless}}
+  },
+});
