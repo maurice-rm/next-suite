@@ -11200,7 +11200,9 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Real-IP\`, the one header the app reads the client IP from, the security logs record no client IP and Better-Auth's rate limiting puts every client into one shared bucket per path; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+
+\`X-Real-IP\` is the one header the app reads the client IP from, for the security logs and for Better-Auth's rate limits. The sidecar passes it on as it arrives, so a host proxy that does not overwrite it with \`$remote_addr\` lets every client send its own value and choose the IP the security logs record and the key Better-Auth rate-limits on. A proxy that sends no \`X-Real-IP\` at all leaves the logs without a client IP and puts every client into one shared rate-limit bucket per path.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -18428,7 +18430,9 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Real-IP\`, the one header the app reads the client IP from, the security logs record no client IP and Better-Auth's rate limiting puts every client into one shared bucket per path; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+
+\`X-Real-IP\` is the one header the app reads the client IP from, for the security logs and for Better-Auth's rate limits. The sidecar passes it on as it arrives, so a host proxy that does not overwrite it with \`$remote_addr\` lets every client send its own value and choose the IP the security logs record and the key Better-Auth rate-limits on. A proxy that sends no \`X-Real-IP\` at all leaves the logs without a client IP and puts every client into one shared rate-limit bucket per path.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
