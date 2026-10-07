@@ -1,5 +1,24 @@
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+// Better-Auth answers a rate-limited request before any of its hooks run, so
+// only this handler sees the 429.
+const handleAuthRequest = async (request: Request) => {
+  const response = await auth.handler(request);
+  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
+  logger.warn(
+    {
+      path: new URL(request.url).pathname,
+      ip: request.headers.get(CLIENT_IP_HEADER),
+    },
+    "Auth request rate limited",
+  );
+  return response;
+};
+
+export const { GET, POST } = toNextJsHandler(handleAuthRequest);

@@ -196,6 +196,12 @@ export const FEATURES: Feature[] = [
     dependencies: ["resend", "server-only"],
   },
   {
+    dir: "features/client-ip",
+    when: (config) =>
+      config.api !== undefined ||
+      (config.auth === "better-auth" && config.database !== undefined),
+  },
+  {
     dir: "features/logging",
     when: usesLogger,
     dependencies: ["pino", "server-only"],

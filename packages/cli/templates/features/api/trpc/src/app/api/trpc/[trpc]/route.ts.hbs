@@ -1,6 +1,7 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
@@ -34,7 +35,7 @@ const handler = (request: Request) =>
 {{#if (eq auth "better-auth")}}
           userId: ctx?.session?.user.id,
 {{/if}}
-          ip: request.headers.get("x-real-ip"),
+          ip: request.headers.get(CLIENT_IP_HEADER),
         },
         "tRPC request rejected",
       );

@@ -341,7 +341,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -1816,8 +1816,27 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+// Better-Auth answers a rate-limited request before any of its hooks run, so
+// only this handler sees the 429.
+const handleAuthRequest = async (request: Request) => {
+  const response = await auth.handler(request);
+  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
+  logger.warn(
+    {
+      path: new URL(request.url).pathname,
+      ip: request.headers.get(CLIENT_IP_HEADER),
+    },
+    "Auth request rate limited",
+  );
+  return response;
+};
+
+export const { GET, POST } = toNextJsHandler(handleAuthRequest);
 
 
 === src/app/api/health/route.ts ===
@@ -2197,12 +2216,9 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
@@ -2253,6 +2269,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -2588,6 +2610,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -2611,7 +2634,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -2912,7 +2935,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -3674,8 +3697,27 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+// Better-Auth answers a rate-limited request before any of its hooks run, so
+// only this handler sees the 429.
+const handleAuthRequest = async (request: Request) => {
+  const response = await auth.handler(request);
+  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
+  logger.warn(
+    {
+      path: new URL(request.url).pathname,
+      ip: request.headers.get(CLIENT_IP_HEADER),
+    },
+    "Auth request rate limited",
+  );
+  return response;
+};
+
+export const { GET, POST } = toNextJsHandler(handleAuthRequest);
 
 
 === src/app/error.tsx ===
@@ -3922,13 +3964,10 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
 import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
@@ -3980,6 +4019,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -4545,6 +4590,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -5610,6 +5656,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 };
 
 
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
+
+
 === src/lib/database/index.ts ===
 import "server-only";
 
@@ -5936,6 +5988,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -5959,7 +6012,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -6322,7 +6375,7 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -7676,6 +7729,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -8733,6 +8787,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 };
 
 
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
+
+
 === src/lib/domain-error.ts ===
 export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
 
@@ -9018,6 +9078,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -9041,7 +9102,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -9322,6 +9383,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -10361,6 +10423,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
 };
 
 
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
+
+
 === src/lib/domain-error.ts ===
 export type DomainErrorKind = "invalid" | "not-found" | "conflict" | "forbidden";
 
@@ -10646,6 +10714,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -10669,7 +10738,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -11054,7 +11123,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -11113,7 +11182,7 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with no \`X-Real-IP\`, the one header the app reads the client IP from, the security logs record no client IP and Better-Auth's rate limiting puts every client into one shared bucket per path; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -12447,8 +12516,27 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+// Better-Auth answers a rate-limited request before any of its hooks run, so
+// only this handler sees the 429.
+const handleAuthRequest = async (request: Request) => {
+  const response = await auth.handler(request);
+  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
+  logger.warn(
+    {
+      path: new URL(request.url).pathname,
+      ip: request.headers.get(CLIENT_IP_HEADER),
+    },
+    "Auth request rate limited",
+  );
+  return response;
+};
+
+export const { GET, POST } = toNextJsHandler(handleAuthRequest);
 
 
 === src/app/api/health/route.ts ===
@@ -12803,12 +12891,9 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
@@ -12859,6 +12944,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -13194,6 +13285,7 @@ export const createQueryClient = () =>
 === src/orpc/request-logging.ts ===
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -13217,7 +13309,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
@@ -13761,7 +13853,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`protectedProcedure\`.
 
 ## Design direction
@@ -15245,8 +15337,27 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+// Better-Auth answers a rate-limited request before any of its hooks run, so
+// only this handler sees the 429.
+const handleAuthRequest = async (request: Request) => {
+  const response = await auth.handler(request);
+  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
+  logger.warn(
+    {
+      path: new URL(request.url).pathname,
+      ip: request.headers.get(CLIENT_IP_HEADER),
+    },
+    "Auth request rate limited",
+  );
+  return response;
+};
+
+export const { GET, POST } = toNextJsHandler(handleAuthRequest);
 
 
 === src/app/api/health/route.ts ===
@@ -15280,6 +15391,7 @@ export const GET = async (): Promise<Response> => {
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
@@ -15311,7 +15423,7 @@ const handler = (request: Request) =>
           code: error.code,
           path,
           userId: ctx?.session?.user.id,
-          ip: request.headers.get("x-real-ip"),
+          ip: request.headers.get(CLIENT_IP_HEADER),
         },
         "tRPC request rejected",
       );
@@ -15661,13 +15773,10 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
 import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
@@ -15719,6 +15828,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
@@ -16490,6 +16605,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
+- **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
 
 ## Design direction
@@ -17164,6 +17280,7 @@ main
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 import { createTRPCContext } from "@/trpc";
 import { TRPC_ENDPOINT } from "@/trpc/endpoint";
@@ -17194,7 +17311,7 @@ const handler = (request: Request) =>
         {
           code: error.code,
           path,
-          ip: request.headers.get("x-real-ip"),
+          ip: request.headers.get(CLIENT_IP_HEADER),
         },
         "tRPC request rejected",
       );
@@ -17554,6 +17671,12 @@ export const onRequestError: Instrumentation.onRequestError = async (
     "Request failed",
   );
 };
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/domain-error.ts ===
@@ -18224,7 +18347,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
-- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/auth/index.ts\` to the header that proxy sets.
+- **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
 
 ## Design direction
 
@@ -18284,7 +18407,7 @@ proxy_set_header X-Forwarded-Host  $host;          # NOT $http_x_forwarded_host:
 client_max_body_size 25m;                          # host default is 1m and would 413 first
 \`\`\`
 
-Get it wrong and the failures are quiet rather than loud: with no \`X-Forwarded-For\` the app logs the proxy's IP for every request and any IP-based rate limiting collapses to a single bucket; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
+Get it wrong and the failures are quiet rather than loud: with no \`X-Real-IP\`, the one header the app reads the client IP from, the security logs record no client IP and Better-Auth's rate limiting puts every client into one shared bucket per path; with \`Host\` left at nginx's \`$proxy_host\` default every absolute URL the app derives points at \`127.0.0.1\`.
 
 A missing \`X-Forwarded-Proto\` is the one case the sidecar covers on its own — a \`map\` defaults it to \`https\`, so a forgetful proxy cannot make the app think it is on plain HTTP and drop the \`Secure\` flag from auth cookies.
 
@@ -19636,8 +19759,27 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
 
-export const { GET, POST } = toNextJsHandler(auth);
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+// Better-Auth answers a rate-limited request before any of its hooks run, so
+// only this handler sees the 429.
+const handleAuthRequest = async (request: Request) => {
+  const response = await auth.handler(request);
+  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
+  logger.warn(
+    {
+      path: new URL(request.url).pathname,
+      ip: request.headers.get(CLIENT_IP_HEADER),
+    },
+    "Auth request rate limited",
+  );
+  return response;
+};
+
+export const { GET, POST } = toNextJsHandler(handleAuthRequest);
 
 
 === src/app/api/health/route.ts ===
@@ -19895,12 +20037,9 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { logger } from "@/lib/logger";
-
-// Rate limits key on this header, so it must come from a proxy that overwrites
-// it (the generated nginx does). Behind another proxy, name the header it sets.
-const CLIENT_IP_HEADER = "x-real-ip";
 
 const logFailedSignIn = createAuthMiddleware((context) => {
   const isFailedSignIn =
@@ -19951,6 +20090,12 @@ export const getSession = cache(async () =>
 );
 
 export type Session = typeof auth.$Infer.Session;
+
+
+=== src/lib/client-ip.ts ===
+// Trustworthy only behind a proxy that overwrites it (the generated nginx
+// does). Behind another proxy, name the header that proxy sets.
+export const CLIENT_IP_HEADER = "x-real-ip";
 
 
 === src/lib/database/index.ts ===
