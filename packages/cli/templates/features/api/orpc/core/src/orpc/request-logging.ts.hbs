@@ -1,5 +1,6 @@
 import { toORPCError } from "@orpc/client";
 
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { logger } from "@/lib/logger";
 
 const BAD_REQUEST_STATUS = 400;
@@ -23,7 +24,7 @@ export const logProcedureFailure = (error: unknown) => {
 export const logRejectedRequest = (status: number, headers: Headers) => {
   if (!REJECTED_REQUEST_STATUSES.has(status)) return;
   logger.warn(
-    { status, ip: headers.get("x-real-ip") },
+    { status, ip: headers.get(CLIENT_IP_HEADER) },
     "oRPC request rejected",
   );
 };
