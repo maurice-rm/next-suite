@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/env.ts"{{#if (or database (eq email "resend") shadcn)}},
+    "src/env.ts"{{#if (or database api (eq email "resend") shadcn)}},
     "src/lib/**/*.{ts,tsx}"{{/if}}{{#if api}},
     "src/{{api.type}}/*.{ts,tsx}"{{/if}}{{#if (eq database.orm "drizzle")}}{{#if production}},
     "scripts/*.ts"{{/if}}{{/if}}

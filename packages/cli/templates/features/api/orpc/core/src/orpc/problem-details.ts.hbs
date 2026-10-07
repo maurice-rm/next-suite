@@ -1,28 +1,28 @@
 import { STATUS_CODES } from "node:http";
 
-export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+import { commonErrors } from "@/lib/errors/common-errors";
 
-const NOT_FOUND_STATUS = 404;
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
 
 export type ProblemDetails = {
   type: string;
   title: string;
   status: number;
   detail: string;
-  code?: string;
-  errors?: unknown;
+  code: string;
+  data?: unknown;
 };
 
-export const notFoundResponse = () =>
-  Response.json(
+export const notFoundResponse = () => {
+  const { code, status } = commonErrors.create("NOT_FOUND");
+  return Response.json(
     {
       type: "about:blank",
-      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
-      status: NOT_FOUND_STATUS,
+      title: STATUS_CODES[status] ?? code,
+      status,
       detail: "No operation matches this path and method.",
+      code,
     } satisfies ProblemDetails,
-    {
-      status: NOT_FOUND_STATUS,
-      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
-    },
+    { status, headers: { "Content-Type": PROBLEM_CONTENT_TYPE } },
   );
+};

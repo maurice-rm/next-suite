@@ -1,0 +1,64 @@
+import { TRPCError } from "@trpc/server";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+
+import { defineErrors } from "@/lib/errors/define-errors";
+import { HTTP_STATUS } from "@/lib/http-status";
+import { createCallerFactory, publicProcedure, router } from "@/trpc";
+
+const exampleErrors = defineErrors({
+  SLOT_TAKEN: { status: HTTP_STATUS.CONFLICT, message: "The slot is taken" },
+});
+
+const testRouter = router({
+  takeSlot: publicProcedure.mutation(() => {
+    throw exampleErrors.create("SLOT_TAKEN", { data: { slot: 3 } });
+  }),
+  saveContacts: publicProcedure
+    .input(
+      z.object({
+        contacts: z.array(z.object({ email: z.email("Email is missing.") })),
+      }),
+    )
+    .mutation(() => "ok"),
+  failUnexpectedly: publicProcedure.mutation(() => {
+    throw new Error("database password is wrong");
+  }),
+});
+
+const caller = createCallerFactory(testRouter)({{#if (eq auth "better-auth")}}{ session: null }{{else}}{}{{/if}});
+
+const catchError = (promise: Promise<unknown>) =>
+  promise.catch((error: unknown) => error);
+
+describe("procedure errors", () => {
+  it("carries an app error's code and data with the matching tRPC code", async () => {
+    const error = await catchError(caller.takeSlot());
+    expect(error).toBeInstanceOf(TRPCError);
+    expect(error).toMatchObject({
+      code: "CONFLICT",
+      message: "The slot is taken",
+      cause: { code: "SLOT_TAKEN", data: { slot: 3 } },
+    });
+  });
+
+  it("names invalid fields the way TanStack Form does", async () => {
+    const error = await catchError(
+      caller.saveContacts({
+        contacts: [{ email: "ok@example.test" }, { email: "broken" }],
+      }),
+    );
+    expect(error).toMatchObject({
+      code: "BAD_REQUEST",
+      cause: {
+        code: "INPUT_INVALID",
+        data: { fieldErrors: { "contacts[1].email": ["Email is missing."] } },
+      },
+    });
+  });
+
+  it("leaves unexpected errors as INTERNAL_SERVER_ERROR", async () => {
+    const error = await catchError(caller.failUnexpectedly());
+    expect(error).toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  });
+});

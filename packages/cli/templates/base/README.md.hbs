@@ -106,7 +106,7 @@ src/
   app/                  routing only: pages, layouts, route handlers
   features/<domain>/    one vertical slice per domain: components, server code, schemas
   components/           domain-free building blocks{{#if shadcn}}; components/ui/ holds the shadcn primitives{{/if}}
-  lib/                  infrastructure{{#if database}}: database client and schema{{/if}}{{#if (eq auth "better-auth")}}, auth{{/if}}{{#if (eq email "resend")}}, email{{/if}}{{#if (or api (eq auth "better-auth") (and production database))}}, logger{{/if}}{{#if api}}, domain errors{{/if}}
+  lib/                  infrastructure{{#if database}}: database client and schema{{/if}}{{#if (eq auth "better-auth")}}, auth{{/if}}{{#if (eq email "resend")}}, email{{/if}}{{#if (or api (eq auth "better-auth") (and production database))}}, logger{{/if}}{{#if (or api (eq auth "better-auth"))}}, the error model{{/if}}
 {{#if api}}
   {{api.type}}/                 the API layer: procedure builders, router, clients
 {{/if}}

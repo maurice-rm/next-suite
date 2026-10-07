@@ -1,0 +1,34 @@
+type PathSegment = PropertyKey | { key: PropertyKey };
+
+type ValidationIssue = {
+  message: string;
+  path?: readonly PathSegment[];
+};
+
+
+// Field names use TanStack Form's path syntax ("address.city", "contacts[0].email"),
+// so a form can put each message on its field unchanged.
+const toFieldName = (path: readonly PathSegment[] = []) =>
+  path.reduce<string>((name, segment) => {
+    const key = typeof segment === "object" ? segment.key : segment;
+    if (typeof key === "number") return `${name}[${String(key)}]`;
+    return name === "" ? String(key) : `${name}.${String(key)}`;
+  }, "");
+
+// A Map, not an object: a field may be named "constructor" or "__proto__".
+export const toInputInvalidData = (issues: readonly ValidationIssue[]) => {
+  const formErrors: string[] = [];
+  const fieldErrors = new Map<string, string[]>();
+  for (const issue of issues) {
+    const fieldName = toFieldName(issue.path);
+    if (fieldName === "") {
+      formErrors.push(issue.message);
+    } else {
+      fieldErrors.set(fieldName, [
+        ...(fieldErrors.get(fieldName) ?? []),
+        issue.message,
+      ]);
+    }
+  }
+  return { formErrors, fieldErrors: Object.fromEntries(fieldErrors) };
+};

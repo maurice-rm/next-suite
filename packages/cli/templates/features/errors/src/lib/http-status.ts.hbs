@@ -1,0 +1,18 @@
+export const HTTP_STATUS = {
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+} satisfies Record<string, number>;
+
+const FIRST_CLIENT_ERROR_STATUS = 400;
+const FIRST_SERVER_ERROR_STATUS = 500;
+
+export const isClientErrorStatus = (status: number) =>
+  status >= FIRST_CLIENT_ERROR_STATUS && status < FIRST_SERVER_ERROR_STATUS;
+
+export const isServerErrorStatus = (status: number) =>
+  status >= FIRST_SERVER_ERROR_STATUS;

@@ -1,0 +1,17 @@
+import { AppError } from "@/lib/errors/app-error";
+
+type ErrorDefinition = { status: number; message: string };
+
+type CreateErrorOptions = { data?: unknown; cause?: unknown };
+
+export const defineErrors = <const Code extends string>(
+  definitions: Record<Code, ErrorDefinition>,
+) => ({
+  create: (code: Code, { data, cause }: CreateErrorOptions = {}) => {
+    const { status, message } = definitions[code];
+    return new AppError({ code, status, message, data, cause });
+  },
+});
+
+export type ErrorCodeOf<Errors extends { create: (code: never) => AppError }> =
+  Parameters<Errors["create"]>[0];

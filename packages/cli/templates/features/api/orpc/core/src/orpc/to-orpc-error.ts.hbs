@@ -1,0 +1,35 @@
+import { ORPCError, ValidationError } from "@orpc/server";
+
+import { AppError } from "@/lib/errors/app-error";
+import { commonErrors } from "@/lib/errors/common-errors";
+import { toInputInvalidData } from "@/lib/errors/input-invalid-data";
+import { isServerErrorStatus } from "@/lib/http-status";
+
+const isInputValidationError = (
+  error: unknown,
+): error is ORPCError<string, unknown> & { cause: ValidationError } =>
+  error instanceof ORPCError &&
+  error.code === "BAD_REQUEST" &&
+  error.cause instanceof ValidationError;
+
+const toAppError = (error: unknown) => {
+  // A server-side failure keeps its message out of the response, whoever threw it.
+  if (error instanceof AppError && !isServerErrorStatus(error.status)) {
+    return error;
+  }
+  if (isInputValidationError(error)) {
+    return commonErrors.create("INPUT_INVALID", {
+      data: toInputInvalidData(error.cause.issues),
+      cause: error,
+    });
+  }
+  return commonErrors.create("INTERNAL_SERVER_ERROR", { cause: error });
+};
+
+export const toORPCError = (error: unknown) => {
+  if (error instanceof ORPCError && !isInputValidationError(error)) {
+    return error;
+  }
+  const { code, status, message, data } = toAppError(error);
+  return new ORPCError(code, { status, message, data, cause: error });
+};

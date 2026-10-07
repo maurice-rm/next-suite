@@ -1,0 +1,103 @@
+{{#if (eq api.type "orpc")}}
+import { ORPCError } from "@orpc/client";
+{{/if}}
+{{#if (eq api.type "trpc")}}
+import { TRPCClientError } from "@trpc/client";
+{{/if}}
+import { describe, expect, it } from "vitest";
+
+import { commonErrors } from "@/lib/errors/common-errors";
+import { toErrorMessage } from "@/lib/errors/display/error-messages";
+
+const GENERIC_MESSAGE = "That did not work. Please try again.";
+
+describe("toErrorMessage", () => {
+  it("uses the default text for a known code", () => {
+    expect(toErrorMessage(commonErrors.create("FORBIDDEN"))).toBe(
+      "You do not have permission to do that.",
+    );
+  });
+
+  it("prefers a feature's override", () => {
+    expect(
+      toErrorMessage(commonErrors.create("NOT_FOUND"), {
+        NOT_FOUND: "This order no longer exists.",
+      }),
+    ).toBe("This order no longer exists.");
+  });
+{{#if (eq api.type "orpc")}}
+
+  it("reads oRPC errors", () => {
+    expect(toErrorMessage(new ORPCError("UNAUTHORIZED"))).toBe(
+      "Please sign in again.",
+    );
+  });
+{{/if}}
+{{#if (eq auth "better-auth")}}
+
+  it("reads Better-Auth's error objects", () => {
+    expect(
+      toErrorMessage({ code: "INVALID_EMAIL_OR_PASSWORD", status: 401 }),
+    ).toBe("The email address or password is incorrect.");
+  });
+
+  it("keeps auth codes whose status would mislead off the status texts", () => {
+    expect(
+      toErrorMessage({ code: "FAILED_TO_CREATE_SESSION", status: 401 }),
+    ).toBe(GENERIC_MESSAGE);
+  });
+{{/if}}
+
+  it("falls back to the status for an unknown code", () => {
+    expect(toErrorMessage({ code: "SOMETHING_NEW", status: 429 })).toBe(
+      "Too many attempts. Please wait a moment and try again.",
+    );
+    expect(toErrorMessage({ status: 503 })).toBe(
+      "Something went wrong on the server. Please try again later.",
+    );
+  });
+
+  it("reports a request that never reached the server as a network problem", () => {
+    expect(toErrorMessage(new TypeError("Failed to fetch"))).toBe(
+      "No connection to the server. Please check your connection and try again.",
+    );
+  });
+{{#if (eq api.type "trpc")}}
+
+  it("reads tRPC errors by their app code and status", () => {
+    expect(
+      toErrorMessage(
+        new TRPCClientError("Forbidden", {
+          result: {
+            error: {
+              code: -32003,
+              message: "Forbidden",
+              data: { code: "FORBIDDEN", httpStatus: 403 },
+            },
+          },
+        }),
+      ),
+    ).toBe("You do not have permission to do that.");
+  });
+
+  it("reports a tRPC request that never reached the server as a network problem", () => {
+    expect(
+      toErrorMessage(
+        new TRPCClientError("Failed to fetch", {
+          cause: new TypeError("Failed to fetch"),
+        }),
+      ),
+    ).toBe(
+      "No connection to the server. Please check your connection and try again.",
+    );
+  });
+{{/if}}
+
+  it("ignores codes that only exist on the object prototype", () => {
+    expect(toErrorMessage({ code: "constructor" })).toBe(GENERIC_MESSAGE);
+  });
+
+  it("falls back to a generic text for anything else", () => {
+    expect(toErrorMessage("boom")).toBe(GENERIC_MESSAGE);
+  });
+});

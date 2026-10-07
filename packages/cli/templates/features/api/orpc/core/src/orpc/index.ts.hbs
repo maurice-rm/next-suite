@@ -1,41 +1,33 @@
 import "server-only";
 
-import { ORPCError, os } from "@orpc/server";
+import { os } from "@orpc/server";
 
 {{#if (eq auth "better-auth")}}
 import { auth } from "@/lib/auth";
+import { commonErrors } from "@/lib/errors/common-errors";
 {{/if}}
-import { DomainError, type DomainErrorKind } from "@/lib/domain-error";
-
-const ERROR_CODE_BY_KIND = {
-  invalid: "BAD_REQUEST",
-  "not-found": "NOT_FOUND",
-  conflict: "CONFLICT",
-  forbidden: "FORBIDDEN",
-} satisfies Record<DomainErrorKind, string>;
+import { toORPCError } from "@/orpc/to-orpc-error";
 
 const base = os.$context<{ headers: Headers }>();
 
-const mapDomainErrors = base.middleware(async ({ next }) => {
+// On the base procedure, so server-side calls and tests get the same errors as
+// the HTTP handlers.
+const errorMiddleware = base.middleware(async ({ next }) => {
   try {
     return await next();
   } catch (error) {
-    if (!(error instanceof DomainError)) throw error;
-    throw new ORPCError(ERROR_CODE_BY_KIND[error.kind], {
-      message: error.code,
-      cause: error,
-    });
+    throw toORPCError(error);
   }
 });
 
-export const publicProcedure = base.use(mapDomainErrors);
+export const publicProcedure = base.use(errorMiddleware);
 {{#if (eq auth "better-auth")}}
 
 const requireSession = base.middleware(async ({ context, next }) => {
   const session = await auth.api.getSession({ headers: context.headers });
 
   if (!session) {
-    throw new ORPCError("UNAUTHORIZED");
+    throw commonErrors.create("UNAUTHORIZED");
   }
 
   return next({ context: { session } });

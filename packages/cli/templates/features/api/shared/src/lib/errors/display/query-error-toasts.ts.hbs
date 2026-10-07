@@ -1,0 +1,31 @@
+import { MutationCache, QueryCache } from "@tanstack/react-query";
+
+import type { ErrorMessages } from "@/lib/errors/display/error-messages";
+import { showErrorToast } from "@/lib/errors/display/show-error-toast";
+
+declare module "@tanstack/react-query" {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- module augmentation merges only into an interface.
+  interface Register {
+    queryMeta: { errorMessages?: ErrorMessages };
+    mutationMeta: { errorMessages?: ErrorMessages; showsErrorInForm?: boolean };
+  }
+}
+
+// A query that never loaded shows its error in place through the route's
+// error.tsx; only a failed background refresh of data on screen needs a toast.
+export const createQueryCache = () =>
+  new QueryCache({
+    onError: (error, query) => {
+      if (query.state.data === undefined) return;
+      showErrorToast(error, query.meta?.errorMessages);
+    },
+  });
+
+export const createMutationCache = () =>
+  new MutationCache({
+    // eslint-disable-next-line max-params -- TanStack Query defines this signature.
+    onError: (error, _variables, _onMutateResult, mutation) => {
+      if (mutation.meta?.showsErrorInForm) return;
+      showErrorToast(error, mutation.meta?.errorMessages);
+    },
+  });

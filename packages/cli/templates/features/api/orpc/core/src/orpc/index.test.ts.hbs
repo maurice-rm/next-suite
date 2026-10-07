@@ -1,0 +1,85 @@
+import { call, ORPCError } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
+
+import { defineErrors } from "@/lib/errors/define-errors";
+import { HTTP_STATUS } from "@/lib/http-status";
+import { publicProcedure } from "@/orpc";
+
+const exampleErrors = defineErrors({
+  SLOT_TAKEN: { status: HTTP_STATUS.CONFLICT, message: "The slot is taken" },
+});
+const context = { context: { headers: new Headers() } };
+
+const callFailing = (handler: () => never) =>
+  call(publicProcedure.handler(handler), undefined, context).catch(
+    (error: unknown) => error,
+  );
+
+describe("procedure errors", () => {
+  it("turns an app error into an oRPC error with its code and status", async () => {
+    const error = await callFailing(() => {
+      throw exampleErrors.create("SLOT_TAKEN", { data: { slot: 3 } });
+    });
+    expect(error).toBeInstanceOf(ORPCError);
+    expect(error).toMatchObject({
+      code: "SLOT_TAKEN",
+      status: HTTP_STATUS.CONFLICT,
+      message: "The slot is taken",
+      data: { slot: 3 },
+    });
+  });
+
+  it("names invalid fields the way TanStack Form does", async () => {
+    const procedure = publicProcedure
+      .input(
+        z.object({
+          contacts: z.array(z.object({ email: z.email("Email is missing.") })),
+        }),
+      )
+      .handler(() => "ok");
+    const error = await call(
+      procedure,
+      { contacts: [{ email: "ok@example.test" }, { email: "broken" }] },
+      context,
+    ).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      code: "INPUT_INVALID",
+      status: HTTP_STATUS.BAD_REQUEST,
+      data: { fieldErrors: { "contacts[1].email": ["Email is missing."] } },
+    });
+  });
+
+  it("hides unexpected errors behind INTERNAL_SERVER_ERROR", async () => {
+    const error = await callFailing(() => {
+      throw new Error("database password is wrong");
+    });
+    expect(error).toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      message: "Internal server error",
+    });
+  });
+
+  it("hides the message of an app error with a server status", async () => {
+    const error = await callFailing(() => {
+      throw defineErrors({
+        UPSTREAM_DOWN: { status: 502, message: "Upstream at 10.0.0.5 is down" },
+      }).create("UPSTREAM_DOWN");
+    });
+    expect(error).toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Internal server error",
+    });
+  });
+
+  it("passes oRPC errors through unchanged", async () => {
+    const error = await callFailing(() => {
+      throw new ORPCError("CONFLICT");
+    });
+    expect(error).toMatchObject({
+      code: "CONFLICT",
+      status: HTTP_STATUS.CONFLICT,
+    });
+  });
+});

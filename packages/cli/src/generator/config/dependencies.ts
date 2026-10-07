@@ -38,6 +38,7 @@ export const VERSIONS = {
   esbuild: "^0.28.2",
   vitest: "^5.0.3",
   vite: "^8.3.3",
+  sonner: "^2.0.8",
   "@electric-sql/pglite": "^0.5.8",
   prisma: "^7.8.0",
   "@prisma/client": "^7.8.0",

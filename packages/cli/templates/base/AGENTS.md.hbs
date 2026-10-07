@@ -20,8 +20,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 {{#if (or api (eq auth "better-auth"))}}
 - **Client IP:** {{#if (eq auth "better-auth")}}Better-Auth's rate limits and {{/if}}the security logs read the client IP from `x-real-ip`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch `CLIENT_IP_HEADER` in `src/lib/client-ip.ts` to the header that proxy sets.
 {{/if}}
-{{#if api}}
-- **Errors:** a feature throws a subclass of `DomainError` (`@/lib/domain-error`) with a stable code; `publicProcedure` maps it to the API error once. Procedures start from `{{#if (eq auth "better-auth")}}protectedProcedure{{else}}publicProcedure{{/if}}`.
+{{#if (or api (eq auth "better-auth"))}}
+- **Errors:** an expected failure is an `AppError`. Common codes come from `commonErrors` (`@/lib/errors/common-errors`); a feature declares codes only for rules it enforces itself, in its own `errors.ts` with `defineErrors({ CODE: { status, message } })`, and never renames another layer's code.{{#if api}} `publicProcedure` maps errors to the API once; procedures start from `{{#if (eq auth "better-auth")}}protectedProcedure{{else}}publicProcedure{{/if}}`.{{/if}}{{#if (eq auth "better-auth")}} Server calls to `auth.api` that can fail go through `callAuth` (`getSession` answers `null` instead).{{/if}}
+- **Error messages:** the client turns any error into text with `toErrorMessage(error, overrides?)` (`@/lib/errors/display/error-messages`); a feature passes overrides only where the default text does not fit.{{#if (eq auth "better-auth")}} Client calls to `authClient` go through `runAuthRequest` (`@/lib/auth/errors/auth-request`), which returns the message or nothing.{{/if}}{{#if api}} Mutations toast their errors centrally — set `meta: { showsErrorInForm: true }` when a form shows the error itself, `meta.errorMessages` for feature texts.{{/if}}
 {{/if}}
 {{#if api.openapi}}
 - **Public API:** `/api/v1` and its spec serve only `publicApiRouter` (`src/orpc/routers/public-api-router.ts`), never the whole `appRouter`. A procedure joins it deliberately and one by one, with a `.route()`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without `.route()`, as `POST /api/v1/<path>`.

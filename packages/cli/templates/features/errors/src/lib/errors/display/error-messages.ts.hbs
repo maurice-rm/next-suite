@@ -1,0 +1,79 @@
+{{#if (eq auth "better-auth")}}
+import type { authClient } from "@/lib/auth/client";
+{{/if}}
+import type { commonErrors } from "@/lib/errors/common-errors";
+import type { ErrorCodeOf } from "@/lib/errors/define-errors";
+import {
+  type NETWORK_ERROR_CODE,
+  toClientError,
+} from "@/lib/errors/display/to-client-error";
+import { HTTP_STATUS, isServerErrorStatus } from "@/lib/http-status";
+
+type MessageCode =
+  | ErrorCodeOf<typeof commonErrors>
+{{#if (eq auth "better-auth")}}
+  | keyof typeof authClient.$ERROR_CODES
+{{/if}}
+  | typeof NETWORK_ERROR_CODE;
+
+export type ErrorMessages = Readonly<Partial<Record<string, string>>>;
+
+const SERVER_ERROR_MESSAGE =
+  "Something went wrong on the server. Please try again later.";
+const GENERIC_MESSAGE = "That did not work. Please try again.";
+
+const DEFAULT_MESSAGES: Partial<Record<MessageCode, string>> = {
+  INPUT_INVALID: "Please check your input.",
+  UNAUTHORIZED: "Please sign in again.",
+  FORBIDDEN: "You do not have permission to do that.",
+  NOT_FOUND: "This no longer exists.",
+{{#if (eq auth "better-auth")}}
+  INVALID_EMAIL_OR_PASSWORD: "The email address or password is incorrect.",
+  INVALID_TOKEN: "The link is invalid or has expired. Please request a new one.",
+  PASSWORD_TOO_SHORT: "The password is too short.",
+  PASSWORD_TOO_LONG: "The password is too long.",
+  EMAIL_NOT_VERIFIED: "Please verify your email address first.",
+  USER_ALREADY_EXISTS: "This email address is already in use.",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "This email address is already in use.",
+  // These answer 401 or 403 but say nothing about the user's rights; the status
+  // texts would mislead.
+  FAILED_TO_CREATE_SESSION: GENERIC_MESSAGE,
+  INVALID_ORIGIN: GENERIC_MESSAGE,
+{{/if}}
+  NETWORK_ERROR:
+    "No connection to the server. Please check your connection and try again.",
+};
+
+const STATUS_MESSAGES: Partial<Record<number, string>> = {
+  [HTTP_STATUS.UNAUTHORIZED]: "Please sign in again.",
+  [HTTP_STATUS.FORBIDDEN]: "You do not have permission to do that.",
+  [HTTP_STATUS.NOT_FOUND]: "This no longer exists.",
+  [HTTP_STATUS.TOO_MANY_REQUESTS]:
+    "Too many attempts. Please wait a moment and try again.",
+};
+
+const lookUp = (
+  messages: Readonly<Partial<Record<string | number, string>>>,
+  key: string | number | undefined,
+) =>
+  key !== undefined && Object.hasOwn(messages, key) ? messages[key] : undefined;
+
+const toStatusMessage = (status: number | undefined) => {
+  if (status !== undefined && isServerErrorStatus(status)) {
+    return SERVER_ERROR_MESSAGE;
+  }
+  return lookUp(STATUS_MESSAGES, status);
+};
+
+export const toErrorMessage = (
+  error: unknown,
+  overrides: ErrorMessages = {},
+) => {
+  const { code, status } = toClientError(error);
+  return (
+    lookUp(overrides, code) ??
+    lookUp(DEFAULT_MESSAGES, code) ??
+    toStatusMessage(status) ??
+    GENERIC_MESSAGE
+  );
+};

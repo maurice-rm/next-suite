@@ -142,8 +142,13 @@ export const FEATURES: Feature[] = [
       config.database?.engine === "mysql" ? ["mysql2", "mariadb"] : ["mysql2"],
   },
   {
+    dir: "features/errors",
+    when: (config) => config.api !== undefined || config.auth === "better-auth",
+  },
+  {
     dir: "features/api/shared",
     when: (config) => config.api !== undefined,
+    dependencies: ["sonner"],
   },
   {
     dir: "features/api/trpc",
