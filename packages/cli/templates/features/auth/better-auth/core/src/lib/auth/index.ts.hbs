@@ -5,30 +5,16 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 {{else}}
 import { prismaAdapter } from "better-auth/adapters/prisma";
 {{/if}}
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 {{#if (eq database.orm "drizzle")}}
 import { account, session, user, verification } from "@/lib/database/schema";
 {{/if}}
-import { logger } from "@/lib/logger";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -49,12 +35,6 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });

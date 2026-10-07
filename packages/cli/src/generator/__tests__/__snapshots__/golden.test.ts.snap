@@ -1816,27 +1816,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
-import { CLIENT_IP_HEADER } from "@/lib/client-ip";
-import { logger } from "@/lib/logger";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-const TOO_MANY_REQUESTS_STATUS = 429;
+const handlers = toNextJsHandler(auth);
 
-// Better-Auth answers a rate-limited request before any of its hooks run, so
-// only this handler sees the 429.
-const handleAuthRequest = async (request: Request) => {
-  const response = await auth.handler(request);
-  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
-  logger.warn(
-    {
-      path: new URL(request.url).pathname,
-      ip: request.headers.get(CLIENT_IP_HEADER),
-    },
-    "Auth request rate limited",
-  );
-  return response;
-};
-
-export const { GET, POST } = toNextJsHandler(handleAuthRequest);
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -2210,27 +2195,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -2244,15 +2215,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -3693,27 +3726,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
-import { CLIENT_IP_HEADER } from "@/lib/client-ip";
-import { logger } from "@/lib/logger";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-const TOO_MANY_REQUESTS_STATUS = 429;
+const handlers = toNextJsHandler(auth);
 
-// Better-Auth answers a rate-limited request before any of its hooks run, so
-// only this handler sees the 429.
-const handleAuthRequest = async (request: Request) => {
-  const response = await auth.handler(request);
-  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
-  logger.warn(
-    {
-      path: new URL(request.url).pathname,
-      ip: request.headers.get(CLIENT_IP_HEADER),
-    },
-    "Auth request rate limited",
-  );
-  return response;
-};
-
-export const { GET, POST } = toNextJsHandler(handleAuthRequest);
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/error.tsx ===
@@ -3960,28 +3978,14 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
-import { logger } from "@/lib/logger";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -3996,15 +4000,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -12536,27 +12602,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
-import { CLIENT_IP_HEADER } from "@/lib/client-ip";
-import { logger } from "@/lib/logger";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-const TOO_MANY_REQUESTS_STATUS = 429;
+const handlers = toNextJsHandler(auth);
 
-// Better-Auth answers a rate-limited request before any of its hooks run, so
-// only this handler sees the 429.
-const handleAuthRequest = async (request: Request) => {
-  const response = await auth.handler(request);
-  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
-  logger.warn(
-    {
-      path: new URL(request.url).pathname,
-      ip: request.headers.get(CLIENT_IP_HEADER),
-    },
-    "Auth request rate limited",
-  );
-  return response;
-};
-
-export const { GET, POST } = toNextJsHandler(handleAuthRequest);
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -12911,27 +12962,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -12945,15 +12982,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -15362,27 +15461,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
-import { CLIENT_IP_HEADER } from "@/lib/client-ip";
-import { logger } from "@/lib/logger";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-const TOO_MANY_REQUESTS_STATUS = 429;
+const handlers = toNextJsHandler(auth);
 
-// Better-Auth answers a rate-limited request before any of its hooks run, so
-// only this handler sees the 429.
-const handleAuthRequest = async (request: Request) => {
-  const response = await auth.handler(request);
-  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
-  logger.warn(
-    {
-      path: new URL(request.url).pathname,
-      ip: request.headers.get(CLIENT_IP_HEADER),
-    },
-    "Auth request rate limited",
-  );
-  return response;
-};
-
-export const { GET, POST } = toNextJsHandler(handleAuthRequest);
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -15792,28 +15876,14 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
 import { account, session, user, verification } from "@/lib/database/schema";
-import { logger } from "@/lib/logger";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -15828,15 +15898,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
@@ -19781,27 +19913,12 @@ main
 import { toNextJsHandler } from "better-auth/next-js";
 
 import { auth } from "@/lib/auth";
-import { CLIENT_IP_HEADER } from "@/lib/client-ip";
-import { logger } from "@/lib/logger";
+import { withAuthEventLogging } from "@/lib/auth/logging/with-auth-event-logging";
 
-const TOO_MANY_REQUESTS_STATUS = 429;
+const handlers = toNextJsHandler(auth);
 
-// Better-Auth answers a rate-limited request before any of its hooks run, so
-// only this handler sees the 429.
-const handleAuthRequest = async (request: Request) => {
-  const response = await auth.handler(request);
-  if (response.status !== TOO_MANY_REQUESTS_STATUS) return response;
-  logger.warn(
-    {
-      path: new URL(request.url).pathname,
-      ip: request.headers.get(CLIENT_IP_HEADER),
-    },
-    "Auth request rate limited",
-  );
-  return response;
-};
-
-export const { GET, POST } = toNextJsHandler(handleAuthRequest);
+export const GET = withAuthEventLogging(handlers.GET);
+export const POST = withAuthEventLogging(handlers.POST);
 
 
 === src/app/api/health/route.ts ===
@@ -20053,27 +20170,13 @@ export const authClient = createAuthClient({
 import "server-only";
 
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 
 import { env } from "@/env";
+import { forwardAuthLog } from "@/lib/auth/logging/forward-auth-log";
 import { CLIENT_IP_HEADER } from "@/lib/client-ip";
 import { database } from "@/lib/database";
-import { logger } from "@/lib/logger";
-
-const logFailedSignIn = createAuthMiddleware((context) => {
-  const isFailedSignIn =
-    context.path.startsWith("/sign-in") &&
-    isAPIError(context.context.returned);
-  if (isFailedSignIn) {
-    logger.warn(
-      { path: context.path, ip: context.headers?.get(CLIENT_IP_HEADER) },
-      "Sign-in failed",
-    );
-  }
-  return Promise.resolve();
-});
 
 export const auth = betterAuth({
   baseURL: env.NEXT_PUBLIC_APP_URL,
@@ -20087,15 +20190,77 @@ export const auth = betterAuth({
   advanced: {
     ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
   },
-  logger: {
-    log: (level, message, ...details: unknown[]) => {
-      const err = details.find((detail) => detail instanceof Error);
-      logger[level]({ err, details }, message);
-    },
-  },
-  hooks: { after: logFailedSignIn },
+  logger: { log: forwardAuthLog },
   plugins: [nextCookies()],
 });
+
+
+=== src/lib/auth/logging/forward-auth-log.ts ===
+import "server-only";
+
+import type { BetterAuthOptions } from "better-auth";
+
+import { logger } from "@/lib/logger";
+
+type AuthLogHandler = NonNullable<
+  NonNullable<BetterAuthOptions["logger"]>["log"]
+>;
+
+// Better-Auth's warnings repeat what withAuthEventLogging records (and tell an
+// unknown user from a wrong password), so only its errors keep their level.
+export const forwardAuthLog: AuthLogHandler = (level, message, ...args) => {
+  const err = args.find((arg) => arg instanceof Error);
+  const details = args.filter((arg) => !(arg instanceof Error));
+  logger[level === "error" ? "error" : "debug"](
+    { err, ...(details.length > 0 && { details }) },
+    message,
+  );
+};
+
+
+=== src/lib/auth/logging/with-auth-event-logging.ts ===
+import "server-only";
+
+import { CLIENT_IP_HEADER } from "@/lib/client-ip";
+import { logger } from "@/lib/logger";
+
+const SIGN_IN_ENDPOINT_SUFFIX = "/sign-in/email";
+const TOO_MANY_REQUESTS_STATUS = 429;
+const CLIENT_ERROR_MIN_STATUS = 400;
+const SERVER_ERROR_MIN_STATUS = 500;
+
+type AuthHandler = (request: Request) => Promise<Response>;
+
+const isClientErrorStatus = (status: number) =>
+  status >= CLIENT_ERROR_MIN_STATUS && status < SERVER_ERROR_MIN_STATUS;
+
+const logAuthEvent = (request: Request, response: Response) => {
+  const event = {
+    ip: request.headers.get(CLIENT_IP_HEADER),
+    path: new URL(request.url).pathname,
+    status: response.status,
+  };
+  if (response.status === TOO_MANY_REQUESTS_STATUS) {
+    logger.warn(event, "Auth rate limit hit");
+    return;
+  }
+  if (
+    isClientErrorStatus(response.status) &&
+    event.path.endsWith(SIGN_IN_ENDPOINT_SUFFIX)
+  ) {
+    logger.warn(event, "Sign-in failed");
+  }
+};
+
+// Wraps the route rather than using a Better-Auth hook: the rate limiter
+// answers before any hook runs, so only the route sees its 429.
+export const withAuthEventLogging =
+  (handler: AuthHandler): AuthHandler =>
+  async (request) => {
+    const response = await handler(request);
+    logAuthEvent(request, response);
+    return response;
+  };
 
 
 === src/lib/auth/session.ts ===
