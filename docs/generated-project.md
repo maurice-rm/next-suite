@@ -75,6 +75,8 @@ This is what the base layer writes, before any feature is applied:
 │   │   ├── layout.tsx
 │   │   ├── not-found.tsx
 │   │   └── page.tsx
+│   ├── components/
+│   │   └── route-error.tsx
 │   └── env.ts
 └── tsconfig.json
 ```
@@ -113,7 +115,7 @@ Each feature then adds its own files. The conditions are the `when` predicates i
 
 ## Pages and styling
 
-The base pages (`page.tsx`, `not-found.tsx`, `error.tsx`, `global-error.tsx`) are placeholders with one `h1` each; `global-error.tsx` imports the stylesheet and sets its own `<title>`, since it replaces the root layout. Without shadcn/ui the stylesheet defines OKLCH role tokens (`background`, `foreground`, `muted-foreground`, `primary`, `primary-foreground`, `ring`) through `light-dark()` with `color-scheme: light dark`, so the pages follow the system theme and `themeColor` declares both. With Tailwind the pages style their link and button from those tokens. shadcn/ui brings its own tokens, whose dark theme follows a `.dark` class; until a theme switch sets it, those projects stay light and declare a single `themeColor`. Projects with `NEXT_PUBLIC_APP_URL` also get `robots.ts` and a `sitemap.ts` listing the start page.
+The base pages (`page.tsx`, `not-found.tsx`, `error.tsx`, `global-error.tsx`) are placeholders with one `h1` each; `error.tsx` and `global-error.tsx` render the same `RouteError` component (`src/components/route-error.tsx`), and `global-error.tsx` imports the stylesheet and sets its own `<title>`, since it replaces the root layout. Without shadcn/ui the stylesheet defines OKLCH role tokens (`background`, `foreground`, `muted-foreground`, `primary`, `primary-foreground`, `ring`) through `light-dark()` with `color-scheme: light dark`, so the pages follow the system theme and `themeColor` declares both. With Tailwind the pages style their link and button from those tokens. shadcn/ui brings its own tokens, whose dark theme follows a `.dark` class; until a theme switch sets it, those projects stay light and declare a single `themeColor`. Projects with `NEXT_PUBLIC_APP_URL` also get `robots.ts` and a `sitemap.ts` listing the start page.
 
 ## Security headers
 

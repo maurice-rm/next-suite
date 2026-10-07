@@ -1902,23 +1902,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -1931,6 +1922,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -1940,18 +1933,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -2120,6 +2102,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -3720,19 +3719,14 @@ export const { GET, POST } = toNextJsHandler(handleAuthRequest);
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -3745,6 +3739,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -3754,12 +3750,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -3881,6 +3872,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -5386,19 +5390,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -5411,6 +5410,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -5420,12 +5421,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -5579,6 +5575,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -7362,19 +7371,14 @@ export const GET = (): Response => Response.json({ status: "ok" });
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -7387,6 +7391,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -7396,12 +7402,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -7495,6 +7496,19 @@ const Page = () => (
 );
 
 export default Page;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -8514,19 +8528,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -8539,6 +8548,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -8548,12 +8559,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -8707,6 +8713,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -10150,19 +10169,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -10175,6 +10189,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -10184,12 +10200,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -10343,6 +10354,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -12596,19 +12620,14 @@ export {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main>
-    <h1>Something went wrong</h1>
-    <button type="button" onClick={retry}>
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -12621,6 +12640,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -12630,12 +12651,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main>
-        <h1>Something went wrong</h1>
-        <button type="button" onClick={retry}>
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -12789,6 +12805,19 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main>
+    <h1>Something went wrong</h1>
+    <button type="button" onClick={retry}>
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -15430,23 +15459,14 @@ export { handler as GET, handler as POST };
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -15459,6 +15479,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -15468,18 +15490,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -15674,6 +15685,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -17318,23 +17346,14 @@ export { handler as GET, handler as POST };
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -17347,6 +17366,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -17356,18 +17377,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -17603,6 +17613,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
@@ -19801,23 +19828,14 @@ export const GET = async (): Promise<Response> => {
 === src/app/error.tsx ===
 "use client";
 
+import { RouteError } from "@/components/route-error";
+
 type ErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
 };
 
-const ErrorPage = ({ retry }: ErrorPageProps) => (
-  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
-    <button
-      type="button"
-      onClick={retry}
-      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-    >
-      Try again
-    </button>
-  </main>
-);
+const ErrorPage = ({ retry }: ErrorPageProps) => <RouteError retry={retry} />;
 
 export default ErrorPage;
 
@@ -19830,6 +19848,8 @@ export default ErrorPage;
 
 import "./globals.css";
 
+import { RouteError } from "@/components/route-error";
+
 type GlobalErrorPageProps = {
   error: Error & { digest?: string };
   retry: () => void;
@@ -19839,18 +19859,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps) => (
   <html lang="en">
     <body>
       <title>Something went wrong</title>
-      <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-semibold text-balance">
-          Something went wrong
-        </h1>
-        <button
-          type="button"
-          onClick={retry}
-          className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
-        >
-          Try again
-        </button>
-      </main>
+      <RouteError retry={retry} />
     </body>
   </html>
 );
@@ -19946,6 +19955,23 @@ const sitemap = (): MetadataRoute.Sitemap => [
 ];
 
 export default sitemap;
+
+
+=== src/components/route-error.tsx ===
+type RouteErrorProps = { retry: () => void };
+
+export const RouteError = ({ retry }: RouteErrorProps) => (
+  <main className="mx-auto flex min-h-dvh max-w-7xl flex-col justify-center gap-4 px-4 sm:px-6 lg:px-8">
+    <h1 className="text-2xl font-semibold text-balance">Something went wrong</h1>
+    <button
+      type="button"
+      onClick={retry}
+      className="inline-flex h-10 items-center self-start rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-12"
+    >
+      Try again
+    </button>
+  </main>
+);
 
 
 === src/env.ts ===
