@@ -330,9 +330,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -1850,10 +1854,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -1865,7 +1868,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -2537,6 +2540,37 @@ const requireSession = base.middleware(async ({ context, next }) => {
 export const protectedProcedure = publicProcedure.use(requireSession);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -2901,9 +2935,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -4534,9 +4572,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -5310,10 +5352,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -5325,7 +5366,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -5885,6 +5926,37 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -6262,9 +6334,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -7665,9 +7741,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -7677,6 +7757,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
 ## Design direction
 
@@ -8339,10 +8420,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -8354,7 +8434,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -8377,28 +8457,22 @@ import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import {
+  notFoundResponse,
+  PROBLEM_CONTENT_TYPE,
+  type ProblemDetails,
+} from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
-import { appRouter } from "@/orpc/routers/app-router";
+import { publicApiRouter } from "@/orpc/routers/public-api-router";
 
 const API_PREFIX = "/api/v1";
 const API_VERSION = "1.0.0";
-const PROBLEM_CONTENT_TYPE = "application/problem+json";
-const NOT_FOUND_STATUS = 404;
 const SCALAR_SCRIPT_URL =
   "https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.73.0";
 
 const SPEC_INFO = {
   info: { title: "orpc-scalar API", version: API_VERSION },
   servers: [{ url: API_PREFIX }],
-};
-
-type ProblemDetails = {
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  code?: string;
-  errors?: unknown;
 };
 
 const toProblemDetails = (
@@ -8412,7 +8486,7 @@ const toProblemDetails = (
   ...(error.data !== undefined && { errors: error.data }),
 });
 
-const handler = new OpenAPIHandler(appRouter, {
+const handler = new OpenAPIHandler(publicApiRouter, {
   plugins: [
     new OpenAPIReferencePlugin({
       docsScriptUrl: SCALAR_SCRIPT_URL,
@@ -8423,20 +8497,6 @@ const handler = new OpenAPIHandler(appRouter, {
   customErrorResponseBodyEncoder: toProblemDetails,
   clientInterceptors: [onError(logProcedureFailure)],
 });
-
-const notFoundResponse = () =>
-  Response.json(
-    {
-      type: "about:blank",
-      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
-      status: NOT_FOUND_STATUS,
-      detail: "No operation matches this path and method.",
-    } satisfies ProblemDetails,
-    {
-      status: NOT_FOUND_STATUS,
-      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
-    },
-  );
 
 const handleRequest = async (request: Request) => {
   const { matched, response } = await handler.handle(request, {
@@ -8967,6 +9027,37 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -9052,6 +9143,16 @@ import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
+};
+
+
+=== src/orpc/routers/public-api-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
+
+// Served under /api/v1 and in its spec, unlike the RPC endpoint's appRouter.
+// List procedures one by one: a nested feature router would expose all of it.
+export const publicApiRouter = {
+  health: { status: healthRouter.status },
 };
 
 
@@ -9311,9 +9412,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -9323,6 +9428,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Errors:** a feature throws a subclass of \`DomainError\` (\`@/lib/domain-error\`) with a stable code; \`publicProcedure\` maps it to the API error once. Procedures start from \`publicProcedure\`.
+- **Public API:** \`/api/v1\` and its spec serve only \`publicApiRouter\` (\`src/orpc/routers/public-api-router.ts\`), never the whole \`appRouter\`. A procedure joins it deliberately and one by one, with a \`.route()\`; never nest a whole feature router there, since oRPC would serve each of its procedures, even those without \`.route()\`, as \`POST /api/v1/<path>\`.
 
 ## Design direction
 
@@ -9968,10 +10074,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -9983,7 +10088,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -10006,26 +10111,20 @@ import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { onError, type ORPCError } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 
+import {
+  notFoundResponse,
+  PROBLEM_CONTENT_TYPE,
+  type ProblemDetails,
+} from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
-import { appRouter } from "@/orpc/routers/app-router";
+import { publicApiRouter } from "@/orpc/routers/public-api-router";
 
 const API_PREFIX = "/api/v1";
 const API_VERSION = "1.0.0";
-const PROBLEM_CONTENT_TYPE = "application/problem+json";
-const NOT_FOUND_STATUS = 404;
 
 const SPEC_INFO = {
   info: { title: "orpc-openapi API", version: API_VERSION },
   servers: [{ url: API_PREFIX }],
-};
-
-type ProblemDetails = {
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  code?: string;
-  errors?: unknown;
 };
 
 const toProblemDetails = (
@@ -10039,7 +10138,7 @@ const toProblemDetails = (
   ...(error.data !== undefined && { errors: error.data }),
 });
 
-const handler = new OpenAPIHandler(appRouter, {
+const handler = new OpenAPIHandler(publicApiRouter, {
   customErrorResponseBodyEncoder: toProblemDetails,
   clientInterceptors: [onError(logProcedureFailure)],
 });
@@ -10047,20 +10146,6 @@ const handler = new OpenAPIHandler(appRouter, {
 const generator = new OpenAPIGenerator({
   schemaConverters: [new ZodToJsonSchemaConverter()],
 });
-
-const notFoundResponse = () =>
-  Response.json(
-    {
-      type: "about:blank",
-      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
-      status: NOT_FOUND_STATUS,
-      detail: "No operation matches this path and method.",
-    } satisfies ProblemDetails,
-    {
-      status: NOT_FOUND_STATUS,
-      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
-    },
-  );
 
 const handleRequest = async (request: Request) => {
   const { matched, response } = await handler.handle(request, {
@@ -10075,7 +10160,7 @@ const handleRequest = async (request: Request) => {
   }
 
   if (new URL(request.url).pathname === \`\${API_PREFIX}/spec.json\`) {
-    return Response.json(await generator.generate(appRouter, SPEC_INFO));
+    return Response.json(await generator.generate(publicApiRouter, SPEC_INFO));
   }
 
   return notFoundResponse();
@@ -10595,6 +10680,37 @@ const mapDomainErrors = base.middleware(async ({ next }) => {
 export const publicProcedure = base.use(mapDomainErrors);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -10680,6 +10796,16 @@ import { healthRouter } from "@/features/health/server/router";
 
 export const appRouter = {
   health: healthRouter,
+};
+
+
+=== src/orpc/routers/public-api-router.ts ===
+import { healthRouter } from "@/features/health/server/router";
+
+// Served under /api/v1 and in its spec, unlike the RPC endpoint's appRouter.
+// List procedures one by one: a nested feature router would expose all of it.
+export const publicApiRouter = {
+  health: { status: healthRouter.status },
 };
 
 
@@ -11043,9 +11169,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -12481,10 +12611,9 @@ import { onError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 
 import { RPC_ENDPOINT } from "@/orpc/endpoint";
+import { notFoundResponse } from "@/orpc/problem-details";
 import { logProcedureFailure, logRejectedRequest } from "@/orpc/request-logging";
 import { appRouter } from "@/orpc/routers/app-router";
-
-const NOT_FOUND_STATUS = 404;
 
 const handler = new RPCHandler(appRouter, {
   clientInterceptors: [onError(logProcedureFailure)],
@@ -12496,7 +12625,7 @@ const handleRequest = async (request: Request) => {
     context: { headers: request.headers },
   });
 
-  if (!response) return new Response("Not found", { status: NOT_FOUND_STATUS });
+  if (!response) return notFoundResponse();
   logRejectedRequest(response.status, request.headers);
   return response;
 };
@@ -13143,6 +13272,37 @@ const requireSession = base.middleware(async ({ context, next }) => {
 export const protectedProcedure = publicProcedure.use(requireSession);
 
 
+=== src/orpc/problem-details.ts ===
+import { STATUS_CODES } from "node:http";
+
+export const PROBLEM_CONTENT_TYPE = "application/problem+json";
+
+const NOT_FOUND_STATUS = 404;
+
+export type ProblemDetails = {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  errors?: unknown;
+};
+
+export const notFoundResponse = () =>
+  Response.json(
+    {
+      type: "about:blank",
+      title: STATUS_CODES[NOT_FOUND_STATUS] ?? "Not Found",
+      status: NOT_FOUND_STATUS,
+      detail: "No operation matches this path and method.",
+    } satisfies ProblemDetails,
+    {
+      status: NOT_FOUND_STATUS,
+      headers: { "Content-Type": PROBLEM_CONTENT_TYPE },
+    },
+  );
+
+
 === src/orpc/query-client.ts ===
 import { StandardRPCJsonSerializer } from "@orpc/client/standard";
 import {
@@ -13750,9 +13910,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -16479,9 +16643,13 @@ AGENTS.md
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
@@ -18213,9 +18381,13 @@ npmAuditIgnoreAdvisories:
 
 === AGENTS.md ===
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in the docs shipped in your installed \`next\` package before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Project conventions
