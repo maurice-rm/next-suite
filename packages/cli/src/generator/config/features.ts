@@ -33,8 +33,9 @@ export interface Feature {
   /** Dev dependencies this feature contributes (catalog names). */
   devDependencies?: FeatureDependencies;
   /**
-   * Transitive packages this feature forces to the catalog version, for an
-   * upstream that pins a release with a known vulnerability (catalog names).
+   * Packages this feature forces to the catalog version (catalog names): for an
+   * upstream that pins a release with a known vulnerability, or one that would
+   * install a second copy of a package the project depends on directly.
    */
   overrides?: FeatureDependencies;
 }

@@ -9,11 +9,12 @@ The CI of a generated project audits its dependencies. Upstream packages the sca
 ## Decision
 
 - A feature declares `overrides` for packages an upstream pins to a vulnerable release when a compatible fixed release exists; the generator writes them where the package manager reads overrides (`overrides`, `resolutions`, or `pnpm-workspace.yaml`).
+- The same mechanism also deduplicates: where an upstream would install a second copy of a package the project depends on directly, a feature overrides it to the project's pinned version. Today that is `typescript-eslint`, which `eslint-config-next` also depends on; two copies make ESLint refuse to load its plugin.
 - An advisory without such a fix that reaches only build or lint tooling is listed in `ACCEPTED_ADVISORIES` (`packages/cli/src/generator/config/advisories.ts`) with its reason, and the audit ignores exactly those IDs.
 - pnpm, Yarn and Bun projects audit on every CI run. npm cannot ignore a single advisory, so npm projects get no audit step and rely on Dependabot alerts.
 
 ## Consequences
 
 - A fresh project's audit is green, and a new advisory fails it.
-- `ACCEPTED_ADVISORIES` and the overrides need a review whenever `VERSIONS` changes; an entry whose upstream ships a fix is removed.
+- `ACCEPTED_ADVISORIES` and the overrides need a review whenever `VERSIONS` changes; a vulnerability override whose upstream ships a fix is removed, a deduplicating override once the upstream and the direct dependency resolve to the same copy. A deduplicating override has no advisory behind it, so it is not removed for lack of one.
 - Overrides force a version the upstream did not test with; they stay within the same major release.

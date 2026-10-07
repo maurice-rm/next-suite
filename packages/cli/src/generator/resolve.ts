@@ -40,7 +40,7 @@ export const dependenciesFragment = (
   return Object.keys(fragment).length ? JSON.stringify(fragment) : undefined;
 };
 
-/** The transitive packages the active features force to a catalog version. */
+/** The packages the active features force to a catalog version. */
 export const dependencyOverrides = (
   config: ProjectConfig,
 ): Record<string, string> =>
