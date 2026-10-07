@@ -44,6 +44,7 @@ export const SCENARIOS: { name: string; config: ProjectConfig }[] = [
       githubActions: [
         "lint",
         "typecheck",
+        "test",
         "format",
         "build",
         "image",

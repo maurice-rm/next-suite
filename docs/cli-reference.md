@@ -37,33 +37,33 @@ You get the planned server changes printed to stdout and nothing is written.
 
 The flag names, types, and aliases come from `src/index.ts`. The defaults are not declared in citty — they are produced in `src/prompts/from-flags.ts` when a flag is omitted, so they apply to `--yes` runs. In an interactive run the wizard asks instead, and its own defaults differ (see [The interactive wizard](#the-interactive-wizard)).
 
-| Flag               | Alias | Type       | Default (in `--yes` mode)                                          | Description                                                        |
-| ------------------ | ----- | ---------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `<name>`           | —     | positional | none — required with `--yes`                                       | Project name or path. `.` targets the current directory.           |
-| `--yes`            | `-y`  | boolean    | `false`                                                            | Non-interactive: build from flags plus defaults, no prompts.       |
-| `--pm`             | —     | string     | the manager detected from `npm_config_user_agent`, else `npm`      | Package manager: `npm`, `pnpm`, `yarn`, `bun`.                     |
-| `--tailwind`       | —     | boolean    | `false`; forced to `true` when `--shadcn` is passed                | Add Tailwind CSS.                                                  |
-| `--shadcn`         | —     | boolean    | `false`                                                            | Add shadcn/ui (implies Tailwind).                                  |
-| `--shadcn-base`    | —     | string     | `base`                                                             | shadcn base library: `base`, `radix` or `aria`.                    |
-| `--shadcn-preset`  | —     | string     | none — the post-step falls back to shadcn's blank base preset `b0` | shadcn preset code.                                                |
-| `--shadcn-pointer` | —     | boolean    | `false`                                                            | Pointer cursor on buttons.                                         |
-| `--database`       | —     | string     | none — no database feature                                         | Database engine: `postgres` or `mysql` (with `--orm`).             |
-| `--orm`            | —     | string     | none — no ORM feature                                              | ORM: `drizzle` or `prisma` (with `--database`).                    |
-| `--api`            | —     | string     | none — no API layer                                                | API layer: `trpc` or `orpc`.                                       |
-| `--openapi`        | —     | boolean    | `false`                                                            | Generate an OpenAPI/REST layer (oRPC only).                        |
-| `--scalar`         | —     | boolean    | `false`                                                            | Add a Scalar API-docs UI (requires `--openapi`).                   |
-| `--auth`           | —     | string     | none — auth is `none`                                              | Auth provider: `better-auth` (requires `--database`).              |
-| `--email`          | —     | string     | none — email is `none`                                             | Email provider: `resend`.                                          |
-| `--deployment`     | —     | string     | none — no production files                                         | Production deployment: `standalone` or `proxied`.                  |
-| `--github-actions` | —     | string     | none — no workflows                                                | Comma-separated steps: `lint,typecheck,format,build,image,deploy`. |
-| `--git`            | —     | boolean    | `true`                                                             | Initialize git. Pass `--no-git` to skip.                           |
-| `--install`        | —     | boolean    | `true`                                                             | Install dependencies. Pass `--no-install` to skip.                 |
-| `--overwrite`      | —     | boolean    | `false`                                                            | Proceed into a conflicting target, keeping the existing files.     |
-| `--empty`          | —     | boolean    | `false`                                                            | Empty a conflicting target first (everything except `.git`).       |
-| `--help`           | `-h`  | boolean    | —                                                                  | Print usage and exit. Provided by citty.                           |
-| `--version`        | `-v`  | boolean    | —                                                                  | Print the version and exit. Provided by citty.                     |
+| Flag               | Alias | Type       | Default (in `--yes` mode)                                          | Description                                                             |
+| ------------------ | ----- | ---------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `<name>`           | —     | positional | none — required with `--yes`                                       | Project name or path. `.` targets the current directory.                |
+| `--yes`            | `-y`  | boolean    | `false`                                                            | Non-interactive: build from flags plus defaults, no prompts.            |
+| `--pm`             | —     | string     | the manager detected from `npm_config_user_agent`, else `npm`      | Package manager: `npm`, `pnpm`, `yarn`, `bun`.                          |
+| `--tailwind`       | —     | boolean    | `false`; forced to `true` when `--shadcn` is passed                | Add Tailwind CSS.                                                       |
+| `--shadcn`         | —     | boolean    | `false`                                                            | Add shadcn/ui (implies Tailwind).                                       |
+| `--shadcn-base`    | —     | string     | `base`                                                             | shadcn base library: `base`, `radix` or `aria`.                         |
+| `--shadcn-preset`  | —     | string     | none — the post-step falls back to shadcn's blank base preset `b0` | shadcn preset code.                                                     |
+| `--shadcn-pointer` | —     | boolean    | `false`                                                            | Pointer cursor on buttons.                                              |
+| `--database`       | —     | string     | none — no database feature                                         | Database engine: `postgres` or `mysql` (with `--orm`).                  |
+| `--orm`            | —     | string     | none — no ORM feature                                              | ORM: `drizzle` or `prisma` (with `--database`).                         |
+| `--api`            | —     | string     | none — no API layer                                                | API layer: `trpc` or `orpc`.                                            |
+| `--openapi`        | —     | boolean    | `false`                                                            | Generate an OpenAPI/REST layer (oRPC only).                             |
+| `--scalar`         | —     | boolean    | `false`                                                            | Add a Scalar API-docs UI (requires `--openapi`).                        |
+| `--auth`           | —     | string     | none — auth is `none`                                              | Auth provider: `better-auth` (requires `--database`).                   |
+| `--email`          | —     | string     | none — email is `none`                                             | Email provider: `resend`.                                               |
+| `--deployment`     | —     | string     | none — no production files                                         | Production deployment: `standalone` or `proxied`.                       |
+| `--github-actions` | —     | string     | none — no workflows                                                | Comma-separated steps: `lint,typecheck,test,format,build,image,deploy`. |
+| `--git`            | —     | boolean    | `true`                                                             | Initialize git. Pass `--no-git` to skip.                                |
+| `--install`        | —     | boolean    | `true`                                                             | Install dependencies. Pass `--no-install` to skip.                      |
+| `--overwrite`      | —     | boolean    | `false`                                                            | Proceed into a conflicting target, keeping the existing files.          |
+| `--empty`          | —     | boolean    | `false`                                                            | Empty a conflicting target first (everything except `.git`).            |
+| `--help`           | `-h`  | boolean    | —                                                                  | Print usage and exit. Provided by citty.                                |
+| `--version`        | `-v`  | boolean    | —                                                                  | Print the version and exit. Provided by citty.                          |
 
-Selecting `deploy` in `--github-actions` also enables `image`, and the steps are re-ordered into the canonical order `lint, typecheck, format, build, image, deploy` before generation.
+Selecting `deploy` in `--github-actions` also enables `image`, and the steps are re-ordered into the canonical order `lint, typecheck, test, format, build, image, deploy` before generation.
 
 ## Non-interactive mode (`--yes`)
 
@@ -71,31 +71,31 @@ Selecting `deploy` in `--github-actions` also enables `image`, and the steps are
 
 The rules below are listed in the order `configFromFlags` evaluates them. The messages are exact; `<value>` marks the offending input echoed back.
 
-| Rule                                                   | Exact message                                                                                                               |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| A project name must be given.                          | `A project name is required in --yes mode — pass it as the argument.`                                                       |
-| The name must not be empty after trimming.             | `Name or path is required.`                                                                                                 |
-| The target must stay inside the current directory.     | `Target must be inside the current directory — no '..' or absolute paths.`                                                  |
-| The name must be a valid npm package name.             | the first error or warning from `validate-npm-package-name`, or `Invalid project name.` when it reports neither             |
-| The path must not resolve to an existing file.         | `A file already exists at that path — choose another name.`                                                                 |
-| `--overwrite` and `--empty` are mutually exclusive.    | `--overwrite and --empty are mutually exclusive — pass only one.`                                                           |
-| The shadcn sub-flags require `--shadcn`.               | `--shadcn-base, --shadcn-preset, and --shadcn-pointer require --shadcn.`                                                    |
-| A preset code must be a bare token.                    | `Invalid --shadcn-preset: Use only letters, numbers, - or _.`                                                               |
-| A non-empty target needs an override flag.             | `"<name>" already has conflicting files — pass --overwrite or --empty to proceed.`                                          |
-| `--shadcn-base` must name a known base.                | `Unknown shadcn base "<value>" — expected one of base, radix, aria.`                                                        |
-| `--database` and `--orm` must be passed together.      | `--database and --orm must be passed together.`                                                                             |
-| `--database` must name a known engine.                 | `Unknown database "<value>" — expected one of postgres, mysql.`                                                             |
-| `--orm` must name a known ORM.                         | `Unknown ORM "<value>" — expected one of drizzle, prisma.`                                                                  |
-| `--api` must name a known API layer.                   | `Unknown api "<value>" — expected one of trpc, orpc.`                                                                       |
-| `--scalar` requires `--openapi`.                       | `--scalar requires --openapi.`                                                                                              |
-| `--openapi` requires `--api orpc`.                     | `--openapi requires --api orpc.`                                                                                            |
-| `--auth` requires `--database`.                        | `--auth requires --database — Better-Auth needs a database adapter.`                                                        |
-| `--auth` must name a known provider.                   | `Unknown auth "<value>" — expected one of better-auth.`                                                                     |
-| `--email` must name a known provider.                  | `Unknown email "<value>" — expected one of resend.`                                                                         |
-| `--deployment` must name a known mode.                 | `Unknown deployment "<value>" — expected one of standalone, proxied.`                                                       |
-| Every `--github-actions` entry must be a known step.   | `Unknown github-actions step "<value>" — expected a comma-separated list of lint, typecheck, format, build, image, deploy.` |
-| The `image` and `deploy` steps require `--deployment`. | `--github-actions image/deploy requires --deployment.`                                                                      |
-| `--pm` must name a known package manager.              | `Unknown package manager "<value>" — expected one of npm, pnpm, bun, yarn.`                                                 |
+| Rule                                                   | Exact message                                                                                                                     |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| A project name must be given.                          | `A project name is required in --yes mode — pass it as the argument.`                                                             |
+| The name must not be empty after trimming.             | `Name or path is required.`                                                                                                       |
+| The target must stay inside the current directory.     | `Target must be inside the current directory — no '..' or absolute paths.`                                                        |
+| The name must be a valid npm package name.             | the first error or warning from `validate-npm-package-name`, or `Invalid project name.` when it reports neither                   |
+| The path must not resolve to an existing file.         | `A file already exists at that path — choose another name.`                                                                       |
+| `--overwrite` and `--empty` are mutually exclusive.    | `--overwrite and --empty are mutually exclusive — pass only one.`                                                                 |
+| The shadcn sub-flags require `--shadcn`.               | `--shadcn-base, --shadcn-preset, and --shadcn-pointer require --shadcn.`                                                          |
+| A preset code must be a bare token.                    | `Invalid --shadcn-preset: Use only letters, numbers, - or _.`                                                                     |
+| A non-empty target needs an override flag.             | `"<name>" already has conflicting files — pass --overwrite or --empty to proceed.`                                                |
+| `--shadcn-base` must name a known base.                | `Unknown shadcn base "<value>" — expected one of base, radix, aria.`                                                              |
+| `--database` and `--orm` must be passed together.      | `--database and --orm must be passed together.`                                                                                   |
+| `--database` must name a known engine.                 | `Unknown database "<value>" — expected one of postgres, mysql.`                                                                   |
+| `--orm` must name a known ORM.                         | `Unknown ORM "<value>" — expected one of drizzle, prisma.`                                                                        |
+| `--api` must name a known API layer.                   | `Unknown api "<value>" — expected one of trpc, orpc.`                                                                             |
+| `--scalar` requires `--openapi`.                       | `--scalar requires --openapi.`                                                                                                    |
+| `--openapi` requires `--api orpc`.                     | `--openapi requires --api orpc.`                                                                                                  |
+| `--auth` requires `--database`.                        | `--auth requires --database — Better-Auth needs a database adapter.`                                                              |
+| `--auth` must name a known provider.                   | `Unknown auth "<value>" — expected one of better-auth.`                                                                           |
+| `--email` must name a known provider.                  | `Unknown email "<value>" — expected one of resend.`                                                                               |
+| `--deployment` must name a known mode.                 | `Unknown deployment "<value>" — expected one of standalone, proxied.`                                                             |
+| Every `--github-actions` entry must be a known step.   | `Unknown github-actions step "<value>" — expected a comma-separated list of lint, typecheck, test, format, build, image, deploy.` |
+| The `image` and `deploy` steps require `--deployment`. | `--github-actions image/deploy requires --deployment.`                                                                            |
+| `--pm` must name a known package manager.              | `Unknown package manager "<value>" — expected one of npm, pnpm, bun, yarn.`                                                       |
 
 A failing rule prints the message and exits with code `1`.
 
@@ -158,10 +158,10 @@ The two TLS answers map to the config values `standalone` and `proxied`.
 
 ### CI/CD
 
-| Step                   | Question (verbatim)      | Type                | Options                                                                                                                                                                                                               | Default                       | Shown when               |
-| ---------------------- | ------------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------ |
-| `githubActionsEnabled` | `Set up GitHub Actions?` | confirm             | `Yes` / `No`                                                                                                                                                                                                          | `Yes`                         | quick start was declined |
-| `githubActionsSteps`   | `Pipeline steps`         | grouped multiselect | group `CI`: `Lint` (hint `eslint`), `Type-check` (hint `tsc`), `Format check` (hint `prettier`), `Build` (hint `next build`); group `CD`: `Build & push image` (hint `ghcr`), `Deploy` (hint `includes build & push`) | `Lint`, `Type-check`, `Build` | GitHub Actions are on    |
+| Step                   | Question (verbatim)      | Type                | Options                                                                                                                                                                                                                                        | Default                                | Shown when               |
+| ---------------------- | ------------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------ |
+| `githubActionsEnabled` | `Set up GitHub Actions?` | confirm             | `Yes` / `No`                                                                                                                                                                                                                                   | `Yes`                                  | quick start was declined |
+| `githubActionsSteps`   | `Pipeline steps`         | grouped multiselect | group `CI`: `Lint` (hint `eslint`), `Type-check` (hint `tsc`), `Tests` (hint `vitest`), `Format check` (hint `prettier`), `Build` (hint `next build`); group `CD`: `Build & push image` (hint `ghcr`), `Deploy` (hint `includes build & push`) | `Lint`, `Type-check`, `Tests`, `Build` | GitHub Actions are on    |
 
 The `CD` group is offered only when production deployment is enabled. Group headers are selectable and toggle their whole group, and an empty selection is allowed.
 

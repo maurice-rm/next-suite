@@ -21,7 +21,12 @@ export const selectNginxMode = defineSelect("Who terminates TLS?", [
 
 export const confirmGithubActions = defineConfirm("Set up GitHub Actions?");
 
-const DEFAULT_STEPS: GithubActionsStep[] = ["lint", "typecheck", "build"];
+const DEFAULT_STEPS: GithubActionsStep[] = [
+  "lint",
+  "typecheck",
+  "test",
+  "build",
+];
 
 const CI_GROUP = { CI: [...GITHUB_ACTIONS_CI_STEPS] };
 

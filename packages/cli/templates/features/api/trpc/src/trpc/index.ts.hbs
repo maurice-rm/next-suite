@@ -65,6 +65,7 @@ const mapDomainErrors = t.middleware(async ({ next }) => {
 });
 
 export const router = t.router;
+export const createCallerFactory = t.createCallerFactory;
 export const publicProcedure = t.procedure.use(mapDomainErrors);
 {{#if (eq auth "better-auth")}}
 

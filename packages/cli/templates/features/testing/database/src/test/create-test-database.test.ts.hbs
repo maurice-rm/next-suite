@@ -1,0 +1,11 @@
+import { sql } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+
+import { database } from "@/lib/database";
+
+describe("test database", () => {
+  it("answers queries in-process", async () => {
+    const { rows } = await database.execute(sql`select 1 as answer`);
+    expect(rows).toEqual([{ answer: 1 }]);
+  });
+});

@@ -1,5 +1,6 @@
 import Handlebars from "handlebars";
 
+import { usesTestDatabase } from "@/core/test-database";
 import type { ProjectConfig } from "@/core/types";
 import { isCdStep } from "@/options";
 import { findPackageManagerEntry } from "@/package-managers";
@@ -100,6 +101,11 @@ Handlebars.registerHelper(
     Object.entries(dependencyOverrides(readRootConfig(options))).map(
       ([name, version]) => ({ name, version }),
     ),
+);
+Handlebars.registerHelper(
+  "usesTestDatabase",
+  (options: Handlebars.HelperOptions) =>
+    usesTestDatabase(readRootConfig(options)),
 );
 Handlebars.registerHelper("acceptedNpmAdvisories", () =>
   ACCEPTED_ADVISORIES.map((advisory) => advisory.npmAdvisoryId),

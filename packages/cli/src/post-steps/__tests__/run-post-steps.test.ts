@@ -199,13 +199,30 @@ test("generates the initial migration for a production prisma project", async ()
   expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm", "prisma");
 });
 
+test("generates the initial migration the PGlite test database migrates from", async () => {
+  vi.mocked(isCommandAvailable).mockResolvedValue(true);
+  await runPostSteps(
+    createConfig({
+      install: true,
+      database: { engine: "postgres", orm: "drizzle" },
+    }),
+  );
+  expect(generateMigrations).toHaveBeenCalledWith("/tmp/app", "npm", "drizzle");
+});
+
 test("skips the migration where it would be wrong or impossible", async () => {
   vi.mocked(isCommandAvailable).mockResolvedValue(true);
 
   await runPostSteps(
     createConfig({
       install: true,
-      database: { engine: "postgres", orm: "drizzle" },
+      database: { engine: "mysql", orm: "drizzle" },
+    }),
+  );
+  await runPostSteps(
+    createConfig({
+      install: true,
+      database: { engine: "postgres", orm: "prisma" },
     }),
   );
   await runPostSteps(createConfig({ ...PRODUCTION_DRIZZLE, install: false }));

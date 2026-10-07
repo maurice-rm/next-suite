@@ -1,0 +1,13 @@
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});

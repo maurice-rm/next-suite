@@ -341,8 +341,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`bun run check\` and \`bun run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`bun run check\`, \`bun run test\` and \`bun run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -501,6 +502,7 @@ bun run dev
 | \`bun run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`bun run format\` | Format with Prettier (\`format:check\` to check) |
 | \`bun run knip\` | Report unused files, exports and dependencies |
+| \`bun run test\` | Run the tests (\`test:watch\` to watch) |
 | \`bun run db:generate\` | Generate the Prisma client |
 | \`bun run db:migrate\` | Create and apply a migration from the schema |
 | \`bun run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -862,7 +864,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -1224,6 +1226,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -1280,7 +1284,9 @@ http {
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   },
   "overrides": {
     "mysql2": "^3.24.5",
@@ -2140,6 +2146,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
+
 === src/features/health/server/router.ts ===
 import { publicProcedure } from "@/orpc";
 
@@ -2816,6 +2838,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -3001,8 +3052,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -3072,6 +3124,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`npm run db:generate\` | Generate a migration from the schema |
 | \`npm run db:migrate\` | Apply pending migrations |
 | \`npm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -3146,6 +3199,9 @@ export default defineConfig({
     database: env.MYSQL_DATABASE,
   },
 });
+
+=== drizzle/.gitkeep ===
+
 
 === eslint.config.mjs ===
 import { defineConfig } from "eslint/config";
@@ -3339,7 +3395,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -3477,6 +3533,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -3523,7 +3581,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -4467,6 +4527,36 @@ export const logger = pino({
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    passWithNoTests: true,
+  },
+});
 "
 `;
 
@@ -4695,8 +4785,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -4766,6 +4857,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`npm run db:generate\` | Generate a migration from the schema |
 | \`npm run db:migrate\` | Apply pending migrations |
 | \`npm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -4841,6 +4933,9 @@ export default defineConfig({
     database: env.MYSQL_DATABASE,
   },
 });
+
+=== drizzle/.gitkeep ===
+
 
 === eslint.config.mjs ===
 import { defineConfig } from "eslint/config";
@@ -5034,7 +5129,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -5178,6 +5273,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -5227,7 +5324,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -5724,6 +5823,22 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
+
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
 
 === src/features/health/server/router.ts ===
 import { publicProcedure } from "@/orpc";
@@ -6272,6 +6387,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -6470,8 +6614,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 
 ## Design direction
@@ -6602,6 +6747,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -6867,7 +7013,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -7127,6 +7273,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -7165,7 +7313,9 @@ http {
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -7714,6 +7864,36 @@ export const env = createEnv({
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    passWithNoTests: true,
+  },
+});
 "
 `;
 
@@ -7879,8 +8059,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -7948,6 +8129,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -8170,7 +8352,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -8323,6 +8505,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -8370,7 +8554,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -8877,6 +9063,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
+
 === src/features/health/server/router.ts ===
 import { z } from "zod";
 
@@ -9398,6 +9600,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -9563,8 +9794,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`npm run check\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`npm run check\`, \`npm run test\` and \`npm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -9632,6 +9864,7 @@ npm run dev
 | \`npm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`npm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`npm run knip\` | Report unused files, exports and dependencies |
+| \`npm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -9854,7 +10087,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -9990,6 +10223,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -10037,7 +10272,9 @@ export default nextConfig;
     "prettier": "^3.8.4",
     "prettier-plugin-packagejson": "^3.0.2",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -10543,6 +10780,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
+
 === src/features/health/server/router.ts ===
 import { z } from "zod";
 
@@ -11064,6 +11317,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -11333,8 +11615,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`pnpm run check\`, \`pnpm run test\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -11489,6 +11772,7 @@ pnpm run dev
 | \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`pnpm run db:generate\` | Generate the Prisma client |
 | \`pnpm run db:migrate\` | Create and apply a migration from the schema |
 | \`pnpm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -11842,7 +12126,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -12142,6 +12426,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -12187,7 +12473,9 @@ http {
     "prettier-plugin-packagejson": "^3.0.2",
     "prisma": "^7.8.0",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -13033,6 +13321,22 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.test.ts ===
+import { call } from "@orpc/server";
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const health = await call(healthRouter.status, undefined, {
+      context: { headers: new Headers() },
+    });
+    expect(health.status).toBe("ok");
+  });
+});
+
+
 === src/features/health/server/router.ts ===
 import { publicProcedure } from "@/orpc";
 
@@ -13709,6 +14013,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -14011,6 +14344,8 @@ jobs:
         run: pnpm run knip
       - name: Type-check
         run: pnpm run typecheck
+      - name: Test
+        run: pnpm run test
       - name: Format check
         run: pnpm run format:check
       - name: Require NEXT_PUBLIC_APP_URL
@@ -14137,8 +14472,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`pnpm run check\`, \`pnpm run test\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`). \`@/lib/database\` is an in-process PGlite database per test file, migrated from \`./drizzle\` — run \`pnpm run db:generate\` after a schema change. \`createSignedInUser()\` (\`src/test/\`) returns a session's headers; resolve them with \`auth.api.getSession({ headers })\` for a tRPC caller's \`session\`.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -14341,6 +14677,7 @@ pnpm run dev
 | \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run test\` | Run the tests (\`test:watch\` to watch) |
 | \`pnpm run db:generate\` | Generate a migration from the schema |
 | \`pnpm run db:migrate\` | Apply pending migrations |
 | \`pnpm run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -14728,7 +15065,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -14782,6 +15119,7 @@ export default eslintConfig;
   "githubActions": [
     "lint",
     "typecheck",
+    "test",
     "format",
     "build",
     "image",
@@ -15088,6 +15426,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -15116,6 +15456,7 @@ http {
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/node": "^24.13.3",
     "@types/pg": "^8.20.0",
@@ -15141,7 +15482,9 @@ http {
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -15987,6 +16330,23 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.test.ts ===
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+import { createCallerFactory } from "@/trpc";
+
+const createCaller = createCallerFactory(healthRouter);
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const caller = createCaller({ session: null });
+    const health = await caller.status();
+    expect(health.status).toBe("ok");
+  });
+});
+
+
 === src/features/health/server/router.ts ===
 import { publicProcedure, router } from "@/trpc";
 
@@ -16476,6 +16836,99 @@ export const logger = pino({
 });
 
 
+=== src/test/create-signed-in-user.test.ts ===
+import { describe, expect, it } from "vitest";
+
+import { auth } from "@/lib/auth";
+import { createSignedInUser } from "@/test/create-signed-in-user";
+
+describe("createSignedInUser", () => {
+  it("returns headers that carry the new user's session", async () => {
+    const { user, headers } = await createSignedInUser();
+    const session = await auth.api.getSession({ headers });
+    expect(session?.user.id).toBe(user.id);
+  });
+});
+
+
+=== src/test/create-signed-in-user.ts ===
+import { randomUUID } from "node:crypto";
+
+import { auth } from "@/lib/auth";
+
+const TEST_PASSWORD = "test-password";
+
+const toCookieHeader = (headers: Headers) =>
+  headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .join("; ");
+
+export const createSignedInUser = async () => {
+  const email = \`user-\${randomUUID()}@example.test\`;
+  const { headers, response } = await auth.api.signUpEmail({
+    body: { name: "Test user", email, password: TEST_PASSWORD },
+    returnHeaders: true,
+  });
+  return {
+    user: response.user,
+    headers: new Headers({ cookie: toCookieHeader(headers) }),
+  };
+};
+
+
+=== src/test/create-test-database.test.ts ===
+import { sql } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+
+import { database } from "@/lib/database";
+
+describe("test database", () => {
+  it("answers queries in-process", async () => {
+    const { rows } = await database.execute(sql\`select 1 as answer\`);
+    expect(rows).toEqual([{ answer: 1 }]);
+  });
+});
+
+
+=== src/test/create-test-database.ts ===
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+
+import * as schema from "@/lib/database/schema";
+
+const MIGRATIONS_FOLDER = resolve(import.meta.dirname, "../../drizzle");
+const MIGRATIONS_JOURNAL = resolve(MIGRATIONS_FOLDER, "meta/_journal.json");
+
+export const createTestDatabase = async () => {
+  const client = await PGlite.create();
+  const database = drizzle({ client, schema, casing: "snake_case" });
+  // A schema without tables has no migration yet, and migrate() needs a journal.
+  if (existsSync(MIGRATIONS_JOURNAL)) {
+    await migrate(database, { migrationsFolder: MIGRATIONS_FOLDER });
+  }
+  return { database, close: () => client.close() };
+};
+
+
+=== src/test/use-test-database.ts ===
+import { afterAll, vi } from "vitest";
+
+import { closeDatabase } from "@/lib/database";
+
+vi.mock("@/lib/database", async () => {
+  const { createTestDatabase } = await import("@/test/create-test-database");
+  const { database, close } = await createTestDatabase();
+  return { database, closeDatabase: close };
+});
+
+afterAll(closeDatabase);
+
+
 === src/trpc/client.ts ===
 "use client";
 
@@ -16550,6 +17003,7 @@ const mapDomainErrors = t.middleware(async ({ next }) => {
 });
 
 export const router = t.router;
+export const createCallerFactory = t.createCallerFactory;
 export const publicProcedure = t.procedure.use(mapDomainErrors);
 
 const requireSession = t.middleware(({ ctx, next }) => {
@@ -16711,6 +17165,36 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    setupFiles: ["./src/test/use-test-database.ts"],
+  },
+});
 "
 `;
 
@@ -16925,8 +17409,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`pnpm run check\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`pnpm run check\`, \`pnpm run test\` and \`pnpm run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server. Procedures are called in-process (see \`src/features/health/server/router.test.ts\`).
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -16994,6 +17479,7 @@ pnpm run dev
 | \`pnpm run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`pnpm run format\` | Format with Prettier (\`format:check\` to check) |
 | \`pnpm run knip\` | Report unused files, exports and dependencies |
+| \`pnpm run test\` | Run the tests (\`test:watch\` to watch) |
 
 ## 🗂️ Project structure
 
@@ -17216,7 +17702,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -17352,6 +17838,8 @@ export default nextConfig;
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -17397,7 +17885,9 @@ export default nextConfig;
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   }
 }
 
@@ -17957,6 +18447,23 @@ export const env = createEnv({
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
 
+=== src/features/health/server/router.test.ts ===
+import { describe, expect, it } from "vitest";
+
+import { healthRouter } from "@/features/health/server/router";
+import { createCallerFactory } from "@/trpc";
+
+const createCaller = createCallerFactory(healthRouter);
+
+describe("health router", () => {
+  it("reports the service as ok", async () => {
+    const caller = createCaller({});
+    const health = await caller.status();
+    expect(health.status).toBe("ok");
+  });
+});
+
+
 === src/features/health/server/router.ts ===
 import { publicProcedure, router } from "@/trpc";
 
@@ -18232,6 +18739,7 @@ const mapDomainErrors = t.middleware(async ({ next }) => {
 });
 
 export const router = t.router;
+export const createCallerFactory = t.createCallerFactory;
 export const publicProcedure = t.procedure.use(mapDomainErrors);
 
 
@@ -18384,6 +18892,35 @@ export const prefetchInfinite = <
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+  },
+});
 "
 `;
 
@@ -18670,8 +19207,9 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 # Project conventions
 
-- **Done means green:** \`yarn run check\` and \`yarn run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
+- **Done means green:** \`yarn run check\`, \`yarn run test\` and \`yarn run build\` pass. \`check\` runs the type-check, ESLint (strict type-checked rules, naming, complexity and module boundaries), Prettier and Knip.
 - **Structure:** routes in \`src/app/\` stay thin and delegate to \`src/features/<domain>/\`; a feature imports only itself, \`src/lib/\`, \`src/components/\` and the project infrastructure. \`src/lib/\` knows no feature.
+- **Tests:** Vitest, next to the file under test (\`*.test.ts\`); server modules import as on the server.
 - **Environment:** \`src/env.ts\` is the only module that reads \`process.env\`. A new variable goes into \`src/env.ts\` and \`.env.example\` together.
 - **Logging:** server code logs through \`@/lib/logger\` (pino), object first, message second, the error under \`err\`. Never \`console\`.
 - **Client IP:** Better-Auth's rate limits and the security logs read the client IP from \`x-real-ip\`, which only a proxy that overwrites it makes trustworthy — the generated nginx does. Behind another proxy, switch \`CLIENT_IP_HEADER\` in \`src/lib/client-ip.ts\` to the header that proxy sets.
@@ -18829,6 +19367,7 @@ yarn run dev
 | \`yarn run lint\` | Run ESLint (\`lint:fix\` to fix) |
 | \`yarn run format\` | Format with Prettier (\`format:check\` to check) |
 | \`yarn run knip\` | Report unused files, exports and dependencies |
+| \`yarn run test\` | Run the tests (\`test:watch\` to watch) |
 | \`yarn run db:generate\` | Generate the Prisma client |
 | \`yarn run db:migrate\` | Create and apply a migration from the schema |
 | \`yarn run db:push\` | Push the schema without a migration (local throwaway databases only) |
@@ -19183,7 +19722,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["*.config.{ts,mjs}"],
+    files: ["*.config.{ts,mjs}", "**/*.test.ts", "src/test/**"],
     rules: { "@typescript-eslint/no-magic-numbers": "off" },
   },
   {
@@ -19483,6 +20022,8 @@ http {
     "prepare": "husky",
     "setup": "bash scripts/setup.sh",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -19546,7 +20087,9 @@ http {
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "8.71.0"
+    "typescript-eslint": "8.71.0",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
   },
   "resolutions": {
     "mysql2": "^3.24.5"
@@ -20689,5 +21232,35 @@ export const logger = pino({
   ],
   "exclude": ["node_modules"]
 }
+
+
+=== vitest.config.ts ===
+import { readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
+
+import { defineConfig } from "vitest/config";
+
+// The example values are harmless placeholders that pass src/env.ts, so tests
+// never read the real .env.
+const EXAMPLE_ENV = parseEnv(
+  readFileSync(new URL(".env.example", import.meta.url), "utf8"),
+);
+
+export default defineConfig({
+  resolve: { tsconfigPaths: true },
+  ssr: {
+    resolve: {
+      // react-server lets tests import modules guarded by \`server-only\`. Vite's
+      // default "module" is left out: it picks ESM builds (e.g. @opentelemetry's)
+      // whose directory imports Node cannot load.
+      conditions: ["react-server", "node", "development|production"],
+    },
+  },
+  test: {
+    environment: "node",
+    env: EXAMPLE_ENV,
+    passWithNoTests: true,
+  },
+});
 "
 `;

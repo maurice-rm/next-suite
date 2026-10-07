@@ -83,7 +83,7 @@ const main = defineCommand({
     "github-actions": {
       type: "string",
       description:
-        "GitHub Actions steps, comma-separated: lint,typecheck,format,build,image,deploy",
+        "GitHub Actions steps, comma-separated: lint,typecheck,test,format,build,image,deploy",
     },
     git: {
       type: "boolean",

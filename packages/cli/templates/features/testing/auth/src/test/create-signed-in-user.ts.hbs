@@ -1,0 +1,23 @@
+import { randomUUID } from "node:crypto";
+
+import { auth } from "@/lib/auth";
+
+const TEST_PASSWORD = "test-password";
+
+const toCookieHeader = (headers: Headers) =>
+  headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .join("; ");
+
+export const createSignedInUser = async () => {
+  const email = `user-${randomUUID()}@example.test`;
+  const { headers, response } = await auth.api.signUpEmail({
+    body: { name: "Test user", email, password: TEST_PASSWORD },
+    returnHeaders: true,
+  });
+  return {
+    user: response.user,
+    headers: new Headers({ cookie: toCookieHeader(headers) }),
+  };
+};

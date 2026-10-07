@@ -25,7 +25,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 **Core** — in every project
 
 - ⚡ **Next 16 · React 19 · TypeScript (strict)** — App Router, React Compiler, `@/*` alias
-- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Husky · commitlint · typed env · pino logging with an API or deployment
+- 🧰 **DX toolchain** — ESLint (type-checked strict) · Prettier · Knip · Vitest · Husky · commitlint · typed env · pino logging with an API or deployment
 
 **Optional** — pick in the wizard
 
@@ -44,6 +44,7 @@ Answer the guided wizard — it has back-navigation, so there's nothing to memor
 - **Error boundaries** — root `error.tsx`, `global-error.tsx` and `not-found.tsx`.
 - **ESLint** (flat config) — Next core-web-vitals + typescript-eslint `strictTypeChecked` and `stylisticTypeChecked`, `simple-import-sort`, import-hygiene rules, kept Prettier-compatible. Enforces conventions: no `any` or non-null assertions, a naming convention with predicate prefixes for booleans, named constants instead of magic numbers, at most three parameters, two nesting levels and a complexity cap of 15, no warnings, arrow-function components, kebab-case file and folder names, no import cycles, a one-way import direction (`lib`/`components` ← `features` ← `app`), and no imports between two features.
 - **Prettier** — with `prettier-plugin-packagejson`.
+- **Vitest** — `test` script, `server-only` modules importable in tests; with PostgreSQL + Drizzle an in-process **PGlite** test database migrated from `./drizzle`.
 - **Git hooks** — Husky + `lint-staged` + commitlint (Conventional Commits).
 - **Typed environment variables** — `@/env` via `@t3-oss/env-nextjs` + `zod`, validated at startup; features add their vars automatically.
 - **EditorConfig, `.gitattributes`, `.nvmrc`**, and your choice of **npm / pnpm / yarn / bun**.
