@@ -63,8 +63,9 @@ jobs:
         env:
           HUSKY: "0"
         run: node "$GITHUB_WORKSPACE/packages/cli/dist/index.js" app --yes ${{ matrix.flags }}
-      - name: Build and typecheck the output
+      - name: Build, typecheck and lint the output
         working-directory: ${{ runner.temp }}/app
         run: |
           ${{ matrix.pm }} run build
           ${{ matrix.pm }} run typecheck
+          ${{ matrix.pm }} run lint
