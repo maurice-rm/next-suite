@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "biome",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Biome",
+  "description": "Lints and formats with Biome, with its Next.js and React rules.",
+  "category": "linter",
+  "devDependencies": { "@biomejs/biome": "catalog:biome" },
+  "contributes": {
+    "package": {
+      "scripts": {
+        "lint": "biome check",
+        "format": "biome format --write",
+        "format:check": "biome format"
+      }
+    },
+    "lintStaged": [
+      {
+        "glob": "*",
+        "command": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+      }
+    ],
+    "stack": ["Biome"]
+  },
+  "postSteps": [{ "script": "format", "running": "Formatting files", "done": "Formatted files" }],
+  "files": [{ "source": "files/biome.json", "target": "biome.json" }]
+}

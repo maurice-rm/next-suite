@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
+
+import { categoriesSchema } from '../contract/category.ts'
+import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
 import { TEST_QUESTIONS } from '../test-support/questions.ts'
+import { buildQuestions } from './questions.ts'
 import { resolveAnswers } from './resolve-answers.ts'
 
 const resolve = (input: Record<string, unknown>, useDefaults = true) =>
@@ -90,5 +94,52 @@ describe('resolveAnswers', () => {
     expect(() => resolve({ orm: 'drizzle', [key]: value })).toThrow(
       `the answer "${key}" is ${JSON.stringify(value)}; expected ${expected}`,
     )
+  })
+
+  it('leaves out a default plugin that does not fit, where the category allows none', () => {
+    const plugin = (name: string, category: string, extra: object = {}) =>
+      pluginManifestSchema.parse({
+        name,
+        version: '1.0.0',
+        contract: '^1.0.0',
+        title: name,
+        description: name,
+        category,
+        ...extra,
+      })
+    const questions = buildQuestions({
+      categories: categoriesSchema.parse([
+        {
+          section: 'Tooling',
+          categories: [
+            { id: 'linter', question: '?', cardinality: 'at-most-one', default: 'eslint' },
+            { id: 'formatter', question: '?', cardinality: 'at-most-one', default: 'prettier' },
+            { id: 'git-hooks', question: '?', cardinality: 'at-most-one', default: 'lint-staged' },
+          ],
+        },
+      ]),
+      plugins: [
+        plugin('eslint', 'linter'),
+        plugin('biome', 'linter'),
+        plugin('prettier', 'formatter', {
+          conflicts: [{ when: { plugin: 'biome' }, reason: 'Biome formats.' }],
+        }),
+        plugin('lint-staged', 'git-hooks', {
+          requires: [{ when: { category: 'linter' }, reason: 'Runs the linter.' }],
+        }),
+      ],
+      settings: [],
+      runSettings: [],
+    })
+
+    const withBiome = resolveAnswers({ questions, input: { linter: 'biome' }, useDefaults: true })
+    const withEslint = resolveAnswers({ questions, input: {}, useDefaults: true })
+    const withoutLinter = resolveAnswers({ questions, input: { linter: null }, useDefaults: true })
+    const namesOf = (resolution: typeof withBiome) =>
+      resolution.answers.plugins.map((answer) => answer.name)
+
+    expect(namesOf(withBiome)).toEqual(['biome', 'lint-staged'])
+    expect(namesOf(withEslint)).toEqual(['eslint', 'prettier', 'lint-staged'])
+    expect(namesOf(withoutLinter)).toEqual(['prettier'])
   })
 })

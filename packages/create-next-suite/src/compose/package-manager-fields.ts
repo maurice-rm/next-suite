@@ -7,22 +7,26 @@ import { resolveVersion } from './merge-contributions.ts'
 
 type PackageManager = NonNullable<ParsedPluginManifest['packageManager']>
 
-const allowedBuildsFields = (
-  place: string,
-  allowedBuilds: readonly string[],
-): Record<string, unknown> => {
+/** The dependencies whose install scripts may run, and those known to need none. */
+type Builds = { allowed: readonly string[]; denied: readonly string[] }
+
+const decisions = <Value>({ allowed, denied }: Builds, allow: Value, deny: Value) =>
+  Object.fromEntries([
+    ...allowed.map((name) => [name, allow] as const),
+    ...denied.map((name) => [name, deny] as const),
+  ])
+
+const allowedBuildsFields = (place: string, builds: Builds): Record<string, unknown> => {
   const field = place.startsWith(PACKAGE_JSON_FIELD_PREFIX)
     ? place.slice(PACKAGE_JSON_FIELD_PREFIX.length)
     : undefined
   switch (field) {
     case 'allowScripts':
-      return { allowScripts: Object.fromEntries(allowedBuilds.map((name) => [name, true])) }
+      return { allowScripts: decisions(builds, true, false) }
     case 'dependenciesMeta':
-      return {
-        dependenciesMeta: Object.fromEntries(allowedBuilds.map((name) => [name, { built: true }])),
-      }
+      return { dependenciesMeta: decisions(builds, { built: true }, { built: false }) }
     case 'trustedDependencies':
-      return { trustedDependencies: [...allowedBuilds] }
+      return { trustedDependencies: [...builds.allowed] }
     default:
       return {}
   }
@@ -31,7 +35,7 @@ const allowedBuildsFields = (
 type PackageManagerFieldsInput = {
   name: string
   packageManager: PackageManager
-  allowedBuilds: readonly string[]
+  builds: Builds
   catalog: VersionCatalog
 }
 
@@ -44,7 +48,7 @@ type PackageManagerFieldsInput = {
 export const packageManagerFields = ({
   name,
   packageManager,
-  allowedBuilds,
+  builds,
   catalog,
 }: PackageManagerFieldsInput): { packageManager: string; fields: Record<string, unknown> } => {
   const version = resolveVersion(packageManager.version, catalog, name)
@@ -58,7 +62,7 @@ export const packageManagerFields = ({
           onFail: packageManager.whenVersionDiffers,
         },
       },
-      ...allowedBuildsFields(packageManager.allowedBuildsIn, allowedBuilds),
+      ...allowedBuildsFields(packageManager.allowedBuildsIn, builds),
     },
   }
 }

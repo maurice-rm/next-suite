@@ -13,7 +13,7 @@ const fieldsFor = (allowedBuildsIn: string) =>
       whenVersionDiffers: 'download',
       allowedBuildsIn,
     },
-    allowedBuilds: ['esbuild', 'sharp'],
+    builds: { allowed: ['esbuild', 'sharp'], denied: ['unrs-resolver'] },
     catalog: CATALOG,
   })
 
@@ -31,10 +31,14 @@ describe('packageManagerFields', () => {
 
   it('writes the allowed builds into the package.json field the manager reads', () => {
     expect(fieldsFor('package.json#allowScripts').fields).toMatchObject({
-      allowScripts: { esbuild: true, sharp: true },
+      allowScripts: { esbuild: true, sharp: true, 'unrs-resolver': false },
     })
     expect(fieldsFor('package.json#dependenciesMeta').fields).toMatchObject({
-      dependenciesMeta: { esbuild: { built: true }, sharp: { built: true } },
+      dependenciesMeta: {
+        esbuild: { built: true },
+        sharp: { built: true },
+        'unrs-resolver': { built: false },
+      },
     })
   })
 
@@ -47,7 +51,7 @@ describe('packageManagerFields', () => {
         whenVersionDiffers: 'warn',
         allowedBuildsIn: 'package.json#allowScripts',
       },
-      allowedBuilds: [],
+      builds: { allowed: [], denied: [] },
       catalog: {},
     })
 

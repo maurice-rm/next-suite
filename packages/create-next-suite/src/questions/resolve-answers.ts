@@ -157,6 +157,35 @@ const isAsked = (question: Question, answers: WorkingAnswers): boolean => {
   )
 }
 
+/** Whether a plugin cannot join the answers so far: one of its conflicts holds or a requirement does not. */
+const doesNotFit = (question: CategoryQuestion, name: string, answers: WorkingAnswers): boolean => {
+  const plugin = question.choices.find((choice) => choice.name === name)
+  const withPlugin = {
+    ...answers,
+    plugins: [...answers.plugins, { name, category: question.category.id }],
+  }
+  return (
+    (plugin?.conflicts ?? []).some((rule) => evaluateCondition(rule.when, withPlugin)) ||
+    (plugin?.requires ?? []).some((rule) => !evaluateCondition(rule.when, withPlugin))
+  )
+}
+
+/**
+ * The default of a question for the answers so far. A default plugin that does not fit, because
+ * one of its conflicts holds or a requirement does not, is left out where the category allows
+ * none: Prettier once Biome is the linter, lint-staged without linter and formatter.
+ */
+const defaultFor = (question: Question, answers: WorkingAnswers): QuestionValue => {
+  const fallback = defaultAnswer(question)
+  if (question.kind !== 'category' || question.category.cardinality === 'one') {
+    return fallback
+  }
+  if (Array.isArray(fallback)) {
+    return fallback.filter((name) => !doesNotFit(question, name, answers))
+  }
+  return typeof fallback === 'string' && doesNotFit(question, fallback, answers) ? null : fallback
+}
+
 /**
  * Resolves answers question by question: input wins, then the default when `useDefaults` is set;
  * otherwise the question stays open. Options of plugins that are not selected, or whose condition
@@ -180,7 +209,7 @@ export const resolveAnswers = ({ questions, input, useDefaults }: ResolveInput):
     }
     apply(
       question,
-      given === undefined ? defaultAnswer(question) : validate(question, given),
+      given === undefined ? defaultFor(question, answers) : validate(question, given),
       answers,
     )
   }

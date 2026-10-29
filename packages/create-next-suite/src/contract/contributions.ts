@@ -54,6 +54,17 @@ export const contributionsSchema = z.strictObject({
     })
     .optional()
     .meta({ description: 'Imports, configuration options and wrappers of next.config.ts.' }),
+  deniedBuilds: z.array(nonEmpty).optional().meta({
+    description:
+      'Dependencies whose install scripts are known to be unneeded, such as a fallback for prebuilt binaries; the package manager records them as denied, so a strict install does not stop on them.',
+  }),
+  lintStaged: z
+    .array(z.strictObject({ glob: nonEmpty, command: nonEmpty }))
+    .optional()
+    .meta({
+      description:
+        'Commands lint-staged runs on staged files that match a glob, such as `eslint --fix` for `*.ts`.',
+    }),
   stack: z.array(nonEmpty).optional().meta({
     description: 'Names for the stack line at the end of a run, such as "Tailwind".',
   }),

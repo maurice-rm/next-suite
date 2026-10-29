@@ -202,7 +202,11 @@ const createPackageJson = ({
   const managerFields =
     packageManager === undefined
       ? undefined
-      : packageManagerFields({ ...packageManager, allowedBuilds: values.allowedBuilds, catalog })
+      : packageManagerFields({
+          ...packageManager,
+          builds: { allowed: values.allowedBuilds, denied: values.deniedBuilds },
+          catalog,
+        })
   const packageJson = {
     name: projectName,
     ...values.fields,

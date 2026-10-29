@@ -10,5 +10,35 @@
         "order": ["npm", "pnpm", "bun", "yarn"]
       }
     ]
+  },
+  {
+    "section": "Tooling",
+    "categories": [
+      {
+        "id": "linter",
+        "question": "Which linter would you like to use?",
+        "cardinality": "at-most-one",
+        "default": "eslint",
+        "order": ["eslint", "biome"]
+      },
+      {
+        "id": "formatter",
+        "question": "Which formatter would you like to use?",
+        "cardinality": "at-most-one",
+        "default": "prettier"
+      },
+      {
+        "id": "unused-code",
+        "question": "Find unused code with Knip?",
+        "cardinality": "at-most-one",
+        "default": "knip"
+      },
+      {
+        "id": "git-hooks",
+        "question": "Lint and format staged files before each commit?",
+        "cardinality": "at-most-one",
+        "default": "lint-staged"
+      }
+    ]
   }
 ]

@@ -1,13 +1,13 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { binPathOf } from '../src/run-cli.ts'
 import { listScenarios } from '../src/scenarios.ts'
 
-/** The checks every generated project passes, as package.json scripts. */
-const PROJECT_CHECKS = ['typecheck', 'build']
+/** The checks a generated project passes, as package.json scripts; each runs when it exists. */
+const PROJECT_CHECKS = ['typecheck', 'lint', 'format:check', 'knip', 'test', 'build']
 const PROJECT_NAME = 'my-app'
 const REQUIRED_STEPS = [
   'Installed dependencies',
@@ -45,7 +45,10 @@ if (missing.length > 0) {
 }
 
 const project = join(workspace, PROJECT_NAME)
-for (const check of PROJECT_CHECKS) {
+const { scripts } = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8')) as {
+  scripts: Record<string, string>
+}
+for (const check of PROJECT_CHECKS.filter((name) => Object.hasOwn(scripts, name))) {
   process.stdout.write(`\n$ ${packageManager} run ${check}\n`)
   execFileSync(packageManager, ['run', check], { cwd: project, stdio: 'inherit' })
 }

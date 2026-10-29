@@ -93,12 +93,12 @@ describe('the built-in package managers', () => {
     expect(categories).toContainEqual(
       expect.objectContaining({ id: 'package-manager', cardinality: 'one', default: 'pnpm' }),
     )
-    expect(builtIn.map((plugin) => plugin.manifest.name).sort()).toEqual([
-      'bun',
-      'npm',
-      'pnpm',
-      'yarn',
-    ])
+    expect(
+      builtIn
+        .filter((plugin) => plugin.manifest.category === 'package-manager')
+        .map((plugin) => plugin.manifest.name)
+        .sort(),
+    ).toEqual(['bun', 'npm', 'pnpm', 'yarn'])
   })
 
   it('pin their version in packageManager and devEngines', async () => {

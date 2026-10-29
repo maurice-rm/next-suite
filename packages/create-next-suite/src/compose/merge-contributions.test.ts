@@ -159,6 +159,30 @@ describe('mergeContributions', () => {
     expect(values.allowedBuilds).toEqual(['@prisma/engines', 'esbuild', 'sharp'])
   })
 
+  it('groups the lint-staged commands by glob, in plugin order and without duplicates', () => {
+    const values = mergeContributions(
+      [
+        manifest('eslint', {
+          contributes: { lintStaged: [{ glob: '*.ts', command: 'eslint --fix' }] },
+        }),
+        manifest('prettier', {
+          contributes: {
+            lintStaged: [
+              { glob: '*', command: 'prettier --write' },
+              { glob: '*.ts', command: 'eslint --fix' },
+            ],
+          },
+        }),
+      ],
+      CATALOG,
+    )
+
+    expect(values.lintStaged).toEqual([
+      { glob: '*.ts', commands: ['eslint --fix'] },
+      { glob: '*', commands: ['prettier --write'] },
+    ])
+  })
+
   it('wraps the next.config export in plugin order and imports every wrapper', () => {
     const values = mergeContributions(
       [
