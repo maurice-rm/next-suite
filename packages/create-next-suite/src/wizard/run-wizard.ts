@@ -5,11 +5,23 @@ import type { Question } from '../input/questions.ts'
 import { type AnswerInput, type Resolution, resolveAnswers } from '../input/resolve-answers.ts'
 import { GO_BACK } from './prompts.ts'
 
+/** The question for the project directory, whose name is the package name. */
+type ProjectNameStep = { kind: 'project-name'; key: string; section: string }
+
 /** The question whether every remaining question takes its default. */
 type QuickStartStep = { kind: 'quick-start'; key: string; section: string }
 
-/** Something the wizard asks: a question of the run, or whether to take the quick start. */
-export type WizardStep = Question | QuickStartStep
+/**
+ * Something the wizard asks: the project name, a question of the run, or whether to take the
+ * quick start.
+ */
+export type WizardStep = ProjectNameStep | Question | QuickStartStep
+
+const PROJECT_NAME_STEP: ProjectNameStep = {
+  kind: 'project-name',
+  key: 'project-name',
+  section: BASE_SETTINGS_SECTION,
+}
 
 const QUICK_START_STEP: QuickStartStep = {
   kind: 'quick-start',
@@ -29,20 +41,21 @@ export type Ask = (
 type WizardInput = {
   questions: readonly Question[]
   input: AnswerInput
+  /** The project directory from the command line; the wizard asks for it when it is missing. */
+  directory: string | undefined
   ask: Ask
   findProblems: (answers: Answers) => string[]
   showProblems: (problems: string[]) => void
-  /** The section shown before the first step, such as the section of the project name. */
-  initialSection: string | undefined
 }
 
 type WizardState = {
   answers: Record<string, unknown>
   asked: WizardStep[]
+  directory: string | undefined
   quickStart: boolean | undefined
 }
 
-type Outcome = Pick<Resolution, 'answers' | 'unused'>
+type Outcome = Pick<Resolution, 'answers' | 'unused'> & { directory: string }
 
 const resolveCurrent = (questions: readonly Question[], state: WizardState): Resolution =>
   resolveAnswers({ questions, input: state.answers, useDefaults: state.quickStart === true })
@@ -52,7 +65,8 @@ const dropStaleAnswers = (questions: readonly Question[], state: WizardState): v
   for (;;) {
     const { unused } = resolveCurrent(questions, state)
     const stale = state.asked.filter(
-      (step) => step.kind !== 'quick-start' && unused.includes(step.key),
+      (step) =>
+        step.kind !== 'quick-start' && step.kind !== 'project-name' && unused.includes(step.key),
     )
     if (stale.length === 0) {
       return
@@ -66,7 +80,9 @@ const dropStaleAnswers = (questions: readonly Question[], state: WizardState): v
 
 const stepBack = (state: WizardState): void => {
   const step = state.asked.pop()
-  if (step?.kind === 'quick-start') {
+  if (step?.kind === 'project-name') {
+    state.directory = undefined
+  } else if (step?.kind === 'quick-start') {
     state.quickStart = undefined
   } else if (step !== undefined) {
     delete state.answers[step.key]
@@ -91,7 +107,9 @@ const applyReply = (state: WizardState, step: WizardStep, reply: unknown): void 
     stepBack(state)
     return
   }
-  if (step.kind === 'quick-start') {
+  if (step.kind === 'project-name') {
+    state.directory = String(reply)
+  } else if (step.kind === 'quick-start') {
     state.quickStart = reply === true
   } else {
     state.answers[step.key] = reply
@@ -99,39 +117,51 @@ const applyReply = (state: WizardState, step: WizardStep, reply: unknown): void 
   state.asked.push(step)
 }
 
+/** Every step is answered; the wizard only checks the answers before it ends. */
+type Done = { kind: 'done'; directory: string }
+
+const nextStep = (state: WizardState, next: Question | undefined): WizardStep | Done => {
+  if (state.directory === undefined) {
+    return PROJECT_NAME_STEP
+  }
+  if (next === undefined) {
+    return { kind: 'done', directory: state.directory }
+  }
+  return state.quickStart === undefined && !next.isEssential ? QUICK_START_STEP : next
+}
+
 /**
- * Asks every question the input leaves open, one at a time. Once the questions that need exactly
- * one plugin are answered, it offers the quick start, which takes the default for every question
- * left. Going back drops the previous answer; an answer that no longer applies after a change is
- * dropped too. When the answers are incompatible, the wizard shows why and goes back one step.
+ * Asks every question the input leaves open, one at a time, starting with the project name when
+ * the command line gave none. Once the questions that need exactly one plugin are answered, it
+ * offers the quick start, which takes the default for every question left. Going back drops the
+ * previous answer; an answer that no longer applies after a change is dropped too. When the
+ * answers are incompatible, the wizard shows why and goes back one step.
  */
 export const runWizard = async ({
   questions,
   input,
+  directory,
   ask,
-  initialSection,
   findProblems,
   showProblems,
 }: WizardInput): Promise<Outcome> => {
-  const state: WizardState = { answers: { ...input }, asked: [], quickStart: undefined }
+  const state: WizardState = { answers: { ...input }, asked: [], directory, quickStart: undefined }
   for (;;) {
     dropStaleAnswers(questions, state)
     const resolution = resolveCurrent(questions, state)
-    const [next] = resolution.missing
-    if (next === undefined) {
+    const step = nextStep(state, resolution.missing[0])
+    if (step.kind === 'done') {
       const problems = findProblems(resolution.answers)
       if (problems.length === 0) {
-        return { answers: resolution.answers, unused: resolution.unused }
+        return { answers: resolution.answers, unused: resolution.unused, directory: step.directory }
       }
       stepBackFromProblems(state, problems, showProblems)
       continue
     }
-    const step: WizardStep =
-      state.quickStart === undefined && !next.isEssential ? QUICK_START_STEP : next
     const reply = await ask(step, {
       canGoBack: state.asked.length > 0,
       answers: resolution.answers,
-      previousSection: state.asked.at(-1)?.section ?? initialSection,
+      previousSection: state.asked.at(-1)?.section,
     })
     applyReply(state, step, reply)
   }

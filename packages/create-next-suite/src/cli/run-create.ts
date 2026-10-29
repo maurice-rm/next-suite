@@ -23,7 +23,6 @@ import type { Streams } from '../wizard/streams.ts'
 import { WizardCancelled } from '../wizard/wizard-cancelled.ts'
 import { describePlan, diffPlan } from '../write/describe-plan.ts'
 import { writeProject } from '../write/write-project.ts'
-import { askProjectDirectory } from './ask-project-directory.ts'
 import { collectAnswers } from './collect-answers.ts'
 import type { Assets } from './load-assets.ts'
 import {
@@ -124,19 +123,13 @@ const create = async ({
   if (presenter.isFramed) {
     openFrame(presenter.output, { version: environment.cliVersion, columns: environment.columns })
   }
-  const { directory, shownSection } =
-    invocation.directory === undefined
-      ? await askProjectDirectory({
-          streams: environment.streams,
-          isInteractive: environment.isInteractive,
-          useDefaults,
-        })
-      : { directory: invocation.directory, shownSection: undefined }
-  const projectName = projectNameOf(directory)
-  assertValidName(projectName)
+  if (invocation.directory !== undefined) {
+    assertValidName(projectNameOf(invocation.directory))
+  }
   const questions = questionFlags.map((flag) => flag.question)
   const { assets } = environment
-  const answers = await collectAnswers({
+  const { answers, directory } = await collectAnswers({
+    directory: invocation.directory,
     questions,
     plugins: assets.plugins.map((plugin) => plugin.manifest),
     input,
@@ -145,7 +138,6 @@ const create = async ({
       ? {
           kind: 'wizard',
           streams: environment.streams,
-          initialSection: shownSection,
           detectedPackageManager,
         }
       : { kind: 'input', useDefaults },
@@ -155,7 +147,7 @@ const create = async ({
     return
   }
   const plan = await composeProject({
-    projectName,
+    projectName: projectNameOf(directory),
     base: assets.base,
     available: assets.plugins,
     selected: answers.plugins.flatMap((answer) =>

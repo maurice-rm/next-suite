@@ -32,7 +32,7 @@ const wizard = (ask: Ask, input: Record<string, unknown> = {}, shown: string[][]
     ask,
     findProblems: (answers) => findIncompatibilities(TEST_PLUGINS, answers),
     showProblems: (problems) => shown.push(problems),
-    initialSection: undefined,
+    directory: 'my-app',
   })
 
 const pluginNames = (result: Awaited<ReturnType<typeof wizard>>): string[] =>
@@ -53,6 +53,28 @@ describe('runWizard', () => {
       'better-auth',
     ])
     expect(pluginNames(result)).toEqual(['npm', 'tailwind'])
+  })
+
+  it('asks the project name first when the command line gave none, and goes back to it', async () => {
+    const { ask, asked } = scripted(['first', GO_BACK, 'second', 'pnpm', true])
+
+    const result = await runWizard({
+      questions: TEST_QUESTIONS,
+      input: SETTINGS,
+      ask,
+      findProblems: () => [],
+      showProblems: () => undefined,
+      directory: undefined,
+    })
+
+    expect(asked).toEqual([
+      'project-name',
+      'package-manager',
+      'project-name',
+      'package-manager',
+      'quick-start',
+    ])
+    expect(result.directory).toBe('second')
   })
 
   it('takes the default for every remaining question with the quick start', async () => {
@@ -101,7 +123,7 @@ describe('runWizard', () => {
 
   it('tells each step the section of the step shown before it, also after going back', async () => {
     const sections: (string | undefined)[] = []
-    const replies: unknown[] = ['pnpm', false, GO_BACK, false, null, [], false, false]
+    const replies: unknown[] = ['my-app', 'pnpm', false, GO_BACK, false, null, [], false, false]
     const ask: Ask = async (_step, { previousSection }) => {
       sections.push(previousSection)
       return replies.shift()
@@ -113,10 +135,11 @@ describe('runWizard', () => {
       ask,
       findProblems: () => [],
       showProblems: () => undefined,
-      initialSection: 'Project',
+      directory: undefined,
     })
 
     expect(sections).toEqual([
+      undefined,
       'Project',
       'Project',
       'Project',
