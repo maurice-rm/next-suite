@@ -50,11 +50,26 @@ const defaultNames = (category: Category): string[] => {
   return category.default === null ? [] : [category.default]
 }
 
+/** The plugins of a category in the order it lists them, the others after them as loaded. */
+const inCategoryOrder = (
+  category: Category,
+  plugins: readonly ParsedPluginManifest[],
+): ParsedPluginManifest[] => {
+  const order = category.order ?? []
+  const rank = (plugin: ParsedPluginManifest): number => {
+    const index = order.indexOf(plugin.name)
+    return index === -1 ? order.length : index
+  }
+  return plugins
+    .filter((plugin) => plugin.category === category.id)
+    .sort((first, second) => rank(first) - rank(second))
+}
+
 const categoryQuestion = (
   category: Category,
   plugins: readonly ParsedPluginManifest[],
 ): CategoryQuestion => {
-  const choices = plugins.filter((plugin) => plugin.category === category.id)
+  const choices = inCategoryOrder(category, plugins)
   if (choices.length === 0 && category.cardinality === 'one') {
     throw new InputError(
       `the category ${category.id} needs exactly one plugin, but no plugin belongs to it`,

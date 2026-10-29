@@ -52,8 +52,8 @@ describe('buildQuestions', () => {
     expect(
       questions.slice(-2).map((question) => [question.key, question.section, question.kind]),
     ).toEqual([
-      ['install', 'Setup', 'setting'],
       ['git', 'Setup', 'setting'],
+      ['install', 'Setup', 'setting'],
     ])
     expect(questions.at(-1)).toMatchObject({ scope: 'run' })
   })
@@ -64,6 +64,45 @@ describe('buildQuestions', () => {
     )
 
     expect(essential).toEqual(['package-manager'])
+  })
+
+  it('lists the plugins of a category in its order, the others after them as loaded', () => {
+    const plugin = (name: string) =>
+      pluginManifestSchema.parse({
+        name,
+        version: '1.0.0',
+        contract: '^1.0.0',
+        title: name,
+        description: name,
+        category: 'orm',
+      })
+    const categories = categoriesSchema.parse([
+      {
+        section: 'Data',
+        categories: [
+          {
+            id: 'orm',
+            question: '?',
+            cardinality: 'at-most-one',
+            default: null,
+            order: ['prisma'],
+          },
+        ],
+      },
+    ])
+
+    const [question] = buildQuestions({
+      categories,
+      plugins: ['zeta', 'drizzle', 'prisma'].map(plugin),
+      settings: [],
+      runSettings: [],
+    })
+
+    expect(question?.kind === 'category' && question.choices.map((choice) => choice.name)).toEqual([
+      'prisma',
+      'zeta',
+      'drizzle',
+    ])
   })
 
   it('rejects a plugin of an unknown category', () => {

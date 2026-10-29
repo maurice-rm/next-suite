@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 
 import { renderBanner } from './banner.ts'
 
-const plain = (columns: number): string[] =>
+const plain = (columns: number, latest?: string): string[] =>
   ansis
-    .strip(renderBanner({ version: '2.0.0', link: 'github.com/maurice-rm/next-suite', columns }))
+    .strip(
+      renderBanner({ version: '2.0.0', latest, link: 'github.com/maurice-rm/next-suite', columns }),
+    )
     .split('\n')
 
 describe('renderBanner', () => {
@@ -26,5 +28,12 @@ describe('renderBanner', () => {
 
     expect(lines[1]).toBe(`${' '.repeat(15)}next-suite`)
     expect(lines.every((line) => line.length <= 40)).toBe(true)
+  })
+
+  it('marks the version as latest or names the newer one', () => {
+    expect(plain(120, '2.0.0')).toContainEqual(expect.stringContaining('v2.0.0 (latest)  ·'))
+    expect(plain(120, '2.1.0')).toContainEqual(
+      expect.stringContaining('v2.0.0 (update available → v2.1.0)  ·'),
+    )
   })
 })

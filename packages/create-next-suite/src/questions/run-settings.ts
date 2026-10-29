@@ -10,16 +10,16 @@ export const INSTALL_SETTING = 'install'
 export const GIT_SETTING = 'git'
 
 /**
- * The settings of a run rather than of the project: asked like base settings, but never recorded
- * in next-suite.json, and without the wizard they take their default.
+ * The settings of a run rather than of the project: asked last in the wizard, never recorded in
+ * next-suite.json, and without the wizard they take their default.
  */
 export const RUN_SETTINGS: readonly BaseSetting[] = [
   {
-    key: INSTALL_SETTING,
-    option: { type: 'boolean', question: 'Install dependencies?', default: true },
-  },
-  {
     key: GIT_SETTING,
     option: { type: 'boolean', question: 'Initialize a git repository?', default: true },
+  },
+  {
+    key: INSTALL_SETTING,
+    option: { type: 'boolean', question: 'Install dependencies?', default: true },
   },
 ]

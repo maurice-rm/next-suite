@@ -1,7 +1,8 @@
-import { lstat, mkdir, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import type { ProjectPlan } from '../compose/compose-project.ts'
+import { inspectTarget } from './inspect-target.ts'
 import { WriteError } from './write-error.ts'
 
 /** What this run created: every file it opened and the first folder of every new folder chain. */
@@ -11,23 +12,17 @@ const hasCode = (error: unknown, code: string): boolean =>
   error instanceof Error && 'code' in error && error.code === code
 
 /** Answers whether the directory has to be created; an existing one must be an empty directory. */
-const needsCreation = async (directory: string): Promise<boolean> => {
-  const stats = await lstat(directory).catch((error: unknown) => {
-    if (hasCode(error, 'ENOENT')) {
-      return undefined
-    }
-    throw error
-  })
-  if (stats === undefined) {
-    return true
+const needsCreation = (directory: string): boolean => {
+  switch (inspectTarget(directory)) {
+    case 'missing':
+      return true
+    case 'empty':
+      return false
+    case 'not-a-folder':
+      throw new WriteError(`${directory} exists and is not a directory`)
+    case 'not-empty':
+      throw new WriteError(`${directory} is not empty`)
   }
-  if (!stats.isDirectory()) {
-    throw new WriteError(`${directory} exists and is not a directory`)
-  }
-  if ((await readdir(directory)).length > 0) {
-    throw new WriteError(`${directory} is not empty`)
-  }
-  return false
 }
 
 const createFolder = async (path: string, created: Created): Promise<void> => {
@@ -67,7 +62,7 @@ const removeCreated = async (created: Created): Promise<void> => {
  * created is removed again, including the directory when this run created it.
  */
 export const writeProject = async (plan: ProjectPlan, directory: string): Promise<void> => {
-  const isNew = await needsCreation(directory)
+  const isNew = needsCreation(directory)
   const created: Created = { files: [], folders: [] }
   try {
     if (isNew) {

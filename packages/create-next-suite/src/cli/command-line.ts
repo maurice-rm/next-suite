@@ -57,7 +57,10 @@ export const parseCommandLine = async (
     .name('create-next-suite')
     .description('Create a Next.js app from plugins.')
     .version(version)
-    .argument('[directory]', 'the directory to create; its name is the package name')
+    .argument(
+      '[directory]',
+      'project name or path, "." for the current directory; the folder name is the package name',
+    )
     .exitOverride()
     .configureOutput({
       writeOut: (text) => output.write(text),

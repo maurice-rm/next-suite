@@ -11,13 +11,14 @@ import { BASE_SETTINGS } from '../questions/base-settings.ts'
 import { collectAnswers } from '../questions/collect-answers.ts'
 import { createFlags } from '../questions/flags.ts'
 import { InputError } from '../questions/input-error.ts'
-import { findProjectNameProblem, projectNameOf } from '../questions/project-name.ts'
+import { findProjectDirectoryProblem, projectNameOf } from '../questions/project-name.ts'
 import { buildQuestions, type Question } from '../questions/questions.ts'
 import { recordAnswers } from '../questions/record-answers.ts'
 import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
 import type { Streams } from '../questions/wizard/streams.ts'
 import { WizardCancelled } from '../questions/wizard/wizard-cancelled.ts'
 import { describePlan, diffPlan } from '../write/describe-plan.ts'
+import { findTargetProblem } from '../write/inspect-target.ts'
 import { writeProject } from '../write/write-project.ts'
 import {
   type GivenAnswers,
@@ -58,6 +59,8 @@ export type CreateEnvironment = {
   now: () => Date
   userAgent: string | undefined
   runCommand: CommandRunner
+  /** The latest published version for the banner; answers nothing when unknown. */
+  fetchLatestVersion: () => Promise<string | undefined>
 }
 
 const EXIT_SUCCESS = 0
@@ -91,10 +94,15 @@ const prepareQuestions = ({ assets, userAgent }: CreateEnvironment) => {
   return { questions, detectedPackageManager }
 }
 
-const assertValidName = (projectName: string): void => {
-  const problem = findProjectNameProblem(projectName)
+/** What is wrong with a project directory: as typed, or what is already on disk at its path. */
+const findDirectoryProblem = (directory: string, cwd: string): string | undefined =>
+  findProjectDirectoryProblem(directory, cwd) ??
+  findTargetProblem(directory, resolve(cwd, directory))
+
+const assertUsableDirectory = (directory: string, cwd: string): void => {
+  const problem = findDirectoryProblem(directory, cwd)
   if (problem !== undefined) {
-    throw new InputError(`"${projectName}" is no valid package name: ${problem}`)
+    throw new InputError(problem)
   }
 }
 
@@ -108,7 +116,7 @@ const askQuestions = ({
   presenter,
 }: Run) => {
   if (invocation.directory !== undefined) {
-    assertValidName(projectNameOf(invocation.directory))
+    assertUsableDirectory(invocation.directory, environment.cwd)
   }
   return collectAnswers({
     directory: invocation.directory,
@@ -116,7 +124,13 @@ const askQuestions = ({
     plugins: environment.assets.plugins.map((plugin) => plugin.manifest),
     ...given,
     mode: presenter.isFramed
-      ? { kind: 'wizard', streams: environment.streams, detectedPackageManager }
+      ? {
+          kind: 'wizard',
+          streams: environment.streams,
+          findDirectoryProblem: (directory: string) =>
+            findDirectoryProblem(directory, environment.cwd),
+          detectedPackageManager,
+        }
       : { kind: 'input', useDefaults: invocation.flags.yes === true },
   })
 }
@@ -129,15 +143,20 @@ const create = async (run: Run): Promise<void> => {
   const { environment, invocation, questions, presenter } = run
   const { assets } = environment
   if (presenter.isFramed) {
-    openFrame(presenter.output, { version: environment.cliVersion, columns: environment.columns })
+    openFrame(presenter.output, {
+      version: environment.cliVersion,
+      latest: await environment.fetchLatestVersion(),
+      columns: environment.columns,
+    })
   }
   const { answers, directory } = await askQuestions(run)
+  assertUsableDirectory(directory, environment.cwd)
   if (assets.base === undefined) {
     presentNothingGenerated(presenter)
     return
   }
   const plan = await composeProject({
-    projectName: projectNameOf(directory),
+    projectName: projectNameOf(directory, environment.cwd),
     base: assets.base,
     available: assets.plugins,
     selected: answers.plugins.flatMap((answer) =>

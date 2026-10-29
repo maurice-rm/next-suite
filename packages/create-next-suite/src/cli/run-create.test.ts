@@ -125,6 +125,7 @@ const run = async (
       commands.push(line)
       return { isSuccess: line !== OUTSIDE_REPOSITORY, output: '' }
     },
+    fetchLatestVersion: async () => undefined,
   })
   await pressing
   return {
@@ -328,6 +329,24 @@ describe('runCreate', () => {
     expect(result.error).toContain('better-auth: Stores sessions in the database.')
   })
 
+  it('creates the project in a path, named after its last folder', async () => {
+    expect((await run(['apps/web-shop', '--yes', '--no-git', '--no-install'])).exitCode).toBe(0)
+
+    expect(JSON.parse(await readFile(join(root, 'apps/web-shop/package.json'), 'utf8')).name).toBe(
+      'web-shop',
+    )
+  })
+
+  it('rejects a directory that is not empty before asking anything', async () => {
+    await write({ 'shop/notes.txt': '' })
+
+    const result = await run(['shop', '--yes'])
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain('"shop" is not empty')
+    expect(result.commands).toEqual([])
+  })
+
   it('rejects an invalid project name', async () => {
     const result = await run(['My App', '--yes', '--dry-run'])
 
@@ -335,10 +354,13 @@ describe('runCreate', () => {
     expect(result.error).toContain('"My App" is no valid package name')
   })
 
-  it('needs a project directory without a terminal and without --yes', async () => {
-    const result = await run(['--dry-run'])
-
-    expect(result.error).toContain('name the project directory')
+  it('needs a project name without a terminal, also with --yes', async () => {
+    expect((await run(['--dry-run'])).error).toContain(
+      'A project name is required without a terminal',
+    )
+    expect((await run(['--yes', '--dry-run'])).error).toContain(
+      'A project name is required in --yes mode — pass it as the argument.',
+    )
   })
 
   it('rejects an answer that no question asks', async () => {
@@ -396,6 +418,20 @@ describe('runCreate', () => {
     expect(result.output).not.toContain('The npm plugin.')
   })
 
+  it('asks no base settings in the wizard, only git and install after the plugins', async () => {
+    const enter = '\r'
+    const result = await run(['my-app', '--dry-run', '--no-better-auth', '--no-orm'], {
+      isInteractive: true,
+      keys: [enter, 'n', 'y', 'y'],
+    })
+
+    expect(result.exitCode).toBe(0)
+    expect(result.output).not.toContain('src/ directory')
+    expect(result.output.indexOf('Initialize a git repository?')).toBeLessThan(
+      result.output.indexOf('Install dependencies?'),
+    )
+  })
+
   it('takes the quick start and frames the dry run in the wizard', async () => {
     const enter = '\r'
     const result = await run(['my-app', '--dry-run'], {
@@ -404,7 +440,7 @@ describe('runCreate', () => {
     })
 
     expect(result.exitCode).toBe(0)
-    expect(result.output).toContain('Use the quick start?')
+    expect(result.output).toContain('Quick start with recommended defaults?')
     expect(result.output).toContain('│  Files:')
     expect(result.output).toContain('└  Dry run, nothing was written')
   })

@@ -5,6 +5,10 @@ import { kebabCaseId, pluginName } from './identifiers.ts'
 const categoryFields = {
   id: kebabCaseId,
   question: z.string().min(1),
+  order: z.array(pluginName).optional().meta({
+    description:
+      'The plugins of the category in the order the wizard lists them; plugins not listed follow in the order they load, which is by folder name.',
+  }),
 }
 
 /**

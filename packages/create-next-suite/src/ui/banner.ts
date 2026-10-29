@@ -1,4 +1,5 @@
 import ansis from 'ansis'
+import semver from 'semver'
 
 import { brand } from './theme.ts'
 
@@ -20,6 +21,8 @@ const SEPARATOR = '  ·  '
 
 type BannerInput = {
   version: string
+  /** The latest published version, if the registry answered. */
+  latest: string | undefined
   link: string
   columns: number
 }
@@ -29,25 +32,39 @@ const center = (styled: string, visibleLength: number, width: number): string =>
 
 const tagline = (): string => ansis.dim(TAGLINE_START) + brand.bold(TAGLINE_END)
 
-const metaStrip = (
-  version: string,
-  link: string | undefined,
-): { styled: string; length: number } => {
+type Styled = { styled: string; length: number }
+
+/** The version, with "(latest)" or the newer version when the registry answered. */
+const versionTag = (version: string, latest: string | undefined): Styled => {
   const tag = `v${version}`
-  if (link === undefined) {
+  if (latest === undefined || !semver.valid(latest) || !semver.valid(version)) {
     return { styled: ansis.bold(tag), length: tag.length }
   }
-  return {
-    styled: `${ansis.bold(tag)}${ansis.dim(SEPARATOR)}${brand(link)}`,
-    length: tag.length + SEPARATOR.length + link.length,
+  if (semver.gt(latest, version)) {
+    const opening = ' (update available → '
+    const newer = `v${latest}`
+    return {
+      styled: `${ansis.bold(tag)}${ansis.dim(opening)}${brand.bold(newer)}${ansis.dim(')')}`,
+      length: tag.length + opening.length + newer.length + 1,
+    }
   }
+  const current = ' (latest)'
+  return { styled: `${ansis.bold(tag)}${brand.bold(current)}`, length: tag.length + current.length }
 }
+
+const metaStrip = (version: Styled, link: string | undefined): Styled =>
+  link === undefined
+    ? version
+    : {
+        styled: `${version.styled}${ansis.dim(SEPARATOR)}${brand(link)}`,
+        length: version.length + SEPARATOR.length + link.length,
+      }
 
 /**
  * The banner shown when the wizard starts: a two-tone wordmark, the tagline, version and link,
- * centred; terminals narrower than the wordmark get the name in one line and the version only.
+ * centred, with a hint when a newer version is out; terminals narrower than the wordmark get the name in one line and the version only.
  */
-export const renderBanner = ({ version, link, columns }: BannerInput): string => {
+export const renderBanner = ({ version, latest, link, columns }: BannerInput): string => {
   const isNarrow = columns < WORDMARK_WIDTH
   const width = isNarrow ? columns : WORDMARK_WIDTH
   const title = isNarrow
@@ -55,7 +72,7 @@ export const renderBanner = ({ version, link, columns }: BannerInput): string =>
     : WORDMARK.map(
         (line) => brand.bold(line.slice(0, SUITE_COLUMN)) + ansis.bold(line.slice(SUITE_COLUMN)),
       ).join('\n')
-  const meta = metaStrip(version, isNarrow ? undefined : link)
+  const meta = metaStrip(versionTag(version, latest), isNarrow ? undefined : link)
   return [
     '',
     title,

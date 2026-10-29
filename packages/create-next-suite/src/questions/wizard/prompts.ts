@@ -183,29 +183,37 @@ export const confirm = async (
   return run(prompt, { isTyping: false, canGoBack: options.canGoBack })
 }
 
-export const text = async (
-  options: PromptBase & { defaultValue: string; validate?: (value: string) => string | undefined },
-): Promise<string | typeof GO_BACK> => {
+type TextOptions = PromptBase & {
+  /** The answer when the field is left empty; shown as the placeholder unless one is given. */
+  defaultValue?: string
+  placeholder?: string
+  /** Text already in the field, such as the answer given before going back. */
+  initialValue?: string | undefined
+  validate?: (value: string) => string | undefined
+}
+
+export const text = async (options: TextOptions): Promise<string | typeof GO_BACK> => {
+  const fallback = options.defaultValue ?? ''
+  const placeholder = options.placeholder ?? fallback
   const prompt = new TextPrompt({
-    defaultValue: options.defaultValue,
-    placeholder: options.defaultValue,
+    defaultValue: fallback,
+    placeholder,
+    ...(options.initialValue === undefined ? {} : { initialUserInput: options.initialValue }),
     validate:
-      options.validate === undefined
-        ? undefined
-        : (value) => options.validate?.(value || options.defaultValue),
+      options.validate === undefined ? undefined : (value) => options.validate?.(value || fallback),
     input: options.input,
     output: options.output,
     render() {
       if (isDone(this.state)) {
-        return renderResolved(this.state, options.message, this.value || options.defaultValue)
+        return renderResolved(this.state, options.message, this.value || fallback)
       }
       const value =
-        this.userInput === '' ? renderPlaceholder(options.defaultValue) : this.userInputWithCursor
+        this.userInput === '' ? renderPlaceholder(placeholder) : this.userInputWithCursor
       const error = this.state === 'error' ? `\n${renderLine(ansis.yellow(this.error))}` : ''
       const footer = renderFooter(TEXT_KEYS, { key: 'esc', isPossible: options.canGoBack })
       return `${renderPromptTitle(this.state, options.message)}${renderLine(value)}${error}\n${renderEnd(footer)}`
     },
   })
   const result = await run(prompt, { isTyping: true, canGoBack: options.canGoBack })
-  return result === GO_BACK ? GO_BACK : result || options.defaultValue
+  return result === GO_BACK ? GO_BACK : result || fallback
 }
