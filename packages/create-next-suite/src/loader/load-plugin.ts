@@ -13,9 +13,17 @@ import { PluginLoadError } from './plugin-load-error.ts'
 
 const MANIFEST_FILE = 'plugin.json'
 
+/** Where a loaded plugin came from: shipped with create-next-suite, or the address a user gave. */
+export type PluginSource =
+  | { kind: 'builtin' }
+  | { kind: 'external'; address: string; resolved: string | undefined }
+
+const BUILTIN_SOURCE: PluginSource = { kind: 'builtin' }
+
 export type LoadedPlugin = {
   manifest: ParsedPluginManifest
   folder: string
+  source: PluginSource
 }
 
 const MISSING_FILE_CODES = new Set(['ENOENT', 'ENOTDIR'])
@@ -91,12 +99,15 @@ const assertSourceFile = async (folder: string, source: string): Promise<void> =
 }
 
 /** Reads and checks the plugin in a folder; the same path serves built-in and local plugins. */
-export const loadPlugin = async (folder: string): Promise<LoadedPlugin> => {
+export const loadPlugin = async (
+  folder: string,
+  source: PluginSource = BUILTIN_SOURCE,
+): Promise<LoadedPlugin> => {
   const root = resolve(folder)
   const manifest = parseManifest(root, await readManifestJson(root))
   assertContract(root, manifest)
   for (const file of manifest.files ?? []) {
     await assertSourceFile(root, file.source)
   }
-  return { manifest, folder: root }
+  return { manifest, folder: root, source }
 }

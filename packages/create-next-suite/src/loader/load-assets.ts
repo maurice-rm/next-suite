@@ -70,7 +70,7 @@ const loadGroupedPlugins = async (directory: string): Promise<LoadedPlugin[]> =>
     assertInGroup(directory, group, inGroup)
     plugins.push(...inGroup)
   }
-  assertUniqueNames(directory, plugins)
+  assertUniqueNames(plugins)
   return plugins
 }
 

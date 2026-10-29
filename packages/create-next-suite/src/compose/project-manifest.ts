@@ -24,9 +24,12 @@ export const createProjectManifest = ({
     cli: cliVersion,
     contract: CONTRACT_VERSION,
     createdAt: createdAt.toISOString(),
-    plugins: plugins.map(({ manifest: plugin }) => ({
+    plugins: plugins.map(({ manifest: plugin, source }) => ({
       name: plugin.name,
-      source: 'builtin',
+      source: source.kind === 'builtin' ? 'builtin' : source.address,
+      ...(source.kind === 'external' && source.resolved !== undefined
+        ? { resolved: source.resolved }
+        : {}),
       version: plugin.version,
     })),
     answers,
