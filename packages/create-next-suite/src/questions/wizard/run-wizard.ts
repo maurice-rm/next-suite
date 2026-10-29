@@ -89,13 +89,16 @@ const stepBack = (state: WizardState): void => {
   }
 }
 
-/** Shows incompatible answers and goes back one step; fails when the wizard asked nothing. */
+/**
+ * Shows incompatible answers and goes back one step; fails when the wizard asked no question that
+ * could change them, only the project name at most.
+ */
 const stepBackFromProblems = (
   state: WizardState,
   problems: string[],
   showProblems: (problems: string[]) => void,
 ): void => {
-  if (state.asked.length === 0) {
+  if (state.asked.every((step) => step.kind === 'project-name')) {
     assertCompatible(problems)
   }
   showProblems(problems)

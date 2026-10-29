@@ -199,16 +199,27 @@ describe('runWizard', () => {
     expect(unused).toEqual(['drizzle.casing'])
   })
 
-  it('fails when incompatible answers came only from the input', async () => {
-    const { ask } = scripted([])
+  it('fails when incompatible answers came only from the input, also after asking the name', async () => {
+    const input = {
+      ...SETTINGS,
+      'package-manager': 'pnpm',
+      orm: null,
+      styling: [],
+      seo: false,
+      'better-auth': true,
+    }
 
+    await expect(wizard(scripted([]).ask, input)).rejects.toThrow(
+      'better-auth: Stores sessions in the database.',
+    )
     await expect(
-      wizard(ask, {
-        'package-manager': 'pnpm',
-        orm: null,
-        styling: [],
-        seo: false,
-        'better-auth': true,
+      runWizard({
+        questions: TEST_QUESTIONS,
+        input,
+        ask: scripted(['my-app']).ask,
+        findProblems: (answers) => findIncompatibilities(TEST_PLUGINS, answers),
+        showProblems: () => undefined,
+        directory: undefined,
       }),
     ).rejects.toThrow('better-auth: Stores sessions in the database.')
   })
