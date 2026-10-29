@@ -556,6 +556,27 @@ describe('runCreate', () => {
     ])
   })
 
+  it('loads a plugin of a registry by its short name', async () => {
+    await write({
+      'registry/registry.json': JSON.stringify({
+        name: '@acme',
+        plugins: [{ name: 'mail', path: 'plugins/mail', description: 'Mail.' }],
+      }),
+      'registry/plugins/mail/plugin.json': manifest('mail', { selectedByDefault: true }),
+      'config.json': JSON.stringify({ trust: ['@acme/*'], registries: { '@acme': './registry' } }),
+    })
+
+    const result = await run(['my-app', '--yes', '--no-git', '--plugin', '@acme/mail'])
+    const recorded = JSON.parse(await readFile(join(root, 'my-app/next-suite.json'), 'utf8'))
+
+    expect(result.exitCode).toBe(0)
+    expect(recorded.plugins).toContainEqual({
+      name: 'mail',
+      source: '@acme/mail',
+      version: '1.0.0',
+    })
+  })
+
   it('rejects an answer that no question asks', async () => {
     await write({ 'answers.json': JSON.stringify({ colour: 'blue' }) })
 

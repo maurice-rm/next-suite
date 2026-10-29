@@ -7,7 +7,11 @@ import { findNodeVersionProblem } from './cli/check-node-version.ts'
 const EXIT_FAILURE = 1
 
 // Checked before the rest loads, so an old Node.js gets this message instead of a load error.
-const nodeProblem = findNodeVersionProblem(process.versions.node, packageJson.engines.node)
+const nodeProblem = findNodeVersionProblem({
+  command: 'create-next-suite',
+  current: process.versions.node,
+  required: packageJson.engines.node,
+})
 if (nodeProblem === undefined) {
   const { startCreate } = await import('./cli/start-create.ts')
   // The entry sits one level below the package root in src/ and dist/ alike.

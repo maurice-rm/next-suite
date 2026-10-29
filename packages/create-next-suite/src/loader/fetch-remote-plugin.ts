@@ -3,13 +3,14 @@ import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 
 import semver from 'semver'
 import * as tar from 'tar'
 import * as z from 'zod'
 
+import { isInside } from './is-inside.ts'
 import type { PluginAddress } from './plugin-address.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
@@ -168,8 +169,7 @@ const cached = async (
 /** Fails when a folder in a repository lies outside it. */
 const insideRepository = (root: string, path: string, address: string): string => {
   const folder = resolve(root, path)
-  const fromRoot = relative(root, folder)
-  if (fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
+  if (folder !== root && !isInside(root, folder)) {
     throw new PluginLoadError(address, 'the folder lies outside the repository')
   }
   return folder

@@ -1,7 +1,13 @@
 import semver from 'semver'
 
-/** Answers why this Node.js version cannot run create-next-suite, or nothing when it can. */
-export const findNodeVersionProblem = (current: string, required: string): string | undefined =>
+type NodeVersionCheck = { command: string; current: string; required: string }
+
+/** Answers why this Node.js version cannot run a command of the package, or nothing when it can. */
+export const findNodeVersionProblem = ({
+  command,
+  current,
+  required,
+}: NodeVersionCheck): string | undefined =>
   semver.satisfies(current, required, { includePrerelease: true })
     ? undefined
-    : `create-next-suite needs Node ${required} — you are on v${current}. Please upgrade Node and try again.`
+    : `${command} needs Node ${required} — you are on v${current}. Please upgrade Node and try again.`

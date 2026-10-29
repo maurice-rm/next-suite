@@ -4,6 +4,7 @@ import { fetchRemotePlugin, type RemoteEnvironment } from './fetch-remote-plugin
 import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
 import { parsePluginAddress } from './plugin-address.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
+import { fetchRegistry, registryPluginFolder } from './registry.ts'
 
 type ExternalSources = {
   cwd: string
@@ -12,13 +13,7 @@ type ExternalSources = {
   registries: Readonly<Record<string, string>>
 }
 
-const MAX_REGISTRY_DEPTH = 1
-
-const loadOne = async (
-  address: string,
-  sources: ExternalSources,
-  depth: number,
-): Promise<LoadedPlugin> => {
+const loadOne = async (address: string, sources: ExternalSources): Promise<LoadedPlugin> => {
   const parsed = parsePluginAddress(address)
   if (parsed === undefined) {
     throw new PluginLoadError(address, 'the address has no known form')
@@ -31,20 +26,19 @@ const loadOne = async (
     })
   }
   if (parsed.kind === 'registry') {
-    const registry = sources.registries[parsed.registry]
-    if (registry === undefined || depth >= MAX_REGISTRY_DEPTH) {
+    const source = sources.registries[parsed.registry]
+    if (source === undefined) {
       throw new PluginLoadError(
         address,
-        `the registry ${parsed.registry} is unknown; add it to "registries" in the next-suite configuration`,
+        `the registry ${parsed.registry} is unknown; add it with \`next-suite registry add\``,
       )
     }
-    const plugin = await loadOne(
-      `${registry.replace(/#.*$/, '')}/${parsed.name}`,
-      sources,
-      depth + 1,
-    )
-    const resolved = plugin.source.kind === 'external' ? plugin.source.resolved : undefined
-    return { ...plugin, source: { kind: 'external', address, resolved } }
+    const registry = await fetchRegistry(source, sources)
+    return loadPlugin(registryPluginFolder(registry, parsed.name, address), {
+      kind: 'external',
+      address,
+      resolved: registry.resolved,
+    })
   }
   const fetched = await fetchRemotePlugin(sources.remote, parsed)
   return loadPlugin(fetched.folder, { kind: 'external', address, resolved: fetched.resolved })
@@ -60,7 +54,7 @@ export const loadExternalPlugins = async (
 ): Promise<LoadedPlugin[]> => {
   const plugins: LoadedPlugin[] = []
   for (const address of addresses) {
-    plugins.push(await loadOne(address, sources, 0))
+    plugins.push(await loadOne(address, sources))
   }
   return plugins
 }
