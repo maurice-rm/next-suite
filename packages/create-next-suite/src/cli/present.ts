@@ -20,7 +20,10 @@ export type Presenter = {
 }
 
 /** Opens the wizard frame with the banner and the intro line. */
-export const openFrame = (output: Writable, banner: { version: string; columns: number }): void => {
+export const openFrame = (
+  output: Writable,
+  banner: { version: string; latest: string | undefined; columns: number },
+): void => {
   output.write(renderBanner({ ...banner, link: REPOSITORY_LINK }))
   output.write(renderIntro(INTRO))
 }

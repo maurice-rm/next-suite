@@ -35,7 +35,13 @@ const QUICK_START_STEP: QuickStartStep = {
  */
 export type Ask = (
   step: WizardStep,
-  context: { canGoBack: boolean; answers: Answers; previousSection: string | undefined },
+  context: {
+    canGoBack: boolean
+    answers: Answers
+    previousSection: string | undefined
+    /** The answer given to this step before the user went back over it, to show it again. */
+    previousAnswer: unknown
+  },
 ) => Promise<unknown>
 
 type WizardInput = {
@@ -53,6 +59,8 @@ type WizardState = {
   asked: WizardStep[]
   directory: string | undefined
   quickStart: boolean | undefined
+  /** Answers of steps the user went back over, by step key. */
+  previous: Record<string, unknown>
 }
 
 type Outcome = Pick<Resolution, 'answers' | 'unused'> & { directory: string }
@@ -81,10 +89,13 @@ const dropStaleAnswers = (questions: readonly Question[], state: WizardState): v
 const stepBack = (state: WizardState): void => {
   const step = state.asked.pop()
   if (step?.kind === 'project-name') {
+    state.previous[step.key] = state.directory
     state.directory = undefined
   } else if (step?.kind === 'quick-start') {
+    state.previous[step.key] = state.quickStart
     state.quickStart = undefined
   } else if (step !== undefined) {
+    state.previous[step.key] = state.answers[step.key]
     delete state.answers[step.key]
   }
 }
@@ -148,7 +159,13 @@ export const runWizard = async ({
   findProblems,
   showProblems,
 }: WizardInput): Promise<Outcome> => {
-  const state: WizardState = { answers: { ...input }, asked: [], directory, quickStart: undefined }
+  const state: WizardState = {
+    answers: { ...input },
+    asked: [],
+    directory,
+    quickStart: undefined,
+    previous: {},
+  }
   for (;;) {
     dropStaleAnswers(questions, state)
     const resolution = resolveCurrent(questions, state)
@@ -165,6 +182,7 @@ export const runWizard = async ({
       canGoBack: state.asked.length > 0,
       answers: resolution.answers,
       previousSection: state.asked.at(-1)?.section,
+      previousAnswer: state.previous[step.key],
     })
     applyReply(state, step, reply)
   }

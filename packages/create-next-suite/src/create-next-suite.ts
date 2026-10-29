@@ -2,21 +2,20 @@
 import { join } from 'node:path'
 
 import packageJson from '../package.json' with { type: 'json' }
-import { runCreate } from './cli/run-create.ts'
-import { loadAssets } from './loader/load-assets.ts'
-import { runCommand } from './post-steps/run-command.ts'
+import { findNodeVersionProblem } from './cli/check-node-version.ts'
 
-const DEFAULT_COLUMNS = 80
+const EXIT_FAILURE = 1
 
-process.exitCode = await runCreate({
-  argv: process.argv.slice(2),
-  assets: await loadAssets(join(import.meta.dirname, '..')),
-  cliVersion: packageJson.version,
-  cwd: process.cwd(),
-  streams: { input: process.stdin, output: process.stdout, error: process.stderr },
-  isInteractive: process.stdin.isTTY && process.stdout.isTTY,
-  columns: process.stdout.columns ?? DEFAULT_COLUMNS,
-  now: () => new Date(),
-  userAgent: process.env.npm_config_user_agent,
-  runCommand,
-})
+// Checked before the rest loads, so an old Node.js gets this message instead of a load error.
+const nodeProblem = findNodeVersionProblem(process.versions.node, packageJson.engines.node)
+if (nodeProblem === undefined) {
+  const { startCreate } = await import('./cli/start-create.ts')
+  // The entry sits one level below the package root in src/ and dist/ alike.
+  process.exitCode = await startCreate({
+    cliVersion: packageJson.version,
+    packageRoot: join(import.meta.dirname, '..'),
+  })
+} else {
+  process.stderr.write(`${nodeProblem}\n`)
+  process.exitCode = EXIT_FAILURE
+}

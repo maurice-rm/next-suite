@@ -24,3 +24,11 @@ describe.each(['create-next-suite', 'next-suite'] as const)('the built %s bin', 
     expect(result.stderr).toContain("unknown option '--unknown'")
   })
 })
+
+describe('the built create-next-suite bin', () => {
+  it('loads the built-in plugins that ship with the package', async () => {
+    const result = await runCli('create-next-suite', ['--help'])
+
+    expect(result.stdout).toContain('--package-manager <plugin>')
+  })
+})

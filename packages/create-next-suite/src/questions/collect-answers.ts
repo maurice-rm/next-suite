@@ -3,7 +3,6 @@ import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { renderFramed } from '../ui/theme.ts'
 import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
 import { InputError } from './input-error.ts'
-import { DEFAULT_PROJECT_DIRECTORY } from './project-name.ts'
 import type { Question } from './questions.ts'
 import { type AnswerInput, resolveAnswers } from './resolve-answers.ts'
 import { createAsk } from './wizard/ask-question.ts'
@@ -17,6 +16,7 @@ type AnswerMode =
   | {
       kind: 'wizard'
       streams: Streams
+      findDirectoryProblem: (directory: string) => string | undefined
       detectedPackageManager: string | undefined
     }
   | { kind: 'input'; useDefaults: boolean }
@@ -57,7 +57,8 @@ const askInWizard = async (
   sources: AnswerSources,
   mode: Extract<AnswerMode, { kind: 'wizard' }>,
 ): Promise<CollectedAnswers> => {
-  const { questions, plugins, input } = sources
+  const { questions, plugins } = sources
+  const input = { ...settingDefaults(questions, ['project']), ...sources.input }
   assertCompatible(
     findConflicts(plugins, resolveAnswers({ questions, input, useDefaults: false }).answers),
   )
@@ -65,7 +66,10 @@ const askInWizard = async (
     questions,
     input,
     directory: sources.directory,
-    ask: createAsk(mode.streams, { detectedPackageManager: mode.detectedPackageManager }),
+    ask: createAsk(mode.streams, {
+      findDirectoryProblem: mode.findDirectoryProblem,
+      detectedPackageManager: mode.detectedPackageManager,
+    }),
     findProblems: (answers) => findIncompatibilities(plugins, answers),
     showProblems: (problems) =>
       mode.streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
@@ -74,24 +78,31 @@ const askInWizard = async (
   return { answers: result.answers, directory: result.directory }
 }
 
-/** The directory from the command line, the default with --yes, or a failure. */
+/** The directory from the command line; without a terminal it is required. */
 const directoryFromInput = (directory: string | undefined, useDefaults: boolean): string => {
   if (directory !== undefined) {
     return directory
   }
-  if (useDefaults) {
-    return DEFAULT_PROJECT_DIRECTORY
-  }
   throw new InputError(
-    'name the project directory, such as `create-next-suite my-app`, or pass --yes',
+    useDefaults
+      ? 'A project name is required in --yes mode — pass it as the argument.'
+      : 'A project name is required without a terminal — pass it as the argument, such as `create-next-suite my-app`.',
   )
 }
 
-/** The defaults of the run settings, which the input answers without asking. */
-const runSettingDefaults = (questions: readonly Question[]): AnswerInput =>
+type SettingScope = Extract<Question, { kind: 'setting' }>['scope']
+
+/**
+ * The defaults of the settings in the given scopes, answered without asking: project settings are
+ * never asked, only set by flag; run settings are asked in the wizard only.
+ */
+const settingDefaults = (
+  questions: readonly Question[],
+  scopes: readonly SettingScope[],
+): AnswerInput =>
   Object.fromEntries(
     questions.flatMap((question) =>
-      question.kind === 'setting' && question.scope === 'run'
+      question.kind === 'setting' && scopes.includes(question.scope)
         ? [[question.key, question.option.default]]
         : [],
     ),
@@ -105,7 +116,7 @@ const resolveFromInput = (
   const { questions, input, plugins } = sources
   const resolution = resolveAnswers({
     questions,
-    input: { ...runSettingDefaults(questions), ...input },
+    input: { ...settingDefaults(questions, ['project', 'run']), ...input },
     useDefaults,
   })
   assertNoUnused(resolution.unused, sources)
