@@ -91,7 +91,7 @@ const run = async (argv: string[], { isInteractive = false, keys = [] }: RunOpti
     now: () => new Date('2026-11-01T10:00:00Z'),
   })
   await pressing
-  return { exitCode, output: ansis.strip(output.join('')), error: error.join('') }
+  return { exitCode, output: ansis.strip(output.join('')), error: ansis.strip(error.join('')) }
 }
 
 beforeEach(async () => {
@@ -263,9 +263,7 @@ describe('runCreate', () => {
     const result = await run(['My App', '--dry-run'], { isInteractive: true })
 
     expect(result.exitCode).toBe(1)
-    expect(ansis.strip(result.error)).toContain(
-      '└  create-next-suite: "My App" is no valid package name',
-    )
+    expect(result.error).toContain('└  create-next-suite: "My App" is no valid package name')
   })
 
   it('opens the wizard with the intro and the Project section, and ends a cancelled run cleanly', async () => {
