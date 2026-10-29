@@ -94,6 +94,15 @@ describe('pluginManifestSchema', () => {
     ])
   })
 
+  it('rejects package fields the core writes itself', () => {
+    const manifest = {
+      ...MINIMAL,
+      contributes: { package: { fields: { name: 'other', private: true } } },
+    }
+
+    expect(issuePaths(manifest)).toEqual(['contributes.package.fields.name'])
+  })
+
   it('takes requirements and conflicts as conditions with a reason', () => {
     const manifest = {
       ...MINIMAL,

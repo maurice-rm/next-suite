@@ -2,6 +2,7 @@ import semver from 'semver'
 import * as z from 'zod'
 
 import { conditionSchema } from './condition.ts'
+import { contributionsSchema } from './contributions.ts'
 import { kebabCaseId, pluginName } from './identifiers.ts'
 import { pluginOptionSchema } from './plugin-option.ts'
 
@@ -51,6 +52,9 @@ const pluginFileSchema = z.strictObject({
   target: z.string().min(1),
   when: conditionSchema.optional(),
   conflict: z.enum(['error', 'skip-if-exists', 'replace']).default('error'),
+  root: z.enum(['project', 'source']).default('project').meta({
+    description: '`source` places the target under src/ when the project uses a src folder.',
+  }),
 })
 
 /** The manifest of a plugin, read from its `plugin.json`. */
@@ -72,6 +76,7 @@ export const pluginManifestSchema = z
     env: z.array(envVariableSchema).optional(),
     files: z.array(pluginFileSchema).optional(),
     facts: z.record(kebabCaseId, conditionSchema).optional(),
+    contributes: contributionsSchema.optional(),
   })
   .meta({ title: 'next-suite plugin manifest' })
 
