@@ -2,18 +2,8 @@ import { InvalidArgumentError, Option } from 'commander'
 
 import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from './input-error.ts'
-import type { Question } from './questions.ts'
+import type { CategoryQuestion, Question } from './questions.ts'
 import type { AnswerInput } from './resolve-answers.ts'
-
-// Flags the core defines itself; no question flag may take these names.
-const RESERVED_FLAGS: ReadonlySet<string> = new Set([
-  'yes',
-  'answers',
-  'dry-run',
-  'diff',
-  'help',
-  'version',
-])
 
 /** A command-line option derived from a question, with how its value becomes an answer. */
 export type QuestionFlag = {
@@ -78,11 +68,7 @@ const valueOptions = (name: string, description: string, option: PluginOption): 
   }
 }
 
-const categoryOptions = (
-  question: Extract<Question, { kind: 'category' }>,
-  name: string,
-  description: string,
-) => {
+const categoryOptions = (question: CategoryQuestion, name: string, description: string) => {
   const names = question.choices.map((plugin) => plugin.name)
   switch (question.category.cardinality) {
     case 'one':
@@ -103,13 +89,12 @@ const categoryOptions = (
   }
 }
 
-const toCategoryAnswer =
-  (question: Extract<Question, { kind: 'category' }>) => (value: unknown) => {
-    if (value !== false) {
-      return value
-    }
-    return question.category.cardinality === 'many' ? [] : null
+const toCategoryAnswer = (question: CategoryQuestion) => (value: unknown) => {
+  if (value !== false) {
+    return value
   }
+  return question.category.cardinality === 'many' ? [] : null
+}
 
 const flagFor = (question: Question): QuestionFlag => {
   const name = flagNameOf(question)
@@ -141,14 +126,18 @@ const flagFor = (question: Question): QuestionFlag => {
 /**
  * Derives one command-line flag per question: `--<category> <plugin>`, `--<plugin>` and
  * `--no-<plugin>` for plugins without a category, `--<plugin>-<option>` for plugin options and
- * `--<setting>` for base settings. Two questions with the same flag, or a reserved flag name, fail.
+ * `--<setting>` for base settings. Two questions with the same flag, or a flag the core reserves,
+ * fail.
  */
-export const createFlags = (questions: readonly Question[]): QuestionFlag[] => {
+export const createFlags = (
+  questions: readonly Question[],
+  reservedNames: ReadonlySet<string>,
+): QuestionFlag[] => {
   const seen = new Map<string, string>()
   return questions.map((question) => {
     const name = flagNameOf(question)
     const owner = seen.get(name)
-    if (RESERVED_FLAGS.has(name) || owner !== undefined) {
+    if (reservedNames.has(name) || owner !== undefined) {
       throw new InputError(
         `the flag --${name} of "${question.key}" is already taken${owner ? ` by "${owner}"` : ''}`,
       )

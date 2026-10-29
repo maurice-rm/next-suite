@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-
+import { TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
 import { findIncompatibilities } from './find-incompatibilities.ts'
 import { resolveAnswers } from './resolve-answers.ts'
-import { TEST_PLUGINS, TEST_QUESTIONS } from './test-questions.ts'
 
 const incompatibilities = (input: Record<string, unknown>): string[] =>
   findIncompatibilities(

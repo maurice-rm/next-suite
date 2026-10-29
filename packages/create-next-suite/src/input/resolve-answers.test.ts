@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-
+import { TEST_QUESTIONS } from '../test-support/questions.ts'
 import { resolveAnswers } from './resolve-answers.ts'
-import { TEST_QUESTIONS } from './test-questions.ts'
 
 const resolve = (input: Record<string, unknown>, useDefaults = true) =>
   resolveAnswers({ questions: TEST_QUESTIONS, input, useDefaults })

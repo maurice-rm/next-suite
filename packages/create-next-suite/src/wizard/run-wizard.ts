@@ -1,6 +1,6 @@
 import type { Answers } from '../answers/answers.ts'
 import { BASE_SETTINGS_SECTION } from '../input/base-settings.ts'
-import { InputError } from '../input/input-error.ts'
+import { assertCompatible } from '../input/find-incompatibilities.ts'
 import type { Question } from '../input/questions.ts'
 import { type AnswerInput, type Resolution, resolveAnswers } from '../input/resolve-answers.ts'
 import { GO_BACK } from './prompts.ts'
@@ -44,18 +44,18 @@ type WizardState = {
 
 type Outcome = Pick<Resolution, 'answers' | 'unused'>
 
-const resolveOpen = (questions: readonly Question[], state: WizardState): Resolution => {
+const resolveCurrent = (questions: readonly Question[], state: WizardState): Resolution =>
+  resolveAnswers({ questions, input: state.answers, useDefaults: state.quickStart === true })
+
+/** Drops the wizard's answers that no asked question uses any more, until none is left. */
+const dropStaleAnswers = (questions: readonly Question[], state: WizardState): void => {
   for (;;) {
-    const resolution = resolveAnswers({
-      questions,
-      input: state.answers,
-      useDefaults: state.quickStart === true,
-    })
+    const { unused } = resolveCurrent(questions, state)
     const stale = state.asked.filter(
-      (step) => step.kind !== 'quick-start' && resolution.unused.includes(step.key),
+      (step) => step.kind !== 'quick-start' && unused.includes(step.key),
     )
     if (stale.length === 0) {
-      return resolution
+      return
     }
     for (const step of stale) {
       delete state.answers[step.key]
@@ -73,24 +73,30 @@ const stepBack = (state: WizardState): void => {
   }
 }
 
-type ProblemHandling = Pick<WizardInput, 'findProblems' | 'showProblems'>
-
-/** Ends the wizard with compatible answers, or shows the problems and steps back. */
-const finish = (
-  resolution: Resolution,
+/** Shows incompatible answers and goes back one step; fails when the wizard asked nothing. */
+const stepBackFromProblems = (
   state: WizardState,
-  { findProblems, showProblems }: ProblemHandling,
-): Outcome | undefined => {
-  const problems = findProblems(resolution.answers)
-  if (problems.length === 0) {
-    return { answers: resolution.answers, unused: resolution.unused }
-  }
+  problems: string[],
+  showProblems: (problems: string[]) => void,
+): void => {
   if (state.asked.length === 0) {
-    throw new InputError(`the answers do not fit together:\n${problems.join('\n')}`)
+    assertCompatible(problems)
   }
   showProblems(problems)
   stepBack(state)
-  return undefined
+}
+
+const applyReply = (state: WizardState, step: WizardStep, reply: unknown): void => {
+  if (reply === GO_BACK) {
+    stepBack(state)
+    return
+  }
+  if (step.kind === 'quick-start') {
+    state.quickStart = reply === true
+  } else {
+    state.answers[step.key] = reply
+  }
+  state.asked.push(step)
 }
 
 /**
@@ -104,17 +110,20 @@ export const runWizard = async ({
   input,
   ask,
   initialSection,
-  ...problemHandling
+  findProblems,
+  showProblems,
 }: WizardInput): Promise<Outcome> => {
   const state: WizardState = { answers: { ...input }, asked: [], quickStart: undefined }
   for (;;) {
-    const resolution = resolveOpen(questions, state)
+    dropStaleAnswers(questions, state)
+    const resolution = resolveCurrent(questions, state)
     const [next] = resolution.missing
     if (next === undefined) {
-      const outcome = finish(resolution, state, problemHandling)
-      if (outcome !== undefined) {
-        return outcome
+      const problems = findProblems(resolution.answers)
+      if (problems.length === 0) {
+        return { answers: resolution.answers, unused: resolution.unused }
       }
+      stepBackFromProblems(state, problems, showProblems)
       continue
     }
     const step: WizardStep =
@@ -124,15 +133,6 @@ export const runWizard = async ({
       answers: resolution.answers,
       previousSection: state.asked.at(-1)?.section ?? initialSection,
     })
-    if (reply === GO_BACK) {
-      stepBack(state)
-      continue
-    }
-    if (step.kind === 'quick-start') {
-      state.quickStart = reply === true
-    } else {
-      state.answers[step.key] = reply
-    }
-    state.asked.push(step)
+    applyReply(state, step, reply)
   }
 }

@@ -20,7 +20,8 @@ export type Question = QuestionPlace &
     | { kind: 'setting'; option: PluginOption }
   )
 
-type CategoryQuestion = Extract<Question, { kind: 'category' }>
+/** A question that picks the plugins of a category. */
+export type CategoryQuestion = Extract<Question, { kind: 'category' }>
 
 type QuestionSources = {
   categories: readonly Category[]

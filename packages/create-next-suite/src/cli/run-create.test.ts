@@ -259,6 +259,16 @@ describe('runCreate', () => {
     expect(result.output).toContain('--better-auth')
   })
 
+  it('reports a missing answer file plainly, before any wizard frame opens', async () => {
+    const result = await run(['my-app', '--answers', 'missing.json', '--dry-run'], {
+      isInteractive: true,
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.output).toBe('')
+    expect(result.error).toMatch(/^create-next-suite: cannot read the answer file/)
+  })
+
   it('closes the wizard frame with the error of a failed guided run', async () => {
     const result = await run(['My App', '--dry-run'], { isInteractive: true })
 

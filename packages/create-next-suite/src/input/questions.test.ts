@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { categoriesSchema } from '../contract/category.ts'
 import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
+import { TEST_QUESTIONS } from '../test-support/questions.ts'
 import { buildQuestions } from './questions.ts'
-import { TEST_QUESTIONS } from './test-questions.ts'
 
 describe('buildQuestions', () => {
   it('asks the categories that need one plugin, then the settings, then the other categories, then plugins without a category', () => {

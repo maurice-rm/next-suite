@@ -2,10 +2,12 @@ import type { Answers } from '../answers/answers.ts'
 import { evaluateCondition } from '../answers/evaluate-condition.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
+import type { CategoryQuestion } from '../input/questions.ts'
 import { defaultAnswer } from '../input/resolve-answers.ts'
 import { renderSectionBadge } from '../ui/theme.ts'
-import { type Choice, confirm, multiselect, type Streams, select, text } from './prompts.ts'
+import { type Choice, confirm, multiselect, select, text } from './prompts.ts'
 import type { Ask, WizardStep } from './run-wizard.ts'
+import type { Streams } from './streams.ts'
 
 const NONE_LABEL = 'None'
 const QUICK_START_QUESTION = 'Use the quick start? Every remaining question takes its default.'
@@ -30,10 +32,7 @@ const pluginChoice = (plugin: ParsedPluginManifest, answers: Answers): Choice<st
 const isNumberText = (value: string): boolean =>
   value.trim() !== '' && Number.isFinite(Number(value))
 
-const askOption = async (
-  option: PluginOption,
-  base: Streams & { canGoBack: boolean },
-): Promise<unknown> => {
+const askOption = async (option: PluginOption, base: PromptOptions): Promise<unknown> => {
   const message = option.question
   switch (option.type) {
     case 'boolean':
@@ -61,6 +60,30 @@ const askOption = async (
   }
 }
 
+const askCategory = async (
+  question: CategoryQuestion,
+  base: PromptOptions,
+  answers: Answers,
+): Promise<unknown> => {
+  const message = question.category.question
+  const choices = question.choices.map((plugin) => pluginChoice(plugin, answers))
+  switch (question.category.cardinality) {
+    case 'many':
+      return multiselect({ ...base, message, choices, initialValues: question.category.default })
+    case 'one':
+      return select({ ...base, message, choices, initialValue: question.category.default })
+    case 'at-most-one': {
+      const withNone: Choice<string | null>[] = [...choices, { value: null, label: NONE_LABEL }]
+      return select({
+        ...base,
+        message,
+        choices: withNone,
+        initialValue: question.category.default,
+      })
+    }
+  }
+}
+
 const askStep = async (
   step: WizardStep,
   base: PromptOptions,
@@ -69,18 +92,8 @@ const askStep = async (
   switch (step.kind) {
     case 'quick-start':
       return confirm({ ...base, message: QUICK_START_QUESTION, initialValue: false })
-    case 'category': {
-      const message = step.category.question
-      const choices = step.choices.map((plugin) => pluginChoice(plugin, answers))
-      if (step.category.cardinality === 'many') {
-        return multiselect({ ...base, message, choices, initialValues: step.category.default })
-      }
-      if (step.category.cardinality === 'one') {
-        return select({ ...base, message, choices, initialValue: step.category.default })
-      }
-      const withNone: Choice<string | null>[] = [...choices, { value: null, label: NONE_LABEL }]
-      return select({ ...base, message, choices: withNone, initialValue: step.category.default })
-    }
+    case 'category':
+      return askCategory(step, base, answers)
     case 'addon':
       return confirm({
         ...base,
