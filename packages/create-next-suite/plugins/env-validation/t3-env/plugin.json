@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "t3-env",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "t3-env",
+  "description": "Validates environment variables with t3-env and Zod.",
+  "category": "env-validation",
+  "dependencies": {
+    "@t3-oss/env-nextjs": "catalog:t3-oss-env-nextjs",
+    "zod": "catalog:zod"
+  },
+  "contributes": { "stack": ["t3-env"] },
+  "files": [{ "source": "files/env.ts.hbs", "target": "env.ts", "root": "source" }]
+}

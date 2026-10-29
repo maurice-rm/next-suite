@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -56,4 +56,5 @@ const changes = run('git', ['status', '--porcelain'], project)
 if (changes !== '') {
   throw new Error(`the checks left files git does not ignore:\n${changes}`)
 }
+rmSync(workspace, { recursive: true, force: true })
 process.stdout.write(`\n${scenario.name} with ${packageManager}: every check passed\n`)

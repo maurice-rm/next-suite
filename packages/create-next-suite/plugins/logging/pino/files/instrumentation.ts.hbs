@@ -1,0 +1,18 @@
+import type { Instrumentation } from "next";
+{{#if (has "plugin:t3-env")}}
+
+export async function register() {
+  await import("{{project.importPrefix}}env");
+}
+{{/if}}
+
+export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
+  if (process.env.NEXT_RUNTIME !== "nodejs") {
+    return;
+  }
+  const { logger } = await import("{{project.importPrefix}}lib/logger");
+  logger.error(
+    { err: error, path: request.path, method: request.method, ...context },
+    "request failed",
+  );
+};

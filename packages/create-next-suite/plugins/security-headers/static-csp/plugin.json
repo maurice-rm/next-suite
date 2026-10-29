@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "static-csp",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Security headers",
+  "description": "Sends a static Content Security Policy and the common security headers.",
+  "category": "security-headers",
+  "contributes": {
+    "nextConfig": {
+      "imports": ["import { securityHeaders } from \"./security-headers\";"],
+      "options": [
+        {
+          "key": "headers",
+          "value": "async () => [{ source: \"/(.*)\", headers: securityHeaders }]"
+        }
+      ]
+    },
+    "readme": [
+      {
+        "section": "Security headers",
+        "text": "`security-headers.ts` sets a static Content Security Policy and the common security headers for every route. HSTS leaves out `includeSubDomains`, so subdomains keep plain HTTP until you opt in."
+      }
+    ]
+  },
+  "files": [{ "source": "files/security-headers.ts.hbs", "target": "security-headers.ts" }]
+}

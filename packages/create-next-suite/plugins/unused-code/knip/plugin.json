@@ -11,5 +11,5 @@
     "package": { "scripts": { "knip": "knip" } },
     "stack": ["Knip"]
   },
-  "files": [{ "source": "files/knip.json", "target": "knip.json" }]
+  "files": [{ "source": "files/knip.json.hbs", "target": "knip.json" }]
 }

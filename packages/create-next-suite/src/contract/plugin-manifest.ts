@@ -46,6 +46,9 @@ const envVariableSchema = z
     secret: z.boolean(),
     example: z.string(),
     description: z.string().min(1),
+    default: z.string().optional().meta({
+      description: 'The value when the variable is not set; without one the variable is required.',
+    }),
   })
   .refine(
     (variable) => (variable.scope === 'client') === variable.name.startsWith(CLIENT_ENV_PREFIX),
