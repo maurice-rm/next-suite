@@ -5,11 +5,13 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "next build",
-    "dev": "next dev --port 3020",
-    "check-types": "next typegen && tsc"
+    "build": "node scripts/generate-pages.ts && next build",
+    "dev": "node scripts/generate-pages.ts && next dev --port 3020",
+    "check-types": "node scripts/generate-pages.ts && next typegen && tsc",
+    "generate": "node scripts/generate-pages.ts"
   },
   "dependencies": {
+    "create-next-suite": "workspace:*",
     "fumadocs-core": "16.17.8",
     "fumadocs-mdx": "15.4.10",
     "fumadocs-ui": "16.17.8",
