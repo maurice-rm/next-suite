@@ -1,0 +1,53 @@
+{
+  "name": "create-next-suite",
+  "version": "0.0.0",
+  "description": "Scaffold a Next.js app from plugins: pick a package manager, linter, styling, database, auth and more, or bring your own.",
+  "keywords": [
+    "next",
+    "nextjs",
+    "create-next-app",
+    "scaffold",
+    "template",
+    "cli",
+    "plugins"
+  ],
+  "license": "MIT",
+  "author": "Maurice Reim",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maurice-rm/next-suite.git",
+    "directory": "packages/create-next-suite"
+  },
+  "bugs": "https://github.com/maurice-rm/next-suite/issues",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=24.12"
+  },
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "create-next-suite": "./dist/create-next-suite.mjs",
+    "next-suite": "./dist/next-suite.mjs"
+  },
+  "exports": {
+    "./plugin": "./dist/plugin.mjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "0.18.5",
+    "@next-suite/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "publint": "0.3.25",
+    "tsdown": "0.23.3",
+    "typescript": "catalog:"
+  },
+  "dependencies": {
+    "commander": "15.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+name: Security
+
+on:
+  # Weekly, so a newly disclosed weakness in an already pinned action reaches the security tab
+  # without a push. Pull requests and main are audited by the zizmor job in ci.yml.
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write # upload the findings to code scanning
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0

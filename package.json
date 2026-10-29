@@ -1,0 +1,31 @@
+{
+  "name": "next-suite",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=24.12"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "lint": "biome check --error-on-warnings .",
+    "lint:fix": "biome check --write .",
+    "knip": "knip",
+    "boundaries": "turbo boundaries",
+    "changeset": "changeset",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@changesets/changelog-github": "1.0.1",
+    "@changesets/cli": "3.0.3",
+    "husky": "9.1.7",
+    "knip": "6.43.0",
+    "pkg-pr-new": "0.0.92",
+    "turbo": "2.11.10",
+    "typescript": "catalog:"
+  }
+}

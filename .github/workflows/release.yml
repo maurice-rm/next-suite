@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  TURBO_UI: false
+
+# Split into jobs as the Changesets guide recommends for trusted publishing: only `publish` holds
+# `id-token: write`. No job uses a dependency cache, so a poisoned cache cannot reach a release.
+jobs:
+  select-mode:
+    name: Select the mode
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.select-mode.outputs.mode }}
+      publish-plan-artifact-id: ${{ steps.select-mode.outputs.publish-plan-artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          cache: "false"
+      - id: select-mode
+        uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+
+  version:
+    name: Open the version pull request
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the version branch
+      pull-requests: write # open and update the version pull request
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          cache: "false"
+      # The checks of the version pull request wait until a maintainer approves them, since the
+      # workflow's own token opened it.
+      - uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+
+  pack:
+    name: Pack create-next-suite
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      pack-dir-artifact-id: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          cache: "false"
+      # The 1.x line of this package name is retired and its version numbers cannot be reused; the
+      # first release of this code is 2.0.0. Remove this step with that release.
+      - name: Refuse to publish before 2.0.0
+        run: |
+          version=$(node -p "require('./packages/create-next-suite/package.json').version")
+          [[ ${version%%.*} -ge 2 ]] || { echo "create-next-suite $version is not publishable before 2.0.0." >&2; exit 1; }
+      - name: Build create-next-suite
+        run: pnpm turbo run build --filter=create-next-suite
+      - id: pack
+        uses: changesets/action/pack@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          publish-plan-artifact-id: ${{ needs.select-mode.outputs.publish-plan-artifact-id }}
+
+  publish:
+    name: Publish to npm
+    needs: pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Waits for the maintainer's approval in the environment's protection rules.
+    environment: npm
+    permissions:
+      contents: write # create the release tag and the GitHub release
+      id-token: write # trusted publishing to npm, with provenance
+    outputs:
+      cli-version: ${{ steps.cli.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          cache: "false"
+      - id: publish
+        uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}
+      - id: cli
+        env:
+          PUBLISHED: ${{ steps.publish.outputs.published-packages }}
+        run: |
+          version=$(jq -r '.[] | select(.name == "create-next-suite") | .version' <<< "${PUBLISHED:-[]}")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  docs:
+    name: Deploy the docs
+    needs: publish
+    if: needs.publish.outputs.cli-version != ''
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: $/.github/workflows/docs.yml
+    with:
+      version: ${{ needs.publish.outputs.cli-version }}
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_AUDIENCE: ${{ secrets.TS_AUDIENCE }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}

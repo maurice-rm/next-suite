@@ -1,0 +1,31 @@
+name: Bug
+description: create-next-suite fails, or a generated project does not work as the documentation says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. A vulnerability goes through [private reporting](https://github.com/maurice-rm/next-suite/security/advisories/new), never here.
+  - type: textarea
+    id: what-happens
+    attributes:
+      label: What happens
+      description: What you ran, what you expected, and what happened instead. Paste the output as text.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The exact command, or the answer file you passed, and the plugins you chose.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: create-next-suite, Node.js, the package manager and the operating system.
+      placeholder: "create-next-suite 2.0.0, Node.js 24.12.0, pnpm 12.16.1, Ubuntu 26.04"
+    validations:
+      required: true

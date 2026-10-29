@@ -1,0 +1,44 @@
+name: Generated projects
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "29 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  TURBO_UI: false
+
+jobs:
+  # Generates each scenario with each package manager and runs the generated project's own checks.
+  # There are no scenarios yet; this job keeps the aggregator below in place for when they arrive.
+  scenarios:
+    name: Scenarios
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: No scenarios yet
+        run: echo "create-next-suite generates no projects yet."
+
+  # The single required check for generated projects, reported even when jobs above are skipped.
+  success:
+    name: Success
+    if: always()
+    needs: [scenarios]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

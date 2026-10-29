@@ -1,0 +1,22 @@
+services:
+  docs:
+    image: ${DOCKER_IMAGE:-next-suite-docs:latest}
+    build:
+      context: ../..
+      dockerfile: apps/docs/Dockerfile
+    ports:
+      - "127.0.0.1:${PROJECT_PORT:?}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: always
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

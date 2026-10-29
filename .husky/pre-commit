@@ -1,0 +1,1 @@
+pnpm exec biome check --staged --error-on-warnings --no-errors-on-unmatched

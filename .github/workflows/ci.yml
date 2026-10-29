@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+# One run per pull request or branch: a new push to a pull request cancels the run it replaces.
+# Runs on main are never cancelled, so every merged commit is checked in full.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  TURBO_UI: false
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - name: Biome
+        run: pnpm exec biome ci --reporter=github --error-on-warnings .
+      - name: Knip
+        run: pnpm knip
+      - name: Package boundaries
+        run: pnpm boundaries
+
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          install: "false"
+      - name: Audit dependencies
+        run: pnpm audit
+
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Fails the job on a finding instead of uploading to code scanning, whose merge protection
+      # waits on results for a test merge commit that GitHub recreates on its own.
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
+        with:
+          advanced-security: false
+          annotations: true
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
+  verify:
+    name: ${{ matrix.task }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [check-types, test, build]
+    steps:
+      # Full history, so `--affected` can find the merge base; blobs are fetched on demand.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+      - uses: $/.github/actions/setup
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ matrix.task }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-${{ matrix.task }}-
+      # Pull requests run only what their changes affect; main runs everything.
+      - name: Run ${{ matrix.task }}
+        env:
+          TASK: ${{ matrix.task }}
+          SCOPE: ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+        run: pnpm turbo run "$TASK" ${SCOPE:+"$SCOPE"}
+
+  node:
+    name: CLI on Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # The lowest version `engines` allows, and the newest release.
+        node: ["24.12.0", latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Test the built CLI
+        run: pnpm turbo run test --filter=@next-suite/integration
+
+  # The single required check for main. It always reports, so a skipped job never blocks a merge,
+  # and a job added above only needs to join `needs` here.
+  success:
+    name: Success
+    if: always()
+    needs: [lint, audit, zizmor, dependency-review, verify, node]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

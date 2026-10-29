@@ -1,0 +1,146 @@
+name: Docs
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The version of create-next-suite just published, which tags the image.
+        type: string
+        required: true
+    secrets:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_AUDIENCE:
+        required: true
+      DEPLOY_SSH_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An image tag built before, such as 2.0.0, to deploy again. Empty builds main and deploys it.
+        type: string
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: docs-deploy
+
+jobs:
+  plan:
+    name: Plan the deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      build: ${{ steps.plan.outputs.build }}
+      tags: ${{ steps.plan.outputs.tags }}
+      deploy-image: ${{ steps.plan.outputs.deploy-image }}
+    steps:
+      - id: plan
+        env:
+          VERSION: ${{ inputs.version }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          [[ $GITHUB_REF == refs/heads/main ]] || { echo "Deploys run from main only." >&2; exit 1; }
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/docs"
+          sha_tag="$image:sha-$GITHUB_SHA"
+          if [[ -n $VERSION ]]; then
+            [[ $VERSION =~ ^[0-9A-Za-z._-]+$ ]] || { echo "Invalid version: $VERSION" >&2; exit 1; }
+            build=true
+            tags="$image:$VERSION,$sha_tag"
+            deploy_image="$image:$VERSION"
+          elif [[ -n $TAG ]]; then
+            [[ $TAG =~ ^[0-9A-Za-z._-]+$ ]] || { echo "Invalid tag: $TAG" >&2; exit 1; }
+            build=false
+            tags=
+            deploy_image="$image:$TAG"
+          else
+            build=true
+            tags="$sha_tag"
+            deploy_image="$sha_tag"
+          fi
+          {
+            echo "build=$build"
+            echo "tags=$tags"
+            echo "deploy-image=$deploy_image"
+          } >> "$GITHUB_OUTPUT"
+
+  image:
+    name: Build the image
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write # push the image to ghcr.io
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/docs/Dockerfile
+          push: true
+          tags: ${{ needs.plan.outputs.tags }}
+          cache-from: type=gha,scope=docs
+          cache-to: type=gha,mode=max,scope=docs
+
+  deploy:
+    name: Deploy to the server
+    needs: [plan, image]
+    if: ${{ !cancelled() && !failure() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: docs
+      url: ${{ vars.DOCS_URL }}
+    permissions:
+      contents: read
+      packages: read # let the server pull the image
+      id-token: write # join the tailnet through workload identity federation
+    env:
+      TARGET: next-suite-docs@${{ vars.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:deploy-next-suite-docs
+          ping: ${{ vars.DEPLOY_HOST }}
+      - name: Trust only the server's own host key
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          install -m 600 /dev/stdin ~/.ssh/id_ed25519 <<< "$SSH_KEY"
+          install -m 600 /dev/stdin ~/.ssh/known_hosts <<< "$KNOWN_HOSTS"
+          printf 'StrictHostKeyChecking yes\n' > ~/.ssh/config
+      - name: Ship the compose file
+        run: rsync -rlpt --mkpath apps/docs/docker-compose.yml "$TARGET:docs/"
+      - name: Let the server pull from the registry
+        env:
+          TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: ssh "$TARGET" docker login ghcr.io --username "$ACTOR" --password-stdin <<< "$TOKEN"
+      - name: Start the new version, or go back to the previous one
+        env:
+          IMAGE: ${{ needs.plan.outputs.deploy-image }}
+        run: ssh "$TARGET" bash -l -s -- "$IMAGE" docs < .github/deploy/compose-up.sh
+      - name: Remove the registry login and the key
+        if: always()
+        run: |
+          ssh "$TARGET" docker logout ghcr.io || true
+          rm -f ~/.ssh/id_ed25519

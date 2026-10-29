@@ -1,0 +1,23 @@
+name: Setup
+description: Install pnpm and Node from the repository's pins, and the workspace from its lockfile.
+
+inputs:
+  install:
+    description: Run `pnpm install --frozen-lockfile` after setup.
+    default: "true"
+  cache:
+    description: Restore and save the pnpm store cache.
+    default: "true"
+  node-version:
+    description: A Node version to install instead of the one in `.nvmrc`, such as `24.12.0`.
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+      with:
+        runtime: ${{ inputs.node-version != '' && format('node@{0}', inputs.node-version) || '' }}
+        cache: ${{ inputs.install == 'true' && inputs.cache == 'true' }}
+        install: ${{ inputs.install }}
+        require-lockfile: ${{ inputs.install }}

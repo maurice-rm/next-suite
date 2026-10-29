@@ -1,0 +1,41 @@
+name: Preview
+
+on:
+  pull_request:
+
+permissions: {}
+
+# A new push to a pull request replaces the preview of the push before it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  TURBO_UI: false
+
+jobs:
+  publish:
+    name: Publish a preview of create-next-suite
+    # A pull request from a fork runs code nobody has reviewed yet; it gets no preview. Neither does
+    # the version pull request, which changes only the version and the changelog.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref != 'changeset-release/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - name: Build create-next-suite
+        run: pnpm turbo run build --filter=create-next-suite
+      # pkg.pr.new's GitHub App comments on the pull request; `--bin` makes that comment a command
+      # that runs the CLI instead of installing it. `--pnpm` packs with pnpm, which resolves the
+      # `catalog:` specifiers in the manifest. pkg.pr.new takes no token: its app verifies the run,
+      # so zizmor's trusted-publishing advice does not apply.
+      - name: Publish the preview
+        run: pnpm exec pkg-pr-new publish --pnpm --bin ./packages/create-next-suite # zizmor: ignore[use-trusted-publishing]

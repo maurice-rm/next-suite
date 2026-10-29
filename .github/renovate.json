@@ -1,0 +1,14 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", "schedule:weekly"],
+  "minimumReleaseAge": "1 day",
+  "timezone": "Europe/Berlin",
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "ci",
+      "groupName": "github actions"
+    }
+  ]
+}

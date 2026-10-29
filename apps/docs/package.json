@@ -1,0 +1,31 @@
+{
+  "name": "@next-suite/docs",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --port 3020",
+    "check-types": "next typegen && tsc"
+  },
+  "dependencies": {
+    "fumadocs-core": "16.17.8",
+    "fumadocs-mdx": "15.4.10",
+    "fumadocs-ui": "16.17.8",
+    "next": "16.4.3",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@next-suite/tsconfig": "workspace:*",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/mdx": "2.0.14",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "postcss": "8.5.32",
+    "tailwindcss": "4.3.3",
+    "typescript": "catalog:"
+  }
+}

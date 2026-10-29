@@ -1,0 +1,39 @@
+name: Upstream
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  TURBO_UI: false
+
+jobs:
+  # Builds a full scenario against the newest versions of every dependency the plugins add to a
+  # generated project. There are no plugins yet; this job keeps the aggregator below in place.
+  newest-versions:
+    name: Newest plugin dependencies
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: No plugins yet
+        run: echo "create-next-suite ships no plugins yet."
+
+  success:
+    name: Success
+    if: always()
+    needs: [newest-versions]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Fail if any job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
