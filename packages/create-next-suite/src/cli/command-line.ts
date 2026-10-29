@@ -17,6 +17,7 @@ type CoreFlags = {
   diff?: boolean
   overwrite?: boolean
   empty?: boolean
+  plugin?: string[]
 }
 
 /** A parsed command line: the directory argument and every flag value. */
@@ -48,6 +49,10 @@ const CORE_OPTIONS = [
     'empty',
   ),
   new Option('--empty', 'empty a folder that has files first, keeping only .git'),
+  new Option(
+    '--plugin <address>',
+    'add a plugin from a folder, npm, GitHub, GitLab, Git or a URL; repeatable',
+  ).argParser((address: string, previous: string[] = []) => [...previous, address]),
 ]
 const COMMANDER_OPTIONS = ['help', 'version']
 
@@ -56,6 +61,21 @@ export const RESERVED_NAMES: ReadonlySet<string> = new Set([
   ...CORE_OPTIONS.map((option) => option.name()),
   ...COMMANDER_OPTIONS,
 ])
+
+const PLUGIN_FLAG = '--plugin'
+
+/**
+ * The plugin addresses on a command line, read before it is parsed in full, because the plugins
+ * decide which other flags exist.
+ */
+export const readPluginAddresses = (argv: readonly string[]): string[] =>
+  argv.flatMap((arg, index) => {
+    if (arg === PLUGIN_FLAG) {
+      const address = argv[index + 1]
+      return address === undefined ? [] : [address]
+    }
+    return arg.startsWith(`${PLUGIN_FLAG}=`) ? [arg.slice(PLUGIN_FLAG.length + 1)] : []
+  })
 
 /**
  * Parses the command line with the core options and the flags of the questions. Commander

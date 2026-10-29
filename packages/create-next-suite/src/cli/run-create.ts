@@ -5,6 +5,8 @@ import { CommanderError } from 'commander'
 import type { TargetAction } from '../answers/target-action.ts'
 import { composeProject } from '../compose/compose-project.ts'
 import type { Assets } from '../loader/load-assets.ts'
+import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
+import { assertUniqueNames } from '../loader/load-plugins.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
@@ -27,6 +29,7 @@ import {
   parseCommandLine,
   RESERVED_NAMES,
   readGivenAnswers,
+  readPluginAddresses,
   targetActionOf,
 } from './command-line.ts'
 import {
@@ -225,7 +228,20 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
   const plain: Presenter = { output: streams.output, error: streams.error, isFramed: false }
   let presenter = plain
   try {
-    const { questions, detectedPackageManager } = prepareQuestions(environment)
+    const external = await loadExternalPlugins(
+      readPluginAddresses(environment.argv),
+      environment.cwd,
+    )
+    const { assets } = environment
+    const withExternal: CreateEnvironment = {
+      ...environment,
+      assets: { ...assets, plugins: [...assets.plugins, ...external] },
+    }
+    assertUniqueNames([
+      ...(assets.base === undefined ? [] : [assets.base]),
+      ...withExternal.assets.plugins,
+    ])
+    const { questions, detectedPackageManager } = prepareQuestions(withExternal)
     const questionFlags = createFlags(questions, RESERVED_NAMES)
     const invocation = await parseCommandLine(
       { argv: environment.argv, version: environment.cliVersion, ...streams },
@@ -233,7 +249,14 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
     )
     const given = await readGivenAnswers(invocation, { cwd: environment.cwd, questionFlags })
     presenter = { ...plain, isFramed: environment.isInteractive && invocation.flags.yes !== true }
-    await create({ environment, invocation, given, questions, detectedPackageManager, presenter })
+    await create({
+      environment: withExternal,
+      invocation,
+      given,
+      questions,
+      detectedPackageManager,
+      presenter,
+    })
     return EXIT_SUCCESS
   } catch (error) {
     if (error instanceof CommanderError) {

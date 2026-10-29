@@ -6,6 +6,7 @@ import { collectFacts } from './collect-facts.ts'
 
 const plugin = (name: string, extra: Partial<LoadedPlugin['manifest']> = {}): LoadedPlugin => ({
   folder: `/plugins/${name}`,
+  source: { kind: 'builtin' },
   manifest: {
     name,
     version: '1.0.0',

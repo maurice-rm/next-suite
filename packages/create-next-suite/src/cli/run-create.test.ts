@@ -400,6 +400,39 @@ describe('runCreate', () => {
     )
   })
 
+  it('adds a plugin from a local folder, with its flag, its files and its source', async () => {
+    await write({
+      'mail/plugin.json': manifest('mail', {
+        section: 'Integrations',
+        files: [{ source: 'mail.ts', target: 'lib/mail.ts' }],
+      }),
+      'mail/mail.ts': 'export const mail = true\n',
+    })
+
+    const help = await run(['--plugin', './mail', '--help'])
+    const result = await run(['my-app', '--yes', '--plugin', './mail', '--mail', '--no-git'])
+    const recorded = JSON.parse(await readFile(join(root, 'my-app/next-suite.json'), 'utf8'))
+
+    expect(help.output).toContain('--mail')
+    expect(result.exitCode).toBe(0)
+    expect(await readFile(join(root, 'my-app/lib/mail.ts'), 'utf8')).toBe(
+      'export const mail = true\n',
+    )
+    expect(recorded.plugins).toContainEqual({ name: 'mail', source: './mail', version: '1.0.0' })
+    expect(recorded.answers).toMatchObject({ mail: true })
+  })
+
+  it('rejects an external plugin with the name of a built-in one, and an unknown address', async () => {
+    await write({ 'npm/plugin.json': manifest('npm') })
+
+    expect((await run(['my-app', '--yes', '--plugin', './npm'])).error).toContain(
+      'two plugins are named npm',
+    )
+    expect((await run(['my-app', '--yes', '--plugin', 'mail'])).error).toContain(
+      'the address has no known form',
+    )
+  })
+
   it('rejects an answer that no question asks', async () => {
     await write({ 'answers.json': JSON.stringify({ colour: 'blue' }) })
 
