@@ -32,7 +32,7 @@ jobs:
 
   # The single required check for generated projects, reported even when jobs above are skipped.
   success:
-    name: Success
+    name: Generated projects succeeded
     if: always()
     needs: [scenarios]
     runs-on: ubuntu-latest
