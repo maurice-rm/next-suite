@@ -12,6 +12,7 @@ import { defaultAnswer } from '../resolve-answers.ts'
 import { type Choice, confirm, multiselect, select, text } from './prompts.ts'
 import type { Ask, WizardStep } from './run-wizard.ts'
 import type { Streams } from './streams.ts'
+import { WizardCancelled } from './wizard-cancelled.ts'
 
 const NONE_LABEL = 'None'
 const DETECTED_HINT = 'detected'
@@ -26,6 +27,8 @@ type PromptOptions = Streams & { canGoBack: boolean }
  */
 type AskContext = {
   findDirectoryProblem: (directory: string) => string | undefined
+  /** Whether a folder may be emptied; never the current directory, a root or the home folder. */
+  canEmpty: (directory: string) => boolean
   detectedPackageManager: string | undefined
 }
 
@@ -166,9 +169,34 @@ const askCategory = async (
   }
 }
 
+const CANCEL = 'cancel'
+
+/** Asks what to do with a folder that has files; cancelling ends the run. */
+const askConflict = async (directory: string, { base, previous, context }: StepAsk) => {
+  const choices: Choice<string>[] = [
+    ...(context.canEmpty(directory)
+      ? [{ value: 'empty', label: 'Empty the directory — delete everything except .git' }]
+      : []),
+    { value: 'overwrite', label: 'Continue (keep existing files)' },
+    { value: CANCEL, label: 'Cancel' },
+  ]
+  const reply = await select({
+    ...base,
+    message: `"${directory}" exists and is not empty. How would you like to proceed?`,
+    choices,
+    initialValue: previousOr(previous, choices[0]?.value ?? CANCEL, isString),
+  })
+  if (reply === CANCEL) {
+    throw new WizardCancelled()
+  }
+  return reply
+}
+
 const askStep = async (step: WizardStep, ask: StepAsk) => {
   const { base, previous, context } = ask
   switch (step.kind) {
+    case 'conflict':
+      return askConflict(step.directory, ask)
     case 'project-name':
       return text({
         ...base,

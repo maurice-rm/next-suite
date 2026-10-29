@@ -3,12 +3,21 @@ import type { Writable } from 'node:stream'
 
 import { Command, Option } from 'commander'
 
+import type { TargetAction } from '../answers/target-action.ts'
+
 import { answersFromFlags, type QuestionFlag } from '../questions/flags.ts'
 import { InputError } from '../questions/input-error.ts'
 import { readAnswerFile } from '../questions/read-answer-file.ts'
 import type { AnswerInput } from '../questions/resolve-answers.ts'
 
-type CoreFlags = { yes?: boolean; answers?: string; dryRun?: boolean; diff?: boolean }
+type CoreFlags = {
+  yes?: boolean
+  answers?: string
+  dryRun?: boolean
+  diff?: boolean
+  overwrite?: boolean
+  empty?: boolean
+}
 
 /** A parsed command line: the directory argument and every flag value. */
 export type Invocation = {
@@ -35,6 +44,10 @@ const CORE_OPTIONS = [
   ),
   new Option('--dry-run', 'show what would be created, write nothing'),
   new Option('--diff', 'with --dry-run, show the content of every file'),
+  new Option('--overwrite', 'write into a folder that has files, keeping the others').conflicts(
+    'empty',
+  ),
+  new Option('--empty', 'empty a folder that has files first, keeping only .git'),
 ]
 const COMMANDER_OPTIONS = ['help', 'version']
 
@@ -77,6 +90,14 @@ export const parseCommandLine = async (
     throw new InputError('the command line did not run the command')
   }
   return invocation
+}
+
+/** What to do with a target folder that has files, as the flags say, if they say anything. */
+export const targetActionOf = ({ flags }: Invocation): TargetAction | undefined => {
+  if (flags.overwrite === true) {
+    return 'overwrite'
+  }
+  return flags.empty === true ? 'empty' : undefined
 }
 
 /** Reads the answers of the answer file and the flags; flags win over the file. */

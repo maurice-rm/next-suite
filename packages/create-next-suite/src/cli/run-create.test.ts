@@ -337,14 +337,45 @@ describe('runCreate', () => {
     )
   })
 
-  it('rejects a directory that is not empty before asking anything', async () => {
-    await write({ 'shop/notes.txt': '' })
+  it('asks for --overwrite or --empty for a folder with files without a terminal', async () => {
+    await write({ 'shop/notes.txt': 'mine' })
 
     const result = await run(['shop', '--yes'])
 
     expect(result.exitCode).toBe(1)
-    expect(result.error).toContain('"shop" is not empty')
+    expect(result.error).toContain(
+      '"shop" already has conflicting files — pass --overwrite or --empty to proceed.',
+    )
     expect(result.commands).toEqual([])
+  })
+
+  it('keeps the other files with --overwrite and deletes them with --empty', async () => {
+    await write({ 'kept/notes.txt': 'mine', 'emptied/notes.txt': 'mine' })
+
+    await run(['kept', '--yes', '--overwrite', '--no-git', '--no-install'])
+    await run(['emptied', '--yes', '--empty', '--no-git', '--no-install'])
+
+    expect(await readFile(join(root, 'kept/notes.txt'), 'utf8')).toBe('mine')
+    await expect(readFile(join(root, 'emptied/notes.txt'))).rejects.toThrow()
+    expect(await readFile(join(root, 'emptied/package.json'), 'utf8')).toContain('"emptied"')
+  })
+
+  it('rejects --overwrite together with --empty', async () => {
+    const result = await run(['shop', '--yes', '--overwrite', '--empty'])
+
+    expect(result.error).toContain("option '--overwrite' cannot be used with option '--empty'")
+  })
+
+  it('asks in the wizard what to do with a folder that has files', async () => {
+    await write({ 'shop/notes.txt': 'mine' })
+
+    const result = await run(['shop', '--dry-run'], { isInteractive: true, keys: ['\u0003'] })
+
+    expect(result.output).toContain(
+      '"shop" exists and is not empty. How would you like to proceed?',
+    )
+    expect(result.output).toContain('Empty the directory — delete everything except .git')
+    expect(result.output).toContain('Continue (keep existing files)')
   })
 
   it('rejects an invalid project name', async () => {

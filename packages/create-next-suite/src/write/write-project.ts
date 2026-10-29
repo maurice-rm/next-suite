@@ -1,28 +1,34 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { lstat, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { dirname, isAbsolute, join, relative, sep } from 'node:path'
 
+import type { TargetAction } from '../answers/target-action.ts'
 import type { ProjectPlan } from '../compose/compose-project.ts'
-import { inspectTarget } from './inspect-target.ts'
+import { emptyTarget } from './empty-target.ts'
+import { inspectTarget, isHarmlessEntry } from './inspect-target.ts'
 import { WriteError } from './write-error.ts'
 
 /** What this run created: every file it opened and the first folder of every new folder chain. */
 type Created = { files: string[]; folders: string[] }
 
+/** Where a project goes and what happens to files already there. */
+export type WriteTarget = { directory: string; action: TargetAction; cwd: string }
+
 const hasCode = (error: unknown, code: string): boolean =>
   error instanceof Error && 'code' in error && error.code === code
 
-/** Answers whether the directory has to be created; an existing one must be an empty directory. */
-const needsCreation = (directory: string): boolean => {
-  switch (inspectTarget(directory)) {
-    case 'missing':
-      return true
-    case 'empty':
-      return false
-    case 'not-a-folder':
-      throw new WriteError(`${directory} exists and is not a directory`)
-    case 'not-empty':
-      throw new WriteError(`${directory} is not empty`)
+/** Answers whether the directory has to be created, and checks it fits the action. */
+const prepareTarget = async ({ directory, action, cwd }: WriteTarget): Promise<boolean> => {
+  const state = inspectTarget(directory)
+  if (state === 'not-a-folder') {
+    throw new WriteError(`${directory} exists and is not a directory`)
   }
+  if (state === 'not-empty' && action === 'create') {
+    throw new WriteError(`${directory} is not empty`)
+  }
+  if (state === 'not-empty' && action === 'empty') {
+    await emptyTarget(directory, cwd)
+  }
+  return state === 'missing'
 }
 
 const createFolder = async (path: string, created: Created): Promise<void> => {
@@ -32,21 +38,49 @@ const createFolder = async (path: string, created: Created): Promise<void> => {
   }
 }
 
+/** Whether a generated file may replace a file at its path: always with overwrite, otherwise only harmless ones. */
+const mayReplace = (relativePath: string, action: TargetAction): boolean =>
+  action === 'overwrite' || isHarmlessEntry(relativePath.split('/')[0] ?? '')
+
+const writeOne = async (path: string, content: string, canReplace: boolean): Promise<boolean> => {
+  const existing = await lstat(path).catch((error: unknown) => {
+    if (hasCode(error, 'ENOENT')) {
+      return undefined
+    }
+    throw error
+  })
+  if (existing === undefined) {
+    await writeFile(path, content, { flag: 'wx' })
+    return true
+  }
+  if (!canReplace || !existing.isFile()) {
+    throw new WriteError(`${path} exists already and is not replaced`)
+  }
+  await writeFile(path, content)
+  return false
+}
+
+/** Fails when a folder on the way to a file leads out of the target, such as through a link. */
+const assertInsideTarget = async (realTarget: string, folder: string): Promise<void> => {
+  const fromTarget = relative(realTarget, await realpath(folder))
+  if (fromTarget === '..' || fromTarget.startsWith(`..${sep}`) || isAbsolute(fromTarget)) {
+    throw new WriteError(`${folder} leads out of the project, such as through a link`)
+  }
+}
+
 const writeFiles = async (
   plan: ProjectPlan,
-  directory: string,
+  { directory, action }: WriteTarget,
   created: Created,
 ): Promise<void> => {
+  const realTarget = await realpath(directory)
   for (const file of plan.files) {
     const path = join(directory, file.path)
     await createFolder(dirname(path), created)
-    created.files.push(path)
-    await writeFile(path, file.content, { flag: 'wx' }).catch((error: unknown) => {
-      if (hasCode(error, 'EEXIST')) {
-        created.files.pop()
-      }
-      throw error
-    })
+    await assertInsideTarget(realTarget, dirname(path))
+    if (await writeOne(path, file.content, mayReplace(file.path, action))) {
+      created.files.push(path)
+    }
   }
 }
 
@@ -57,18 +91,20 @@ const removeCreated = async (created: Created): Promise<void> => {
 }
 
 /**
- * Writes a composed project into a new or empty directory. Files are created exclusively, so
- * nothing existing is overwritten or followed; if writing fails, every file and folder this run
- * created is removed again, including the directory when this run created it.
+ * Writes a composed project into its target. `create` needs a missing or empty folder, `empty`
+ * deletes everything but `.git` first, `overwrite` writes over existing files. A file is never
+ * written through a link or over a folder. If writing fails, every file and folder this run
+ * created is removed again; files it replaced stay replaced.
  */
-export const writeProject = async (plan: ProjectPlan, directory: string): Promise<void> => {
-  const isNew = needsCreation(directory)
+export const writeProject = async (plan: ProjectPlan, target: WriteTarget): Promise<void> => {
+  const { directory } = target
+  const isNew = await prepareTarget(target)
   const created: Created = { files: [], folders: [] }
   try {
     if (isNew) {
       await createFolder(directory, created)
     }
-    await writeFiles(plan, directory, created)
+    await writeFiles(plan, target, created)
   } catch (error) {
     try {
       await removeCreated(created)
@@ -80,6 +116,8 @@ export const writeProject = async (plan: ProjectPlan, directory: string): Promis
         },
       )
     }
-    throw new WriteError(`writing ${directory} failed; nothing was left behind`, { cause: error })
+    throw new WriteError(`writing ${directory} failed; what this run created was removed`, {
+      cause: error,
+    })
   }
 }

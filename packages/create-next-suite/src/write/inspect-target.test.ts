@@ -29,15 +29,23 @@ describe('inspectTarget', () => {
     expect(inspectTarget(join(root, 'full/notes.txt'))).toBe('not-a-folder')
     expect(inspectTarget(join(root, 'full/notes.txt/app'))).toBe('not-a-folder')
   })
+
+  it('counts a folder with only harmless entries such as .git and LICENSE as empty', async () => {
+    await mkdir(join(root, 'repo/.git'), { recursive: true })
+    await writeFile(join(root, 'repo/LICENSE'), '')
+    await writeFile(join(root, 'repo/app.iml'), '')
+
+    expect(inspectTarget(join(root, 'repo'))).toBe('empty')
+  })
 })
 
 describe('findTargetProblem', () => {
-  it('names the problem with the directory as typed', async () => {
+  it('names a file at the path, but not a folder with files, which is a conflict', async () => {
     await mkdir(join(root, 'full'))
     await writeFile(join(root, 'full/notes.txt'), '')
 
     expect(findTargetProblem('new', join(root, 'new'))).toBeUndefined()
-    expect(findTargetProblem('.', join(root, 'full'))).toBe('"." is not empty')
+    expect(findTargetProblem('.', join(root, 'full'))).toBeUndefined()
     expect(findTargetProblem('notes.txt', join(root, 'full/notes.txt'))).toBe(
       'A file already exists at that path — choose another name.',
     )
