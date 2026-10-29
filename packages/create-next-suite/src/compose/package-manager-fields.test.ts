@@ -10,6 +10,7 @@ const fieldsFor = (allowedBuildsIn: string) =>
     packageManager: {
       version: 'catalog:pnpm',
       installArgs: ['install'],
+      ciInstallArgs: ['ci'],
       whenVersionDiffers: 'download',
       allowedBuildsIn,
     },
@@ -48,6 +49,7 @@ describe('packageManagerFields', () => {
       packageManager: {
         version: '12.2.1',
         installArgs: ['install'],
+        ciInstallArgs: ['ci'],
         whenVersionDiffers: 'warn',
         allowedBuildsIn: 'package.json#allowScripts',
       },

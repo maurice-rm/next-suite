@@ -30,6 +30,8 @@ export type CompositionValues = {
   deniedBuilds: string[]
   cssImports: string[]
   prettierPlugins: string[]
+  ciChecks: string[]
+  agents: { sections: ReadmeSection[] }
   /** Globs of staged files with the commands lint-staged runs on them, in plugin order. */
   lintStaged: { glob: string; commands: string[] }[]
   gitignore: string[]
@@ -58,6 +60,8 @@ type Accumulator = {
   deniedBuilds: string[]
   cssImports: string[]
   prettierPlugins: string[]
+  ciChecks: string[]
+  agents: ReadmeSection[]
   lintStaged: { glob: string; commands: string[] }[]
   gitignore: string[]
   imports: string[]
@@ -79,6 +83,8 @@ const createAccumulator = (): Accumulator => ({
   deniedBuilds: [],
   cssImports: [],
   prettierPlugins: [],
+  ciChecks: [],
+  agents: [],
   lintStaged: [],
   gitignore: [],
   imports: [],
@@ -219,6 +225,8 @@ const addLists = (accumulator: Accumulator, manifest: ParsedPluginManifest): voi
   accumulator.deniedBuilds.push(...(manifest.contributes?.deniedBuilds ?? []))
   accumulator.cssImports.push(...(manifest.contributes?.cssImports ?? []))
   accumulator.prettierPlugins.push(...(manifest.contributes?.prettierPlugins ?? []))
+  accumulator.ciChecks.push(...(manifest.contributes?.ciChecks ?? []))
+  accumulator.agents.push(...(manifest.contributes?.agents ?? []))
   for (const { glob, command } of manifest.contributes?.lintStaged ?? []) {
     const entry = accumulator.lintStaged.find((existing) => existing.glob === glob)
     if (entry === undefined) {
@@ -262,6 +270,8 @@ const toValues = (accumulator: Accumulator): CompositionValues => ({
     .sort(compareNames),
   cssImports: unique(accumulator.cssImports),
   prettierPlugins: unique(accumulator.prettierPlugins),
+  ciChecks: unique(accumulator.ciChecks),
+  agents: { sections: accumulator.agents },
   lintStaged: accumulator.lintStaged,
   gitignore: unique(accumulator.gitignore),
   readme: { sections: accumulator.readme },

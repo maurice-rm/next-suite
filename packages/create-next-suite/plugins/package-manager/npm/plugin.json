@@ -8,6 +8,7 @@
   "category": "package-manager",
   "packageManager": {
     "version": "catalog:npm",
+    "ciInstallArgs": ["ci"],
     "whenVersionDiffers": "warn",
     "allowedBuildsIn": "package.json#allowScripts"
   },

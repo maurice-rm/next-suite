@@ -42,6 +42,7 @@ export const TEST_PLUGINS: ParsedPluginManifest[] = [
     category: 'package-manager',
     packageManager: {
       version: '12.16.1',
+      ciInstallArgs: ['ci'],
       whenVersionDiffers: 'download',
       allowedBuildsIn: 'pnpm-workspace.yaml',
     },
@@ -51,6 +52,7 @@ export const TEST_PLUGINS: ParsedPluginManifest[] = [
     category: 'package-manager',
     packageManager: {
       version: '12.2.1',
+      ciInstallArgs: ['ci'],
       whenVersionDiffers: 'warn',
       allowedBuildsIn: 'package.json#allowScripts',
     },

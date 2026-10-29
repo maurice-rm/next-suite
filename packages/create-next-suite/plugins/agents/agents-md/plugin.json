@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "agents-md",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "AGENTS.md",
+  "description": "Writes AGENTS.md and CLAUDE.md with the commands of the project and the rules plugins add.",
+  "category": "agents",
+  "files": [
+    { "source": "files/AGENTS.md.hbs", "target": "AGENTS.md" },
+    { "source": "files/CLAUDE.md", "target": "CLAUDE.md" }
+  ]
+}

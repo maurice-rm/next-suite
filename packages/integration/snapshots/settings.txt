@@ -1,15 +1,18 @@
 Files:
   .editorconfig (12 lines, base)
   .env.example (9 lines, base)
+  .github/workflows/ci.yml (38 lines, github-actions)
   .gitignore (13 lines, base)
   .husky/pre-commit (1 line, lint-staged)
   .prettierignore (5 lines, prettier)
+  AGENTS.md (25 lines, agents-md)
+  CLAUDE.md (1 line, agents-md)
   README.md (32 lines, base)
   __tests__/page.test.tsx (10 lines, vitest)
   eslint.config.mjs (11 lines, eslint)
   knip.json (3 lines, knip)
   lint-staged.config.mjs (7 lines, lint-staged)
-  next-suite.json (76 lines, create-next-suite)
+  next-suite.json (88 lines, create-next-suite)
   next.config.ts (9 lines, base)
   package.json (55 lines, create-next-suite)
   pnpm-workspace.yaml (3 lines, pnpm)
@@ -91,6 +94,49 @@ Dev dependencies:
 
 ===================================================================
 --- /dev/null
++++ .github/workflows/ci.yml
+@@ -0,0 +1,38 @@
++name: CI
++
++on:
++  pull_request:
++  push:
++    branches: [main]
++
++permissions:
++  contents: read
++
++concurrency:
++  group: ci-${{ github.ref }}
++  cancel-in-progress: true
++
++jobs:
++  check:
++    name: Check
++    runs-on: ubuntu-latest
++    timeout-minutes: 15
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
++      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
++      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
++        with:
++          node-version: 24
++      - run: pnpm install --frozen-lockfile
++      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
++        with:
++          path: .next/cache
++          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lock') }}
++      - run: pnpm run typecheck
++      - run: pnpm run lint
++      - run: pnpm run format:check
++      - run: pnpm run knip
++      - run: pnpm run test
++      - run: pnpm run build
+
+===================================================================
+--- /dev/null
 +++ .gitignore
 @@ -0,0 +1,13 @@
 +/node_modules
@@ -122,6 +168,42 @@ Dev dependencies:
 +yarn.lock
 +bun.lock
 +.yarn
+
+===================================================================
+--- /dev/null
++++ AGENTS.md
+@@ -0,0 +1,25 @@
++# my-app
++
++<!-- BEGIN:nextjs-agent-rules -->
++
++## This is NOT the Next.js you know
++
++This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
++
++This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
++
++<!-- END:nextjs-agent-rules -->
++
++## Commands
++
++- `pnpm run dev`: `next dev`
++- `pnpm run build`: `next build`
++- `pnpm run start`: `next start`
++- `pnpm run typecheck`: `next typegen && tsc --noEmit`
++- `pnpm run lint`: `eslint`
++- `pnpm run format`: `prettier --write .`
++- `pnpm run format:check`: `prettier --check .`
++- `pnpm run knip`: `knip`
++- `pnpm run prepare`: `husky`
++- `pnpm run test`: `vitest run`
++- `pnpm run test:watch`: `vitest`
+
+===================================================================
+--- /dev/null
++++ CLAUDE.md
+@@ -0,0 +1,1 @@
++@AGENTS.md
 
 ===================================================================
 --- /dev/null
@@ -214,7 +296,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ next-suite.json
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,88 @@
 +{
 +  "cli": "0.0.0",
 +  "contract": "1.0.0",
@@ -269,6 +351,16 @@ Dev dependencies:
 +      "name": "seo",
 +      "source": "builtin",
 +      "version": "1.0.0"
++    },
++    {
++      "name": "github-actions",
++      "source": "builtin",
++      "version": "1.0.0"
++    },
++    {
++      "name": "agents-md",
++      "source": "builtin",
++      "version": "1.0.0"
 +    }
 +  ],
 +  "answers": {
@@ -288,7 +380,9 @@ Dev dependencies:
 +    "env-validation": null,
 +    "logging": "pino",
 +    "security-headers": "static-csp",
-+    "seo": "seo"
++    "seo": "seo",
++    "ci": "github-actions",
++    "agents": "agents-md"
 +  }
 +}
 

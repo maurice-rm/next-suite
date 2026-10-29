@@ -18,6 +18,7 @@ const packageManager = (name: string): ParsedPluginManifest =>
     category: 'package-manager',
     packageManager: {
       version: '1.0.0',
+      ciInstallArgs: ['ci'],
       whenVersionDiffers: 'warn',
       allowedBuildsIn: 'package.json#allowScripts',
     },

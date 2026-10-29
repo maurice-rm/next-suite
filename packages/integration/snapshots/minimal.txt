@@ -16,8 +16,8 @@ Files:
   instrumentation.ts (16 lines, pino)
   lib/logger.ts (5 lines, pino)
   lib/site-url.ts (3 lines, seo)
-  next-suite.json (49 lines, create-next-suite)
-  next.config.ts (10 lines, base)
+  next-suite.json (51 lines, create-next-suite)
+  next.config.ts (11 lines, base)
   package.json (33 lines, create-next-suite)
   pnpm-workspace.yaml (2 lines, pnpm)
   security-headers.ts (22 lines, static-csp)
@@ -325,7 +325,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ next-suite.json
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,51 @@
 +{
 +  "cli": "0.0.0",
 +  "contract": "1.0.0",
@@ -372,18 +372,21 @@ Dev dependencies:
 +    "env-validation": "t3-env",
 +    "logging": "pino",
 +    "security-headers": "static-csp",
-+    "seo": "seo"
++    "seo": "seo",
++    "ci": null,
++    "agents": null
 +  }
 +}
 
 ===================================================================
 --- /dev/null
 +++ next.config.ts
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,11 @@
 +import type { NextConfig } from "next";
 +import { securityHeaders } from "./security-headers";
 +
 +const nextConfig: NextConfig = {
++  agentRules: false,
 +  cacheComponents: true,
 +  partialPrefetching: true,
 +  headers: async () => [{ source: "/(.*)", headers: securityHeaders }],

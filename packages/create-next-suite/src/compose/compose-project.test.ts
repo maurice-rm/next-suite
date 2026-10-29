@@ -155,6 +155,7 @@ describe('composeProject', () => {
       category: 'package-manager',
       packageManager: {
         version: 'catalog:bun',
+        ciInstallArgs: ['ci'],
         whenVersionDiffers: 'warn',
         allowedBuildsIn: 'package.json#trustedDependencies',
       },
@@ -237,6 +238,27 @@ describe('composeProject', () => {
     await expect(compose(await writeBase(), [], answers)).rejects.toThrow(
       'the import alias "@"x" is invalid',
     )
+  })
+
+  it('rejects a CI check whose script no plugin defines', async () => {
+    const ci = await writePlugin('checks', { contributes: { ciChecks: ['lint'] } })
+
+    await expect(compose(await writeBase(), [ci], answersWith([]))).rejects.toThrow(
+      'a plugin runs in CI the script "lint", but no plugin defines it',
+    )
+  })
+
+  it('takes stack names and next steps from conditional contributions that hold', async () => {
+    const extra = await writePlugin('extra', {
+      conditionalContributions: [
+        { when: { not: { category: 'orm' } }, contributes: { stack: ['Extra'] } },
+        { when: { category: 'orm' }, contributes: { stack: ['Never'] } },
+      ],
+    })
+
+    const plan = await compose(await writeBase(), [extra], answersWith([]))
+
+    expect(plan.summary.stack).toEqual(['Extra'])
   })
 
   it('records the run in next-suite.json', async () => {

@@ -86,5 +86,22 @@
         "default": "seo"
       }
     ]
+  },
+  {
+    "section": "Deployment",
+    "categories": [
+      {
+        "id": "ci",
+        "question": "Which CI would you like to use?",
+        "cardinality": "at-most-one",
+        "default": "github-actions"
+      },
+      {
+        "id": "agents",
+        "question": "Add AGENTS.md for coding agents?",
+        "cardinality": "at-most-one",
+        "default": "agents-md"
+      }
+    ]
   }
 ]

@@ -90,6 +90,10 @@ const packageManagerSchema = z
       .string()
       .refine(isExactVersionSpec, 'Use `catalog:<name>` or an exact version')
       .meta({ description: 'The version written to `packageManager` in package.json.' }),
+    ciInstallArgs: z.array(z.string().min(1)).min(1).meta({
+      description:
+        'The arguments of a CI install that keeps the lockfile as it is, such as `["ci"]` for npm.',
+    }),
     installArgs: z.array(z.string().min(1)).min(1).default(['install']).meta({
       description:
         'The arguments of the first install, such as `["install", "--no-immutable"]` for Yarn, which forbids creating a lockfile in CI otherwise.',
@@ -119,6 +123,11 @@ const conditionalDependenciesSchema = z.strictObject({
   when: conditionSchema,
   dependencies: dependenciesSchema.optional(),
   devDependencies: dependenciesSchema.optional(),
+})
+
+const conditionalContributionsSchema = z.strictObject({
+  when: conditionSchema,
+  contributes: contributionsSchema,
 })
 
 const postStepSchema = z.strictObject({
@@ -166,6 +175,10 @@ export const pluginManifestSchema = z
     files: z.array(pluginFileSchema).optional(),
     facts: z.record(kebabCaseId, conditionSchema).optional(),
     contributes: contributionsSchema.optional(),
+    conditionalContributions: z.array(conditionalContributionsSchema).optional().meta({
+      description:
+        'Contributions added only when a condition holds, such as an option for when no plugin of a category is selected.',
+    }),
     packageManager: packageManagerSchema.optional(),
     postSteps: z.array(postStepSchema).optional().meta({
       description: 'Scripts to run after the dependencies are installed, in this order.',

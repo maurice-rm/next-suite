@@ -9,6 +9,7 @@
   "packageManager": {
     "version": "catalog:yarn",
     "installArgs": ["install", "--no-immutable"],
+    "ciInstallArgs": ["install", "--immutable"],
     "whenVersionDiffers": "warn",
     "allowedBuildsIn": "package.json#dependenciesMeta"
   },
