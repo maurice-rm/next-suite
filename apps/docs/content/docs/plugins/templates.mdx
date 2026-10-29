@@ -1,0 +1,39 @@
+---
+title: Templates
+description: Files that a plugin renders from the answers.
+---
+
+A file whose source ends in `.hbs` is a Handlebars template; every other file is copied as it is.
+TypeScript and JavaScript sources end in `.hbs` even without placeholders, so the tools of your
+repository do not check them as code. Write JSX double braces as `\{{`.
+
+Templates run in a restricted Handlebars: plain values, `each`, and `if`/`unless` only with a named
+fact through `has`:
+
+```hbs
+export const site = "{{project.name}}";
+{{#if (has "plugin:prettier")}}
+// formatted by Prettier
+{{/if}}
+{{#each gitignore}}
+{{this}}
+{{/each}}
+```
+
+A missing value or an unknown fact fails the run, so a typo never produces a broken file.
+
+## Values
+
+| Value | What it holds |
+| --- | --- |
+| `project.name` | the package name |
+| `project.importAlias`, `project.importPrefix` | the import alias, such as `@/*`, and what an import starts with, such as `@/` |
+| `project.packageManager`, `project.run` | the package manager, such as `pnpm`, and how it runs a script, such as `pnpm run` |
+| `settings` | the base settings, such as `src-dir` |
+| `options` | the answers to this plugin's options |
+| every composition point | the merged contributions of all plugins, such as `scripts`, `gitignore` or `env.server` |
+
+## Facts
+
+`has` asks named facts: `plugin:<name>` (a plugin is selected), `category:<id>` (a plugin of the
+category is selected) and the facts plugins declare in `facts`, each a condition over the answers.

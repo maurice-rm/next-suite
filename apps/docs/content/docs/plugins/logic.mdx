@@ -1,0 +1,34 @@
+---
+title: Logic modules
+description: Computing files and contributions in code.
+---
+
+When data is not enough, a plugin names a logic module in `logic`. Its default export gets a
+context and answers what to add:
+
+```ts title="logic.ts"
+import type { Logic } from 'create-next-suite/plugin'
+
+const logic: Logic = (context) => ({
+  files: [
+    {
+      target: 'lib/site.ts',
+      content: `export const site = ${JSON.stringify(context.project.name)}\n`,
+      root: 'source',
+    },
+  ],
+  contributes: { gitignore: context.has('plugin:prettier') ? ['/.cache'] : [] },
+})
+
+export default logic
+```
+
+The context holds the project (`name`, `packageManager`, `importPrefix`), the answers to the
+plugin's own options, the base settings, the selected plugins and `has(fact)`. The answer may hold
+`files`, `contributes`, `dependencies` and `devDependencies`; it is validated, and its files get the
+same path checks and conflict rules as the plugin's files.
+
+A logic module must not write files, start processes or use the network; the core does all of that.
+Node.js runs TypeScript by removing its types, so use TypeScript that runs that way: no `enum`, no
+parameter properties, no decorators. A plugin published to npm ships JavaScript, because Node.js
+does not strip types under `node_modules`.

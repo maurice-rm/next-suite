@@ -1,0 +1,54 @@
+---
+title: Sources and trust
+description: Where plugins come from, and which of them may run.
+---
+
+`--plugin` takes an address:
+
+| Form | Example |
+| --- | --- |
+| local folder | `./plugins/mail` |
+| npm | `npm:next-suite-plugin-mail@^1` |
+| GitHub, GitLab | `github:acme/plugins/mail#v1`, `gitlab:group/repo` |
+| any Git repository | `git+https://host/repo.git#main` |
+| tarball URL | `https://host/mail.tgz` |
+| registry | `@acme/mail` |
+
+npm tarballs are checked against their integrity and never run install scripts. GitHub and GitLab
+refs resolve to a commit; next-suite.json records what each source resolved to. Tokens come from
+`GH_TOKEN`, `GITHUB_TOKEN`, the GitHub CLI or `GITLAB_TOKEN` and are sent to their own host only.
+
+## Trust
+
+A plugin from anywhere but a local folder can run code on your machine: through its logic module,
+but also through scripts, post-steps or package manager settings. So it needs your trust:
+
+- in a terminal, create-next-suite asks: allow a pinned version once, always trust the source, or
+  cancel;
+- without one, pass `--trust "github:acme/*"` for the run;
+- or keep trusted patterns with `next-suite trust add "github:acme/*"`.
+
+A dry run of a plugin without a logic module needs no trust. Patterns match the address without its
+ref or version, and `*` stands for anything.
+
+GitHub serves commits of forks through the original repository too. A commit pinned under a trusted
+owner can therefore come from someone else's fork; pin tags or branches of repositories you trust.
+
+## Registries
+
+A registry is a folder, repository or tarball with a `registry.json`:
+
+```json title="registry.json"
+{
+  "$schema": "https://unpkg.com/create-next-suite/dist/schemas/registry.json",
+  "name": "@acme",
+  "plugins": [{ "name": "mail", "path": "mail", "description": "Sends mail through Acme." }]
+}
+```
+
+```bash
+npx -p create-next-suite next-suite registry add @acme github:acme/next-suite-plugins --trust
+npx create-next-suite my-app --plugin @acme/mail
+```
+
+The configuration lives in `~/.config/next-suite/config.json` (or under `XDG_CONFIG_HOME`).

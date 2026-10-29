@@ -91,6 +91,63 @@ const cliPage = (): string => {
   ].join('\n')
 }
 
+type SchemaProperty = {
+  description?: string
+  type?: string
+  enum?: unknown[]
+  anyOf?: SchemaProperty[]
+  oneOf?: SchemaProperty[]
+  properties?: Record<string, SchemaProperty>
+  items?: SchemaProperty
+}
+type ObjectSchema = { properties: Record<string, SchemaProperty>; required?: string[] }
+
+const typeOf = (property: SchemaProperty): string => {
+  if (property.enum !== undefined) {
+    return property.enum.map((value) => `\`${JSON.stringify(value)}\``).join(' \\| ')
+  }
+  if (property.type === 'array') {
+    return `${property.items === undefined ? 'unknown' : typeOf(property.items)}[]`
+  }
+  return property.type ?? 'object'
+}
+
+const escapeCell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('\n', ' ')
+
+const propertyTable = ({ properties, required = [] }: ObjectSchema): string =>
+  [
+    '| Field | Type | Required | Description |',
+    '| --- | --- | --- | --- |',
+    ...Object.entries(properties)
+      .filter(([name]) => name !== '$schema')
+      .map(
+        ([name, property]) =>
+          `| \`${name}\` | ${escapeCell(typeOf(property))} | ${required.includes(name) ? 'yes' : ''} | ${escapeCell(property.description ?? '')} |`,
+      ),
+  ].join('\n')
+
+const manifestPage = (): string => {
+  const schema = readJson<ObjectSchema>(join(PACKAGE_ROOT, 'dist/schemas/plugin.json'))
+  const contributes = schema.properties.contributes as ObjectSchema | undefined
+  return [
+    '---',
+    'title: Manifest reference',
+    'description: Every field of plugin.json.',
+    '---',
+    '',
+    NOTICE,
+    '',
+    'The JSON schema ships as `create-next-suite/schemas/plugin.json`; point `$schema` at it for',
+    'completion in your editor.',
+    '',
+    propertyTable(schema),
+    '',
+    ...(contributes?.properties === undefined
+      ? []
+      : ['## `contributes`', '', propertyTable(contributes), '']),
+  ].join('\n')
+}
+
 const sections = readJson<Section[]>(join(PACKAGE_ROOT, 'categories.json'))
 const manifests = loadManifests()
 mkdirSync(OPTIONS, { recursive: true })
@@ -102,3 +159,4 @@ writeFileSync(
   `${JSON.stringify({ title: 'Options', pages: sections.map((section) => slugOf(section.section)) }, null, 2)}\n`,
 )
 writeFileSync(join(CONTENT, 'cli.mdx'), cliPage())
+writeFileSync(join(CONTENT, 'plugins', 'manifest.mdx'), manifestPage())

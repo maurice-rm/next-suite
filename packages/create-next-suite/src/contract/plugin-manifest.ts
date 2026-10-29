@@ -146,15 +146,22 @@ export const pluginManifestSchema = z
   .strictObject({
     // biome-ignore lint/style/useNamingConvention: JSON Schema fixes the name of this key
     $schema: z.string().optional(),
-    name: pluginName,
-    version: z.string().refine((value) => semver.valid(value) !== null, 'Use a semver version'),
+    name: pluginName.meta({
+      description: 'The name, also the flag of a plugin without a category.',
+    }),
+    version: z
+      .string()
+      .refine((value) => semver.valid(value) !== null, 'Use a semver version')
+      .meta({ description: 'The version of the plugin itself, recorded in next-suite.json.' }),
     contract: z
       .string()
       .refine((value) => semver.validRange(value) !== null, 'Use a semver range')
       .meta({ description: 'The versions of the plugin contract this plugin works with.' }),
-    title: z.string().min(1),
-    description: z.string().min(1),
-    category: kebabCaseId.optional(),
+    title: z.string().min(1).meta({ description: 'The name the wizard shows.' }),
+    description: z.string().min(1).meta({ description: 'What the plugin does, in one sentence.' }),
+    category: kebabCaseId
+      .optional()
+      .meta({ description: 'The category whose question offers this plugin, such as `orm`.' }),
     section: z.string().min(1).optional().meta({
       description:
         'The section of the wizard the question belongs to; only for plugins without a category.',
@@ -162,19 +169,40 @@ export const pluginManifestSchema = z
     selectedByDefault: z.boolean().optional().meta({
       description: 'Whether `--yes` selects this plugin; only for plugins without a category.',
     }),
-    options: z.record(kebabCaseId, pluginOptionSchema).optional(),
-    requires: z.array(ruleSchema).optional(),
-    conflicts: z.array(ruleSchema).optional(),
-    dependencies: dependenciesSchema.optional(),
-    devDependencies: dependenciesSchema.optional(),
+    options: z.record(kebabCaseId, pluginOptionSchema).optional().meta({
+      description: 'Further questions, each with a default and a flag `--<plugin>-<option>`.',
+    }),
+    requires: z
+      .array(ruleSchema)
+      .optional()
+      .meta({ description: 'Conditions that must hold for this plugin, each with a reason.' }),
+    conflicts: z.array(ruleSchema).optional().meta({
+      description: 'Conditions under which this plugin cannot be used, each with a reason.',
+    }),
+    dependencies: dependenciesSchema
+      .optional()
+      .meta({ description: 'Dependencies of the project: `catalog:<name>` or a semver range.' }),
+    devDependencies: dependenciesSchema.optional().meta({
+      description: 'Dev dependencies of the project: `catalog:<name>` or a semver range.',
+    }),
     conditionalDependencies: z.array(conditionalDependenciesSchema).optional().meta({
       description:
         'Dependencies added only when a condition holds, such as a Prettier plugin when Prettier is selected.',
     }),
-    env: z.array(envVariableSchema).optional(),
-    files: z.array(pluginFileSchema).optional(),
-    facts: z.record(kebabCaseId, conditionSchema).optional(),
-    contributes: contributionsSchema.optional(),
+    env: z.array(envVariableSchema).optional().meta({
+      description:
+        'Environment variables the plugin needs, listed in .env.example and the env schema.',
+    }),
+    files: z.array(pluginFileSchema).optional().meta({
+      description: 'Files from the plugin folder; a source ending in `.hbs` is a template.',
+    }),
+    facts: z
+      .record(kebabCaseId, conditionSchema)
+      .optional()
+      .meta({ description: 'Named conditions templates and logic modules ask through `has`.' }),
+    contributes: contributionsSchema.optional().meta({
+      description: 'Entries for the files several plugins share; see the composition points.',
+    }),
     conditionalContributions: z.array(conditionalContributionsSchema).optional().meta({
       description:
         'Contributions added only when a condition holds, such as an option for when no plugin of a category is selected.',

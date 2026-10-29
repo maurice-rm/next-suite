@@ -1,0 +1,28 @@
+---
+title: Composition points
+description: How plugins add to the files they share.
+---
+
+Some files belong to no single plugin: `package.json`, `.gitignore`, `next.config.ts`, the root
+layout. Plugins never write these themselves; they contribute entries under `contributes`, and the
+core merges the entries of all plugins by a fixed rule.
+
+| Point | What a plugin contributes | Rule |
+| --- | --- | --- |
+| `package.scripts`, `package.fields` | scripts and fields of package.json | one value per name; two different values fail |
+| `gitignore` | patterns | in plugin order, duplicates dropped |
+| `readme` | sections of README.md | in plugin order |
+| `nextConfig` | imports, options and wrappers of next.config.ts | options once per key; wrappers nest in plugin order |
+| `rootProviders` | providers around the children of the root layout | in plugin order |
+| `layoutMetadata` | fields of the root layout's `metadata` | once per key |
+| `cssImports` | stylesheets the global CSS imports first | in plugin order, duplicates dropped |
+| `prettierPlugins` | plugins of the Prettier configuration | in plugin order, duplicates dropped |
+| `lintStaged` | commands lint-staged runs per glob | grouped by glob |
+| `ciChecks` | scripts the CI workflow runs | in plugin order; each script must exist |
+| `agents` | sections of AGENTS.md | in plugin order |
+| `allowedBuilds`, `deniedBuilds` | dependencies whose install scripts may or need not run | written in the format of the package manager |
+| `stack`, `nextSteps` | the stack line and the next commands at the end of a run | in plugin order |
+
+Environment variables (`env`) form their own point: `.env.example` lists them by plugin, and an env
+schema reads them by scope. `conditionalContributions` adds contributions only when a condition
+holds.
