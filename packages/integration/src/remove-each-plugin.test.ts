@@ -31,8 +31,11 @@ afterAll(async () => {
 })
 
 /** Every plugin of the quick start can go on its own, and the rest still composes. */
+/** Starts the CLI once per category; generous for a slow CI runner. */
+const TIMEOUT_MS = 120_000
+
 describe('the quick start without one plugin', () => {
-  it('composes for every category left empty', async () => {
+  it('composes for every category left empty', { timeout: TIMEOUT_MS }, async () => {
     for (const category of removable) {
       const answers = join(cwd, `${category.id}.json`)
       await writeFile(
