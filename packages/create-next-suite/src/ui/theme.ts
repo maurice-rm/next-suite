@@ -21,6 +21,9 @@ export const SYMBOLS = {
   checkboxOff: IS_UNICODE ? '◻' : '[ ]',
 }
 
+/** The frames of the spinner beside a running step. */
+export const SPINNER_FRAMES = IS_UNICODE ? ['◒', '◐', '◓', '◑'] : ['-', '\\', '|', '/']
+
 /** The brand colour: the active question and its bar. */
 export const brand = ansis.hex(BRAND_COLOR)
 
@@ -85,6 +88,18 @@ export const renderSectionBadge = (label: string): string =>
 /** A line inside the frame between prompts, such as a line of the dry-run plan. */
 export const renderFrameLine = (content: string): string =>
   content === '' ? ansis.gray(SYMBOLS.bar) : `${ansis.gray(SYMBOLS.bar)}  ${content}`
+
+/** A running step beside the current frame of the spinner, without a line break. */
+export const renderStepRunning = (spinnerFrame: string, message: string): string =>
+  `${brand(spinnerFrame)}  ${message}…`
+
+/** A finished step: done, or failed or skipped with the reason. */
+export const renderStepResult = (isSuccess: boolean, message: string): string =>
+  isSuccess ? `${pick(SYMBOLS.submit)}  ${message}` : `${ansis.yellow(SYMBOLS.error)}  ${message}`
+
+/** Output of a command inside the frame, dimmed below the step it belongs to. */
+export const renderCommandOutput = (content: string): string =>
+  `${ansis.gray(SYMBOLS.bar)}  ${ansis.dim(content)}`
 
 /** The last line of the wizard, closing its frame. */
 export const renderOutro = (message: string): string =>

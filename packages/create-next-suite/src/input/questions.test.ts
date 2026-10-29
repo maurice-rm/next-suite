@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { categoriesSchema } from '../contract/category.ts'
 import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
-import { TEST_QUESTIONS } from '../test-support/questions.ts'
+import { TEST_CATEGORIES, TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
 import { buildQuestions } from './questions.ts'
+import { RUN_SETTINGS } from './run-settings.ts'
 
 describe('buildQuestions', () => {
   it('asks the categories that need one plugin, then the settings, then the other categories, then plugins without a category', () => {
@@ -40,6 +41,23 @@ describe('buildQuestions', () => {
     })
   })
 
+  it('asks the settings of the run last, in Setup, apart from the project settings', () => {
+    const questions = buildQuestions({
+      categories: TEST_CATEGORIES,
+      plugins: TEST_PLUGINS,
+      settings: [],
+      runSettings: RUN_SETTINGS,
+    })
+
+    expect(
+      questions.slice(-2).map((question) => [question.key, question.section, question.kind]),
+    ).toEqual([
+      ['install', 'Setup', 'setting'],
+      ['git', 'Setup', 'setting'],
+    ])
+    expect(questions.at(-1)).toMatchObject({ scope: 'run' })
+  })
+
   it('marks the categories that need one plugin, and their options, as essential', () => {
     const essential = TEST_QUESTIONS.filter((question) => question.isEssential).map(
       (question) => question.key,
@@ -58,14 +76,17 @@ describe('buildQuestions', () => {
       category: 'cms',
     })
 
-    expect(() => buildQuestions({ categories: [], plugins: [plugin], settings: [] })).toThrow(
-      'the plugin x belongs to the unknown category cms',
-    )
+    expect(() =>
+      buildQuestions({ categories: [], plugins: [plugin], settings: [], runSettings: [] }),
+    ).toThrow('the plugin x belongs to the unknown category cms')
   })
 
   it('rejects a category default that is no plugin of the category', () => {
     const categories = categoriesSchema.parse([
-      { id: 'orm', question: '?', cardinality: 'at-most-one', default: 'drizzle' },
+      {
+        section: 'Data',
+        categories: [{ id: 'orm', question: '?', cardinality: 'at-most-one', default: 'drizzle' }],
+      },
     ])
     const plugin = pluginManifestSchema.parse({
       name: 'prisma',
@@ -76,8 +97,8 @@ describe('buildQuestions', () => {
       category: 'orm',
     })
 
-    expect(() => buildQuestions({ categories, plugins: [plugin], settings: [] })).toThrow(
-      'the default drizzle of the category orm is no plugin of that category',
-    )
+    expect(() =>
+      buildQuestions({ categories, plugins: [plugin], settings: [], runSettings: [] }),
+    ).toThrow('the default drizzle of the category orm is no plugin of that category')
   })
 })

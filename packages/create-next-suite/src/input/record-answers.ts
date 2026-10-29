@@ -18,14 +18,15 @@ const recordOne = (question: Question, answers: Answers): unknown => {
     case 'option':
       return answers.options[question.key]
     case 'setting':
-      return answers.settings[question.key]
+      return question.scope === 'project' ? answers.settings[question.key] : undefined
   }
 }
 
 /**
  * Writes answers in the format answer files take: every category with its plugin, a list for
  * categories of many plugins and null for none; every plugin without a category as true or
- * false; every setting and every option that was asked. Reading the result back gives the same
+ * false; every project setting and every option that was asked. Settings of the run, such as
+ * whether to install, stay out. Reading the result back gives the same
  * answers.
  */
 export const recordAnswers = (

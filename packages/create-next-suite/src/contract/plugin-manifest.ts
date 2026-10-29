@@ -3,7 +3,7 @@ import * as z from 'zod'
 
 import { conditionSchema } from './condition.ts'
 import { contributionsSchema } from './contributions.ts'
-import { kebabCaseId, pluginName } from './identifiers.ts'
+import { kebabCaseId, pluginName, scriptName } from './identifiers.ts'
 import { pluginOptionSchema } from './plugin-option.ts'
 
 /**
@@ -11,6 +11,9 @@ import { pluginOptionSchema } from './plugin-option.ts'
  * `engine` range is checked against it before the plugin loads.
  */
 export const CONTRACT_VERSION = '1.0.0'
+
+/** The category of the package manager plugins; each of them fills the package manager adapter. */
+export const PACKAGE_MANAGER_CATEGORY = 'package-manager'
 
 const CATALOG_PREFIX = 'catalog:'
 const CLIENT_ENV_PREFIX = 'NEXT_PUBLIC_'
@@ -21,10 +24,15 @@ const ruleSchema = z.strictObject({
   reason: z.string().min(1),
 })
 
+const isCatalogSpec = (spec: string): boolean =>
+  spec.startsWith(CATALOG_PREFIX) &&
+  kebabCaseId.safeParse(spec.slice(CATALOG_PREFIX.length)).success
+
 const isVersionSpec = (spec: string): boolean =>
-  spec.startsWith(CATALOG_PREFIX)
-    ? kebabCaseId.safeParse(spec.slice(CATALOG_PREFIX.length)).success
-    : semver.validRange(spec) !== null
+  isCatalogSpec(spec) || semver.validRange(spec) !== null
+
+const isExactVersionSpec = (spec: string): boolean =>
+  isCatalogSpec(spec) || semver.valid(spec) !== null
 
 const dependenciesSchema = z.record(
   z.string().min(1),
@@ -48,13 +56,42 @@ const envVariableSchema = z
   )
 
 const pluginFileSchema = z.strictObject({
-  source: z.string().min(1),
+  source: z.string().min(1).meta({
+    description:
+      'A path in the plugin folder; a source ending in `.hbs` is rendered as a template, any other is copied as it is.',
+  }),
   target: z.string().min(1),
   when: conditionSchema.optional(),
   conflict: z.enum(['error', 'skip-if-exists', 'replace']).default('error'),
   root: z.enum(['project', 'source']).default('project').meta({
     description: '`source` places the target under src/ when the project uses a src folder.',
   }),
+})
+
+const packageManagerSchema = z
+  .strictObject({
+    version: z
+      .string()
+      .refine(isExactVersionSpec, 'Use `catalog:<name>` or an exact version')
+      .meta({ description: 'The version written to `packageManager` in package.json.' }),
+    onFail: z.enum(['download', 'warn', 'error']).meta({
+      description: 'What `devEngines.packageManager` asks for when the running version differs.',
+    }),
+    allowedBuilds: z
+      .enum(['config-file', 'allow-scripts', 'dependencies-meta', 'trusted-dependencies'])
+      .meta({
+        description:
+          'Where the allowed dependency builds go: the config file of the plugin, or the package.json field `allowScripts`, `dependenciesMeta` or `trustedDependencies`.',
+      }),
+  })
+  .meta({
+    description:
+      'How the core uses this package manager; the plugin name is its command. Only for plugins in the package-manager category.',
+  })
+
+const postStepSchema = z.strictObject({
+  script: scriptName,
+  when: conditionSchema.optional(),
 })
 
 /** The manifest of a plugin, read from its `plugin.json`. */
@@ -84,6 +121,10 @@ export const pluginManifestSchema = z
     files: z.array(pluginFileSchema).optional(),
     facts: z.record(kebabCaseId, conditionSchema).optional(),
     contributes: contributionsSchema.optional(),
+    packageManager: packageManagerSchema.optional(),
+    postSteps: z.array(postStepSchema).optional().meta({
+      description: 'Scripts to run after the dependencies are installed, in this order.',
+    }),
   })
   .refine(
     (manifest) => manifest.category === undefined || manifest.selectedByDefault === undefined,
@@ -96,6 +137,14 @@ export const pluginManifestSchema = z
     message: 'A plugin in a category takes its section from the category',
     path: ['section'],
   })
+  .refine(
+    (manifest) =>
+      (manifest.category === PACKAGE_MANAGER_CATEGORY) === (manifest.packageManager !== undefined),
+    {
+      message: `A plugin in the ${PACKAGE_MANAGER_CATEGORY} category describes its package manager, no other plugin does`,
+      path: ['packageManager'],
+    },
+  )
   .meta({ title: 'next-suite plugin manifest' })
 
 /** The manifest of a plugin as its author writes it in `plugin.json`. */

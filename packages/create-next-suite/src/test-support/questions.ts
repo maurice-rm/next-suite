@@ -15,31 +15,37 @@ const manifest = (name: string, extra: object = {}): ParsedPluginManifest =>
 
 export const TEST_CATEGORIES: Category[] = categoriesSchema.parse([
   {
-    id: 'package-manager',
-    question: 'Which package manager?',
     section: 'Project',
-    cardinality: 'one',
-    default: 'pnpm',
+    categories: [
+      {
+        id: 'package-manager',
+        question: 'Which package manager?',
+        cardinality: 'one',
+        default: 'pnpm',
+      },
+    ],
   },
   {
-    id: 'orm',
-    question: 'Which ORM?',
     section: 'Data & API',
-    cardinality: 'at-most-one',
-    default: null,
+    categories: [{ id: 'orm', question: 'Which ORM?', cardinality: 'at-most-one', default: null }],
   },
   {
-    id: 'styling',
-    question: 'Which styling?',
     section: 'UI',
-    cardinality: 'many',
-    default: ['tailwind'],
+    categories: [
+      { id: 'styling', question: 'Which styling?', cardinality: 'many', default: ['tailwind'] },
+    ],
   },
 ])
 
 export const TEST_PLUGINS: ParsedPluginManifest[] = [
-  manifest('pnpm', { category: 'package-manager' }),
-  manifest('npm', { category: 'package-manager' }),
+  manifest('pnpm', {
+    category: 'package-manager',
+    packageManager: { version: '12.16.1', onFail: 'download', allowedBuilds: 'config-file' },
+  }),
+  manifest('npm', {
+    category: 'package-manager',
+    packageManager: { version: '12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+  }),
   manifest('drizzle', {
     category: 'orm',
     options: {
@@ -81,4 +87,5 @@ export const TEST_QUESTIONS: Question[] = buildQuestions({
   categories: TEST_CATEGORIES,
   plugins: TEST_PLUGINS,
   settings: BASE_SETTINGS,
+  runSettings: [],
 })

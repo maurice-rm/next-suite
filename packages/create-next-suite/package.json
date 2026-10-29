@@ -25,7 +25,10 @@
     "node": ">=24.12"
   },
   "files": [
-    "dist"
+    "dist",
+    "plugins",
+    "categories.json",
+    "catalog.json"
   ],
   "bin": {
     "create-next-suite": "./dist/create-next-suite.mjs",

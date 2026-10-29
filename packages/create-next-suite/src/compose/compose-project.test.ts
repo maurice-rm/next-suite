@@ -9,7 +9,7 @@ import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
 import { composeProject } from './compose-project.ts'
 
 const CREATED_AT = new Date('2026-11-01T10:00:00Z')
-const CATALOG = { next: '16.4.3' }
+const CATALOG = { next: '16.4.3', bun: '1.4.4' }
 
 let root: string
 
@@ -50,17 +50,17 @@ const writeBase = (
         gitignore: ['.next'],
       },
       files: [
-        { source: 'files/gitignore', target: '.gitignore' },
-        { source: 'files/env.example', target: '.env.example' },
-        { source: 'files/page.tsx', target: 'app/page.tsx', root: 'source' },
+        { source: 'files/gitignore.hbs', target: '.gitignore' },
+        { source: 'files/env.example.hbs', target: '.env.example' },
+        { source: 'files/page.tsx.hbs', target: 'app/page.tsx', root: 'source' },
         ...extraFiles,
       ],
     },
     {
-      'files/gitignore': '{{#each gitignore}}{{this}}\n{{/each}}',
-      'files/env.example':
+      'files/gitignore.hbs': '{{#each gitignore}}{{this}}\n{{/each}}',
+      'files/env.example.hbs':
         '{{#each env.groups}}# {{title}}\n{{#each variables}}{{name}}={{example}}\n{{/each}}{{/each}}',
-      'files/page.tsx': 'export default function Page() { return <h1>{{project.name}}</h1> }\n',
+      'files/page.tsx.hbs': 'export default function Page() { return <h1>{{project.name}}</h1> }\n',
       ...files,
     },
   )
@@ -77,7 +77,7 @@ const DRIZZLE_MANIFEST = {
     },
   ],
   contributes: { gitignore: ['drizzle/meta'] },
-  files: [{ source: 'files/db.ts', target: 'lib/db.ts', root: 'source' }],
+  files: [{ source: 'files/db.ts.hbs', target: 'lib/db.ts', root: 'source' }],
 }
 
 const answersWith = (
@@ -117,7 +117,7 @@ describe('composeProject', () => {
   it('renders the files of the base project and the plugins with the merged contributions', async () => {
     const base = await writeBase()
     const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, {
-      'files/db.ts':
+      'files/db.ts.hbs':
         '{{#if (has "category:orm")}}export const url = process.env.DATABASE_URL{{/if}}\n',
     })
 
@@ -150,8 +150,66 @@ describe('composeProject', () => {
     })
   })
 
+  it('writes the fields of the package manager and the builds other plugins allow', async () => {
+    const bun = await writePlugin('bun', {
+      category: 'package-manager',
+      packageManager: {
+        version: 'catalog:bun',
+        onFail: 'warn',
+        allowedBuilds: 'trusted-dependencies',
+      },
+    })
+    const sharp = await writePlugin('images', { contributes: { allowedBuilds: ['sharp'] } })
+    const answers = answersWith([
+      { name: 'bun', category: 'package-manager' },
+      { name: 'images', category: undefined },
+    ])
+
+    const plan = await compose(await writeBase(), [bun, sharp], answers)
+    const packageJson = JSON.parse(contentOf(plan, 'package.json') ?? '')
+
+    expect(Object.keys(packageJson)).toEqual([
+      'name',
+      'private',
+      'packageManager',
+      'scripts',
+      'dependencies',
+      'devDependencies',
+      'devEngines',
+      'trustedDependencies',
+    ])
+    expect(plan.packageManager).toBe('bun')
+    expect(packageJson).toMatchObject({
+      packageManager: 'bun@1.4.4',
+      devEngines: { packageManager: { name: 'bun', version: '^1.4.4', onFail: 'warn' } },
+      trustedDependencies: ['sharp'],
+    })
+  })
+
+  it('lists the post-step scripts whose condition holds, in plugin order', async () => {
+    const formatter = await writePlugin('formatter', {
+      contributes: { package: { scripts: { format: 'prettier --write .', check: 'tsc' } } },
+      postSteps: [{ script: 'format' }, { script: 'check', when: { category: 'orm' } }],
+    })
+
+    const plan = await compose(await writeBase(), [formatter], answersWith([]))
+
+    expect(plan.postSteps).toEqual(['format'])
+    expect(plan.packageManager).toBeUndefined()
+  })
+
+  it('rejects a post-step whose script no plugin defines', async () => {
+    for (const script of ['format', 'constructor']) {
+      const formatter = await writePlugin(`formatter-${script}`, { postSteps: [{ script }] })
+
+      await expect(compose(await writeBase(), [formatter], answersWith([]))).rejects.toThrow(
+        `formatter-${script} runs the script "${script}" after the install, but no plugin defines it`,
+      )
+    }
+  })
+
   it('records the run in next-suite.json', async () => {
-    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts': '' })
+    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts.hbs': '' })
     const answers = {
       ...answersWith([{ name: 'drizzle', category: 'orm' }]),
       options: { 'drizzle.casing': 'snake' },
@@ -186,7 +244,7 @@ describe('composeProject', () => {
   })
 
   it('rejects two plugins writing different content to one file', async () => {
-    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts': 'a' })
+    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts.hbs': 'a' })
     const other = await writePlugin(
       'other',
       { files: [{ source: 'db.ts', target: 'lib/db.ts', root: 'source' }] },
@@ -199,7 +257,9 @@ describe('composeProject', () => {
   })
 
   it('lets a plugin replace a file of a plugin it requires, whatever their order', async () => {
-    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts': 'original' })
+    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, {
+      'files/db.ts.hbs': 'original',
+    })
     const extra = await writePlugin(
       'a-extra',
       {
@@ -226,26 +286,39 @@ describe('composeProject', () => {
     )
   })
 
+  it('copies a source without .hbs as it is, braces included', async () => {
+    const component = 'export const Box = () => <div style={{ color: "red" }} />\n'
+    const ui = await writePlugin(
+      'ui',
+      { files: [{ source: 'files/box.tsx', target: 'box.tsx' }] },
+      { 'files/box.tsx': component },
+    )
+
+    const plan = await compose(await writeBase(), [ui], answersWith([]))
+
+    expect(contentOf(plan, 'box.tsx')).toBe(component)
+  })
+
   it('names the plugin and file of a template that does not render', async () => {
     const broken = await writePlugin(
       'broken',
-      { files: [{ source: 'x.ts', target: 'x.ts' }] },
-      { 'x.ts': '{{options.missing}}' },
+      { files: [{ source: 'x.ts.hbs', target: 'x.ts' }] },
+      { 'x.ts.hbs': '{{options.missing}}' },
     )
 
     await expect(compose(await writeBase(), [broken], answersWith([]))).rejects.toThrow(
-      'broken: x.ts does not render',
+      'broken: x.ts.hbs does not render',
     )
   })
 
   it('rejects a condition in a file of the base project', async () => {
-    const base = await writeBase([{ source: 'files/if.ts', target: 'if.ts' }], {
-      'files/if.ts': '{{#if (has "category:orm")}}x{{/if}}',
+    const base = await writeBase([{ source: 'files/if.ts.hbs', target: 'if.ts' }], {
+      'files/if.ts.hbs': '{{#if (has "category:orm")}}x{{/if}}',
     })
-    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts': '' })
+    const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts.hbs': '' })
 
     await expect(compose(base, [drizzle], answersWith([]))).rejects.toThrow(
-      'base: files/if.ts does not render',
+      'base: files/if.ts.hbs does not render',
     )
   })
 })

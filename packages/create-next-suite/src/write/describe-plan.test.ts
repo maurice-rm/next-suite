@@ -11,6 +11,8 @@ const PLAN: ProjectPlan = {
   ],
   dependencies: { next: '16.4.3' },
   devDependencies: {},
+  packageManager: 'pnpm',
+  postSteps: [],
 }
 
 describe('describePlan', () => {

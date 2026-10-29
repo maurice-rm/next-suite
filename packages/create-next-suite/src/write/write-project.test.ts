@@ -11,6 +11,8 @@ const planOf = (files: Record<string, string>): ProjectPlan => ({
   files: Object.entries(files).map(([path, content]) => ({ path, content, origin: 'base' })),
   dependencies: {},
   devDependencies: {},
+  packageManager: undefined,
+  postSteps: [],
 })
 
 const BROKEN_PLAN = planOf({

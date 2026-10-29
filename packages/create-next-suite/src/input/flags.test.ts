@@ -68,6 +68,7 @@ describe('createFlags', () => {
       categories: TEST_CATEGORIES,
       plugins: [...TEST_PLUGINS, clash],
       settings: [],
+      runSettings: [],
     })
 
     expect(() => createFlags(questions, new Set())).toThrow(

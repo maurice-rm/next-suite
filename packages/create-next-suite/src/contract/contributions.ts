@@ -1,11 +1,17 @@
 import * as z from 'zod'
 
-const SCRIPT_NAME = /^[a-z][a-z0-9:-]*$/
+import { scriptName } from './identifiers.ts'
+
 const RESERVED_PACKAGE_FIELDS: ReadonlySet<string> = new Set([
   'name',
   'scripts',
   'dependencies',
   'devDependencies',
+  'packageManager',
+  'devEngines',
+  'allowScripts',
+  'dependenciesMeta',
+  'trustedDependencies',
 ])
 
 const nonEmpty = z.string().min(1)
@@ -17,14 +23,12 @@ const nonEmpty = z.string().min(1)
 export const contributionsSchema = z.strictObject({
   package: z
     .strictObject({
-      scripts: z
-        .record(z.string().regex(SCRIPT_NAME, 'Use a script name such as `db:migrate`'), nonEmpty)
-        .optional(),
+      scripts: z.record(scriptName, nonEmpty).optional(),
       fields: z
         .record(
           nonEmpty.refine((field) => !RESERVED_PACKAGE_FIELDS.has(field), {
             message:
-              'The core writes name, scripts and dependencies; use `scripts` and the manifest fields',
+              'The core writes name, scripts, dependencies and the package manager fields; use `scripts`, the manifest fields and `allowedBuilds`',
           }),
           z.json(),
         )
@@ -32,6 +36,10 @@ export const contributionsSchema = z.strictObject({
     })
     .optional()
     .meta({ description: 'Scripts and top-level fields of package.json.' }),
+  allowedBuilds: z.array(nonEmpty).optional().meta({
+    description:
+      'Dependencies whose install scripts may run; the package manager plugin writes them where its manager reads them.',
+  }),
   gitignore: z.array(nonEmpty).optional().meta({ description: 'Patterns for .gitignore.' }),
   readme: z
     .array(z.strictObject({ section: nonEmpty, text: nonEmpty }))

@@ -8,9 +8,12 @@ import { type Category, categoriesSchema } from '../contract/category.ts'
 import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
 import { loadPlugins } from '../loader/load-plugins.ts'
 
-/** What ships with create-next-suite: the base project, the built-in plugins, their categories and versions. */
+/**
+ * What ships with create-next-suite: the base project, the built-in plugins, their categories
+ * and versions. Without a base project a run asks its questions but generates nothing.
+ */
 export type Assets = {
-  base: LoadedPlugin
+  base: LoadedPlugin | undefined
   plugins: LoadedPlugin[]
   categories: Category[]
   catalog: VersionCatalog
@@ -40,11 +43,15 @@ const readJson = async <Schema extends z.ZodType>(
   return schema.parse(JSON.parse(await readFile(path, 'utf8')))
 }
 
-/** Loads the assets from a directory with `base/`, `plugins/`, `categories.json` and `catalog.json`. */
+/**
+ * Loads the assets from a directory with `base/`, `plugins/`, `categories.json` and
+ * `catalog.json`; each of them may be missing.
+ */
 export const loadAssets = async (directory: string): Promise<Assets> => {
+  const baseDirectory = join(directory, 'base')
   const pluginsDirectory = join(directory, 'plugins')
   return {
-    base: await loadPlugin(join(directory, 'base')),
+    base: (await exists(baseDirectory)) ? await loadPlugin(baseDirectory) : undefined,
     plugins: (await exists(pluginsDirectory)) ? await loadPlugins(pluginsDirectory) : [],
     categories: await readJson(join(directory, 'categories.json'), categoriesSchema, []),
     catalog: await readJson(join(directory, 'catalog.json'), catalogSchema, {}),

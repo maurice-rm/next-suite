@@ -7,6 +7,7 @@ import { failure, renderCancelled, renderFrameLine, renderIntro, renderOutro } f
 const INTRO = "Let's lay the foundation"
 const CANCELLED = 'Operation cancelled.'
 const DRY_RUN_DONE = 'Dry run, nothing was written'
+const NOTHING_GENERATED = 'Nothing generated yet: the base project is still missing'
 const REPOSITORY_LINK = packageJson.repository.url
   .replace(/^git\+https:\/\//, '')
   .replace(/\.git$/, '')
@@ -34,6 +35,11 @@ export const openFrame = (output: Writable, banner: { version: string; columns: 
 /** Shows the report of a dry run: what would be created, nothing written. */
 export const presentDryRun = ({ output, isFramed }: Presenter, report: string): void => {
   output.write(isFramed ? frame(report) + renderOutro(DRY_RUN_DONE) : `${report}\n`)
+}
+
+/** Ends a run that asked its questions but has no base project to generate from. */
+export const presentNothingGenerated = ({ output, isFramed }: Presenter): void => {
+  output.write(isFramed ? renderOutro(NOTHING_GENERATED) : `${NOTHING_GENERATED}\n`)
 }
 
 /** Confirms the written project. */

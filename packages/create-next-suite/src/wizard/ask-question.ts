@@ -1,6 +1,6 @@
 import type { Answers } from '../answers/answers.ts'
 import { evaluateCondition } from '../answers/evaluate-condition.ts'
-import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import { PACKAGE_MANAGER_CATEGORY, type ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
 import type { CategoryQuestion } from '../input/questions.ts'
 import { defaultAnswer } from '../input/resolve-answers.ts'
@@ -10,23 +10,46 @@ import type { Ask, WizardStep } from './run-wizard.ts'
 import type { Streams } from './streams.ts'
 
 const NONE_LABEL = 'None'
+const DETECTED_HINT = 'detected'
 const QUICK_START_QUESTION = 'Use the quick start? Every remaining question takes its default.'
 
 type PromptOptions = Streams & { canGoBack: boolean }
+
+/** What the wizard knows about the run beyond the answers, such as the invoking package manager. */
+type AskContext = { detectedPackageManager: string | undefined }
 
 const withPlugin = (answers: Answers, plugin: ParsedPluginManifest): Answers => ({
   ...answers,
   plugins: [...answers.plugins, { name: plugin.name, category: plugin.category }],
 })
 
+/**
+ * The hint beside a plugin: a package manager shows only whether it started the run, any other
+ * plugin its description.
+ */
+const hintOf = (plugin: ParsedPluginManifest, context: AskContext): string | undefined => {
+  if (plugin.category !== PACKAGE_MANAGER_CATEGORY) {
+    return plugin.description
+  }
+  return plugin.name === context.detectedPackageManager ? DETECTED_HINT : undefined
+}
+
 /** A plugin choice, disabled when one of its conflicts already holds. */
-const pluginChoice = (plugin: ParsedPluginManifest, answers: Answers): Choice<string> => {
+const pluginChoice = (
+  plugin: ParsedPluginManifest,
+  answers: Answers,
+  context: AskContext,
+): Choice<string> => {
   const conflict = (plugin.conflicts ?? []).find((rule) =>
     evaluateCondition(rule.when, withPlugin(answers, plugin)),
   )
-  return conflict === undefined
-    ? { value: plugin.name, label: plugin.title, hint: plugin.description }
-    : { value: plugin.name, label: plugin.title, hint: conflict.reason, disabled: true }
+  if (conflict !== undefined) {
+    return { value: plugin.name, label: plugin.title, hint: conflict.reason, disabled: true }
+  }
+  const hint = hintOf(plugin, context)
+  return hint === undefined
+    ? { value: plugin.name, label: plugin.title }
+    : { value: plugin.name, label: plugin.title, hint }
 }
 
 const isNumberText = (value: string): boolean =>
@@ -60,13 +83,15 @@ const askOption = async (option: PluginOption, base: PromptOptions): Promise<unk
   }
 }
 
+/** A step to ask, with the answers so far and what the wizard knows about the run. */
+type StepAsk = { base: PromptOptions; answers: Answers; context: AskContext }
+
 const askCategory = async (
   question: CategoryQuestion,
-  base: PromptOptions,
-  answers: Answers,
+  { base, answers, context }: StepAsk,
 ): Promise<unknown> => {
   const message = question.category.question
-  const choices = question.choices.map((plugin) => pluginChoice(plugin, answers))
+  const choices = question.choices.map((plugin) => pluginChoice(plugin, answers, context))
   switch (question.category.cardinality) {
     case 'many':
       return multiselect({ ...base, message, choices, initialValues: question.category.default })
@@ -84,16 +109,12 @@ const askCategory = async (
   }
 }
 
-const askStep = async (
-  step: WizardStep,
-  base: PromptOptions,
-  answers: Answers,
-): Promise<unknown> => {
+const askStep = async (step: WizardStep, { base, answers, context }: StepAsk) => {
   switch (step.kind) {
     case 'quick-start':
       return confirm({ ...base, message: QUICK_START_QUESTION, initialValue: false })
     case 'category':
-      return askCategory(step, base, answers)
+      return askCategory(step, { base, answers, context })
     case 'addon':
       return confirm({
         ...base,
@@ -111,10 +132,10 @@ const askStep = async (
  * when the step starts another section than the step shown before.
  */
 export const createAsk =
-  (streams: Streams): Ask =>
+  (streams: Streams, context: AskContext): Ask =>
   async (step, { canGoBack, answers, previousSection }) => {
     if (step.section !== undefined && step.section !== previousSection) {
       streams.output.write(renderSectionBadge(step.section))
     }
-    return askStep(step, { ...streams, canGoBack }, answers)
+    return askStep(step, { base: { ...streams, canGoBack }, answers, context })
   }

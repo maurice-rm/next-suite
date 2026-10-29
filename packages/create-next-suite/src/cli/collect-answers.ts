@@ -17,7 +17,12 @@ const INCOMPATIBLE_IN_WIZARD = 'The answers do not fit together; change one with
 
 /** How open questions are answered: asked in the wizard, or from the input and maybe the defaults. */
 type AnswerMode =
-  | { kind: 'wizard'; streams: Streams; initialSection: string | undefined }
+  | {
+      kind: 'wizard'
+      streams: Streams
+      initialSection: string | undefined
+      detectedPackageManager: string | undefined
+    }
   | { kind: 'input'; useDefaults: boolean }
 
 /** Where the answers of a run come from and how open questions are answered. */
@@ -58,7 +63,7 @@ const askInWizard = async (
   const result = await runWizard({
     questions,
     input,
-    ask: createAsk(mode.streams),
+    ask: createAsk(mode.streams, { detectedPackageManager: mode.detectedPackageManager }),
     initialSection: mode.initialSection,
     findProblems: (answers) => findIncompatibilities(plugins, answers),
     showProblems: (problems) =>
@@ -68,12 +73,26 @@ const askInWizard = async (
   return result.answers
 }
 
+/** The defaults of the run settings, which the input answers without asking. */
+const runSettingDefaults = (questions: readonly Question[]): AnswerInput =>
+  Object.fromEntries(
+    questions.flatMap((question) =>
+      question.kind === 'setting' && question.scope === 'run'
+        ? [[question.key, question.option.default]]
+        : [],
+    ),
+  )
+
 const resolveFromInput = (
   sources: AnswerSources,
   { useDefaults }: Extract<AnswerMode, { kind: 'input' }>,
 ): Answers => {
   const { questions, input, plugins } = sources
-  const resolution = resolveAnswers({ questions, input, useDefaults })
+  const resolution = resolveAnswers({
+    questions,
+    input: { ...runSettingDefaults(questions), ...input },
+    useDefaults,
+  })
   assertNoUnused(resolution.unused, sources)
   if (resolution.missing.length > 0) {
     throw new InputError(
