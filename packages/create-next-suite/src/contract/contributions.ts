@@ -71,6 +71,14 @@ export const contributionsSchema = z.strictObject({
       description:
         'Commands lint-staged runs on staged files that match a glob, such as `eslint --fix` for `*.ts`.',
     }),
+  ciChecks: z.array(scriptName).optional().meta({
+    description:
+      'Scripts the CI workflow runs as checks, such as `lint`; `build` always runs last.',
+  }),
+  agents: z
+    .array(z.strictObject({ section: nonEmpty, text: nonEmpty }))
+    .optional()
+    .meta({ description: 'Sections of AGENTS.md, the instructions for coding agents.' }),
   stack: z.array(nonEmpty).optional().meta({
     description: 'Names for the stack line at the end of a run, such as "Tailwind".',
   }),

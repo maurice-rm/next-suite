@@ -1,7 +1,9 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+import { parse } from 'yaml'
 
 import { binPathOf } from '../src/run-cli.ts'
 import { listScenarios } from '../src/scenarios.ts'
@@ -52,6 +54,28 @@ for (const check of PROJECT_CHECKS.filter((name) => Object.hasOwn(scripts, name)
   process.stdout.write(`\n$ ${packageManager} run ${check}\n`)
   execFileSync(packageManager, ['run', check], { cwd: project, stdio: 'inherit' })
 }
+const WORKFLOW = '.github/workflows/ci.yml'
+const SCRIPT_RUN = new RegExp(`^${packageManager} run (\\S+)$`)
+
+/** Fails when the CI workflow is no valid YAML or runs a script the project does not have. */
+const checkWorkflow = (): void => {
+  const path = join(project, WORKFLOW)
+  if (!existsSync(path)) {
+    return
+  }
+  const workflow = parse(readFileSync(path, 'utf8')) as {
+    jobs: Record<string, { steps: { run?: string }[] }>
+  }
+  const runs = Object.values(workflow.jobs).flatMap((job) => job.steps.map((step) => step.run))
+  const missing = runs
+    .map((command) => SCRIPT_RUN.exec(command ?? '')?.[1])
+    .filter((script) => script !== undefined && !Object.hasOwn(scripts, script))
+  if (missing.length > 0) {
+    throw new Error(`${WORKFLOW} runs scripts the project does not have: ${missing.join(', ')}`)
+  }
+}
+checkWorkflow()
+
 const changes = run('git', ['status', '--porcelain'], project)
 if (changes !== '') {
   throw new Error(`the checks left files git does not ignore:\n${changes}`)

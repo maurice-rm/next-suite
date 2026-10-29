@@ -21,6 +21,7 @@
         "command": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
       }
     ],
+    "ciChecks": ["lint"],
     "stack": ["Biome"]
   },
   "postSteps": [{ "script": "format", "running": "Formatting files", "done": "Formatted files" }],

@@ -60,6 +60,7 @@ const ASSETS = {
     category: 'package-manager',
     packageManager: {
       version: '12.16.1',
+      ciInstallArgs: ['ci'],
       whenVersionDiffers: 'download',
       allowedBuildsIn: 'package.json#allowScripts',
     },
@@ -68,6 +69,7 @@ const ASSETS = {
     category: 'package-manager',
     packageManager: {
       version: '12.2.1',
+      ciInstallArgs: ['ci'],
       whenVersionDiffers: 'warn',
       allowedBuildsIn: 'package.json#allowScripts',
     },

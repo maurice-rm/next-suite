@@ -8,6 +8,7 @@
   "category": "package-manager",
   "packageManager": {
     "version": "catalog:pnpm",
+    "ciInstallArgs": ["install", "--frozen-lockfile"],
     "whenVersionDiffers": "download",
     "allowedBuildsIn": "pnpm-workspace.yaml"
   },

@@ -9,6 +9,7 @@
   "devDependencies": { "knip": "catalog:knip" },
   "contributes": {
     "package": { "scripts": { "knip": "knip" } },
+    "ciChecks": ["knip"],
     "stack": ["Knip"]
   },
   "files": [{ "source": "files/knip.json.hbs", "target": "knip.json" }]

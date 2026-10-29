@@ -3,5 +3,7 @@
   "formatter": null,
   "unused-code": null,
   "styling": [],
-  "unit-tests": null
+  "unit-tests": null,
+  "ci": null,
+  "agents": null
 }

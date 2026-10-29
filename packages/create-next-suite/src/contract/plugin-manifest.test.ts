@@ -142,6 +142,7 @@ describe('pluginManifestSchema', () => {
   it('takes a package manager description exactly for plugins in the package-manager category', () => {
     const packageManager = {
       version: 'catalog:pnpm',
+      ciInstallArgs: ['ci'],
       whenVersionDiffers: 'download',
       allowedBuildsIn: 'package.json#allowScripts',
     }
@@ -157,6 +158,7 @@ describe('pluginManifestSchema', () => {
       category: 'package-manager',
       packageManager: {
         version: '^12.2.1',
+        ciInstallArgs: ['ci'],
         whenVersionDiffers: 'warn',
         allowedBuildsIn: 'package.json#allowScripts',
       },
@@ -169,7 +171,12 @@ describe('pluginManifestSchema', () => {
     const withPlace = (allowedBuildsIn: string, files: object[] = []) => ({
       ...MINIMAL,
       category: 'package-manager',
-      packageManager: { version: '1.0.0', whenVersionDiffers: 'warn', allowedBuildsIn },
+      packageManager: {
+        version: '1.0.0',
+        ciInstallArgs: ['ci'],
+        whenVersionDiffers: 'warn',
+        allowedBuildsIn,
+      },
       files,
     })
     const workspaceFile = { source: 'files/pnpm-workspace.yaml.hbs', target: 'pnpm-workspace.yaml' }

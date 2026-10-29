@@ -16,6 +16,7 @@
       }
     },
     "lintStaged": [{ "glob": "*", "command": "prettier --write --ignore-unknown" }],
+    "ciChecks": ["format:check"],
     "stack": ["Prettier"]
   },
   "postSteps": [{ "script": "format", "running": "Formatting files", "done": "Formatted files" }],

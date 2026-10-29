@@ -8,6 +8,7 @@
   "category": "package-manager",
   "packageManager": {
     "version": "catalog:bun",
+    "ciInstallArgs": ["install", "--frozen-lockfile"],
     "whenVersionDiffers": "warn",
     "allowedBuildsIn": "package.json#trustedDependencies"
   },

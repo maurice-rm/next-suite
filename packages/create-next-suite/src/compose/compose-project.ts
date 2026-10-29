@@ -6,12 +6,19 @@ import { evaluateCondition } from '../answers/evaluate-condition.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
-import { applyConditionalDependencies } from './apply-conditional-dependencies.ts'
+import {
+  applyConditionalDependencies,
+  expandConditionalContributions,
+} from './apply-conditional-dependencies.ts'
 import { assertNoPathCollisions } from './assert-no-path-collisions.ts'
 import { assertSafeTarget } from './assert-safe-target.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
-import { type CompositionValues, mergeContributions } from './merge-contributions.ts'
+import {
+  type CompositionValues,
+  mergeContributions,
+  resolveVersion,
+} from './merge-contributions.ts'
 import { packageManagerFields } from './package-manager-fields.ts'
 import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
 import { settingContributions } from './setting-contributions.ts'
@@ -78,8 +85,12 @@ type ProjectValues = {
   /** What an import through the alias starts with, such as `@/`. */
   importPrefix: string
   packageManager: string
+  /** The exact version of the package manager, such as `12.16.1`. */
+  packageManagerVersion: string
   /** How a script runs with the package manager, such as `pnpm run`. */
   run: string
+  /** The install command for CI that keeps the lockfile, such as `npm ci`. */
+  ciInstall: string
 }
 
 type RenderContext = {
@@ -261,14 +272,25 @@ const uniqueSteps = (steps: NextStep[]): NextStep[] => {
   })
 }
 
-const collectSummary = (
-  plugins: readonly LoadedPlugin[],
-  answers: Answers,
-  scripts: Readonly<Record<string, string>>,
-): ProjectPlan['summary'] => ({
-  stack: [...new Set(plugins.flatMap(({ manifest }) => manifest.contributes?.stack ?? []))],
+type SummaryInput = {
+  manifests: readonly ParsedPluginManifest[]
+  baseName: string
+  answers: Answers
+  scripts: Readonly<Record<string, string>>
+}
+
+const collectSummary = ({
+  manifests,
+  baseName,
+  answers,
+  scripts,
+}: SummaryInput): ProjectPlan['summary'] => ({
+  stack: [...new Set(manifests.flatMap((manifest) => manifest.contributes?.stack ?? []))],
   nextSteps: uniqueSteps(
-    [...plugins.slice(1), ...plugins.slice(0, 1)].flatMap(({ manifest }) =>
+    [
+      ...manifests.filter((manifest) => manifest.name !== baseName),
+      ...manifests.filter((manifest) => manifest.name === baseName),
+    ].flatMap((manifest) =>
       (manifest.contributes?.nextSteps ?? [])
         .filter((step) => step.when === undefined || evaluateCondition(step.when, answers))
         .map((step): NextStep => {
@@ -285,7 +307,12 @@ const collectSummary = (
 const addCoreFile = (files: VirtualFiles, path: string, content: string): void =>
   addFile(files, { path, content, origin: CORE_ORIGIN, conflict: 'error', replaceable: new Set() })
 
-const projectValues = ({ projectName, answers, selected }: ComposeInput): ProjectValues => {
+const projectValues = ({
+  projectName,
+  answers,
+  selected,
+  catalog,
+}: ComposeInput): ProjectValues => {
   const alias = answers.settings[IMPORT_ALIAS_SETTING]
   const importAlias = typeof alias === 'string' ? alias : DEFAULT_IMPORT_ALIAS
   if (!IMPORT_ALIAS.test(importAlias)) {
@@ -293,7 +320,8 @@ const projectValues = ({ projectName, answers, selected }: ComposeInput): Projec
       `the import alias "${importAlias}" is invalid; use a pattern such as "@/*" or "~/*"`,
     )
   }
-  const packageManager = findPackageManager(selected)?.name ?? FALLBACK_PACKAGE_MANAGER
+  const manager = findPackageManager(selected)
+  const packageManager = manager?.name ?? FALLBACK_PACKAGE_MANAGER
   const sourceRoot = answers.settings[SRC_DIR_SETTING] === true ? `./${SOURCE_DIRECTORY}/` : './'
   return {
     name: projectName,
@@ -301,7 +329,12 @@ const projectValues = ({ projectName, answers, selected }: ComposeInput): Projec
     importAliasTarget: `${sourceRoot}*`,
     importPrefix: importAlias.slice(0, -1),
     packageManager,
+    packageManagerVersion:
+      manager === undefined
+        ? ''
+        : resolveVersion(manager.packageManager.version, catalog, manager.name),
     run: `${packageManager} run`,
+    ciInstall: [packageManager, ...(manager?.packageManager.ciInstallArgs ?? ['ci'])].join(' '),
   }
 }
 
@@ -311,14 +344,17 @@ const projectValues = ({ projectName, answers, selected }: ComposeInput): Projec
  */
 export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> => {
   const plugins = [input.base, ...input.selected]
-  const values = mergeContributions(
-    [
-      input.base.manifest,
-      settingContributions(input.answers.settings),
-      ...input.selected.map((plugin) => plugin.manifest),
-    ].map((manifest) => applyConditionalDependencies(manifest, input.answers)),
-    input.catalog,
-  )
+  const manifests = [
+    input.base.manifest,
+    settingContributions(input.answers.settings),
+    ...input.selected.map((plugin) => plugin.manifest),
+  ]
+    .map((manifest) => applyConditionalDependencies(manifest, input.answers))
+    .flatMap((manifest) => expandConditionalContributions(manifest, input.answers))
+  const values = mergeContributions(manifests, input.catalog)
+  for (const check of values.ciChecks) {
+    assertScript(values.scripts, check, 'a plugin runs in CI the script')
+  }
   const context: RenderContext = {
     project: projectValues(input),
     answers: input.answers,
@@ -355,6 +391,11 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     packageManager: findPackageManager(input.selected)?.name,
     installArgs: findPackageManager(input.selected)?.packageManager.installArgs ?? ['install'],
     postSteps: collectPostSteps(plugins, input.answers, values.scripts),
-    summary: collectSummary(plugins, input.answers, values.scripts),
+    summary: collectSummary({
+      manifests,
+      baseName: input.base.manifest.name,
+      answers: input.answers,
+      scripts: values.scripts,
+    }),
   }
 }

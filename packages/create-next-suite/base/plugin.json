@@ -41,9 +41,16 @@
       "*.tsbuildinfo",
       "next-env.d.ts"
     ],
+    "ciChecks": ["typecheck"],
     "stack": ["Next.js", "TypeScript"],
     "nextSteps": [{ "script": "dev" }]
   },
+  "conditionalContributions": [
+    {
+      "when": { "not": { "category": "agents" } },
+      "contributes": { "nextConfig": { "options": [{ "key": "agentRules", "value": "false" }] } }
+    }
+  ],
   "files": [
     { "source": "files/gitignore.hbs", "target": ".gitignore" },
     { "source": "files/editorconfig", "target": ".editorconfig" },
