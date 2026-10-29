@@ -7,7 +7,12 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!pnpm-lock.yaml", "!**/*.md", "!packages/create-next-suite/plugins/*/files"]
+    "includes": [
+      "**",
+      "!pnpm-lock.yaml",
+      "!**/*.md",
+      "!packages/create-next-suite/plugins/*/*/files"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -116,24 +121,20 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/template",
-                      "**/template/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",
                       "**/write/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
                       "**/cli",
                       "**/cli/**",
                       "**/create-next-suite.ts",
@@ -160,22 +161,18 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/template",
-                      "**/template/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",
                       "**/write/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
                       "**/cli",
                       "**/cli/**",
                       "**/create-next-suite.ts",
@@ -202,22 +199,18 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
                       "**/answers",
                       "**/answers/**",
-                      "**/template",
-                      "**/template/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",
                       "**/write/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
                       "**/cli",
                       "**/cli/**",
                       "**/create-next-suite.ts",
@@ -225,44 +218,6 @@
                       "**/plugin.ts"
                     ],
                     "message": "create-next-suite: loader/ imports only from contract/"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/create-next-suite/src/template/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
-                      "**/compose",
-                      "**/compose/**",
-                      "**/write",
-                      "**/write/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
-                      "**/cli",
-                      "**/cli/**",
-                      "**/create-next-suite.ts",
-                      "**/next-suite.ts",
-                      "**/plugin.ts"
-                    ],
-                    "message": "create-next-suite: template/ imports from contract/, answers/ and loader/ only"
                   }
                 ]
               }
@@ -282,23 +237,56 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
                       "**/write",
                       "**/write/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
                       "**/cli",
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
                     ],
-                    "message": "create-next-suite: compose/ never imports write/, input/, wizard/, cli/ or the package entries"
+                    "message": "create-next-suite: compose/ imports from contract/, answers/ and loader/ only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/compose/template/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "../*.ts",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: compose/template/ imports from contract/, answers/ and loader/ only, never from compose/"
                   }
                 ]
               }
@@ -318,21 +306,19 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
                       "**/ui",
                       "**/ui/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
                       "**/cli",
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
                     ],
-                    "message": "create-next-suite: write/ imports only from compose/ and inner modules"
+                    "message": "create-next-suite: write/ imports from compose/ and inner modules only"
                   }
                 ]
               }
@@ -342,7 +328,7 @@
       }
     },
     {
-      "includes": ["packages/create-next-suite/src/input/**"],
+      "includes": ["packages/create-next-suite/src/questions/**"],
       "linter": {
         "rules": {
           "style": {
@@ -352,59 +338,19 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
-                      "**/wizard",
-                      "**/wizard/**",
-                      "**/cli",
-                      "**/cli/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",
                       "**/write/**",
-                      "**/template",
-                      "**/template/**",
-                      "**/create-next-suite.ts",
-                      "**/next-suite.ts",
-                      "**/plugin.ts"
-                    ],
-                    "message": "create-next-suite: input/ imports from contract/, answers/ and loader/ only"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/create-next-suite/src/wizard/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
                       "**/cli",
                       "**/cli/**",
-                      "**/compose",
-                      "**/compose/**",
-                      "**/write",
-                      "**/write/**",
-                      "**/template",
-                      "**/template/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
                     ],
-                    "message": "create-next-suite: wizard/ imports from input/ and inner modules only"
+                    "message": "create-next-suite: questions/ imports from contract/, answers/, loader/ and ui/ only"
                   }
                 ]
               }
@@ -414,7 +360,7 @@
       }
     },
     {
-      "includes": ["packages/create-next-suite/src/package-manager/**"],
+      "includes": ["packages/create-next-suite/src/post-steps/**"],
       "linter": {
         "rules": {
           "style": {
@@ -424,29 +370,65 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/ui",
-                      "**/ui/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/template",
-                      "**/template/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",
                       "**/write/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/ui",
+                      "**/ui/**",
                       "**/cli",
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
                     ],
-                    "message": "create-next-suite: package-manager/ imports only from contract/"
+                    "message": "create-next-suite: post-steps/ imports only from contract/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/ui/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/contract",
+                      "**/contract/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/loader",
+                      "**/loader/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: ui/ renders only and imports no other module"
                   }
                 ]
               }
@@ -467,50 +449,6 @@
                   {
                     "group": ["**/create-next-suite.ts", "**/next-suite.ts", "**/plugin.ts"],
                     "message": "create-next-suite: cli/ never imports the package entries"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/create-next-suite/src/ui/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/contract",
-                      "**/contract/**",
-                      "**/answers",
-                      "**/answers/**",
-                      "**/loader",
-                      "**/loader/**",
-                      "**/template",
-                      "**/template/**",
-                      "**/compose",
-                      "**/compose/**",
-                      "**/write",
-                      "**/write/**",
-                      "**/input",
-                      "**/input/**",
-                      "**/wizard",
-                      "**/wizard/**",
-                      "**/cli",
-                      "**/cli/**",
-                      "**/create-next-suite.ts",
-                      "**/next-suite.ts",
-                      "**/plugin.ts"
-                    ],
-                    "message": "create-next-suite: ui/ renders only and imports no other module"
                   }
                 ]
               }

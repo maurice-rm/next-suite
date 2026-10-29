@@ -101,6 +101,13 @@ export const renderStepResult = (isSuccess: boolean, message: string): string =>
 export const renderCommandOutput = (content: string): string =>
   `${ansis.gray(SYMBOLS.bar)}  ${ansis.dim(content)}`
 
+/** Every line of a text inside the frame, each with its line break. */
+export const renderFramed = (text: string): string =>
+  text
+    .split('\n')
+    .map((line) => `${renderFrameLine(line)}\n`)
+    .join('')
+
 /** The last line of the wizard, closing its frame. */
 export const renderOutro = (message: string): string =>
   `${ansis.gray(SYMBOLS.barEnd)}  ${message}\n\n`

@@ -2,9 +2,9 @@
 import { join } from 'node:path'
 
 import packageJson from '../package.json' with { type: 'json' }
-import { loadAssets } from './cli/load-assets.ts'
 import { runCreate } from './cli/run-create.ts'
-import { runCommand } from './package-manager/run-command.ts'
+import { loadAssets } from './loader/load-assets.ts'
+import { runCommand } from './post-steps/run-command.ts'
 
 const DEFAULT_COLUMNS = 80
 

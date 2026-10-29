@@ -6,7 +6,7 @@ import { PassThrough, Writable } from 'node:stream'
 import ansis from 'ansis'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { loadAssets } from './load-assets.ts'
+import { loadAssets } from '../loader/load-assets.ts'
 import { runCreate } from './run-create.ts'
 
 let root: string
@@ -22,7 +22,7 @@ const manifest = (name: string, extra: object = {}): string =>
   JSON.stringify({
     name,
     version: '1.0.0',
-    engine: '^1.0.0',
+    contract: '^1.0.0',
     title: name,
     description: `The ${name} plugin.`,
     ...extra,
@@ -56,21 +56,29 @@ const ASSETS = {
   }),
   'assets/base/files/page.tsx.hbs':
     'export default function Page() { return <h1>{{project.name}}</h1> }\n',
-  'assets/plugins/pnpm/plugin.json': manifest('pnpm', {
+  'assets/plugins/package-manager/pnpm/plugin.json': manifest('pnpm', {
     category: 'package-manager',
-    packageManager: { version: '12.16.1', onFail: 'download', allowedBuilds: 'config-file' },
+    packageManager: {
+      version: '12.16.1',
+      whenVersionDiffers: 'download',
+      allowedBuildsIn: 'package.json#allowScripts',
+    },
   }),
-  'assets/plugins/npm/plugin.json': manifest('npm', {
+  'assets/plugins/package-manager/npm/plugin.json': manifest('npm', {
     category: 'package-manager',
-    packageManager: { version: '12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+    packageManager: {
+      version: '12.2.1',
+      whenVersionDiffers: 'warn',
+      allowedBuildsIn: 'package.json#allowScripts',
+    },
   }),
-  'assets/plugins/drizzle/plugin.json': manifest('drizzle', {
+  'assets/plugins/orm/drizzle/plugin.json': manifest('drizzle', {
     category: 'orm',
     dependencies: { 'drizzle-orm': '^1.0.0' },
     files: [{ source: 'db.ts', target: 'lib/db.ts', root: 'source' }],
   }),
-  'assets/plugins/drizzle/db.ts': 'export const db = {}\n',
-  'assets/plugins/better-auth/plugin.json': manifest('better-auth', {
+  'assets/plugins/orm/drizzle/db.ts': 'export const db = {}\n',
+  'assets/plugins/extras/better-auth/plugin.json': manifest('better-auth', {
     requires: [{ when: { category: 'orm' }, reason: 'Stores sessions in the database.' }],
   }),
 }
@@ -146,7 +154,7 @@ describe('runCreate', () => {
         'Files:',
         '  app/page.tsx (1 line, base)',
         '  next-suite.json (21 lines, create-next-suite)',
-        '  package.json (18 lines, create-next-suite)',
+        '  package.json (19 lines, create-next-suite)',
         'Dependencies:',
         '  next 16.4.3',
         '',
@@ -261,7 +269,7 @@ describe('runCreate', () => {
   it('drops an answer of the file whose question a flag made obsolete', async () => {
     await write({ 'answers.json': JSON.stringify({ orm: 'drizzle', 'drizzle.casing': 'snake' }) })
     await write({
-      'assets/plugins/drizzle/plugin.json': manifest('drizzle', {
+      'assets/plugins/orm/drizzle/plugin.json': manifest('drizzle', {
         category: 'orm',
         options: {
           casing: {

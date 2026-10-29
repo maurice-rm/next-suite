@@ -5,7 +5,7 @@ import { pluginManifestSchema } from './plugin-manifest.ts'
 const MINIMAL = {
   name: 'acme-auth',
   version: '1.0.0',
-  engine: '^1.0.0',
+  contract: '^1.0.0',
   title: 'Acme Auth',
   description: 'Sign-in through Acme.',
 }
@@ -28,10 +28,10 @@ describe('pluginManifestSchema', () => {
     expect(issuePaths({ ...MINIMAL, dependecies: {} })).toEqual([''])
   })
 
-  it('rejects a version and an engine that are not semver', () => {
-    expect(issuePaths({ ...MINIMAL, version: 'latest', engine: 'one' })).toEqual([
+  it('rejects a version and a contract range that are not semver', () => {
+    expect(issuePaths({ ...MINIMAL, version: 'latest', contract: 'one' })).toEqual([
       'version',
-      'engine',
+      'contract',
     ])
   })
 
@@ -142,8 +142,8 @@ describe('pluginManifestSchema', () => {
   it('takes a package manager description exactly for plugins in the package-manager category', () => {
     const packageManager = {
       version: 'catalog:pnpm',
-      onFail: 'download',
-      allowedBuilds: 'config-file',
+      whenVersionDiffers: 'download',
+      allowedBuildsIn: 'package.json#allowScripts',
     }
 
     expect(issuePaths({ ...MINIMAL, category: 'package-manager', packageManager })).toEqual([])
@@ -155,10 +155,38 @@ describe('pluginManifestSchema', () => {
     const manifest = {
       ...MINIMAL,
       category: 'package-manager',
-      packageManager: { version: '^12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+      packageManager: {
+        version: '^12.2.1',
+        whenVersionDiffers: 'warn',
+        allowedBuildsIn: 'package.json#allowScripts',
+      },
     }
 
     expect(issuePaths(manifest)).toEqual(['packageManager.version'])
+  })
+
+  it('takes the allowed builds in a known package.json field or in a root file the plugin always writes', () => {
+    const withPlace = (allowedBuildsIn: string, files: object[] = []) => ({
+      ...MINIMAL,
+      category: 'package-manager',
+      packageManager: { version: '1.0.0', whenVersionDiffers: 'warn', allowedBuildsIn },
+      files,
+    })
+    const workspaceFile = { source: 'files/pnpm-workspace.yaml.hbs', target: 'pnpm-workspace.yaml' }
+
+    expect(issuePaths(withPlace('pnpm-workspace.yaml', [workspaceFile]))).toEqual([])
+    expect(issuePaths(withPlace('pnpm-workspace.yaml'))).toEqual(['packageManager.allowedBuildsIn'])
+    expect(issuePaths(withPlace('package.json#scripts'))).toEqual([
+      'packageManager.allowedBuildsIn',
+    ])
+    expect(
+      issuePaths(withPlace('pnpm-workspace.yaml', [{ ...workspaceFile, root: 'source' }])),
+    ).toEqual(['packageManager.allowedBuildsIn'])
+    expect(
+      issuePaths(
+        withPlace('pnpm-workspace.yaml', [{ ...workspaceFile, when: { category: 'orm' } }]),
+      ),
+    ).toEqual(['packageManager.allowedBuildsIn'])
   })
 
   it('takes post-steps as script names with an optional condition', () => {

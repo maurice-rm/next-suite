@@ -1,7 +1,7 @@
 import { ComposeError } from '../compose/compose-error.ts'
-import { InputError } from '../input/input-error.ts'
+import { TemplateError } from '../compose/template/template-error.ts'
 import { PluginLoadError } from '../loader/plugin-load-error.ts'
-import { TemplateError } from '../template/template-error.ts'
+import { InputError } from '../questions/input-error.ts'
 import { WriteError } from '../write/write-error.ts'
 
 const EXPECTED_ERRORS = [InputError, ComposeError, WriteError, PluginLoadError, TemplateError]

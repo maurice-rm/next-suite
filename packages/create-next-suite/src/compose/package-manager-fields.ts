@@ -1,23 +1,30 @@
-import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import { resolveVersion, type VersionCatalog } from './merge-contributions.ts'
+import {
+  PACKAGE_JSON_FIELD_PREFIX,
+  type ParsedPluginManifest,
+} from '../contract/plugin-manifest.ts'
+import type { VersionCatalog } from '../contract/version-catalog.ts'
+import { resolveVersion } from './merge-contributions.ts'
 
 type PackageManager = NonNullable<ParsedPluginManifest['packageManager']>
 
 const allowedBuildsFields = (
-  place: PackageManager['allowedBuilds'],
+  place: string,
   allowedBuilds: readonly string[],
 ): Record<string, unknown> => {
-  switch (place) {
-    case 'config-file':
-      return {}
-    case 'allow-scripts':
+  const field = place.startsWith(PACKAGE_JSON_FIELD_PREFIX)
+    ? place.slice(PACKAGE_JSON_FIELD_PREFIX.length)
+    : undefined
+  switch (field) {
+    case 'allowScripts':
       return { allowScripts: Object.fromEntries(allowedBuilds.map((name) => [name, true])) }
-    case 'dependencies-meta':
+    case 'dependenciesMeta':
       return {
         dependenciesMeta: Object.fromEntries(allowedBuilds.map((name) => [name, { built: true }])),
       }
-    case 'trusted-dependencies':
+    case 'trustedDependencies':
       return { trustedDependencies: [...allowedBuilds] }
+    default:
+      return {}
   }
 }
 
@@ -31,8 +38,8 @@ type PackageManagerFieldsInput = {
 /**
  * The package.json fields of the selected package manager: `packageManager` with its exact
  * version, and the fields after the dependencies: `devEngines.packageManager` with the same
- * major, and the allowed dependency builds in the field the manager reads, unless its config file
- * holds them.
+ * major, and the allowed dependency builds in the field the manager reads, unless a file of the
+ * plugin holds them.
  */
 export const packageManagerFields = ({
   name,
@@ -45,9 +52,13 @@ export const packageManagerFields = ({
     packageManager: `${name}@${version}`,
     fields: {
       devEngines: {
-        packageManager: { name, version: `^${version}`, onFail: packageManager.onFail },
+        packageManager: {
+          name,
+          version: `^${version}`,
+          onFail: packageManager.whenVersionDiffers,
+        },
       },
-      ...allowedBuildsFields(packageManager.allowedBuilds, allowedBuilds),
+      ...allowedBuildsFields(packageManager.allowedBuildsIn, allowedBuilds),
     },
   }
 }

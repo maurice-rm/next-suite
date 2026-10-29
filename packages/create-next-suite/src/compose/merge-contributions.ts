@@ -1,10 +1,9 @@
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import type { VersionCatalog } from '../contract/version-catalog.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
 
 const CATALOG_PREFIX = 'catalog:'
-
-export type VersionCatalog = Readonly<Record<string, string>>
 
 type EnvVariable = NonNullable<ParsedPluginManifest['env']>[number]
 type PackageFields = NonNullable<

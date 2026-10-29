@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
-const assertUniqueNames = (directory: string, plugins: LoadedPlugin[]): void => {
+/** Fails when two plugins share a name. */
+export const assertUniqueNames = (directory: string, plugins: readonly LoadedPlugin[]): void => {
   const seen = new Set<string>()
   for (const plugin of plugins) {
     if (seen.has(plugin.manifest.name)) {

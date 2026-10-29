@@ -1,17 +1,14 @@
 import type { Answers } from '../answers/answers.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import {
-  assertCompatible,
-  findConflicts,
-  findIncompatibilities,
-} from '../input/find-incompatibilities.ts'
-import { InputError } from '../input/input-error.ts'
-import type { Question } from '../input/questions.ts'
-import { type AnswerInput, resolveAnswers } from '../input/resolve-answers.ts'
-import { createAsk } from '../wizard/ask-question.ts'
-import { runWizard } from '../wizard/run-wizard.ts'
-import type { Streams } from '../wizard/streams.ts'
-import { frame } from './present.ts'
+import { renderFramed } from '../ui/theme.ts'
+import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
+import { InputError } from './input-error.ts'
+import { DEFAULT_PROJECT_DIRECTORY } from './project-name.ts'
+import type { Question } from './questions.ts'
+import { type AnswerInput, resolveAnswers } from './resolve-answers.ts'
+import { createAsk } from './wizard/ask-question.ts'
+import { runWizard } from './wizard/run-wizard.ts'
+import type { Streams } from './wizard/streams.ts'
 
 const INCOMPATIBLE_IN_WIZARD = 'The answers do not fit together; change one with b:'
 
@@ -20,19 +17,23 @@ type AnswerMode =
   | {
       kind: 'wizard'
       streams: Streams
-      initialSection: string | undefined
       detectedPackageManager: string | undefined
     }
   | { kind: 'input'; useDefaults: boolean }
 
 /** Where the answers of a run come from and how open questions are answered. */
 export type AnswerSources = {
+  /** The project directory from the command line, if it named one. */
+  directory: string | undefined
   questions: readonly Question[]
   plugins: readonly ParsedPluginManifest[]
   input: AnswerInput
   flagKeys: ReadonlySet<string>
   mode: AnswerMode
 }
+
+/** The answers of a run and the directory of the project. */
+type CollectedAnswers = { answers: Answers; directory: string }
 
 const listMissing = (questions: readonly Question[]): string =>
   questions.map((question) => `  ${question.key}`).join('\n')
@@ -55,7 +56,7 @@ const assertNoUnused = (unused: readonly string[], sources: AnswerSources): void
 const askInWizard = async (
   sources: AnswerSources,
   mode: Extract<AnswerMode, { kind: 'wizard' }>,
-): Promise<Answers> => {
+): Promise<CollectedAnswers> => {
   const { questions, plugins, input } = sources
   assertCompatible(
     findConflicts(plugins, resolveAnswers({ questions, input, useDefaults: false }).answers),
@@ -63,14 +64,27 @@ const askInWizard = async (
   const result = await runWizard({
     questions,
     input,
+    directory: sources.directory,
     ask: createAsk(mode.streams, { detectedPackageManager: mode.detectedPackageManager }),
-    initialSection: mode.initialSection,
     findProblems: (answers) => findIncompatibilities(plugins, answers),
     showProblems: (problems) =>
-      mode.streams.output.write(frame([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
+      mode.streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
   })
   assertNoUnused(result.unused, sources)
-  return result.answers
+  return { answers: result.answers, directory: result.directory }
+}
+
+/** The directory from the command line, the default with --yes, or a failure. */
+const directoryFromInput = (directory: string | undefined, useDefaults: boolean): string => {
+  if (directory !== undefined) {
+    return directory
+  }
+  if (useDefaults) {
+    return DEFAULT_PROJECT_DIRECTORY
+  }
+  throw new InputError(
+    'name the project directory, such as `create-next-suite my-app`, or pass --yes',
+  )
 }
 
 /** The defaults of the run settings, which the input answers without asking. */
@@ -86,7 +100,8 @@ const runSettingDefaults = (questions: readonly Question[]): AnswerInput =>
 const resolveFromInput = (
   sources: AnswerSources,
   { useDefaults }: Extract<AnswerMode, { kind: 'input' }>,
-): Answers => {
+): CollectedAnswers => {
+  const directory = directoryFromInput(sources.directory, useDefaults)
   const { questions, input, plugins } = sources
   const resolution = resolveAnswers({
     questions,
@@ -100,14 +115,14 @@ const resolveFromInput = (
     )
   }
   assertCompatible(findIncompatibilities(plugins, resolution.answers))
-  return resolution.answers
+  return { answers: resolution.answers, directory }
 }
 
 /**
- * Collects the answers of a run, in the wizard or from the input. Missing answers, unused input
- * and incompatible plugins fail.
+ * Collects the project directory and the answers of a run, in the wizard or from the input.
+ * Missing answers, unused input and incompatible plugins fail.
  */
-export const collectAnswers = async (sources: AnswerSources): Promise<Answers> =>
+export const collectAnswers = async (sources: AnswerSources): Promise<CollectedAnswers> =>
   sources.mode.kind === 'wizard'
     ? askInWizard(sources, sources.mode)
     : resolveFromInput(sources, sources.mode)

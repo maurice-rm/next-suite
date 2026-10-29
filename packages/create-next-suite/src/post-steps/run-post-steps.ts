@@ -1,5 +1,5 @@
-import { findUnsupportedVersion } from './detect-package-manager.ts'
 import type { CommandResult, CommandRunner } from './run-command.ts'
+import { findUnsupportedVersion } from './supported-versions.ts'
 
 const INITIAL_COMMIT_MESSAGE = 'Initial commit from create-next-suite'
 

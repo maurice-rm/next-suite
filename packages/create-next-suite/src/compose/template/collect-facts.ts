@@ -1,6 +1,6 @@
-import type { Answers } from '../answers/answers.ts'
-import { evaluateCondition } from '../answers/evaluate-condition.ts'
-import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import type { Answers } from '../../answers/answers.ts'
+import { evaluateCondition } from '../../answers/evaluate-condition.ts'
+import type { LoadedPlugin } from '../../loader/load-plugin.ts'
 import type { Facts } from './render-template.ts'
 import { TemplateError } from './template-error.ts'
 

@@ -4,25 +4,22 @@ import { join } from 'node:path'
 import type { Answers, AnswerValue } from '../answers/answers.ts'
 import { evaluateCondition } from '../answers/evaluate-condition.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import type { VersionCatalog } from '../contract/version-catalog.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
-import {
-  BASE_TEMPLATE_BLOCKS,
-  type BlockHelper,
-  PLUGIN_TEMPLATE_BLOCKS,
-} from '../template/check-template.ts'
-import { collectFacts } from '../template/collect-facts.ts'
-import { type Facts, renderTemplate } from '../template/render-template.ts'
 import { assertNoPathCollisions } from './assert-no-path-collisions.ts'
 import { assertSafeTarget } from './assert-safe-target.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
-import {
-  type CompositionValues,
-  mergeContributions,
-  type VersionCatalog,
-} from './merge-contributions.ts'
+import { type CompositionValues, mergeContributions } from './merge-contributions.ts'
 import { packageManagerFields } from './package-manager-fields.ts'
 import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
+import {
+  BASE_TEMPLATE_BLOCKS,
+  type BlockHelper,
+  PLUGIN_TEMPLATE_BLOCKS,
+} from './template/check-template.ts'
+import { collectFacts } from './template/collect-facts.ts'
+import { type Facts, renderTemplate } from './template/render-template.ts'
 import { addFile, type VirtualFile, type VirtualFiles } from './virtual-files.ts'
 
 const CORE_ORIGIN = 'create-next-suite'

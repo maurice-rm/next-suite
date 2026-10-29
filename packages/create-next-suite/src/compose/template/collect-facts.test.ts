@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Answers } from '../answers/answers.ts'
-import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import type { Answers } from '../../answers/answers.ts'
+import type { LoadedPlugin } from '../../loader/load-plugin.ts'
 import { collectFacts } from './collect-facts.ts'
 
 const plugin = (name: string, extra: Partial<LoadedPlugin['manifest']> = {}): LoadedPlugin => ({
   folder: `/plugins/${name}`,
-  manifest: { name, version: '1.0.0', engine: '^1.0.0', title: name, description: name, ...extra },
+  manifest: {
+    name,
+    version: '1.0.0',
+    contract: '^1.0.0',
+    title: name,
+    description: name,
+    ...extra,
+  },
 })
 
 const ANSWERS: Answers = {

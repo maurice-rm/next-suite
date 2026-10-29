@@ -6,8 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { composeProject } from '../compose/compose-project.ts'
 import { categoriesSchema } from '../contract/category.ts'
+import { loadAssets } from '../loader/load-assets.ts'
 import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
-import { loadPlugins } from '../loader/load-plugins.ts'
 
 const PACKAGE_ROOT = join(import.meta.dirname, '../..')
 
@@ -25,7 +25,7 @@ const writeTestPlugin = async (name: string, manifest: object, files: Record<str
     JSON.stringify({
       name,
       version: '1.0.0',
-      engine: '^1.0.0',
+      contract: '^1.0.0',
       title: name,
       description: name,
       ...manifest,
@@ -76,7 +76,7 @@ beforeAll(async () => {
     { 'files/gitignore.hbs': 'node_modules\n{{#each gitignore}}{{this}}\n{{/each}}' },
   )
   images = await writeTestPlugin('images', { contributes: { allowedBuilds: ['sharp'] } }, {})
-  builtIn = await loadPlugins(join(PACKAGE_ROOT, 'plugins'))
+  builtIn = (await loadAssets(PACKAGE_ROOT)).plugins
   catalog = JSON.parse(await readFile(join(PACKAGE_ROOT, 'catalog.json'), 'utf8'))
 })
 

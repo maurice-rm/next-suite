@@ -16,7 +16,7 @@ import {
   renderPromptTitle,
   renderResolved,
   SYMBOLS,
-} from '../ui/theme.ts'
+} from '../../ui/theme.ts'
 import type { Streams } from './streams.ts'
 import { WizardCancelled } from './wizard-cancelled.ts'
 

@@ -8,7 +8,7 @@ import { pluginOptionSchema } from './plugin-option.ts'
 
 /**
  * The version of the plugin contract this release of create-next-suite implements. A plugin's
- * `engine` range is checked against it before the plugin loads.
+ * `contract` range is checked against it before the plugin loads.
  */
 export const CONTRACT_VERSION = '1.0.0'
 
@@ -68,20 +68,39 @@ const pluginFileSchema = z.strictObject({
   }),
 })
 
+/** Marks `allowedBuildsIn` values that name a field of package.json, such as `package.json#allowScripts`. */
+export const PACKAGE_JSON_FIELD_PREFIX = 'package.json#'
+
+const PACKAGE_JSON_BUILD_FIELDS: ReadonlySet<string> = new Set([
+  'allowScripts',
+  'dependenciesMeta',
+  'trustedDependencies',
+])
+
+const isPackageJsonBuildField = (place: string): boolean =>
+  !place.startsWith(PACKAGE_JSON_FIELD_PREFIX) ||
+  PACKAGE_JSON_BUILD_FIELDS.has(place.slice(PACKAGE_JSON_FIELD_PREFIX.length))
+
 const packageManagerSchema = z
   .strictObject({
     version: z
       .string()
       .refine(isExactVersionSpec, 'Use `catalog:<name>` or an exact version')
       .meta({ description: 'The version written to `packageManager` in package.json.' }),
-    onFail: z.enum(['download', 'warn', 'error']).meta({
-      description: 'What `devEngines.packageManager` asks for when the running version differs.',
+    whenVersionDiffers: z.enum(['download', 'warn', 'error']).meta({
+      description:
+        'What a project asks for when it runs with another version, through `devEngines.packageManager`.',
     }),
-    allowedBuilds: z
-      .enum(['config-file', 'allow-scripts', 'dependencies-meta', 'trusted-dependencies'])
+    allowedBuildsIn: z
+      .string()
+      .min(1)
+      .refine(
+        isPackageJsonBuildField,
+        'Use package.json#allowScripts, package.json#dependenciesMeta or package.json#trustedDependencies',
+      )
       .meta({
         description:
-          'Where the allowed dependency builds go: the config file of the plugin, or the package.json field `allowScripts`, `dependenciesMeta` or `trustedDependencies`.',
+          'Where the allowed dependency builds go: a package.json field such as `package.json#allowScripts`, or the target of a file of this plugin that lists them itself.',
       }),
   })
   .meta({
@@ -101,7 +120,10 @@ export const pluginManifestSchema = z
     $schema: z.string().optional(),
     name: pluginName,
     version: z.string().refine((value) => semver.valid(value) !== null, 'Use a semver version'),
-    engine: z.string().refine((value) => semver.validRange(value) !== null, 'Use a semver range'),
+    contract: z
+      .string()
+      .refine((value) => semver.validRange(value) !== null, 'Use a semver range')
+      .meta({ description: 'The versions of the plugin contract this plugin works with.' }),
     title: z.string().min(1),
     description: z.string().min(1),
     category: kebabCaseId.optional(),
@@ -143,6 +165,22 @@ export const pluginManifestSchema = z
     {
       message: `A plugin in the ${PACKAGE_MANAGER_CATEGORY} category describes its package manager, no other plugin does`,
       path: ['packageManager'],
+    },
+  )
+  .refine(
+    ({ packageManager, files }) =>
+      packageManager === undefined ||
+      packageManager.allowedBuildsIn.startsWith(PACKAGE_JSON_FIELD_PREFIX) ||
+      (files ?? []).some(
+        (file) =>
+          file.target === packageManager.allowedBuildsIn &&
+          file.when === undefined &&
+          file.root !== 'source',
+      ),
+    {
+      message:
+        'A file that holds the allowed builds is a file of this plugin that is always written to the project root',
+      path: ['packageManager', 'allowedBuildsIn'],
     },
   )
   .meta({ title: 'next-suite plugin manifest' })

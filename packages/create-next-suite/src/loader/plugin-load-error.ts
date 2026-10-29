@@ -1,4 +1,4 @@
-/** A plugin folder that cannot be loaded: missing or invalid manifest, unmet engine, bad file. */
+/** A plugin folder that cannot be loaded: missing or invalid manifest, unmet contract, bad file. */
 export class PluginLoadError extends Error {
   readonly folder: string
 

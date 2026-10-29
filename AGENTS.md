@@ -9,8 +9,8 @@ says what next-suite does; this file says how code is written here.
   reported to the maintainer — never folded in.
 - The maintainer decides which options next-suite ships as built-in plugins and what the files
   of the base project and of every built-in plugin look like. Files under
-  `packages/create-next-suite/base/` and `packages/create-next-suite/plugins/*/files/` change only
-  on the maintainer's instruction or approval.
+  `packages/create-next-suite/base/` and `packages/create-next-suite/plugins/*/*/files/` change
+  only on the maintainer's instruction or approval.
 - The public surface — the CLI's commands and flags, the plugin contract and the vocabulary — is
   decided by the maintainer. A change or a review finding that would alter it is raised as a
   question, not made.
@@ -52,9 +52,10 @@ says what next-suite does; this file says how code is written here.
   way Node.js loads TypeScript. No path aliases in packages. Module boundaries inside a package
   are enforced with `noRestrictedImports` overrides per folder, added in `biome.json` together
   with the folders they guard.
-- **Plugins:** a built-in plugin is one folder under `packages/create-next-suite/plugins/` and
-  changes no other file; a plugin that needs another file changed is missing a composition point,
-  which is a change to the core of its own. Built-in plugins import only the public plugin
+- **Plugins:** a built-in plugin is one folder under
+  `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` without a
+  category, and changes no other file; a plugin that needs another file changed is missing a
+  composition point, which is a change to the core of its own. Built-in plugins import only the public plugin
   contract (`create-next-suite/plugin`), like any external plugin.
 - **Templates:** a plugin file whose source ends in `.hbs` is a Handlebars template; its target
   path comes from the manifest. Every other file is copied as it is, so JSX braces need no

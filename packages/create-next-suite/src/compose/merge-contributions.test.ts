@@ -7,7 +7,7 @@ const manifest = (name: string, extra: object = {}): ParsedPluginManifest =>
   pluginManifestSchema.parse({
     name,
     version: '1.0.0',
-    engine: '^1.0.0',
+    contract: '^1.0.0',
     title: name,
     description: name,
     ...extra,

@@ -1,16 +1,25 @@
-import type { Answers } from '../answers/answers.ts'
-import { evaluateCondition } from '../answers/evaluate-condition.ts'
-import { PACKAGE_MANAGER_CATEGORY, type ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import type { PluginOption } from '../contract/plugin-option.ts'
-import type { CategoryQuestion } from '../input/questions.ts'
-import { defaultAnswer } from '../input/resolve-answers.ts'
-import { renderSectionBadge } from '../ui/theme.ts'
+import type { Answers } from '../../answers/answers.ts'
+import { evaluateCondition } from '../../answers/evaluate-condition.ts'
+import {
+  PACKAGE_MANAGER_CATEGORY,
+  type ParsedPluginManifest,
+} from '../../contract/plugin-manifest.ts'
+import type { PluginOption } from '../../contract/plugin-option.ts'
+import { renderSectionBadge } from '../../ui/theme.ts'
+import {
+  DEFAULT_PROJECT_DIRECTORY,
+  findProjectNameProblem,
+  projectNameOf,
+} from '../project-name.ts'
+import type { CategoryQuestion } from '../questions.ts'
+import { defaultAnswer } from '../resolve-answers.ts'
 import { type Choice, confirm, multiselect, select, text } from './prompts.ts'
 import type { Ask, WizardStep } from './run-wizard.ts'
 import type { Streams } from './streams.ts'
 
 const NONE_LABEL = 'None'
 const DETECTED_HINT = 'detected'
+const PROJECT_NAME_QUESTION = 'What is your project named?'
 const QUICK_START_QUESTION = 'Use the quick start? Every remaining question takes its default.'
 
 type PromptOptions = Streams & { canGoBack: boolean }
@@ -111,6 +120,13 @@ const askCategory = async (
 
 const askStep = async (step: WizardStep, { base, answers, context }: StepAsk) => {
   switch (step.kind) {
+    case 'project-name':
+      return text({
+        ...base,
+        message: PROJECT_NAME_QUESTION,
+        defaultValue: DEFAULT_PROJECT_DIRECTORY,
+        validate: (value) => findProjectNameProblem(projectNameOf(value)),
+      })
     case 'quick-start':
       return confirm({ ...base, message: QUICK_START_QUESTION, initialValue: false })
     case 'category':
