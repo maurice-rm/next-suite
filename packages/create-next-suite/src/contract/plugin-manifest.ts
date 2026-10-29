@@ -171,9 +171,15 @@ export const pluginManifestSchema = z
     ({ packageManager, files }) =>
       packageManager === undefined ||
       packageManager.allowedBuildsIn.startsWith(PACKAGE_JSON_FIELD_PREFIX) ||
-      (files ?? []).some((file) => file.target === packageManager.allowedBuildsIn),
+      (files ?? []).some(
+        (file) =>
+          file.target === packageManager.allowedBuildsIn &&
+          file.when === undefined &&
+          file.root !== 'source',
+      ),
     {
-      message: 'A file that holds the allowed builds is one of the files of this plugin',
+      message:
+        'A file that holds the allowed builds is a file of this plugin that is always written to the project root',
       path: ['packageManager', 'allowedBuildsIn'],
     },
   )

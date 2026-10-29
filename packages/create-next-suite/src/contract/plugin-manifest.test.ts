@@ -165,7 +165,7 @@ describe('pluginManifestSchema', () => {
     expect(issuePaths(manifest)).toEqual(['packageManager.version'])
   })
 
-  it('takes the allowed builds in a known package.json field or in a file of the plugin', () => {
+  it('takes the allowed builds in a known package.json field or in a root file the plugin always writes', () => {
     const withPlace = (allowedBuildsIn: string, files: object[] = []) => ({
       ...MINIMAL,
       category: 'package-manager',
@@ -179,6 +179,14 @@ describe('pluginManifestSchema', () => {
     expect(issuePaths(withPlace('package.json#scripts'))).toEqual([
       'packageManager.allowedBuildsIn',
     ])
+    expect(
+      issuePaths(withPlace('pnpm-workspace.yaml', [{ ...workspaceFile, root: 'source' }])),
+    ).toEqual(['packageManager.allowedBuildsIn'])
+    expect(
+      issuePaths(
+        withPlace('pnpm-workspace.yaml', [{ ...workspaceFile, when: { category: 'orm' } }]),
+      ),
+    ).toEqual(['packageManager.allowedBuildsIn'])
   })
 
   it('takes post-steps as script names with an optional condition', () => {
