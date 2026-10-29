@@ -5,7 +5,6 @@
     "jsx": "react-jsx",
     "types": ["node"],
     "allowJs": true,
-    "incremental": true,
     "plugins": [
       {
         "name": "next"
