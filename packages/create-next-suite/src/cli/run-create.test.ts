@@ -4,12 +4,32 @@ import { dirname, join } from 'node:path'
 import { PassThrough, Writable } from 'node:stream'
 
 import ansis from 'ansis'
+import * as tar from 'tar'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { loadAssets } from '../loader/load-assets.ts'
 import { runCreate } from './run-create.ts'
 
 let root: string
+
+/** A GitHub tarball of a plugin folder, served for `github:acme/plugins/<name>` at commit 0123456789abcdef0123456789abcdef01234567. */
+const githubRoutes = async (name: string, files: Record<string, string>) => {
+  const top = join(root, 'github-source')
+  for (const [path, content] of Object.entries(files)) {
+    await mkdir(dirname(join(top, 'repo', name, path)), { recursive: true })
+    await writeFile(join(top, 'repo', name, path), content)
+  }
+  const file = join(root, 'github.tgz')
+  await tar.c({ gzip: true, file, cwd: top }, ['repo'])
+  const archive = new Uint8Array(await readFile(file))
+  await rm(top, { recursive: true, force: true })
+  return {
+    'https://api.github.com/repos/acme/plugins/commits/HEAD': () =>
+      new Response('0123456789abcdef0123456789abcdef01234567'),
+    'https://api.github.com/repos/acme/plugins/tarball/0123456789abcdef0123456789abcdef01234567':
+      () => new Response(archive),
+  }
+}
 
 const write = async (files: Record<string, string>): Promise<void> => {
   for (const [path, content] of Object.entries(files)) {
@@ -85,7 +105,12 @@ const ASSETS = {
   }),
 }
 
-type RunOptions = { isInteractive?: boolean; keys?: string[]; userAgent?: string }
+type RunOptions = {
+  isInteractive?: boolean
+  keys?: string[]
+  userAgent?: string
+  routes?: Record<string, () => Response>
+}
 
 const OUTSIDE_REPOSITORY = 'git rev-parse --is-inside-work-tree'
 
@@ -93,7 +118,7 @@ const KEY_DELAY_MS = 40
 
 const run = async (
   argv: string[],
-  { isInteractive = false, keys = [], userAgent }: RunOptions = {},
+  { isInteractive = false, keys = [], userAgent, routes = {} }: RunOptions = {},
 ) => {
   const commands: string[] = []
   const output: string[] = []
@@ -127,6 +152,13 @@ const run = async (
       commands.push(line)
       return { isSuccess: line !== OUTSIDE_REPOSITORY, output: '' }
     },
+    remote: {
+      fetch: async (url) => routes[String(url)]?.() ?? new Response('not found', { status: 404 }),
+      cacheDir: join(root, 'cache'),
+      tokenFor: () => undefined,
+      npmRegistry: undefined,
+    },
+    userConfigPath: join(root, 'config.json'),
     fetchLatestVersion: async () => undefined,
   })
   await pressing
@@ -464,6 +496,64 @@ describe('runCreate', () => {
 
     expect(result.exitCode).toBe(1)
     expect(result.error).toContain('broken: its logic answers something invalid')
+  })
+
+  it('needs trust for a plugin from GitHub even without a logic module, since it writes and runs', async () => {
+    const routes = await githubRoutes('mail', {
+      'plugin.json': manifest('mail', { selectedByDefault: true }),
+    })
+
+    const argv = ['my-app', '--yes', '--no-git', '--plugin', 'github:acme/plugins/mail']
+    const refused = await run(argv, { routes })
+    const result = await run([...argv, '--trust', 'github:acme/*'], { routes })
+    const recorded = JSON.parse(await readFile(join(root, 'my-app/next-suite.json'), 'utf8'))
+
+    expect(refused.error).toContain('comes from an untrusted source')
+    expect(result.exitCode).toBe(0)
+    expect(recorded.plugins).toContainEqual({
+      name: 'mail',
+      source: 'github:acme/plugins/mail',
+      resolved: '0123456789abcdef0123456789abcdef01234567',
+      version: '1.0.0',
+    })
+  })
+
+  it('runs code from an untrusted source only with --trust or a trusted pattern', async () => {
+    const routes = await githubRoutes('hello', {
+      'plugin.json': manifest('hello', { logic: 'logic.ts', selectedByDefault: true }),
+      'logic.ts': 'export default () => ({ files: [{ target: "hello.txt", content: "hi\\n" }] })\n',
+    })
+    const argv = ['my-app', '--yes', '--dry-run', '--plugin', 'github:acme/plugins/hello']
+
+    const refused = await run(argv, { routes })
+    const flagged = await run([...argv, '--trust', 'github:acme/*'], { routes })
+    await write({ 'config.json': JSON.stringify({ trust: ['github:acme/plugins/*'] }) })
+    const configured = await run(argv, { routes })
+
+    expect(refused.exitCode).toBe(1)
+    expect(refused.error).toContain('comes from an untrusted source; pass --trust')
+    expect(flagged.output).toContain('hello.txt (1 line, hello)')
+    expect(configured.output).toContain('hello.txt (1 line, hello)')
+  })
+
+  it('asks in the terminal and remembers a source the user always trusts', async () => {
+    const routes = await githubRoutes('hello', {
+      'plugin.json': manifest('hello', { logic: 'logic.ts', selectedByDefault: true }),
+      'logic.ts': 'export default () => ({})\n',
+    })
+    const up = '\u001b[A'
+    const enter = '\r'
+
+    const result = await run(['my-app', '--dry-run', '--plugin', 'github:acme/plugins/hello'], {
+      isInteractive: true,
+      routes,
+      keys: [enter, 'y', up, enter],
+    })
+
+    expect(result.output).toContain('can run code on your machine. Use it?')
+    expect(JSON.parse(await readFile(join(root, 'config.json'), 'utf8')).trust).toEqual([
+      'github:acme/plugins/hello',
+    ])
   })
 
   it('rejects an answer that no question asks', async () => {

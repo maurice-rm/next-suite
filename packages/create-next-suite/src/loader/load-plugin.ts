@@ -34,6 +34,9 @@ const isMissingFile = (error: unknown): boolean =>
 const readManifestJson = async (folder: string): Promise<unknown> => {
   let text: string
   try {
+    if ((await lstat(join(folder, MANIFEST_FILE))).isSymbolicLink()) {
+      throw new PluginLoadError(folder, `${MANIFEST_FILE} is a link`)
+    }
     text = await readFile(join(folder, MANIFEST_FILE), 'utf8')
   } catch (error) {
     if (isMissingFile(error)) {

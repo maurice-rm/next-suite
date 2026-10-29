@@ -2,9 +2,17 @@ import { ComposeError } from '../compose/compose-error.ts'
 import { TemplateError } from '../compose/template/template-error.ts'
 import { PluginLoadError } from '../loader/plugin-load-error.ts'
 import { InputError } from '../questions/input-error.ts'
+import { TrustError } from '../trust/trust-error.ts'
 import { WriteError } from '../write/write-error.ts'
 
-const EXPECTED_ERRORS = [InputError, ComposeError, WriteError, PluginLoadError, TemplateError]
+const EXPECTED_ERRORS = [
+  InputError,
+  ComposeError,
+  WriteError,
+  PluginLoadError,
+  TemplateError,
+  TrustError,
+]
 
 /**
  * Answers the message of an expected failure, with its cause on the next line, and rethrows

@@ -122,6 +122,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
@@ -162,6 +164,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/loader",
                       "**/loader/**",
                       "**/compose",
@@ -200,6 +204,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/answers",
                       "**/answers/**",
                       "**/compose",
@@ -238,6 +244,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -272,6 +280,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "../*.ts",
                       "**/write",
                       "**/write/**",
@@ -307,6 +317,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/questions",
                       "**/questions/**",
                       "**/post-steps",
@@ -339,6 +351,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",
@@ -371,6 +385,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
@@ -409,6 +425,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/contract",
                       "**/contract/**",
                       "**/answers",
@@ -430,6 +448,44 @@
                       "**/plugin.ts"
                     ],
                     "message": "create-next-suite: ui/ renders only and imports no other module"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/trust/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/answers",
+                      "**/answers/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: trust/ imports from contract/ and loader/ only"
                   }
                 ]
               }

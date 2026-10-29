@@ -4,6 +4,7 @@ import type { Writable } from 'node:stream'
 import { CommanderError } from 'commander'
 import type { TargetAction } from '../answers/target-action.ts'
 import { composeProject } from '../compose/compose-project.ts'
+import type { RemoteEnvironment } from '../loader/fetch-remote-plugin.ts'
 import type { Assets } from '../loader/load-assets.ts'
 import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
 import { loadLogic } from '../loader/load-logic.ts'
@@ -20,6 +21,7 @@ import { recordAnswers } from '../questions/record-answers.ts'
 import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
 import type { Streams } from '../questions/wizard/streams.ts'
 import { WizardCancelled } from '../questions/wizard/wizard-cancelled.ts'
+import { readUserConfig } from '../trust/user-config.ts'
 import { describePlan, diffPlan } from '../write/describe-plan.ts'
 import { findEmptyingProblem } from '../write/empty-target.ts'
 import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
@@ -33,6 +35,7 @@ import {
   readPluginAddresses,
   targetActionOf,
 } from './command-line.ts'
+import { confirmTrust } from './confirm-trust.ts'
 import {
   detectPackageManager,
   findUsablePackageManager,
@@ -66,6 +69,10 @@ export type CreateEnvironment = {
   now: () => Date
   userAgent: string | undefined
   runCommand: CommandRunner
+  /** How external plugins are fetched: network, cache folder and tokens. */
+  remote: RemoteEnvironment
+  /** Where the user configuration with trusted sources and registries lives. */
+  userConfigPath: string
   /** The latest published version for the banner; answers nothing when unknown. */
   fetchLatestVersion: () => Promise<string | undefined>
 }
@@ -180,6 +187,13 @@ const create = async (run: Run): Promise<void> => {
   const selected = answers.plugins.flatMap((answer) =>
     assets.plugins.filter((plugin) => plugin.manifest.name === answer.name),
   )
+  await confirmTrust({
+    plugins: selected,
+    isDryRun: invocation.flags.dryRun === true,
+    flagPatterns: invocation.flags.trust ?? [],
+    userConfigPath: environment.userConfigPath,
+    streams: presenter.isFramed ? environment.streams : undefined,
+  })
   const plan = await composeProject({
     projectName: projectNameOf(directory, environment.cwd),
     base: assets.base,
@@ -231,10 +245,12 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
   const plain: Presenter = { output: streams.output, error: streams.error, isFramed: false }
   let presenter = plain
   try {
-    const external = await loadExternalPlugins(
-      readPluginAddresses(environment.argv),
-      environment.cwd,
-    )
+    const { registries } = await readUserConfig(environment.userConfigPath)
+    const external = await loadExternalPlugins(readPluginAddresses(environment.argv), {
+      cwd: environment.cwd,
+      remote: environment.remote,
+      registries,
+    })
     const { assets } = environment
     const withExternal: CreateEnvironment = {
       ...environment,
