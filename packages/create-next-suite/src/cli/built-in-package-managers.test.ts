@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { composeProject } from '../compose/compose-project.ts'
 import { categoriesSchema } from '../contract/category.ts'
 import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
-import { loadPlugins } from '../loader/load-plugins.ts'
+import { loadAssets } from './load-assets.ts'
 
 const PACKAGE_ROOT = join(import.meta.dirname, '../..')
 
@@ -76,7 +76,7 @@ beforeAll(async () => {
     { 'files/gitignore.hbs': 'node_modules\n{{#each gitignore}}{{this}}\n{{/each}}' },
   )
   images = await writeTestPlugin('images', { contributes: { allowedBuilds: ['sharp'] } }, {})
-  builtIn = await loadPlugins(join(PACKAGE_ROOT, 'plugins'))
+  builtIn = (await loadAssets(PACKAGE_ROOT)).plugins
   catalog = JSON.parse(await readFile(join(PACKAGE_ROOT, 'catalog.json'), 'utf8'))
 })
 

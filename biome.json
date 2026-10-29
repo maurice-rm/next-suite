@@ -7,7 +7,12 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!pnpm-lock.yaml", "!**/*.md", "!packages/create-next-suite/plugins/*/files"]
+    "includes": [
+      "**",
+      "!pnpm-lock.yaml",
+      "!**/*.md",
+      "!packages/create-next-suite/plugins/*/*/files"
+    ]
   },
   "formatter": {
     "enabled": true,

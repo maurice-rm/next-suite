@@ -56,21 +56,21 @@ const ASSETS = {
   }),
   'assets/base/files/page.tsx.hbs':
     'export default function Page() { return <h1>{{project.name}}</h1> }\n',
-  'assets/plugins/pnpm/plugin.json': manifest('pnpm', {
+  'assets/plugins/package-manager/pnpm/plugin.json': manifest('pnpm', {
     category: 'package-manager',
     packageManager: { version: '12.16.1', onFail: 'download', allowedBuilds: 'config-file' },
   }),
-  'assets/plugins/npm/plugin.json': manifest('npm', {
+  'assets/plugins/package-manager/npm/plugin.json': manifest('npm', {
     category: 'package-manager',
     packageManager: { version: '12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
   }),
-  'assets/plugins/drizzle/plugin.json': manifest('drizzle', {
+  'assets/plugins/orm/drizzle/plugin.json': manifest('drizzle', {
     category: 'orm',
     dependencies: { 'drizzle-orm': '^1.0.0' },
     files: [{ source: 'db.ts', target: 'lib/db.ts', root: 'source' }],
   }),
-  'assets/plugins/drizzle/db.ts': 'export const db = {}\n',
-  'assets/plugins/better-auth/plugin.json': manifest('better-auth', {
+  'assets/plugins/orm/drizzle/db.ts': 'export const db = {}\n',
+  'assets/plugins/extras/better-auth/plugin.json': manifest('better-auth', {
     requires: [{ when: { category: 'orm' }, reason: 'Stores sessions in the database.' }],
   }),
 }
@@ -261,7 +261,7 @@ describe('runCreate', () => {
   it('drops an answer of the file whose question a flag made obsolete', async () => {
     await write({ 'answers.json': JSON.stringify({ orm: 'drizzle', 'drizzle.casing': 'snake' }) })
     await write({
-      'assets/plugins/drizzle/plugin.json': manifest('drizzle', {
+      'assets/plugins/orm/drizzle/plugin.json': manifest('drizzle', {
         category: 'orm',
         options: {
           casing: {
