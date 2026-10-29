@@ -5,6 +5,7 @@ const config: UserConfig = defineConfig({
   format: 'esm',
   platform: 'node',
   hash: false,
+  copy: { from: 'generated/schemas/*.json', to: 'dist/schemas' },
   dts: {
     entry: 'src/plugin.ts',
   },

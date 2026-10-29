@@ -103,5 +103,53 @@
         }
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["packages/create-next-suite/src/contract/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/loader",
+                      "**/loader/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: contract/ is the innermost module and imports no other"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/loader/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**/create-next-suite.ts", "**/next-suite.ts", "**/plugin.ts"],
+                    "message": "create-next-suite: loader/ never imports the package entries"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

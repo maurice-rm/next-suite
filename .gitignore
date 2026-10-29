@@ -13,8 +13,9 @@ out
 *.tsbuildinfo
 next-env.d.ts
 
-# Generated documentation sources
+# Generated sources
 .source
+generated
 
 # Tooling caches
 .turbo
