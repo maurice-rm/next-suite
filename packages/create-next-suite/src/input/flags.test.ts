@@ -2,12 +2,12 @@ import { Command } from 'commander'
 import { describe, expect, it } from 'vitest'
 
 import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
+import { TEST_CATEGORIES, TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
 import { answersFromFlags, createFlags } from './flags.ts'
 import { buildQuestions } from './questions.ts'
-import { TEST_CATEGORIES, TEST_PLUGINS, TEST_QUESTIONS } from './test-questions.ts'
 
 const parse = (args: string[]) => {
-  const flags = createFlags(TEST_QUESTIONS)
+  const flags = createFlags(TEST_QUESTIONS, new Set(['yes', 'help']))
   const program = new Command().exitOverride().configureOutput({ writeErr: () => undefined })
   for (const option of flags.flatMap((flag) => flag.options)) {
     program.addOption(option)
@@ -70,7 +70,7 @@ describe('createFlags', () => {
       settings: [],
     })
 
-    expect(() => createFlags(questions)).toThrow(
+    expect(() => createFlags(questions, new Set())).toThrow(
       'the flag --drizzle-casing of "drizzle-casing" is already taken by "drizzle.casing"',
     )
   })

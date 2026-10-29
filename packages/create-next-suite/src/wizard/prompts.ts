@@ -1,5 +1,3 @@
-import type { Readable, Writable } from 'node:stream'
-
 import {
   ConfirmPrompt,
   isCancel,
@@ -19,22 +17,13 @@ import {
   renderResolved,
   SYMBOLS,
 } from '../ui/theme.ts'
+import type { Streams } from './streams.ts'
+import { WizardCancelled } from './wizard-cancelled.ts'
 
 /** Returned when the user goes back one question with `b` or Esc. */
 export const GO_BACK: unique symbol = Symbol('go-back')
 
-/** Thrown when the user cancels the wizard with Ctrl+C. */
-export class WizardCancelled extends Error {
-  constructor() {
-    super('create-next-suite: cancelled')
-    this.name = 'WizardCancelled'
-  }
-}
-
 export type Choice<Value> = { value: Value; label: string; hint?: string; disabled?: boolean }
-
-/** Where prompts read keys and render to; the terminal in the CLI, streams in tests. */
-export type Streams = { input: Readable; output: Writable }
 
 type PromptBase = Streams & { message: string; canGoBack: boolean }
 

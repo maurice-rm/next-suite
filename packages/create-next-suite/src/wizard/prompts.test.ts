@@ -2,7 +2,8 @@ import { PassThrough, Writable } from 'node:stream'
 
 import { describe, expect, it } from 'vitest'
 
-import { confirm, GO_BACK, multiselect, select, text, WizardCancelled } from './prompts.ts'
+import { confirm, GO_BACK, multiselect, select, text } from './prompts.ts'
+import { WizardCancelled } from './wizard-cancelled.ts'
 
 const DOWN = '\u001b[B'
 const ENTER = '\r'

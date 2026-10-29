@@ -27,9 +27,7 @@ export const brand = ansis.hex(BRAND_COLOR)
 /** The pick colour: the chosen option and answered questions. */
 export const pick = ansis.hex(PICK_COLOR)
 
-export type PromptState = State
-
-const stateGlyph = (state: PromptState): string => {
+const stateGlyph = (state: State): string => {
   switch (state) {
     case 'submit':
       return pick(SYMBOLS.submit)
@@ -43,11 +41,11 @@ const stateGlyph = (state: PromptState): string => {
 }
 
 /** The bar and glyph above every prompt, with its message. */
-export const renderPromptTitle = (state: PromptState, message: string): string =>
+export const renderPromptTitle = (state: State, message: string): string =>
   `${ansis.gray(SYMBOLS.bar)}\n${stateGlyph(state)}  ${message}\n`
 
 /** An answered prompt: its answer dimmed, struck through when the user went back from it. */
-export const renderResolved = (state: PromptState, message: string, answer: string): string => {
+export const renderResolved = (state: State, message: string, answer: string): string => {
   const title = renderPromptTitle(state, message)
   const bar = ansis.gray(SYMBOLS.bar)
   return state === 'cancel'

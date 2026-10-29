@@ -2,7 +2,7 @@ import type { Answers, AnswerValue } from '../answers/answers.ts'
 import { evaluateCondition } from '../answers/evaluate-condition.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from './input-error.ts'
-import type { Question } from './questions.ts'
+import type { CategoryQuestion, Question } from './questions.ts'
 
 /** Answers as answer files, flags and next-suite.json write them, keyed by question key. */
 export type AnswerInput = Readonly<Record<string, unknown>>
@@ -20,7 +20,6 @@ export type Resolution = {
   unused: string[]
 }
 
-type CategoryQuestion = Extract<Question, { kind: 'category' }>
 type WorkingAnswers = {
   plugins: { name: string; category: string | undefined }[]
   settings: Record<string, AnswerValue>
