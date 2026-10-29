@@ -3,6 +3,7 @@ import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
 import { BASE_SETTINGS_SECTION, type BaseSetting } from './base-settings.ts'
 import { InputError } from './input-error.ts'
+import { RUN_SETTINGS_SECTION } from './run-settings.ts'
 
 type QuestionPlace = {
   key: string
@@ -17,7 +18,7 @@ export type Question = QuestionPlace &
     | { kind: 'category'; category: Category; choices: ParsedPluginManifest[] }
     | { kind: 'addon'; plugin: ParsedPluginManifest }
     | { kind: 'option'; plugin: ParsedPluginManifest; option: PluginOption }
-    | { kind: 'setting'; option: PluginOption }
+    | { kind: 'setting'; option: PluginOption; scope: 'project' | 'run' }
   )
 
 /** A question that picks the plugins of a category. */
@@ -27,6 +28,7 @@ type QuestionSources = {
   categories: readonly Category[]
   plugins: readonly ParsedPluginManifest[]
   settings: readonly BaseSetting[]
+  runSettings: readonly BaseSetting[]
 }
 
 const optionQuestions = (
@@ -98,13 +100,29 @@ const assertKnownCategories = (
   }
 }
 
+const settingQuestion = (
+  setting: BaseSetting,
+  place: { section: string; scope: 'project' | 'run' },
+): Question => ({
+  kind: 'setting',
+  key: setting.key,
+  isEssential: false,
+  option: setting.option,
+  ...place,
+})
+
 /**
  * Orders every question of a run: the categories that need exactly one plugin, then the base
  * settings, then the other categories, each with the options of its plugins, then the plugins
- * without a category with their options. Each question carries the section of the wizard it
- * belongs to.
+ * without a category with their options, then the settings of the run. Each question carries the
+ * section of the wizard it belongs to.
  */
-export const buildQuestions = ({ categories, plugins, settings }: QuestionSources): Question[] => {
+export const buildQuestions = ({
+  categories,
+  plugins,
+  settings,
+  runSettings,
+}: QuestionSources): Question[] => {
   assertKnownCategories(categories, plugins)
   const categoryQuestions = categories
     .map((category) => categoryQuestion(category, plugins))
@@ -113,14 +131,11 @@ export const buildQuestions = ({ categories, plugins, settings }: QuestionSource
     .filter((question) => question.isEssential)
     .flatMap(withOptions)
   const others = categoryQuestions.filter((question) => !question.isEssential).flatMap(withOptions)
-  const settingQuestions = settings.map(
-    (setting): Question => ({
-      kind: 'setting',
-      key: setting.key,
-      section: BASE_SETTINGS_SECTION,
-      isEssential: false,
-      option: setting.option,
-    }),
+  const settingQuestions = settings.map((setting) =>
+    settingQuestion(setting, { section: BASE_SETTINGS_SECTION, scope: 'project' }),
+  )
+  const runQuestions = runSettings.map((setting) =>
+    settingQuestion(setting, { section: RUN_SETTINGS_SECTION, scope: 'run' }),
   )
   const addons = plugins
     .filter((plugin) => plugin.category === undefined)
@@ -128,5 +143,5 @@ export const buildQuestions = ({ categories, plugins, settings }: QuestionSource
       { kind: 'addon', key: plugin.name, section: plugin.section, isEssential: false, plugin },
       ...optionQuestions(plugin, { section: plugin.section, isEssential: false }),
     ])
-  return [...essential, ...settingQuestions, ...others, ...addons]
+  return [...essential, ...settingQuestions, ...others, ...addons, ...runQuestions]
 }

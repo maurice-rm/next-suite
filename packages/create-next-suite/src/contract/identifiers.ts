@@ -2,6 +2,7 @@ import * as z from 'zod'
 
 const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 const PLUGIN_NAME = /^(?:@[a-z0-9][a-z0-9-]*\/)?[a-z0-9][a-z0-9-]*$/
+const SCRIPT_NAME = /^[a-z][a-z0-9:-]*$/
 const OPTION_REFERENCE =
   /^(?:@[a-z0-9][a-z0-9-]*\/)?[a-z0-9][a-z0-9-]*\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
 
@@ -14,3 +15,5 @@ export const pluginName = z
 export const optionReference = z
   .string()
   .regex(OPTION_REFERENCE, 'Name a plugin option as `<plugin>.<option>`, such as `seo.og-image`')
+
+export const scriptName = z.string().regex(SCRIPT_NAME, 'Use a script name such as `db:migrate`')

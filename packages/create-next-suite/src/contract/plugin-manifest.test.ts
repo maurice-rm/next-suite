@@ -124,4 +124,52 @@ describe('pluginManifestSchema', () => {
 
     expect(issuePaths(manifest)).toEqual([])
   })
+
+  it('rejects the package manager fields the core writes itself', () => {
+    const manifest = {
+      ...MINIMAL,
+      contributes: {
+        package: { fields: { packageManager: 'npm@12.2.1', trustedDependencies: [] } },
+      },
+    }
+
+    expect(issuePaths(manifest)).toEqual([
+      'contributes.package.fields.packageManager',
+      'contributes.package.fields.trustedDependencies',
+    ])
+  })
+
+  it('takes a package manager description exactly for plugins in the package-manager category', () => {
+    const packageManager = {
+      version: 'catalog:pnpm',
+      onFail: 'download',
+      allowedBuilds: 'config-file',
+    }
+
+    expect(issuePaths({ ...MINIMAL, category: 'package-manager', packageManager })).toEqual([])
+    expect(issuePaths({ ...MINIMAL, packageManager })).toEqual(['packageManager'])
+    expect(issuePaths({ ...MINIMAL, category: 'package-manager' })).toEqual(['packageManager'])
+  })
+
+  it('takes an exact package manager version, never a range', () => {
+    const manifest = {
+      ...MINIMAL,
+      category: 'package-manager',
+      packageManager: { version: '^12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+    }
+
+    expect(issuePaths(manifest)).toEqual(['packageManager.version'])
+  })
+
+  it('takes post-steps as script names with an optional condition', () => {
+    const manifest = {
+      ...MINIMAL,
+      postSteps: [{ script: 'format' }, { script: 'db:generate', when: { category: 'orm' } }],
+    }
+
+    expect(issuePaths(manifest)).toEqual([])
+    expect(issuePaths({ ...MINIMAL, postSteps: [{ script: 'Format Code' }] })).toEqual([
+      'postSteps.0.script',
+    ])
+  })
 })

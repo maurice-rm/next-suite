@@ -21,6 +21,7 @@ import {
   mergeContributions,
   type VersionCatalog,
 } from './merge-contributions.ts'
+import { packageManagerFields } from './package-manager-fields.ts'
 import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
 import { addFile, type VirtualFile, type VirtualFiles } from './virtual-files.ts'
 
@@ -46,6 +47,10 @@ export type ProjectPlan = {
   files: VirtualFile[]
   dependencies: Record<string, string>
   devDependencies: Record<string, string>
+  /** The command of the selected package manager, if a package manager plugin is selected. */
+  packageManager: string | undefined
+  /** The scripts to run after the install, in plugin order. */
+  postSteps: string[]
 }
 
 type PluginFile = NonNullable<ParsedPluginManifest['files']>[number]
@@ -83,13 +88,19 @@ type FileToRender = {
   allowedBlocks: readonly BlockHelper[]
 }
 
-const renderFile = async ({
+/** Plugin sources with this extension are templates; every other source is copied as it is. */
+const TEMPLATE_EXTENSION = '.hbs'
+
+const readPluginFile = async ({
   plugin,
   file,
   context,
   allowedBlocks,
 }: FileToRender): Promise<string> => {
   const source = await readFile(join(plugin.folder, file.source), 'utf8')
+  if (!file.source.endsWith(TEMPLATE_EXTENSION)) {
+    return source
+  }
   const values = {
     project: { name: context.projectName },
     settings: context.answers.settings,
@@ -130,7 +141,7 @@ const addPluginFiles = async (
     assertSafeTarget(path, plugin.manifest.name)
     addFile(files, {
       path,
-      content: await renderFile({
+      content: await readPluginFile({
         plugin,
         file,
         context,
@@ -143,16 +154,60 @@ const addPluginFiles = async (
   }
 }
 
-const createPackageJson = (projectName: string, values: CompositionValues): string => {
+type PackageJsonInput = {
+  projectName: string
+  values: CompositionValues
+  selected: readonly LoadedPlugin[]
+  catalog: VersionCatalog
+}
+
+const findPackageManager = (selected: readonly LoadedPlugin[]) =>
+  selected.flatMap(({ manifest }) =>
+    manifest.packageManager === undefined
+      ? []
+      : [{ name: manifest.name, packageManager: manifest.packageManager }],
+  )[0]
+
+const createPackageJson = ({
+  projectName,
+  values,
+  selected,
+  catalog,
+}: PackageJsonInput): string => {
+  const packageManager = findPackageManager(selected)
+  const managerFields =
+    packageManager === undefined
+      ? undefined
+      : packageManagerFields({ ...packageManager, allowedBuilds: values.allowedBuilds, catalog })
   const packageJson = {
     name: projectName,
     ...values.fields,
+    packageManager: managerFields?.packageManager,
     scripts: values.scripts,
     dependencies: values.dependencies,
     devDependencies: values.devDependencies,
+    ...managerFields?.fields,
   }
   return `${JSON.stringify(packageJson, null, 2)}\n`
 }
+
+const collectPostSteps = (
+  plugins: readonly LoadedPlugin[],
+  answers: Answers,
+  scripts: Readonly<Record<string, string>>,
+): string[] =>
+  plugins.flatMap(({ manifest }) =>
+    (manifest.postSteps ?? [])
+      .filter((step) => step.when === undefined || evaluateCondition(step.when, answers))
+      .map((step) => {
+        if (!Object.hasOwn(scripts, step.script)) {
+          throw new ComposeError(
+            `${manifest.name} runs the script "${step.script}" after the install, but no plugin defines it`,
+          )
+        }
+        return step.script
+      }),
+  )
 
 const addCoreFile = (files: VirtualFiles, path: string, content: string): void =>
   addFile(files, { path, content, origin: CORE_ORIGIN, conflict: 'error', replaceable: new Set() })
@@ -175,7 +230,16 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
   }
   const files: VirtualFiles = new Map()
   await addPluginFiles(files, plugins, context)
-  addCoreFile(files, PACKAGE_FILE, createPackageJson(input.projectName, values))
+  addCoreFile(
+    files,
+    PACKAGE_FILE,
+    createPackageJson({
+      projectName: input.projectName,
+      values,
+      selected: input.selected,
+      catalog: input.catalog,
+    }),
+  )
   addCoreFile(
     files,
     PROJECT_MANIFEST_FILE,
@@ -191,5 +255,7 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     files: [...files.values()].sort((first, second) => compareNames(first.path, second.path)),
     dependencies: values.dependencies,
     devDependencies: values.devDependencies,
+    packageManager: findPackageManager(input.selected)?.name,
+    postSteps: collectPostSteps(plugins, input.answers, values.scripts),
   }
 }

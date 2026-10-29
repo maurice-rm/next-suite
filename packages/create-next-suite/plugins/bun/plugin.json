@@ -1,0 +1,15 @@
+{
+  "$schema": "../../generated/schemas/plugin.json",
+  "name": "bun",
+  "version": "1.0.0",
+  "engine": "^1.0.0",
+  "title": "Bun",
+  "description": "Installs with Bun, takes new releases after a day and runs only the dependency builds this project allows.",
+  "category": "package-manager",
+  "packageManager": {
+    "version": "catalog:bun",
+    "onFail": "warn",
+    "allowedBuilds": "trusted-dependencies"
+  },
+  "files": [{ "source": "files/bunfig.toml", "target": "bunfig.toml" }]
+}

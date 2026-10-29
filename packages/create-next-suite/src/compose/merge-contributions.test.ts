@@ -147,6 +147,18 @@ describe('mergeContributions', () => {
     expect(values.readme.sections.map((entry) => entry.section)).toEqual(['Setup', 'Tests'])
   })
 
+  it('collects the allowed builds of all plugins once, sorted by name', () => {
+    const values = mergeContributions(
+      [
+        manifest('a', { contributes: { allowedBuilds: ['sharp', 'esbuild'] } }),
+        manifest('b', { contributes: { allowedBuilds: ['@prisma/engines', 'sharp'] } }),
+      ],
+      CATALOG,
+    )
+
+    expect(values.allowedBuilds).toEqual(['@prisma/engines', 'esbuild', 'sharp'])
+  })
+
   it('wraps the next.config export in plugin order and imports every wrapper', () => {
     const values = mergeContributions(
       [

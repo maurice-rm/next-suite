@@ -1,0 +1,15 @@
+{
+  "$schema": "../../generated/schemas/plugin.json",
+  "name": "npm",
+  "version": "1.0.0",
+  "engine": "^1.0.0",
+  "title": "npm",
+  "description": "Installs with npm, takes new releases after a day and fails on dependency builds that are not allowed.",
+  "category": "package-manager",
+  "packageManager": {
+    "version": "catalog:npm",
+    "onFail": "warn",
+    "allowedBuilds": "allow-scripts"
+  },
+  "files": [{ "source": "files/npmrc", "target": ".npmrc" }]
+}

@@ -11,6 +11,14 @@ import { findProjectNameProblem, projectNameOf } from '../input/project-name.ts'
 import { buildQuestions } from '../input/questions.ts'
 import { readAnswerFile } from '../input/read-answer-file.ts'
 import { recordAnswers } from '../input/record-answers.ts'
+import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../input/run-settings.ts'
+import {
+  detectPackageManager,
+  findUsablePackageManager,
+  preferPackageManager,
+} from '../package-manager/detect-package-manager.ts'
+import type { CommandRunner } from '../package-manager/run-command.ts'
+import { runPostSteps } from '../package-manager/run-post-steps.ts'
 import type { Streams } from '../wizard/streams.ts'
 import { WizardCancelled } from '../wizard/wizard-cancelled.ts'
 import { describePlan, diffPlan } from '../write/describe-plan.ts'
@@ -25,10 +33,15 @@ import {
   presentCreated,
   presentDryRun,
   presentFailure,
+  presentNothingGenerated,
 } from './present.ts'
 import { describeExpectedError } from './report-error.ts'
+import { createStepReporter } from './report-steps.ts'
 
-/** Everything a run reads from outside: arguments, terminal, working directory and clock. */
+/**
+ * Everything a run reads from outside: arguments, terminal, working directory, clock, the user
+ * agent of the package manager that started it, and the commands it runs after writing.
+ */
 export type CreateEnvironment = {
   argv: readonly string[]
   assets: Assets
@@ -38,6 +51,8 @@ export type CreateEnvironment = {
   isInteractive: boolean
   columns: number
   now: () => Date
+  userAgent: string | undefined
+  runCommand: CommandRunner
 }
 
 type CoreFlags = { yes?: boolean; answers?: string; dryRun?: boolean; diff?: boolean }
@@ -92,6 +107,7 @@ type Run = {
   questionFlags: QuestionFlag[]
   given: Awaited<ReturnType<typeof readInput>>
   presenter: Presenter
+  detectedPackageManager: string | undefined
 }
 
 const create = async ({
@@ -100,6 +116,7 @@ const create = async ({
   questionFlags,
   given,
   presenter,
+  detectedPackageManager,
 }: Run): Promise<void> => {
   const { flags } = invocation
   const useDefaults = flags.yes === true
@@ -125,9 +142,18 @@ const create = async ({
     input,
     flagKeys,
     mode: presenter.isFramed
-      ? { kind: 'wizard', streams: environment.streams, initialSection: shownSection }
+      ? {
+          kind: 'wizard',
+          streams: environment.streams,
+          initialSection: shownSection,
+          detectedPackageManager,
+        }
       : { kind: 'input', useDefaults },
   })
+  if (assets.base === undefined) {
+    presentNothingGenerated(presenter)
+    return
+  }
   const plan = await composeProject({
     projectName,
     base: assets.base,
@@ -148,7 +174,17 @@ const create = async ({
     )
     return
   }
-  await writeProject(plan, resolve(environment.cwd, directory))
+  const target = resolve(environment.cwd, directory)
+  await writeProject(plan, target)
+  await runPostSteps({
+    directory: target,
+    packageManager: plan.packageManager,
+    scripts: plan.postSteps,
+    shouldInstall: answers.settings[INSTALL_SETTING] === true,
+    shouldInitializeGit: answers.settings[GIT_SETTING] === true,
+    runCommand: environment.runCommand,
+    reporter: createStepReporter({ presenter, canAnimate: environment.isInteractive }),
+  })
   presentCreated(presenter, directory)
 }
 
@@ -193,16 +229,30 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
   }
   let presenter = plain
   try {
+    const plugins = environment.assets.plugins.map((plugin) => plugin.manifest)
+    const canGenerate = environment.assets.base !== undefined
+    const detectedPackageManager = findUsablePackageManager(
+      plugins,
+      detectPackageManager(environment.userAgent),
+    )
     const questions = buildQuestions({
-      categories: environment.assets.categories,
-      plugins: environment.assets.plugins.map((plugin) => plugin.manifest),
-      settings: BASE_SETTINGS,
+      categories: preferPackageManager(environment.assets.categories, detectedPackageManager),
+      plugins,
+      settings: canGenerate ? BASE_SETTINGS : [],
+      runSettings: canGenerate ? RUN_SETTINGS : [],
     })
     const questionFlags = createFlags(questions, RESERVED_NAMES)
     const invocation = await parseCommandLine(environment, questionFlags)
     const given = await readInput(environment, invocation, questionFlags)
     presenter = { ...plain, isFramed: environment.isInteractive && invocation.flags.yes !== true }
-    await create({ environment, invocation, questionFlags, given, presenter })
+    await create({
+      environment,
+      invocation,
+      questionFlags,
+      given,
+      presenter,
+      detectedPackageManager,
+    })
     return EXIT_SUCCESS
   } catch (error) {
     if (error instanceof CommanderError) {

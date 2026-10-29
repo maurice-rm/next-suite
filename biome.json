@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!pnpm-lock.yaml", "!**/*.md"]
+    "includes": ["**", "!pnpm-lock.yaml", "!**/*.md", "!packages/create-next-suite/plugins/*/files"]
   },
   "formatter": {
     "enabled": true,
@@ -116,6 +116,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/answers",
@@ -158,6 +160,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/loader",
@@ -198,6 +202,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/answers",
@@ -238,6 +244,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/compose",
@@ -274,6 +282,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/write",
@@ -308,6 +318,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/input",
@@ -340,6 +352,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/wizard",
@@ -376,6 +390,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/cli",
                       "**/cli/**",
                       "**/compose",
@@ -389,6 +405,48 @@
                       "**/plugin.ts"
                     ],
                     "message": "create-next-suite: wizard/ imports from input/ and inner modules only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/package-manager/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/ui",
+                      "**/ui/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/loader",
+                      "**/loader/**",
+                      "**/template",
+                      "**/template/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/input",
+                      "**/input/**",
+                      "**/wizard",
+                      "**/wizard/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: package-manager/ imports only from contract/"
                   }
                 ]
               }
@@ -428,6 +486,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/contract",
                       "**/contract/**",
                       "**/answers",

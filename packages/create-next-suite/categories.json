@@ -1,0 +1,13 @@
+[
+  {
+    "section": "Project",
+    "categories": [
+      {
+        "id": "package-manager",
+        "question": "Which package manager would you like to use?",
+        "cardinality": "one",
+        "default": "pnpm"
+      }
+    ]
+  }
+]

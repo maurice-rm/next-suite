@@ -56,6 +56,9 @@ says what next-suite does; this file says how code is written here.
   changes no other file; a plugin that needs another file changed is missing a composition point,
   which is a change to the core of its own. Built-in plugins import only the public plugin
   contract (`create-next-suite/plugin`), like any external plugin.
+- **Templates:** a plugin file whose source ends in `.hbs` is a Handlebars template; its target
+  path comes from the manifest. Every other file is copied as it is, so JSX braces need no
+  escaping.
 - **The core owns every side effect:** plugins compute, the core writes files, runs processes
   and fetches.
 

@@ -21,6 +21,7 @@ export type CompositionValues = {
   dependencies: Record<string, string>
   devDependencies: Record<string, string>
   env: { groups: { title: string; variables: EnvVariable[] }[] }
+  allowedBuilds: string[]
   gitignore: string[]
   readme: { sections: ReadmeSection[] }
   nextConfig: { imports: string[]; options: { key: string; value: string }[]; exported: string }
@@ -40,6 +41,7 @@ type Accumulator = {
   envVariables: Definitions<EnvVariable>
   nextConfigOptions: Definitions<string>
   envGroups: CompositionValues['env']['groups']
+  allowedBuilds: string[]
   gitignore: string[]
   imports: string[]
   wrapperCalls: string[]
@@ -55,6 +57,7 @@ const createAccumulator = (): Accumulator => ({
   envVariables: new Map(),
   nextConfigOptions: new Map(),
   envGroups: [],
+  allowedBuilds: [],
   gitignore: [],
   imports: [],
   wrapperCalls: [],
@@ -92,7 +95,8 @@ const sortedValuesOf = <Value>(definitions: Definitions<Value>): Record<string, 
     Object.entries(valuesOf(definitions)).sort(([first], [second]) => compareNames(first, second)),
   )
 
-const resolveVersion = (spec: string, catalog: VersionCatalog, origin: string): string => {
+/** Resolves a `catalog:<name>` version from the catalog; any other version stays as it is. */
+export const resolveVersion = (spec: string, catalog: VersionCatalog, origin: string): string => {
   if (!spec.startsWith(CATALOG_PREFIX)) {
     return spec
   }
@@ -164,6 +168,7 @@ const addNextConfig = (accumulator: Accumulator, manifest: ParsedPluginManifest)
 }
 
 const addLists = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
+  accumulator.allowedBuilds.push(...(manifest.contributes?.allowedBuilds ?? []))
   accumulator.gitignore.push(...(manifest.contributes?.gitignore ?? []))
   accumulator.readme.push(...(manifest.contributes?.readme ?? []))
   accumulator.providers.push(...(manifest.contributes?.rootProviders ?? []))
@@ -185,6 +190,7 @@ const toValues = (accumulator: Accumulator): CompositionValues => ({
   dependencies: sortedValuesOf(accumulator.dependencies),
   devDependencies: sortedValuesOf(accumulator.devDependencies),
   env: { groups: accumulator.envGroups },
+  allowedBuilds: unique(accumulator.allowedBuilds).sort(compareNames),
   gitignore: unique(accumulator.gitignore),
   readme: { sections: accumulator.readme },
   nextConfig: {

@@ -31,23 +31,39 @@ const manifest = (name: string, extra: object = {}): string =>
 const ASSETS = {
   'assets/categories.json': JSON.stringify([
     {
-      id: 'package-manager',
-      question: 'Which package manager?',
-      cardinality: 'one',
-      default: 'pnpm',
+      section: 'Project',
+      categories: [
+        {
+          id: 'package-manager',
+          question: 'Which package manager?',
+          cardinality: 'one',
+          default: 'pnpm',
+        },
+      ],
     },
-    { id: 'orm', question: 'Which ORM?', cardinality: 'at-most-one', default: null },
+    {
+      section: 'Data',
+      categories: [
+        { id: 'orm', question: 'Which ORM?', cardinality: 'at-most-one', default: null },
+      ],
+    },
   ]),
   'assets/catalog.json': JSON.stringify({ next: '16.4.3' }),
   'assets/base/plugin.json': manifest('base', {
     dependencies: { next: 'catalog:next' },
     contributes: { package: { scripts: { dev: 'next dev' } } },
-    files: [{ source: 'files/page.tsx', target: 'app/page.tsx', root: 'source' }],
+    files: [{ source: 'files/page.tsx.hbs', target: 'app/page.tsx', root: 'source' }],
   }),
-  'assets/base/files/page.tsx':
+  'assets/base/files/page.tsx.hbs':
     'export default function Page() { return <h1>{{project.name}}</h1> }\n',
-  'assets/plugins/pnpm/plugin.json': manifest('pnpm', { category: 'package-manager' }),
-  'assets/plugins/npm/plugin.json': manifest('npm', { category: 'package-manager' }),
+  'assets/plugins/pnpm/plugin.json': manifest('pnpm', {
+    category: 'package-manager',
+    packageManager: { version: '12.16.1', onFail: 'download', allowedBuilds: 'config-file' },
+  }),
+  'assets/plugins/npm/plugin.json': manifest('npm', {
+    category: 'package-manager',
+    packageManager: { version: '12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+  }),
   'assets/plugins/drizzle/plugin.json': manifest('drizzle', {
     category: 'orm',
     dependencies: { 'drizzle-orm': '^1.0.0' },
@@ -59,11 +75,17 @@ const ASSETS = {
   }),
 }
 
-type RunOptions = { isInteractive?: boolean; keys?: string[] }
+type RunOptions = { isInteractive?: boolean; keys?: string[]; userAgent?: string }
+
+const OUTSIDE_REPOSITORY = 'git rev-parse --is-inside-work-tree'
 
 const KEY_DELAY_MS = 40
 
-const run = async (argv: string[], { isInteractive = false, keys = [] }: RunOptions = {}) => {
+const run = async (
+  argv: string[],
+  { isInteractive = false, keys = [], userAgent }: RunOptions = {},
+) => {
+  const commands: string[] = []
   const output: string[] = []
   const error: string[] = []
   const sink = (lines: string[]) =>
@@ -89,9 +111,20 @@ const run = async (argv: string[], { isInteractive = false, keys = [] }: RunOpti
     isInteractive,
     columns: 80,
     now: () => new Date('2026-11-01T10:00:00Z'),
+    userAgent,
+    runCommand: async (command, args) => {
+      const line = [command, ...args].join(' ')
+      commands.push(line)
+      return { isSuccess: line !== OUTSIDE_REPOSITORY, output: '' }
+    },
   })
   await pressing
-  return { exitCode, output: ansis.strip(output.join('')), error: ansis.strip(error.join('')) }
+  return {
+    exitCode,
+    output: ansis.strip(output.join('')),
+    error: ansis.strip(error.join('')),
+    commands,
+  }
 }
 
 beforeEach(async () => {
@@ -113,13 +146,30 @@ describe('runCreate', () => {
         'Files:',
         '  app/page.tsx (1 line, base)',
         '  next-suite.json (21 lines, create-next-suite)',
-        '  package.json (10 lines, create-next-suite)',
+        '  package.json (18 lines, create-next-suite)',
         'Dependencies:',
         '  next 16.4.3',
         '',
       ].join('\n'),
       error: '',
+      commands: [],
     })
+  })
+
+  it('asks only the plugin questions and generates nothing without a base project', async () => {
+    await rm(join(root, 'assets/base'), { recursive: true })
+
+    const result = await run(['my-app', '--yes'])
+    const withSetting = await run(['my-app', '--yes', '--src-dir'])
+
+    expect(result).toEqual({
+      exitCode: 0,
+      output: 'Nothing generated yet: the base project is still missing\n',
+      error: '',
+      commands: [],
+    })
+    await expect(readFile(join(root, 'my-app/package.json'))).rejects.toThrow()
+    expect(withSetting.error).toContain("unknown option '--src-dir'")
   })
 
   it('takes plugins and settings from flags', async () => {
@@ -138,6 +188,47 @@ describe('runCreate', () => {
     ).toMatchObject({
       'package-manager': 'pnpm',
     })
+  })
+
+  it('initializes git, installs with the package manager and commits after writing', async () => {
+    const result = await run(['my-app', '--yes'])
+
+    expect(result.commands).toEqual([
+      'git rev-parse --is-inside-work-tree',
+      'git init',
+      'pnpm --version',
+      'pnpm install',
+      'git add --all',
+      'git commit --message Initial commit from create-next-suite',
+    ])
+    expect(result.output).toBe(
+      [
+        'Initialized a git repository',
+        'Installed dependencies',
+        'Created the first commit',
+        'Created my-app',
+        '',
+      ].join('\n'),
+    )
+  })
+
+  it('skips the install and git with --no-install and --no-git, and records neither', async () => {
+    const result = await run(['my-app', '--yes', '--no-install', '--no-git'])
+    const recorded = JSON.parse(await readFile(join(root, 'my-app/next-suite.json'), 'utf8'))
+
+    expect(result.commands).toEqual([])
+    expect(recorded.answers).not.toHaveProperty('install')
+    expect(recorded.answers).not.toHaveProperty('git')
+  })
+
+  it('preselects the package manager that started it', async () => {
+    const result = await run(['my-app', '--yes', '--no-git'], {
+      userAgent: 'npm/12.2.1 node/v24.15.0 linux x64 workspaces/false',
+    })
+    const packageJson = JSON.parse(await readFile(join(root, 'my-app/package.json'), 'utf8'))
+
+    expect(result.commands).toEqual(['npm --version', 'npm install'])
+    expect(packageJson).toMatchObject({ packageManager: 'npm@12.2.1', allowScripts: {} })
   })
 
   it('rebuilds the same project from the answers in next-suite.json', async () => {
@@ -283,6 +374,18 @@ describe('runCreate', () => {
     expect(result.output).toContain("┌  Let's lay the foundation")
     expect(result.output).toContain('│   Project ')
     expect(result.output).toContain('└  Operation cancelled.')
+  })
+
+  it('marks the detected package manager and shows no package manager descriptions', async () => {
+    const result = await run(['my-app', '--dry-run'], {
+      isInteractive: true,
+      keys: ['\u0003'],
+      userAgent: 'npm/12.2.1 node/v24.15.0 linux x64 workspaces/false',
+    })
+
+    expect(result.output).toContain('npm (detected)')
+    expect(result.output).not.toContain('The pnpm plugin.')
+    expect(result.output).not.toContain('The npm plugin.')
   })
 
   it('takes the quick start and frames the dry run in the wizard', async () => {
