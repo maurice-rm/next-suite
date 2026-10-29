@@ -55,6 +55,7 @@ const compose = (packageManager: string, allowsSharp: boolean) => {
       settings: {},
       options: {},
     },
+    logic: new Map(),
     recordedAnswers: {},
     catalog,
     cliVersion: '2.0.0',

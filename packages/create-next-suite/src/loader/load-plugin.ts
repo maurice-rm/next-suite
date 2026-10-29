@@ -109,5 +109,8 @@ export const loadPlugin = async (
   for (const file of manifest.files ?? []) {
     await assertSourceFile(root, file.source)
   }
+  if (manifest.logic !== undefined) {
+    await assertSourceFile(root, manifest.logic)
+  }
   return { manifest, folder: root, source }
 }

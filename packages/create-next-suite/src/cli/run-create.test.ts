@@ -433,6 +433,39 @@ describe('runCreate', () => {
     )
   })
 
+  it('runs the logic module of a plugin: computed files, contributions and dependencies', async () => {
+    await write({
+      'hello/plugin.json': manifest('hello', { logic: 'logic.ts', selectedByDefault: true }),
+      'hello/logic.ts': [
+        'export default (context) => ({',
+        '  files: [{ target: "lib/hello.ts", content: "export const name = " + JSON.stringify(context.project.name) + "\\n" }],',
+        '  contributes: { gitignore: ["/hello-cache"], stack: ["Hello"] },',
+        '  devDependencies: { zod: "4.6.7" },',
+        '})',
+        '',
+      ].join('\n'),
+    })
+
+    const result = await run(['my-app', '--yes', '--plugin', './hello', '--dry-run', '--diff'])
+
+    expect(result.exitCode).toBe(0)
+    expect(result.output).toContain('lib/hello.ts (1 line, hello)')
+    expect(result.output).toContain('+export const name = "my-app"')
+    expect(result.output).toContain('zod 4.6.7')
+  })
+
+  it('rejects a logic module that answers something invalid', async () => {
+    await write({
+      'broken/plugin.json': manifest('broken', { logic: 'logic.ts', selectedByDefault: true }),
+      'broken/logic.ts': 'export default () => ({ files: "nope" })\n',
+    })
+
+    const result = await run(['my-app', '--yes', '--plugin', './broken', '--dry-run'])
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain('broken: its logic answers something invalid')
+  })
+
   it('rejects an answer that no question asks', async () => {
     await write({ 'answers.json': JSON.stringify({ colour: 'blue' }) })
 
