@@ -1,4 +1,6 @@
 /** @type {import("prettier").Config} */
-const config = {};
+const config = {
+  plugins: [{{#each prettierPlugins}}"{{this}}", {{/each}}],
+};
 
 export default config;

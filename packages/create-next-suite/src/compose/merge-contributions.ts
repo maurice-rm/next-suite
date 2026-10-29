@@ -22,6 +22,8 @@ export type CompositionValues = {
   env: { groups: { title: string; variables: EnvVariable[] }[] }
   allowedBuilds: string[]
   deniedBuilds: string[]
+  cssImports: string[]
+  prettierPlugins: string[]
   /** Globs of staged files with the commands lint-staged runs on them, in plugin order. */
   lintStaged: { glob: string; commands: string[] }[]
   gitignore: string[]
@@ -45,6 +47,8 @@ type Accumulator = {
   envGroups: CompositionValues['env']['groups']
   allowedBuilds: string[]
   deniedBuilds: string[]
+  cssImports: string[]
+  prettierPlugins: string[]
   lintStaged: { glob: string; commands: string[] }[]
   gitignore: string[]
   imports: string[]
@@ -63,6 +67,8 @@ const createAccumulator = (): Accumulator => ({
   envGroups: [],
   allowedBuilds: [],
   deniedBuilds: [],
+  cssImports: [],
+  prettierPlugins: [],
   lintStaged: [],
   gitignore: [],
   imports: [],
@@ -176,6 +182,8 @@ const addNextConfig = (accumulator: Accumulator, manifest: ParsedPluginManifest)
 const addLists = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
   accumulator.allowedBuilds.push(...(manifest.contributes?.allowedBuilds ?? []))
   accumulator.deniedBuilds.push(...(manifest.contributes?.deniedBuilds ?? []))
+  accumulator.cssImports.push(...(manifest.contributes?.cssImports ?? []))
+  accumulator.prettierPlugins.push(...(manifest.contributes?.prettierPlugins ?? []))
   for (const { glob, command } of manifest.contributes?.lintStaged ?? []) {
     const entry = accumulator.lintStaged.find((existing) => existing.glob === glob)
     if (entry === undefined) {
@@ -209,6 +217,8 @@ const toValues = (accumulator: Accumulator): CompositionValues => ({
   deniedBuilds: unique(accumulator.deniedBuilds)
     .filter((name) => !accumulator.allowedBuilds.includes(name))
     .sort(compareNames),
+  cssImports: unique(accumulator.cssImports),
+  prettierPlugins: unique(accumulator.prettierPlugins),
   lintStaged: accumulator.lintStaged,
   gitignore: unique(accumulator.gitignore),
   readme: { sections: accumulator.readme },

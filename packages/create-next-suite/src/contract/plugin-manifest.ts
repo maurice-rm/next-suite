@@ -112,6 +112,12 @@ const packageManagerSchema = z
       'How the core uses this package manager; the plugin name is its command. Only for plugins in the package-manager category.',
   })
 
+const conditionalDependenciesSchema = z.strictObject({
+  when: conditionSchema,
+  dependencies: dependenciesSchema.optional(),
+  devDependencies: dependenciesSchema.optional(),
+})
+
 const postStepSchema = z.strictObject({
   script: scriptName,
   when: conditionSchema.optional(),
@@ -149,6 +155,10 @@ export const pluginManifestSchema = z
     conflicts: z.array(ruleSchema).optional(),
     dependencies: dependenciesSchema.optional(),
     devDependencies: dependenciesSchema.optional(),
+    conditionalDependencies: z.array(conditionalDependenciesSchema).optional().meta({
+      description:
+        'Dependencies added only when a condition holds, such as a Prettier plugin when Prettier is selected.',
+    }),
     env: z.array(envVariableSchema).optional(),
     files: z.array(pluginFileSchema).optional(),
     facts: z.record(kebabCaseId, conditionSchema).optional(),

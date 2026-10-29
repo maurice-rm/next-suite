@@ -58,6 +58,12 @@ export const contributionsSchema = z.strictObject({
     description:
       'Dependencies whose install scripts are known to be unneeded, such as a fallback for prebuilt binaries; the package manager records them as denied, so a strict install does not stop on them.',
   }),
+  cssImports: z.array(nonEmpty).optional().meta({
+    description: 'Stylesheets the global CSS imports first, such as `tailwindcss`.',
+  }),
+  prettierPlugins: z.array(nonEmpty).optional().meta({
+    description: 'Plugins the Prettier configuration loads, such as `prettier-plugin-tailwindcss`.',
+  }),
   lintStaged: z
     .array(z.strictObject({ glob: nonEmpty, command: nonEmpty }))
     .optional()

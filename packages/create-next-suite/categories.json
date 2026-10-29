@@ -12,6 +12,17 @@
     ]
   },
   {
+    "section": "UI",
+    "categories": [
+      {
+        "id": "styling",
+        "question": "Which styling would you like to use?",
+        "cardinality": "many",
+        "default": ["tailwind"]
+      }
+    ]
+  },
+  {
     "section": "Tooling",
     "categories": [
       {
@@ -38,6 +49,12 @@
         "question": "Lint and format staged files before each commit?",
         "cardinality": "at-most-one",
         "default": "lint-staged"
+      },
+      {
+        "id": "unit-tests",
+        "question": "Which unit test runner would you like to use?",
+        "cardinality": "at-most-one",
+        "default": "vitest"
       }
     ]
   }

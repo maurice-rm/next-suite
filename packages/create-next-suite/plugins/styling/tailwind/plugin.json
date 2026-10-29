@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "tailwind",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Tailwind CSS",
+  "description": "Styles with Tailwind CSS v4 through PostCSS.",
+  "category": "styling",
+  "devDependencies": {
+    "tailwindcss": "catalog:tailwindcss",
+    "@tailwindcss/postcss": "catalog:tailwindcss-postcss"
+  },
+  "conditionalDependencies": [
+    {
+      "when": { "plugin": "prettier" },
+      "devDependencies": { "prettier-plugin-tailwindcss": "catalog:prettier-plugin-tailwindcss" }
+    }
+  ],
+  "contributes": {
+    "cssImports": ["tailwindcss"],
+    "prettierPlugins": ["prettier-plugin-tailwindcss"],
+    "stack": ["Tailwind"]
+  },
+  "files": [{ "source": "files/postcss.config.mjs.hbs", "target": "postcss.config.mjs" }]
+}
