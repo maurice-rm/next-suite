@@ -33,21 +33,29 @@
   },
   "exports": {
     "./plugin": "./dist/plugin.mjs",
+    "./schemas/plugin.json": "./dist/schemas/plugin.json",
+    "./schemas/categories.json": "./dist/schemas/categories.json",
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "tsdown",
-    "check-types": "tsc"
+    "build": "node scripts/write-json-schemas.ts && tsdown",
+    "check-types": "tsc",
+    "test": "vitest run",
+    "test:types": "vitest run --typecheck.only"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "0.18.5",
     "@next-suite/tsconfig": "workspace:*",
     "@types/node": "catalog:",
+    "@types/semver": "7.8.0",
     "publint": "0.3.25",
     "tsdown": "0.23.3",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
-    "commander": "15.0.0"
+    "commander": "15.0.0",
+    "semver": "7.8.5",
+    "zod": "4.6.7"
   }
 }

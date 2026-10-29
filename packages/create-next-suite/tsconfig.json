@@ -1,8 +1,4 @@
 {
   "extends": "@next-suite/tsconfig/node.json",
-  "compilerOptions": {
-    "isolatedDeclarations": true,
-    "declaration": true
-  },
-  "include": ["src", "*.config.ts"]
+  "include": ["src", "scripts", "*.config.ts"]
 }

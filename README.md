@@ -32,6 +32,7 @@ pnpm install
 | ------------------ | --------------------------------------------------------- |
 | `pnpm build`       | builds every package and the documentation                |
 | `pnpm test`        | runs the tests; the integration tests build the CLI first |
+| `pnpm test:types`  | runs the type tests                                       |
 | `pnpm check-types` | type-checks every package                                 |
 | `pnpm lint`        | checks formatting and lint rules with Biome               |
 | `pnpm lint:fix`    | applies Biome's fixes                                     |
