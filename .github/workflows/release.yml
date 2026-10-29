@@ -24,6 +24,7 @@ jobs:
       contents: read
     outputs:
       mode: ${{ steps.select-mode.outputs.mode }}
+      publishable: ${{ steps.publishable.outputs.publishable }}
       publish-plan-artifact-id: ${{ steps.select-mode.outputs.publish-plan-artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,6 +35,14 @@ jobs:
           cache: "false"
       - id: select-mode
         uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+      # The 1.x line of this package name is retired and its version numbers cannot be reused, so
+      # the first release of this code is 2.0.0; until then the publish path is skipped. Remove this
+      # step and its condition below with that release.
+      - id: publishable
+        run: |
+          version=$(node -p "require('./packages/create-next-suite/package.json').version")
+          if [[ ${version%%.*} -ge 2 ]]; then publishable=true; else publishable=false; fi
+          echo "publishable=$publishable" >> "$GITHUB_OUTPUT"
 
   version:
     name: Open the version pull request
@@ -58,7 +67,7 @@ jobs:
   pack:
     name: Pack create-next-suite
     needs: select-mode
-    if: needs.select-mode.outputs.mode == 'publish'
+    if: needs.select-mode.outputs.mode == 'publish' && needs.select-mode.outputs.publishable == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -72,12 +81,6 @@ jobs:
       - uses: $/.github/actions/setup
         with:
           cache: "false"
-      # The 1.x line of this package name is retired and its version numbers cannot be reused; the
-      # first release of this code is 2.0.0. Remove this step with that release.
-      - name: Refuse to publish before 2.0.0
-        run: |
-          version=$(node -p "require('./packages/create-next-suite/package.json').version")
-          [[ ${version%%.*} -ge 2 ]] || { echo "create-next-suite $version is not publishable before 2.0.0." >&2; exit 1; }
       - name: Build create-next-suite
         run: pnpm turbo run build --filter=create-next-suite
       - id: pack
