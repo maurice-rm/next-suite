@@ -2,7 +2,8 @@ import {
   PACKAGE_JSON_FIELD_PREFIX,
   type ParsedPluginManifest,
 } from '../contract/plugin-manifest.ts'
-import { resolveVersion, type VersionCatalog } from './merge-contributions.ts'
+import type { VersionCatalog } from '../contract/version-catalog.ts'
+import { resolveVersion } from './merge-contributions.ts'
 
 type PackageManager = NonNullable<ParsedPluginManifest['packageManager']>
 

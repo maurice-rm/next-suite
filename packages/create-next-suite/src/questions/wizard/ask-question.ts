@@ -1,15 +1,18 @@
-import type { Answers } from '../answers/answers.ts'
-import { evaluateCondition } from '../answers/evaluate-condition.ts'
-import { PACKAGE_MANAGER_CATEGORY, type ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import type { PluginOption } from '../contract/plugin-option.ts'
+import type { Answers } from '../../answers/answers.ts'
+import { evaluateCondition } from '../../answers/evaluate-condition.ts'
+import {
+  PACKAGE_MANAGER_CATEGORY,
+  type ParsedPluginManifest,
+} from '../../contract/plugin-manifest.ts'
+import type { PluginOption } from '../../contract/plugin-option.ts'
+import { renderSectionBadge } from '../../ui/theme.ts'
 import {
   DEFAULT_PROJECT_DIRECTORY,
   findProjectNameProblem,
   projectNameOf,
-} from '../input/project-name.ts'
-import type { CategoryQuestion } from '../input/questions.ts'
-import { defaultAnswer } from '../input/resolve-answers.ts'
-import { renderSectionBadge } from '../ui/theme.ts'
+} from '../project-name.ts'
+import type { CategoryQuestion } from '../questions.ts'
+import { defaultAnswer } from '../resolve-answers.ts'
 import { type Choice, confirm, multiselect, select, text } from './prompts.ts'
 import type { Ask, WizardStep } from './run-wizard.ts'
 import type { Streams } from './streams.ts'

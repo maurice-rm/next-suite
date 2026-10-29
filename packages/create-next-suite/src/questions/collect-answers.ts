@@ -1,18 +1,14 @@
 import type { Answers } from '../answers/answers.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import {
-  assertCompatible,
-  findConflicts,
-  findIncompatibilities,
-} from '../input/find-incompatibilities.ts'
-import { InputError } from '../input/input-error.ts'
-import { DEFAULT_PROJECT_DIRECTORY } from '../input/project-name.ts'
-import type { Question } from '../input/questions.ts'
-import { type AnswerInput, resolveAnswers } from '../input/resolve-answers.ts'
-import { createAsk } from '../wizard/ask-question.ts'
-import { runWizard } from '../wizard/run-wizard.ts'
-import type { Streams } from '../wizard/streams.ts'
-import { frame } from './present.ts'
+import { renderFramed } from '../ui/theme.ts'
+import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
+import { InputError } from './input-error.ts'
+import { DEFAULT_PROJECT_DIRECTORY } from './project-name.ts'
+import type { Question } from './questions.ts'
+import { type AnswerInput, resolveAnswers } from './resolve-answers.ts'
+import { createAsk } from './wizard/ask-question.ts'
+import { runWizard } from './wizard/run-wizard.ts'
+import type { Streams } from './wizard/streams.ts'
 
 const INCOMPATIBLE_IN_WIZARD = 'The answers do not fit together; change one with b:'
 
@@ -72,7 +68,7 @@ const askInWizard = async (
     ask: createAsk(mode.streams, { detectedPackageManager: mode.detectedPackageManager }),
     findProblems: (answers) => findIncompatibilities(plugins, answers),
     showProblems: (problems) =>
-      mode.streams.output.write(frame([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
+      mode.streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
   })
   assertNoUnused(result.unused, sources)
   return { answers: result.answers, directory: result.directory }

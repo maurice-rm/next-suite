@@ -6,8 +6,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { composeProject } from '../compose/compose-project.ts'
 import { categoriesSchema } from '../contract/category.ts'
+import { loadAssets } from '../loader/load-assets.ts'
 import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
-import { loadAssets } from './load-assets.ts'
 
 const PACKAGE_ROOT = join(import.meta.dirname, '../..')
 

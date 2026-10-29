@@ -1,6 +1,6 @@
 import type { Writable } from 'node:stream'
 
-import type { StepReporter } from '../package-manager/run-post-steps.ts'
+import type { StepReporter } from '../post-steps/run-post-steps.ts'
 import {
   renderCommandOutput,
   renderFrameLine,

@@ -1,8 +1,8 @@
-import type { Answers } from '../answers/answers.ts'
-import { BASE_SETTINGS_SECTION } from '../input/base-settings.ts'
-import { assertCompatible } from '../input/find-incompatibilities.ts'
-import type { Question } from '../input/questions.ts'
-import { type AnswerInput, type Resolution, resolveAnswers } from '../input/resolve-answers.ts'
+import type { Answers } from '../../answers/answers.ts'
+import { BASE_SETTINGS_SECTION } from '../base-settings.ts'
+import { assertCompatible } from '../find-incompatibilities.ts'
+import type { Question } from '../questions.ts'
+import { type AnswerInput, type Resolution, resolveAnswers } from '../resolve-answers.ts'
 import { GO_BACK } from './prompts.ts'
 
 /** The question for the project directory, whose name is the package name. */

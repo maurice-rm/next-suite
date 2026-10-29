@@ -2,7 +2,7 @@ import type { Writable } from 'node:stream'
 
 import packageJson from '../../package.json' with { type: 'json' }
 import { renderBanner } from '../ui/banner.ts'
-import { failure, renderCancelled, renderFrameLine, renderIntro, renderOutro } from '../ui/theme.ts'
+import { failure, renderCancelled, renderFramed, renderIntro, renderOutro } from '../ui/theme.ts'
 
 const INTRO = "Let's lay the foundation"
 const CANCELLED = 'Operation cancelled.'
@@ -19,13 +19,6 @@ export type Presenter = {
   isFramed: boolean
 }
 
-/** Puts every line of a text into the frame of the wizard. */
-export const frame = (text: string): string =>
-  text
-    .split('\n')
-    .map((line) => `${renderFrameLine(line)}\n`)
-    .join('')
-
 /** Opens the wizard frame with the banner and the intro line. */
 export const openFrame = (output: Writable, banner: { version: string; columns: number }): void => {
   output.write(renderBanner({ ...banner, link: REPOSITORY_LINK }))
@@ -34,7 +27,7 @@ export const openFrame = (output: Writable, banner: { version: string; columns: 
 
 /** Shows the report of a dry run: what would be created, nothing written. */
 export const presentDryRun = ({ output, isFramed }: Presenter, report: string): void => {
-  output.write(isFramed ? frame(report) + renderOutro(DRY_RUN_DONE) : `${report}\n`)
+  output.write(isFramed ? renderFramed(report) + renderOutro(DRY_RUN_DONE) : `${report}\n`)
 }
 
 /** Ends a run that asked its questions but has no base project to generate from. */

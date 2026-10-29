@@ -6,7 +6,7 @@ import { PassThrough, Writable } from 'node:stream'
 import ansis from 'ansis'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { loadAssets } from './load-assets.ts'
+import { loadAssets } from '../loader/load-assets.ts'
 import { runCreate } from './run-create.ts'
 
 let root: string

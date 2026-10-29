@@ -1,20 +1,14 @@
-import semver from 'semver'
-
 import type { Category } from '../contract/category.ts'
 import { PACKAGE_MANAGER_CATEGORY, type ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import {
+  findUnsupportedVersion,
+  type PackageManagerVersion,
+} from '../post-steps/supported-versions.ts'
 
 const USER_AGENT = /^([a-z][a-z0-9-]*)\/(\S+)/
 
-/** Versions of a package manager that cannot install a generated project, with the way out. */
-const UNSUPPORTED_VERSIONS: Readonly<Record<string, { range: string; hint: string }>> = {
-  yarn: {
-    range: '<2',
-    hint: 'Yarn 1 is not supported; get Yarn 4 through Corepack: npm install -g corepack && corepack enable',
-  },
-}
-
 /** The package manager that started create-next-suite, with its version. */
-export type InvokingPackageManager = { name: string; version: string }
+type InvokingPackageManager = PackageManagerVersion
 
 /**
  * Reads the package manager that started create-next-suite from the user agent every package
@@ -26,17 +20,6 @@ export const detectPackageManager = (
   const match = USER_AGENT.exec(userAgent ?? '')
   const [, name, version] = match ?? []
   return name === undefined || version === undefined ? undefined : { name, version }
-}
-
-/** Answers why a version of a package manager cannot be used, or nothing when it can. */
-export const findUnsupportedVersion = ({
-  name,
-  version,
-}: InvokingPackageManager): string | undefined => {
-  const unsupported = UNSUPPORTED_VERSIONS[name]
-  const isUnsupported =
-    unsupported !== undefined && semver.satisfies(semver.coerce(version) ?? '', unsupported.range)
-  return isUnsupported ? unsupported.hint : undefined
 }
 
 /**

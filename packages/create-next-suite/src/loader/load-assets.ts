@@ -1,13 +1,13 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import * as z from 'zod'
+import type * as z from 'zod'
 
-import type { VersionCatalog } from '../compose/merge-contributions.ts'
 import { type Category, categoriesSchema } from '../contract/category.ts'
-import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
-import { loadPlugins } from '../loader/load-plugins.ts'
-import { PluginLoadError } from '../loader/plugin-load-error.ts'
+import { type VersionCatalog, versionCatalogSchema } from '../contract/version-catalog.ts'
+import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
+import { assertUniqueNames, loadPlugins } from './load-plugins.ts'
+import { PluginLoadError } from './plugin-load-error.ts'
 
 /**
  * What ships with create-next-suite: the base project, the built-in plugins, their categories
@@ -19,8 +19,6 @@ export type Assets = {
   categories: Category[]
   catalog: VersionCatalog
 }
-
-const catalogSchema = z.record(z.string(), z.string())
 
 /** The folder of the plugins without a category; every other folder is named after a category. */
 const EXTRAS_FOLDER = 'extras'
@@ -56,14 +54,6 @@ const assertInGroup = (directory: string, group: string, plugins: LoadedPlugin[]
   }
 }
 
-const assertUniqueNames = (directory: string, plugins: LoadedPlugin[]): void => {
-  const names = plugins.map((plugin) => plugin.manifest.name)
-  const twice = names.find((name, index) => names.indexOf(name) !== index)
-  if (twice !== undefined) {
-    throw new PluginLoadError(directory, `two plugins are named ${twice}`)
-  }
-}
-
 /**
  * Loads the plugins grouped in one folder per category, and those without a category from
  * `extras/`. A plugin in the folder of another category fails.
@@ -95,6 +85,6 @@ export const loadAssets = async (directory: string): Promise<Assets> => {
     base: (await exists(baseDirectory)) ? await loadPlugin(baseDirectory) : undefined,
     plugins: (await exists(pluginsDirectory)) ? await loadGroupedPlugins(pluginsDirectory) : [],
     categories: await readJson(join(directory, 'categories.json'), categoriesSchema, []),
-    catalog: await readJson(join(directory, 'catalog.json'), catalogSchema, {}),
+    catalog: await readJson(join(directory, 'catalog.json'), versionCatalogSchema, {}),
   }
 }

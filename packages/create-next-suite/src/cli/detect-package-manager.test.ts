@@ -4,7 +4,6 @@ import type { Category } from '../contract/category.ts'
 import { type ParsedPluginManifest, pluginManifestSchema } from '../contract/plugin-manifest.ts'
 import {
   detectPackageManager,
-  findUnsupportedVersion,
   findUsablePackageManager,
   preferPackageManager,
 } from './detect-package-manager.ts'
@@ -54,14 +53,6 @@ describe('detectPackageManager', () => {
     expect(detectPackageManager(undefined)).toBeUndefined()
     expect(detectPackageManager('')).toBeUndefined()
     expect(detectPackageManager('Mozilla/5.0')).toBeUndefined()
-  })
-})
-
-describe('findUnsupportedVersion', () => {
-  it('rejects Yarn 1 with the way to Yarn 4', () => {
-    expect(findUnsupportedVersion({ name: 'yarn', version: '1.22.22' })).toMatch(/Corepack/)
-    expect(findUnsupportedVersion({ name: 'yarn', version: '4.18.1' })).toBeUndefined()
-    expect(findUnsupportedVersion({ name: 'pnpm', version: '1.0.0' })).toBeUndefined()
   })
 })
 

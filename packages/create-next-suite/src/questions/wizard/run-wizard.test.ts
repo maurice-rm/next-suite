@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
-
-import { findIncompatibilities } from '../input/find-incompatibilities.ts'
-import { TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
+import { TEST_PLUGINS, TEST_QUESTIONS } from '../../test-support/questions.ts'
+import { findIncompatibilities } from '../find-incompatibilities.ts'
 import { GO_BACK } from './prompts.ts'
 import { type Ask, runWizard, type WizardStep } from './run-wizard.ts'
 

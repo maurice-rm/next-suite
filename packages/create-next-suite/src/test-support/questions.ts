@@ -1,7 +1,7 @@
 import { type Category, categoriesSchema } from '../contract/category.ts'
 import { type ParsedPluginManifest, pluginManifestSchema } from '../contract/plugin-manifest.ts'
-import { BASE_SETTINGS } from '../input/base-settings.ts'
-import { buildQuestions, type Question } from '../input/questions.ts'
+import { BASE_SETTINGS } from '../questions/base-settings.ts'
+import { buildQuestions, type Question } from '../questions/questions.ts'
 
 const manifest = (name: string, extra: object = {}): ParsedPluginManifest =>
   pluginManifestSchema.parse({
