@@ -34,6 +34,7 @@ import {
   findUsablePackageManager,
   preferPackageManager,
 } from './detect-package-manager.ts'
+import { listNextSteps } from './next-steps.ts'
 import {
   openFrame,
   type Presenter,
@@ -192,7 +193,7 @@ const create = async (run: Run): Promise<void> => {
   }
   const target = resolve(environment.cwd, directory)
   await writeProject(plan, { directory: target, action, cwd: environment.cwd })
-  await runPostSteps({
+  const { isInstalled } = await runPostSteps({
     directory: target,
     packageManager: plan.packageManager,
     scripts: plan.postSteps,
@@ -201,7 +202,17 @@ const create = async (run: Run): Promise<void> => {
     runCommand: environment.runCommand,
     reporter: createStepReporter({ presenter, canAnimate: environment.isInteractive }),
   })
-  presentCreated(presenter, directory)
+  presentCreated(presenter, {
+    projectName: projectNameOf(directory, environment.cwd),
+    stack: plan.summary.stack,
+    nextSteps: listNextSteps({
+      directory,
+      cwd: environment.cwd,
+      packageManager: plan.packageManager,
+      isInstalled,
+      nextSteps: plan.summary.nextSteps,
+    }),
+  })
 }
 
 /**

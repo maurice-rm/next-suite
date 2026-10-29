@@ -13,6 +13,7 @@ const planOf = (files: Record<string, string>): ProjectPlan => ({
   devDependencies: {},
   packageManager: undefined,
   postSteps: [],
+  summary: { stack: [], nextSteps: [] },
 })
 
 const BROKEN_PLAN = planOf({

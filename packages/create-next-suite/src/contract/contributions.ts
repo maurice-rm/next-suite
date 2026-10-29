@@ -1,5 +1,6 @@
 import * as z from 'zod'
 
+import { conditionSchema } from './condition.ts'
 import { scriptName } from './identifiers.ts'
 
 const RESERVED_PACKAGE_FIELDS: ReadonlySet<string> = new Set([
@@ -53,6 +54,21 @@ export const contributionsSchema = z.strictObject({
     })
     .optional()
     .meta({ description: 'Imports, configuration options and wrappers of next.config.ts.' }),
+  stack: z.array(nonEmpty).optional().meta({
+    description: 'Names for the stack line at the end of a run, such as "Tailwind".',
+  }),
+  nextSteps: z
+    .array(
+      z.union([
+        z.strictObject({ command: nonEmpty, when: conditionSchema.optional() }),
+        z.strictObject({ script: scriptName, when: conditionSchema.optional() }),
+      ]),
+    )
+    .optional()
+    .meta({
+      description:
+        'Commands the end of a run suggests: a plain `command`, or a `script` run with the package manager.',
+    }),
   rootProviders: z
     .array(z.strictObject({ import: nonEmpty, component: nonEmpty }))
     .optional()

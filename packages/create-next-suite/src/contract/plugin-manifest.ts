@@ -111,6 +111,12 @@ const packageManagerSchema = z
 const postStepSchema = z.strictObject({
   script: scriptName,
   when: conditionSchema.optional(),
+  running: z.string().min(1).optional().meta({
+    description: 'What the run shows while the script runs, such as "Fixing files".',
+  }),
+  done: z.string().min(1).optional().meta({
+    description: 'What the run shows when the script succeeded, such as "Fixed files".',
+  }),
 })
 
 /** The manifest of a plugin, read from its `plugin.json`. */

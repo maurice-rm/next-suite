@@ -199,23 +199,27 @@ describe('runCreate', () => {
     })
   })
 
-  it('initializes git, installs with the package manager and commits after writing', async () => {
+  it('initializes git, installs, commits and shows the next steps after writing', async () => {
     const result = await run(['my-app', '--yes'])
 
     expect(result.commands).toEqual([
       'git rev-parse --is-inside-work-tree',
-      'git init',
+      'git --version',
+      'git init --initial-branch main',
       'pnpm --version',
       'pnpm install',
       'git add --all',
-      'git commit --message Initial commit from create-next-suite',
+      'git config user.email',
+      'git -c user.name=create-next-suite -c user.email=create-next-suite@users.noreply.github.com commit --no-verify --message chore: initial commit',
     ])
     expect(result.output).toBe(
       [
-        'Initialized a git repository',
+        'Initialized git repository',
         'Installed dependencies',
-        'Created the first commit',
-        'Created my-app',
+        'Created initial commit',
+        'my-app is ready',
+        'Next steps:',
+        '  cd my-app',
         '',
       ].join('\n'),
     )
