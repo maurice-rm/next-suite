@@ -49,5 +49,8 @@ describe('parsePluginAddress', () => {
   it('answers nothing for an address of no known form', () => {
     expect(parsePluginAddress('mail')).toBeUndefined()
     expect(parsePluginAddress('ftp://host/x')).toBeUndefined()
+    expect(parsePluginAddress('github:acme/plugins/../../evil')).toBeUndefined()
+    expect(parsePluginAddress('github:../plugins')).toBeUndefined()
+    expect(parsePluginAddress('https://*.evil.example/p.tgz')).toBeUndefined()
   })
 })

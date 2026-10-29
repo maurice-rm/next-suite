@@ -18,6 +18,7 @@ type CoreFlags = {
   overwrite?: boolean
   empty?: boolean
   plugin?: string[]
+  trust?: string[]
 }
 
 /** A parsed command line: the directory argument and every flag value. */
@@ -53,6 +54,10 @@ const CORE_OPTIONS = [
     '--plugin <address>',
     'add a plugin from a folder, npm, GitHub, GitLab, Git or a URL; repeatable',
   ).argParser((address: string, previous: string[] = []) => [...previous, address]),
+  new Option(
+    '--trust <pattern>',
+    'run the code of plugins from matching sources, such as "github:acme/*", for this run; repeatable',
+  ).argParser((pattern: string, previous: string[] = []) => [...previous, pattern]),
 ]
 const COMMANDER_OPTIONS = ['help', 'version']
 
