@@ -16,6 +16,11 @@ import { assertSafeTarget } from './assert-safe-target.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
 import {
+  instrumentationClientFile,
+  instrumentationFile,
+  resolveModule,
+} from './instrumentation-files.ts'
+import {
   type CompositionValues,
   mergeContributions,
   resolveVersion,
@@ -364,9 +369,25 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     project,
     facts,
   })
-  const values = mergeContributions([...manifests, ...computed.extraManifests], input.catalog)
+  const merged = mergeContributions([...manifests, ...computed.extraManifests], input.catalog)
+  const values = {
+    ...merged,
+    bodyEnd: merged.bodyEnd.map((entry) => ({
+      ...entry,
+      module: resolveModule(entry.module, project.importPrefix),
+    })),
+    health: merged.health.map((check) => ({
+      ...check,
+      module: resolveModule(check.module, project.importPrefix),
+    })),
+  }
   for (const check of values.ciChecks) {
     assertScript(values.scripts, check, 'a plugin runs in CI the script')
+  }
+  if (values.tsconfig.paths.some(({ alias }) => alias === project.importAlias)) {
+    throw new ComposeError(
+      `a plugin redefines the tsconfig path "${project.importAlias}", the project's import alias`,
+    )
   }
   const context: RenderContext = { project, answers: input.answers, values, facts }
   const files: VirtualFiles = new Map()
@@ -383,6 +404,17 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
       conflict: file.conflict,
       replaceable: manifest === undefined ? new Set() : requiredPlugins(manifest),
     })
+  }
+  for (const [target, content] of [
+    ['instrumentation.ts', instrumentationFile(values.instrumentation, project.importPrefix)],
+    [
+      'instrumentation-client.ts',
+      instrumentationClientFile(values.instrumentationClient, project.importPrefix),
+    ],
+  ] as const) {
+    if (content !== undefined) {
+      addCoreFile(files, targetPath({ target, root: 'source' }, input.answers), content)
+    }
   }
   addCoreFile(
     files,

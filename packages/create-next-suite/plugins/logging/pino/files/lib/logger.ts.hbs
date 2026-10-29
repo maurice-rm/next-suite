@@ -1,11 +1,28 @@
+import type { Instrumentation } from "next";
 import pino from "pino";
 {{#if (has "plugin:t3-env")}}
 
 import { env } from "{{project.importPrefix}}env";
 
-export const logger = pino({ level: env.LOG_LEVEL });
+const level = env.LOG_LEVEL;
 {{/if}}
 {{#unless (has "plugin:t3-env")}}
 
-export const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
+const level = process.env.LOG_LEVEL ?? "info";
 {{/unless}}
+
+export const logger = pino({
+  level,
+  redact: [
+{{#each logRedact}}
+    "{{this}}",
+{{/each}}
+  ],
+});
+
+export const reportRequestError: Instrumentation.onRequestError = (error, request, context) => {
+  logger.error(
+    { err: error, path: request.path, method: request.method, ...context },
+    "request failed",
+  );
+};
