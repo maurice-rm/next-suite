@@ -21,6 +21,9 @@ export type CompositionValues = {
   devDependencies: Record<string, string>
   env: { groups: { title: string; variables: EnvVariable[] }[] }
   allowedBuilds: string[]
+  deniedBuilds: string[]
+  /** Globs of staged files with the commands lint-staged runs on them, in plugin order. */
+  lintStaged: { glob: string; commands: string[] }[]
   gitignore: string[]
   readme: { sections: ReadmeSection[] }
   nextConfig: { imports: string[]; options: { key: string; value: string }[]; exported: string }
@@ -41,6 +44,8 @@ type Accumulator = {
   nextConfigOptions: Definitions<string>
   envGroups: CompositionValues['env']['groups']
   allowedBuilds: string[]
+  deniedBuilds: string[]
+  lintStaged: { glob: string; commands: string[] }[]
   gitignore: string[]
   imports: string[]
   wrapperCalls: string[]
@@ -57,6 +62,8 @@ const createAccumulator = (): Accumulator => ({
   nextConfigOptions: new Map(),
   envGroups: [],
   allowedBuilds: [],
+  deniedBuilds: [],
+  lintStaged: [],
   gitignore: [],
   imports: [],
   wrapperCalls: [],
@@ -168,6 +175,15 @@ const addNextConfig = (accumulator: Accumulator, manifest: ParsedPluginManifest)
 
 const addLists = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
   accumulator.allowedBuilds.push(...(manifest.contributes?.allowedBuilds ?? []))
+  accumulator.deniedBuilds.push(...(manifest.contributes?.deniedBuilds ?? []))
+  for (const { glob, command } of manifest.contributes?.lintStaged ?? []) {
+    const entry = accumulator.lintStaged.find((existing) => existing.glob === glob)
+    if (entry === undefined) {
+      accumulator.lintStaged.push({ glob, commands: [command] })
+    } else if (!entry.commands.includes(command)) {
+      entry.commands.push(command)
+    }
+  }
   accumulator.gitignore.push(...(manifest.contributes?.gitignore ?? []))
   accumulator.readme.push(...(manifest.contributes?.readme ?? []))
   accumulator.providers.push(...(manifest.contributes?.rootProviders ?? []))
@@ -190,6 +206,10 @@ const toValues = (accumulator: Accumulator): CompositionValues => ({
   devDependencies: sortedValuesOf(accumulator.devDependencies),
   env: { groups: accumulator.envGroups },
   allowedBuilds: unique(accumulator.allowedBuilds).sort(compareNames),
+  deniedBuilds: unique(accumulator.deniedBuilds)
+    .filter((name) => !accumulator.allowedBuilds.includes(name))
+    .sort(compareNames),
+  lintStaged: accumulator.lintStaged,
   gitignore: unique(accumulator.gitignore),
   readme: { sections: accumulator.readme },
   nextConfig: {

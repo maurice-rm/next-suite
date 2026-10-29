@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "knip",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Knip",
+  "description": "Finds unused files, exports and dependencies with Knip.",
+  "category": "unused-code",
+  "devDependencies": { "knip": "catalog:knip" },
+  "contributes": {
+    "package": { "scripts": { "knip": "knip" } },
+    "stack": ["Knip"]
+  },
+  "files": [{ "source": "files/knip.json", "target": "knip.json" }]
+}
