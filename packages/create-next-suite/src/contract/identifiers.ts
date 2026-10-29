@@ -17,3 +17,8 @@ export const optionReference = z
   .regex(OPTION_REFERENCE, 'Name a plugin option as `<plugin>.<option>`, such as `seo.og-image`')
 
 export const scriptName = z.string().regex(SCRIPT_NAME, 'Use a script name such as `db:migrate`')
+
+/** The short name of a plugin registry, such as `@acme`. */
+export const registryName = z
+  .string()
+  .regex(/^@[a-z0-9][a-z0-9-]*$/, 'Use a scoped name such as `@acme`')

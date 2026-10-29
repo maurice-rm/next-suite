@@ -39,6 +39,7 @@
     "./plugin": "./dist/plugin.mjs",
     "./schemas/plugin.json": "./dist/schemas/plugin.json",
     "./schemas/categories.json": "./dist/schemas/categories.json",
+    "./schemas/registry.json": "./dist/schemas/registry.json",
     "./package.json": "./package.json"
   },
   "scripts": {

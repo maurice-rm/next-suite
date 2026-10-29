@@ -3,12 +3,13 @@ import { dirname, join } from 'node:path'
 
 import * as z from 'zod'
 
+import { registryName } from '../contract/identifiers.ts'
 import { TrustError } from './trust-error.ts'
 
 /** Keys other tools keep in the same file, such as the server settings of `next-suite provision`, stay. */
 const userConfigSchema = z.looseObject({
   trust: z.array(z.string().min(1)).default([]),
-  registries: z.record(z.string().regex(/^@[a-z0-9][a-z0-9-]*$/), z.string().min(1)).default({}),
+  registries: z.record(registryName, z.string().min(1)).default({}),
 })
 
 /** What a user configured for next-suite: trusted sources and registry short names. */

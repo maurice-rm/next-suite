@@ -1,5 +1,5 @@
 import { lstat, readFile, realpath } from 'node:fs/promises'
-import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { isAbsolute, join, resolve } from 'node:path'
 
 import semver from 'semver'
 import * as z from 'zod'
@@ -9,6 +9,7 @@ import {
   type ParsedPluginManifest,
   pluginManifestSchema,
 } from '../contract/plugin-manifest.ts'
+import { isInside } from './is-inside.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
 const MANIFEST_FILE = 'plugin.json'
@@ -66,16 +67,6 @@ const assertContract = (folder: string, manifest: ParsedPluginManifest): void =>
   throw new PluginLoadError(
     folder,
     `it needs plugin contract ${manifest.contract}, this create-next-suite implements ${CONTRACT_VERSION}`,
-  )
-}
-
-const isInside = (folder: string, path: string): boolean => {
-  const fromFolder = relative(folder, path)
-  return (
-    fromFolder !== '' &&
-    fromFolder !== '..' &&
-    !fromFolder.startsWith(`..${sep}`) &&
-    !isAbsolute(fromFolder)
   )
 }
 
