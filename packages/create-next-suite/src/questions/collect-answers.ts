@@ -1,4 +1,5 @@
 import type { Answers } from '../answers/answers.ts'
+import type { TargetAction } from '../answers/target-action.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { renderFramed } from '../ui/theme.ts'
 import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
@@ -17,6 +18,7 @@ type AnswerMode =
       kind: 'wizard'
       streams: Streams
       findDirectoryProblem: (directory: string) => string | undefined
+      canEmpty: (directory: string) => boolean
       detectedPackageManager: string | undefined
     }
   | { kind: 'input'; useDefaults: boolean }
@@ -25,6 +27,10 @@ type AnswerMode =
 export type AnswerSources = {
   /** The project directory from the command line, if it named one. */
   directory: string | undefined
+  /** What to do with a target that has files, from the command line, if it said. */
+  action: TargetAction | undefined
+  /** Whether a project directory already has files that stand in the way. */
+  hasConflict: (directory: string) => boolean
   questions: readonly Question[]
   plugins: readonly ParsedPluginManifest[]
   input: AnswerInput
@@ -32,8 +38,8 @@ export type AnswerSources = {
   mode: AnswerMode
 }
 
-/** The answers of a run and the directory of the project. */
-type CollectedAnswers = { answers: Answers; directory: string }
+/** The answers of a run, the directory of the project and what happens to files already there. */
+type CollectedAnswers = { answers: Answers; directory: string; action: TargetAction }
 
 const listMissing = (questions: readonly Question[]): string =>
   questions.map((question) => `  ${question.key}`).join('\n')
@@ -66,8 +72,11 @@ const askInWizard = async (
     questions,
     input,
     directory: sources.directory,
+    action: sources.action,
+    hasConflict: sources.hasConflict,
     ask: createAsk(mode.streams, {
       findDirectoryProblem: mode.findDirectoryProblem,
+      canEmpty: mode.canEmpty,
       detectedPackageManager: mode.detectedPackageManager,
     }),
     findProblems: (answers) => findIncompatibilities(plugins, answers),
@@ -75,7 +84,20 @@ const askInWizard = async (
       mode.streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
   })
   assertNoUnused(result.unused, sources)
-  return { answers: result.answers, directory: result.directory }
+  return { answers: result.answers, directory: result.directory, action: result.action }
+}
+
+/** The action for the target without asking: what the flags say, or create when nothing is in the way. */
+const actionFromInput = (sources: AnswerSources, directory: string): TargetAction => {
+  if (sources.action !== undefined) {
+    return sources.action
+  }
+  if (sources.hasConflict(directory)) {
+    throw new InputError(
+      `"${directory}" already has conflicting files — pass --overwrite or --empty to proceed.`,
+    )
+  }
+  return 'create'
 }
 
 /** The directory from the command line; without a terminal it is required. */
@@ -113,6 +135,7 @@ const resolveFromInput = (
   { useDefaults }: Extract<AnswerMode, { kind: 'input' }>,
 ): CollectedAnswers => {
   const directory = directoryFromInput(sources.directory, useDefaults)
+  const action = actionFromInput(sources, directory)
   const { questions, input, plugins } = sources
   const resolution = resolveAnswers({
     questions,
@@ -126,7 +149,7 @@ const resolveFromInput = (
     )
   }
   assertCompatible(findIncompatibilities(plugins, resolution.answers))
-  return { answers: resolution.answers, directory }
+  return { answers: resolution.answers, directory, action }
 }
 
 /**

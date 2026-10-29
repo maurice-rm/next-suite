@@ -32,6 +32,8 @@ const wizard = (ask: Ask, input: Record<string, unknown> = {}, shown: string[][]
     findProblems: (answers) => findIncompatibilities(TEST_PLUGINS, answers),
     showProblems: (problems) => shown.push(problems),
     directory: 'my-app',
+    action: undefined,
+    hasConflict: () => false,
   })
 
 const pluginNames = (result: Awaited<ReturnType<typeof wizard>>): string[] =>
@@ -64,6 +66,8 @@ describe('runWizard', () => {
       findProblems: () => [],
       showProblems: () => undefined,
       directory: undefined,
+      action: undefined,
+      hasConflict: () => false,
     })
 
     expect(asked).toEqual([
@@ -135,6 +139,8 @@ describe('runWizard', () => {
       findProblems: () => [],
       showProblems: () => undefined,
       directory: undefined,
+      action: undefined,
+      hasConflict: () => false,
     })
 
     expect(sections).toEqual([
@@ -220,7 +226,44 @@ describe('runWizard', () => {
         findProblems: (answers) => findIncompatibilities(TEST_PLUGINS, answers),
         showProblems: () => undefined,
         directory: undefined,
+        action: undefined,
+        hasConflict: () => false,
       }),
     ).rejects.toThrow('better-auth: Stores sessions in the database.')
+  })
+
+  it('asks what to do with a folder that has files, right after the name, and returns it', async () => {
+    const { ask, asked } = scripted(['shop', 'overwrite', 'pnpm', true])
+
+    const result = await runWizard({
+      questions: TEST_QUESTIONS,
+      input: SETTINGS,
+      directory: undefined,
+      action: undefined,
+      hasConflict: (directory) => directory === 'shop',
+      ask,
+      findProblems: () => [],
+      showProblems: () => undefined,
+    })
+
+    expect(asked.slice(0, 2)).toEqual(['project-name', 'conflict'])
+    expect(result.action).toBe('overwrite')
+  })
+
+  it('takes the action from the command line without asking, and create when nothing is in the way', async () => {
+    const withFlag = await runWizard({
+      questions: TEST_QUESTIONS,
+      input: SETTINGS,
+      directory: 'shop',
+      action: 'empty',
+      hasConflict: () => true,
+      ask: scripted(['pnpm', true]).ask,
+      findProblems: () => [],
+      showProblems: () => undefined,
+    })
+    const free = await wizard(scripted(['pnpm', true]).ask)
+
+    expect(withFlag.action).toBe('empty')
+    expect(free.action).toBe('create')
   })
 })

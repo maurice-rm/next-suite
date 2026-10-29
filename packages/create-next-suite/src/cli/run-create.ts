@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 import type { Writable } from 'node:stream'
 
 import { CommanderError } from 'commander'
-
+import type { TargetAction } from '../answers/target-action.ts'
 import { composeProject } from '../compose/compose-project.ts'
 import type { Assets } from '../loader/load-assets.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
@@ -18,7 +18,8 @@ import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-set
 import type { Streams } from '../questions/wizard/streams.ts'
 import { WizardCancelled } from '../questions/wizard/wizard-cancelled.ts'
 import { describePlan, diffPlan } from '../write/describe-plan.ts'
-import { findTargetProblem } from '../write/inspect-target.ts'
+import { findEmptyingProblem } from '../write/empty-target.ts'
+import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
 import { writeProject } from '../write/write-project.ts'
 import {
   type GivenAnswers,
@@ -26,6 +27,7 @@ import {
   parseCommandLine,
   RESERVED_NAMES,
   readGivenAnswers,
+  targetActionOf,
 } from './command-line.ts'
 import {
   detectPackageManager,
@@ -94,13 +96,23 @@ const prepareQuestions = ({ assets, userAgent }: CreateEnvironment) => {
   return { questions, detectedPackageManager }
 }
 
-/** What is wrong with a project directory: as typed, or what is already on disk at its path. */
-const findDirectoryProblem = (directory: string, cwd: string): string | undefined =>
-  findProjectDirectoryProblem(directory, cwd) ??
-  findTargetProblem(directory, resolve(cwd, directory))
+type DirectoryCheck = { cwd: string; action: TargetAction | undefined }
 
-const assertUsableDirectory = (directory: string, cwd: string): void => {
-  const problem = findDirectoryProblem(directory, cwd)
+/**
+ * What is wrong with a project directory: as typed, what is already on disk at its path, and,
+ * when the flags say to empty it, whether it may be emptied.
+ */
+const findDirectoryProblem = (directory: string, { cwd, action }: DirectoryCheck) => {
+  const path = resolve(cwd, directory)
+  const problem = findProjectDirectoryProblem(directory, cwd) ?? findTargetProblem(directory, path)
+  if (problem !== undefined || action !== 'empty' || inspectTarget(path) !== 'not-empty') {
+    return problem
+  }
+  return findEmptyingProblem(path, cwd)
+}
+
+const assertUsableDirectory = (directory: string, check: DirectoryCheck): void => {
+  const problem = findDirectoryProblem(directory, check)
   if (problem !== undefined) {
     throw new InputError(problem)
   }
@@ -115,11 +127,15 @@ const askQuestions = ({
   detectedPackageManager,
   presenter,
 }: Run) => {
+  const { cwd } = environment
+  const check: DirectoryCheck = { cwd, action: targetActionOf(invocation) }
   if (invocation.directory !== undefined) {
-    assertUsableDirectory(invocation.directory, environment.cwd)
+    assertUsableDirectory(invocation.directory, check)
   }
   return collectAnswers({
     directory: invocation.directory,
+    action: check.action,
+    hasConflict: (directory) => inspectTarget(resolve(cwd, directory)) === 'not-empty',
     questions,
     plugins: environment.assets.plugins.map((plugin) => plugin.manifest),
     ...given,
@@ -127,8 +143,9 @@ const askQuestions = ({
       ? {
           kind: 'wizard',
           streams: environment.streams,
-          findDirectoryProblem: (directory: string) =>
-            findDirectoryProblem(directory, environment.cwd),
+          findDirectoryProblem: (directory: string) => findDirectoryProblem(directory, check),
+          canEmpty: (directory: string) =>
+            findEmptyingProblem(resolve(cwd, directory), cwd) === undefined,
           detectedPackageManager,
         }
       : { kind: 'input', useDefaults: invocation.flags.yes === true },
@@ -149,8 +166,8 @@ const create = async (run: Run): Promise<void> => {
       columns: environment.columns,
     })
   }
-  const { answers, directory } = await askQuestions(run)
-  assertUsableDirectory(directory, environment.cwd)
+  const { answers, directory, action } = await askQuestions(run)
+  assertUsableDirectory(directory, { cwd: environment.cwd, action })
   if (assets.base === undefined) {
     presentNothingGenerated(presenter)
     return
@@ -174,7 +191,7 @@ const create = async (run: Run): Promise<void> => {
     return
   }
   const target = resolve(environment.cwd, directory)
-  await writeProject(plan, target)
+  await writeProject(plan, { directory: target, action, cwd: environment.cwd })
   await runPostSteps({
     directory: target,
     packageManager: plan.packageManager,

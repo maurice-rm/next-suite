@@ -1,4 +1,5 @@
 import type { Answers } from '../../answers/answers.ts'
+import { isTargetAction, type TargetAction } from '../../answers/target-action.ts'
 import { BASE_SETTINGS_SECTION } from '../base-settings.ts'
 import { assertCompatible } from '../find-incompatibilities.ts'
 import type { Question } from '../questions.ts'
@@ -8,6 +9,9 @@ import { GO_BACK } from './prompts.ts'
 /** The question for the project directory, whose name is the package name. */
 type ProjectNameStep = { kind: 'project-name'; key: string; section: string }
 
+/** The question what to do with a target folder that already has files. */
+type ConflictStep = { kind: 'conflict'; key: string; section: string; directory: string }
+
 /** The question whether every remaining question takes its default. */
 type QuickStartStep = { kind: 'quick-start'; key: string; section: string }
 
@@ -15,7 +19,7 @@ type QuickStartStep = { kind: 'quick-start'; key: string; section: string }
  * Something the wizard asks: the project name, a question of the run, or whether to take the
  * quick start.
  */
-export type WizardStep = ProjectNameStep | Question | QuickStartStep
+export type WizardStep = ProjectNameStep | ConflictStep | Question | QuickStartStep
 
 const PROJECT_NAME_STEP: ProjectNameStep = {
   kind: 'project-name',
@@ -49,6 +53,10 @@ type WizardInput = {
   input: AnswerInput
   /** The project directory from the command line; the wizard asks for it when it is missing. */
   directory: string | undefined
+  /** What to do with a target that has files, from the command line; asked when it has some. */
+  action: TargetAction | undefined
+  /** Whether a project directory already has files that stand in the way. */
+  hasConflict: (directory: string) => boolean
   ask: Ask
   findProblems: (answers: Answers) => string[]
   showProblems: (problems: string[]) => void
@@ -58,12 +66,16 @@ type WizardState = {
   answers: Record<string, unknown>
   asked: WizardStep[]
   directory: string | undefined
+  action: TargetAction | undefined
   quickStart: boolean | undefined
   /** Answers of steps the user went back over, by step key. */
   previous: Record<string, unknown>
 }
 
-type Outcome = Pick<Resolution, 'answers' | 'unused'> & { directory: string }
+type Outcome = Pick<Resolution, 'answers' | 'unused'> & {
+  directory: string
+  action: TargetAction
+}
 
 const resolveCurrent = (questions: readonly Question[], state: WizardState): Resolution =>
   resolveAnswers({ questions, input: state.answers, useDefaults: state.quickStart === true })
@@ -74,7 +86,10 @@ const dropStaleAnswers = (questions: readonly Question[], state: WizardState): v
     const { unused } = resolveCurrent(questions, state)
     const stale = state.asked.filter(
       (step) =>
-        step.kind !== 'quick-start' && step.kind !== 'project-name' && unused.includes(step.key),
+        step.kind !== 'quick-start' &&
+        step.kind !== 'project-name' &&
+        step.kind !== 'conflict' &&
+        unused.includes(step.key),
     )
     if (stale.length === 0) {
       return
@@ -91,6 +106,9 @@ const stepBack = (state: WizardState): void => {
   if (step?.kind === 'project-name') {
     state.previous[step.key] = state.directory
     state.directory = undefined
+  } else if (step?.kind === 'conflict') {
+    state.previous[step.key] = state.action
+    state.action = undefined
   } else if (step?.kind === 'quick-start') {
     state.previous[step.key] = state.quickStart
     state.quickStart = undefined
@@ -109,7 +127,7 @@ const stepBackFromProblems = (
   problems: string[],
   showProblems: (problems: string[]) => void,
 ): void => {
-  if (state.asked.every((step) => step.kind === 'project-name')) {
+  if (state.asked.every((step) => step.kind === 'project-name' || step.kind === 'conflict')) {
     assertCompatible(problems)
   }
   showProblems(problems)
@@ -123,6 +141,8 @@ const applyReply = (state: WizardState, step: WizardStep, reply: unknown): void 
   }
   if (step.kind === 'project-name') {
     state.directory = String(reply)
+  } else if (step.kind === 'conflict') {
+    state.action = isTargetAction(reply) ? reply : undefined
   } else if (step.kind === 'quick-start') {
     state.quickStart = reply === true
   } else {
@@ -132,21 +152,31 @@ const applyReply = (state: WizardState, step: WizardStep, reply: unknown): void 
 }
 
 /** Every step is answered; the wizard only checks the answers before it ends. */
-type Done = { kind: 'done'; directory: string }
+type Done = { kind: 'done'; directory: string; action: TargetAction }
 
-const nextStep = (state: WizardState, next: Question | undefined): WizardStep | Done => {
-  if (state.directory === undefined) {
+type NextStepInput = {
+  state: WizardState
+  next: Question | undefined
+  hasConflict: (directory: string) => boolean
+}
+
+const nextStep = ({ state, next, hasConflict }: NextStepInput): WizardStep | Done => {
+  const { directory } = state
+  if (directory === undefined) {
     return PROJECT_NAME_STEP
   }
+  if (state.action === undefined && hasConflict(directory)) {
+    return { kind: 'conflict', key: 'conflict', section: BASE_SETTINGS_SECTION, directory }
+  }
   if (next === undefined) {
-    return { kind: 'done', directory: state.directory }
+    return { kind: 'done', directory, action: state.action ?? 'create' }
   }
   return state.quickStart === undefined && !next.isEssential ? QUICK_START_STEP : next
 }
 
 /**
  * Asks every question the input leaves open, one at a time, starting with the project name when
- * the command line gave none. Once the questions that need exactly one plugin are answered, it
+ * the command line gave none and what to do when its folder already has files. Once the questions that need exactly one plugin are answered, it
  * offers the quick start, which takes the default for every question left. Going back drops the
  * previous answer; an answer that no longer applies after a change is dropped too. When the
  * answers are incompatible, the wizard shows why and goes back one step.
@@ -155,6 +185,8 @@ export const runWizard = async ({
   questions,
   input,
   directory,
+  action,
+  hasConflict,
   ask,
   findProblems,
   showProblems,
@@ -163,17 +195,23 @@ export const runWizard = async ({
     answers: { ...input },
     asked: [],
     directory,
+    action,
     quickStart: undefined,
     previous: {},
   }
   for (;;) {
     dropStaleAnswers(questions, state)
     const resolution = resolveCurrent(questions, state)
-    const step = nextStep(state, resolution.missing[0])
+    const step = nextStep({ state, next: resolution.missing[0], hasConflict })
     if (step.kind === 'done') {
       const problems = findProblems(resolution.answers)
       if (problems.length === 0) {
-        return { answers: resolution.answers, unused: resolution.unused, directory: step.directory }
+        return {
+          answers: resolution.answers,
+          unused: resolution.unused,
+          directory: step.directory,
+          action: step.action,
+        }
       }
       stepBackFromProblems(state, problems, showProblems)
       continue
