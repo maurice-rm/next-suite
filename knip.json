@@ -9,6 +9,5 @@
     "packages/integration": {
       "entry": ["scripts/*.ts"]
     }
-  },
-  "ignore": ["packages/create-next-suite/base/files/**"]
+  }
 }

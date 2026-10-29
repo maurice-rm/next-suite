@@ -55,12 +55,10 @@ jobs:
         with:
           persist-credentials: false
       - uses: $/.github/actions/setup
-      - name: Set up npm
-        if: matrix.package-manager == 'npm'
-        run: npm install --global npm@12.2.1
+      # Corepack ships with Node.js 24 and installs the Yarn version the project pins.
       - name: Set up Yarn
         if: matrix.package-manager == 'yarn'
-        run: npm install --global corepack@latest && corepack enable
+        run: corepack enable
       - name: Set up Bun
         if: matrix.package-manager == 'bun'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0

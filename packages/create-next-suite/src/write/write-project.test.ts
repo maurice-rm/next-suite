@@ -12,6 +12,7 @@ const planOf = (files: Record<string, string>): ProjectPlan => ({
   dependencies: {},
   devDependencies: {},
   packageManager: undefined,
+  installArgs: ['install'],
   postSteps: [],
   summary: { stack: [], nextSteps: [] },
 })

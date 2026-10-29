@@ -87,6 +87,10 @@ const packageManagerSchema = z
       .string()
       .refine(isExactVersionSpec, 'Use `catalog:<name>` or an exact version')
       .meta({ description: 'The version written to `packageManager` in package.json.' }),
+    installArgs: z.array(z.string().min(1)).min(1).default(['install']).meta({
+      description:
+        'The arguments of the first install, such as `["install", "--no-immutable"]` for Yarn, which forbids creating a lockfile in CI otherwise.',
+    }),
     whenVersionDiffers: z.enum(['download', 'warn', 'error']).meta({
       description:
         'What a project asks for when it runs with another version, through `devEngines.packageManager`.',
