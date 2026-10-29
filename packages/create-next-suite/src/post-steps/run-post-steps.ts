@@ -27,6 +27,7 @@ type PostStepScript = { script: string; running: string; done: string }
 export type PostStepsInput = {
   directory: string
   packageManager: string | undefined
+  installArgs: readonly string[]
   scripts: readonly PostStepScript[]
   shouldInstall: boolean
   shouldInitializeGit: boolean
@@ -82,7 +83,7 @@ const install = async (packageManager: string, input: PostStepsInput) => {
       done: 'Installed dependencies',
       failed: `Could not install — run \`${packageManager} install\` yourself`,
     },
-    () => input.runCommand(packageManager, ['install'], input.directory),
+    () => input.runCommand(packageManager, input.installArgs, input.directory),
   )
 }
 

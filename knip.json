@@ -5,6 +5,9 @@
       "vitest": {
         "entry": ["src/**/*.test.ts", "src/**/*.test-d.ts"]
       }
+    },
+    "packages/integration": {
+      "entry": ["scripts/*.ts"]
     }
   }
 }

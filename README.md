@@ -3,8 +3,9 @@
 next-suite creates Next.js apps from plugins. Every choice, from the package manager to the
 database, is a plugin, and plugins of your own, public or private, plug in the same way.
 
-> next-suite is under construction. `create-next-suite` does not generate projects yet; its
-> first release of this code base will be 2.0.0.
+> next-suite is under construction. `create-next-suite` generates a Next.js base project with a
+> package manager of your choice; more plugins follow. The first release of this code base will be
+> 2.0.0.
 
 ## Repository
 

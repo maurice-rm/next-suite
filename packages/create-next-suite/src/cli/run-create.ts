@@ -196,6 +196,7 @@ const create = async (run: Run): Promise<void> => {
   const { isInstalled } = await runPostSteps({
     directory: target,
     packageManager: plan.packageManager,
+    installArgs: plan.installArgs,
     scripts: plan.postSteps,
     shouldInstall: answers.settings[INSTALL_SETTING] === true,
     shouldInitializeGit: answers.settings[GIT_SETTING] === true,

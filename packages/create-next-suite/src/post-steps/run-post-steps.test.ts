@@ -24,6 +24,7 @@ const run = async (input: Partial<PostStepsInput>, results: Results = {}) => {
   await runPostSteps({
     directory: '/tmp/my-app',
     packageManager: 'pnpm',
+    installArgs: ['install'],
     scripts: [],
     shouldInstall: true,
     shouldInitializeGit: true,
@@ -162,5 +163,15 @@ describe('runPostSteps', () => {
 
     expect(commands.at(-1)).toBe('git add --all')
     expect(events.at(-1)).toBe('Could not create initial commit')
+  })
+
+  it('installs with the arguments of the package manager', async () => {
+    const { commands } = await run({
+      packageManager: 'yarn',
+      installArgs: ['install', '--no-immutable'],
+      shouldInitializeGit: false,
+    })
+
+    expect(commands).toContain('yarn install --no-immutable')
   })
 })

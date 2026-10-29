@@ -8,10 +8,16 @@
   "category": "package-manager",
   "packageManager": {
     "version": "catalog:yarn",
+    "installArgs": ["install", "--no-immutable"],
     "whenVersionDiffers": "warn",
     "allowedBuildsIn": "package.json#dependenciesMeta"
   },
-  "files": [{ "source": "files/yarnrc.yml", "target": ".yarnrc.yml" }],
+  "files": [
+    {
+      "source": "files/yarnrc.yml",
+      "target": ".yarnrc.yml"
+    }
+  ],
   "contributes": {
     "gitignore": [
       ".yarn/*",

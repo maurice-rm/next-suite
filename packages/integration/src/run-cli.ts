@@ -19,12 +19,19 @@ const MANIFEST_URL = import.meta.resolve('create-next-suite/package.json')
 const isExecError = (error: unknown): error is Error & CliResult & { code: number } =>
   error instanceof Error && 'code' in error && typeof error.code === 'number'
 
+/** The path of a bin of the built create-next-suite package. */
+export const binPathOf = (bin: BinName): string =>
+  fileURLToPath(new URL(manifest.bin[bin], MANIFEST_URL))
+
 /** Runs a bin of the built create-next-suite package the way npm links it, with colours off. */
-export const runCli = async (bin: BinName, args: string[]): Promise<CliResult> => {
-  const binPath = fileURLToPath(new URL(manifest.bin[bin], MANIFEST_URL))
+export const runCli = async (
+  bin: BinName,
+  args: string[],
+  options: { cwd?: string } = {},
+): Promise<CliResult> => {
   const env = { ...process.env, NO_COLOR: '1' }
   try {
-    const { stdout, stderr } = await execFileAsync(binPath, args, { env })
+    const { stdout, stderr } = await execFileAsync(binPathOf(bin), args, { env, ...options })
     return { stdout, stderr, exitCode: 0 }
   } catch (error) {
     if (!isExecError(error)) {

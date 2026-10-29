@@ -1,0 +1,329 @@
+Files:
+  .editorconfig (12 lines, base)
+  .env.example (1 line, base)
+  .gitignore (13 lines, base)
+  README.md (21 lines, base)
+  app/error.tsx (18 lines, base)
+  app/global-error.tsx (14 lines, base)
+  app/globals.css (12 lines, base)
+  app/icon.svg (1 line, base)
+  app/layout.tsx (20 lines, base)
+  app/not-found.tsx (11 lines, base)
+  app/page.tsx (10 lines, base)
+  next-suite.json (19 lines, create-next-suite)
+  next.config.ts (8 lines, base)
+  package.json (30 lines, create-next-suite)
+  pnpm-workspace.yaml (2 lines, pnpm)
+  tsconfig.json (30 lines, base)
+Dependencies:
+  next 16.4.3
+  react 19.3.1
+  react-dom 19.3.1
+Dev dependencies:
+  @types/node 24.19.2
+  @types/react 19.3.0
+  @types/react-dom 19.3.0
+  typescript 5.9.3
+
+===================================================================
+--- /dev/null
++++ .editorconfig
+@@ -0,0 +1,12 @@
++root = true
++
++[*]
++charset = utf-8
++end_of_line = lf
++indent_style = space
++indent_size = 2
++insert_final_newline = true
++trim_trailing_whitespace = true
++
++[*.md]
++trim_trailing_whitespace = false
+
+===================================================================
+--- /dev/null
++++ .env.example
+@@ -0,0 +1,1 @@
++# Copy this file to .env and fill in the values.
+
+===================================================================
+--- /dev/null
++++ .gitignore
+@@ -0,0 +1,13 @@
++/node_modules
++/.next/
++/out/
++/build
++/coverage
++.DS_Store
++*.pem
++npm-debug.log*
++.env*
++!.env.example
++.vercel
++*.tsbuildinfo
++next-env.d.ts
+
+===================================================================
+--- /dev/null
++++ README.md
+@@ -0,0 +1,21 @@
++# my-app
++
++A [Next.js](https://nextjs.org) app created with
++[create-next-suite](https://github.com/maurice-rm/next-suite).
++
++## Getting started
++
++```bash
++pnpm run dev
++```
++
++Open [http://localhost:3000](http://localhost:3000) in your browser.
++
++## Scripts
++
++| Script | Command |
++| --- | --- |
++| `dev` | `next dev` |
++| `build` | `next build` |
++| `start` | `next start` |
++| `typecheck` | `next typegen && tsc --noEmit` |
+
+===================================================================
+--- /dev/null
++++ app/error.tsx
+@@ -0,0 +1,18 @@
++"use client";
++
++import { useEffect } from "react";
++
++export default function Error({ error, retry }: { error: unknown; retry: () => void }) {
++  useEffect(() => {
++    console.error(error);
++  }, [error]);
++
++  return (
++    <main>
++      <h2>Something went wrong!</h2>
++      <button type="button" onClick={() => retry()}>
++        Try again
++      </button>
++    </main>
++  );
++}
+
+===================================================================
+--- /dev/null
++++ app/global-error.tsx
+@@ -0,0 +1,14 @@
++"use client";
++
++export default function GlobalError({ retry }: { error: unknown; retry: () => void }) {
++  return (
++    <html lang="en">
++      <body>
++        <h2>Something went wrong!</h2>
++        <button type="button" onClick={() => retry()}>
++          Try again
++        </button>
++      </body>
++    </html>
++  );
++}
+
+===================================================================
+--- /dev/null
++++ app/globals.css
+@@ -0,0 +1,12 @@
++:root {
++  color-scheme: light dark;
++}
++
++* {
++  box-sizing: border-box;
++}
++
++body {
++  margin: 0;
++  font-family: system-ui, sans-serif;
++}
+
+===================================================================
+--- /dev/null
++++ app/icon.svg
+@@ -0,0 +1,1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#2563EB"/><path d="M9 23V9h2.6l7.6 9.6V9H22v14h-2.6l-7.6-9.6V23z" fill="#fff"/></svg>
+
+===================================================================
+--- /dev/null
++++ app/layout.tsx
+@@ -0,0 +1,20 @@
++import type { Metadata } from "next";
++import "./globals.css";
++
++export const metadata: Metadata = {
++  title: {
++    default: "my-app",
++    template: "%s | my-app",
++  },
++  description: "Created with create-next-suite",
++};
++
++export default function RootLayout({ children }: LayoutProps<"/">) {
++  return (
++    <html lang="en">
++      <body>
++        {children}
++      </body>
++    </html>
++  );
++}
+
+===================================================================
+--- /dev/null
++++ app/not-found.tsx
+@@ -0,0 +1,11 @@
++import Link from "next/link";
++
++export default function NotFound() {
++  return (
++    <main>
++      <h2>Not found</h2>
++      <p>Could not find the requested page.</p>
++      <Link href="/">Return home</Link>
++    </main>
++  );
++}
+
+===================================================================
+--- /dev/null
++++ app/page.tsx
+@@ -0,0 +1,10 @@
++export default function Home() {
++  return (
++    <main>
++      <h1>my-app</h1>
++      <p>
++        Get started by editing <code>app/page.tsx</code>.
++      </p>
++    </main>
++  );
++}
+
+===================================================================
+--- /dev/null
++++ next-suite.json
+@@ -0,0 +1,19 @@
++{
++  "cli": "0.0.0",
++  "contract": "1.0.0",
++  "createdAt": "<now>",
++  "plugins": [
++    {
++      "name": "pnpm",
++      "source": "builtin",
++      "version": "1.0.0"
++    }
++  ],
++  "answers": {
++    "package-manager": "pnpm",
++    "src-dir": false,
++    "import-alias": "@/*",
++    "react-compiler": false,
++    "cache-components": true
++  }
++}
+
+===================================================================
+--- /dev/null
++++ next.config.ts
+@@ -0,0 +1,8 @@
++import type { NextConfig } from "next";
++
++const nextConfig: NextConfig = {
++  cacheComponents: true,
++  partialPrefetching: true,
++};
++
++export default nextConfig;
+
+===================================================================
+--- /dev/null
++++ package.json
+@@ -0,0 +1,30 @@
++{
++  "name": "my-app",
++  "private": true,
++  "type": "module",
++  "packageManager": "pnpm@12.16.1",
++  "scripts": {
++    "dev": "next dev",
++    "build": "next build",
++    "start": "next start",
++    "typecheck": "next typegen && tsc --noEmit"
++  },
++  "dependencies": {
++    "next": "16.4.3",
++    "react": "19.3.1",
++    "react-dom": "19.3.1"
++  },
++  "devDependencies": {
++    "@types/node": "24.19.2",
++    "@types/react": "19.3.0",
++    "@types/react-dom": "19.3.0",
++    "typescript": "5.9.3"
++  },
++  "devEngines": {
++    "packageManager": {
++      "name": "pnpm",
++      "version": "^12.16.1",
++      "onFail": "download"
++    }
++  }
++}
+
+===================================================================
+--- /dev/null
++++ pnpm-workspace.yaml
+@@ -0,0 +1,2 @@
++minimumReleaseAge: 1440
++allowBuilds:
+
+===================================================================
+--- /dev/null
++++ tsconfig.json
+@@ -0,0 +1,30 @@
++{
++  "compilerOptions": {
++    "target": "ES2022",
++    "lib": ["dom", "dom.iterable", "esnext"],
++    "allowJs": true,
++    "skipLibCheck": true,
++    "strict": true,
++    "noEmit": true,
++    "esModuleInterop": true,
++    "module": "esnext",
++    "moduleResolution": "bundler",
++    "resolveJsonModule": true,
++    "isolatedModules": true,
++    "jsx": "react-jsx",
++    "incremental": true,
++    "plugins": [{ "name": "next" }],
++    "paths": {
++      "@/*": ["./*"]
++    }
++  },
++  "include": [
++    "next-env.d.ts",
++    "**/*.ts",
++    "**/*.tsx",
++    ".next/types/**/*.ts",
++    ".next/dev/types/**/*.ts",
++    "**/*.mts"
++  ],
++  "exclude": ["node_modules"]
++}
+

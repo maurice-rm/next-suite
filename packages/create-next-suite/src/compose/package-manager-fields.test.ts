@@ -7,7 +7,12 @@ const CATALOG = { pnpm: '12.16.1' }
 const fieldsFor = (allowedBuildsIn: string) =>
   packageManagerFields({
     name: 'pnpm',
-    packageManager: { version: 'catalog:pnpm', whenVersionDiffers: 'download', allowedBuildsIn },
+    packageManager: {
+      version: 'catalog:pnpm',
+      installArgs: ['install'],
+      whenVersionDiffers: 'download',
+      allowedBuildsIn,
+    },
     allowedBuilds: ['esbuild', 'sharp'],
     catalog: CATALOG,
   })
@@ -38,6 +43,7 @@ describe('packageManagerFields', () => {
       name: 'npm',
       packageManager: {
         version: '12.2.1',
+        installArgs: ['install'],
         whenVersionDiffers: 'warn',
         allowedBuildsIn: 'package.json#allowScripts',
       },
