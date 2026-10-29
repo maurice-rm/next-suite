@@ -103,6 +103,18 @@ describe('pluginManifestSchema', () => {
     expect(issuePaths(manifest)).toEqual(['contributes.package.fields.name'])
   })
 
+  it('takes selectedByDefault only for a plugin without a category', () => {
+    expect(issuePaths({ ...MINIMAL, selectedByDefault: true })).toEqual([])
+    expect(issuePaths({ ...MINIMAL, category: 'orm', selectedByDefault: true })).toEqual([
+      'selectedByDefault',
+    ])
+  })
+
+  it('takes a section only for a plugin without a category', () => {
+    expect(issuePaths({ ...MINIMAL, section: 'Integrations' })).toEqual([])
+    expect(issuePaths({ ...MINIMAL, category: 'orm', section: 'Data' })).toEqual(['section'])
+  })
+
   it('takes requirements and conflicts as conditions with a reason', () => {
     const manifest = {
       ...MINIMAL,

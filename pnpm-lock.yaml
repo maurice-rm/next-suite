@@ -266,6 +266,12 @@ importers:
 
   packages/create-next-suite:
     dependencies:
+      '@clack/core':
+        specifier: 1.5.1
+        version: 1.5.1
+      ansis:
+        specifier: 4.4.0
+        version: 4.4.0
       commander:
         specifier: 15.0.0
         version: 15.0.0
@@ -278,6 +284,9 @@ importers:
       semver:
         specifier: 7.8.5
         version: 7.8.5
+      validate-npm-package-name:
+        specifier: 8.0.0
+        version: 8.0.0
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -2070,6 +2079,10 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
+  ansis@4.4.0:
+    resolution: {integrity: sha512-9k3v7xcHwgdO/DruxGIg4HtjvlAZlcnsX/mzqUb1t3NkYnl9kK2UJ+Gq0io+vQf7iT//BD/HB/NBkUR1LWxoeA==}
+    engines: {node: '>=14'}
+
   aria-hidden@1.2.6:
     resolution: {integrity: sha512-ik3ZgC9dY/lYVVM++OISsaYDeg1tb0VtP5uL3ouh1koGOaUMDPpbFIei4JkFimWUFPn90sbMNMXQAIVOlnYKJA==}
     engines: {node: '>=10'}
@@ -3322,6 +3335,10 @@ packages:
   validate-npm-package-name@5.0.1:
     resolution: {integrity: sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
+  validate-npm-package-name@8.0.0:
+    resolution: {integrity: sha512-SCv6OOV6Xj2/3cXy3dGmADluJTNcL3o7hZAglNPTe+WYuEuvxgJzxPrSDLZhF+CwyQOubqgecjMmTJGMVLWjYQ==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   verkit@0.5.0:
     resolution: {integrity: sha512-u4J1hr6Y+C/hit34GwL3eIcUf3wngT8TlYUjK7tk0jxydKLAq3sYvifjdTDA6U3KCKRcQCQDGf/srjxfZF3l7g==}
@@ -4825,6 +4842,8 @@ snapshots:
       acorn: 8.19.0
 
   acorn@8.19.0: {}
+
+  ansis@4.4.0: {}
 
   aria-hidden@1.2.6:
     dependencies:
@@ -6416,6 +6435,8 @@ snapshots:
       '@types/react': 19.3.0
 
   validate-npm-package-name@5.0.1: {}
+
+  validate-npm-package-name@8.0.0: {}
 
   verkit@0.5.0: {}
 

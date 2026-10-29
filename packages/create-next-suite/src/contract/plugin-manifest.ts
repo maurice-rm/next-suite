@@ -68,6 +68,13 @@ export const pluginManifestSchema = z
     title: z.string().min(1),
     description: z.string().min(1),
     category: kebabCaseId.optional(),
+    section: z.string().min(1).optional().meta({
+      description:
+        'The section of the wizard the question belongs to; only for plugins without a category.',
+    }),
+    selectedByDefault: z.boolean().optional().meta({
+      description: 'Whether `--yes` selects this plugin; only for plugins without a category.',
+    }),
     options: z.record(kebabCaseId, pluginOptionSchema).optional(),
     requires: z.array(ruleSchema).optional(),
     conflicts: z.array(ruleSchema).optional(),
@@ -77,6 +84,17 @@ export const pluginManifestSchema = z
     files: z.array(pluginFileSchema).optional(),
     facts: z.record(kebabCaseId, conditionSchema).optional(),
     contributes: contributionsSchema.optional(),
+  })
+  .refine(
+    (manifest) => manifest.category === undefined || manifest.selectedByDefault === undefined,
+    {
+      message: 'A plugin in a category takes its default from the category',
+      path: ['selectedByDefault'],
+    },
+  )
+  .refine((manifest) => manifest.category === undefined || manifest.section === undefined, {
+    message: 'A plugin in a category takes its section from the category',
+    path: ['section'],
   })
   .meta({ title: 'next-suite plugin manifest' })
 

@@ -5,6 +5,11 @@ import { kebabCaseId, pluginName } from './identifiers.ts'
 const categoryFields = {
   id: kebabCaseId,
   question: z.string().min(1),
+  section: z
+    .string()
+    .min(1)
+    .optional()
+    .meta({ description: 'The section of the wizard the question belongs to.' }),
 }
 
 /**

@@ -1,4 +1,3 @@
-import type { Answers } from '../answers/answers.ts'
 import { CONTRACT_VERSION } from '../contract/plugin-manifest.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
 
@@ -8,20 +7,7 @@ type ProjectManifestInput = {
   cliVersion: string
   createdAt: Date
   plugins: readonly LoadedPlugin[]
-  answers: Answers
-}
-
-const answersByName = (answers: Answers): Record<string, unknown> => {
-  const byName: Record<string, unknown> = {}
-  for (const plugin of answers.plugins) {
-    if (plugin.category === undefined) {
-      byName[plugin.name] = true
-      continue
-    }
-    const previous = byName[plugin.category]
-    byName[plugin.category] = previous === undefined ? plugin.name : [previous, plugin.name].flat()
-  }
-  return { ...byName, ...answers.settings, ...answers.options }
+  answers: Readonly<Record<string, unknown>>
 }
 
 /**
@@ -43,7 +29,7 @@ export const createProjectManifest = ({
       source: 'builtin',
       version: plugin.version,
     })),
-    answers: answersByName(answers),
+    answers,
   }
   return `${JSON.stringify(manifest, null, 2)}\n`
 }
