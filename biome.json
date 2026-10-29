@@ -122,6 +122,10 @@
                       "**/loader/**",
                       "**/template",
                       "**/template/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
@@ -150,6 +154,10 @@
                       "**/loader/**",
                       "**/template",
                       "**/template/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
@@ -178,6 +186,10 @@
                       "**/answers/**",
                       "**/template",
                       "**/template/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
@@ -201,8 +213,62 @@
               "options": {
                 "patterns": [
                   {
+                    "group": [
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: template/ imports from contract/, answers/ and loader/ only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/compose/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/write",
+                      "**/write/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: compose/ never imports write/ or the package entries"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/write/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
                     "group": ["**/create-next-suite.ts", "**/next-suite.ts", "**/plugin.ts"],
-                    "message": "create-next-suite: template/ never imports the package entries"
+                    "message": "create-next-suite: write/ never imports the package entries"
                   }
                 ]
               }
