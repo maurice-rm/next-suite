@@ -1,0 +1,12 @@
+import type { NextConfig } from "next";
+{{#each nextConfig.imports}}
+{{this}}
+{{/each}}
+
+const nextConfig: NextConfig = {
+{{#each nextConfig.options}}
+  {{key}}: {{value}},
+{{/each}}
+};
+
+export default {{nextConfig.exported}};

@@ -13,6 +13,7 @@ import { ComposeError } from './compose-error.ts'
 import { type CompositionValues, mergeContributions } from './merge-contributions.ts'
 import { packageManagerFields } from './package-manager-fields.ts'
 import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
+import { settingContributions } from './setting-contributions.ts'
 import {
   BASE_TEMPLATE_BLOCKS,
   type BlockHelper,
@@ -25,6 +26,11 @@ import { addFile, type VirtualFile, type VirtualFiles } from './virtual-files.ts
 const CORE_ORIGIN = 'create-next-suite'
 const SOURCE_DIRECTORY = 'src'
 const SRC_DIR_SETTING = 'src-dir'
+const IMPORT_ALIAS_SETTING = 'import-alias'
+const DEFAULT_IMPORT_ALIAS = '@/*'
+/** An alias such as `@/*` or `~/*`: no spaces or quotes, ending in `/*` like create-next-app. */
+const IMPORT_ALIAS = /^[^\s"'\\]+\/\*$/
+const FALLBACK_PACKAGE_MANAGER = 'npm'
 const PACKAGE_FILE = 'package.json'
 
 type ComposeInput = {
@@ -60,8 +66,19 @@ export type NextStep = { command: string } | { script: string }
 
 type PluginFile = NonNullable<ParsedPluginManifest['files']>[number]
 
+/** Values about the project itself that templates read under `project`. */
+type ProjectValues = {
+  name: string
+  /** The import alias, such as `@/*`, and the folder it points to, such as `./src/*`. */
+  importAlias: string
+  importAliasTarget: string
+  packageManager: string
+  /** How a script runs with the package manager, such as `pnpm run`. */
+  run: string
+}
+
 type RenderContext = {
-  projectName: string
+  project: ProjectValues
   answers: Answers
   values: CompositionValues
   facts: Facts
@@ -107,7 +124,7 @@ const readPluginFile = async ({
     return source
   }
   const values = {
-    project: { name: context.projectName },
+    project: context.project,
     settings: context.answers.settings,
     options: optionsOf(plugin.manifest.name, context.answers),
     ...context.values,
@@ -259,6 +276,25 @@ const collectSummary = (
 const addCoreFile = (files: VirtualFiles, path: string, content: string): void =>
   addFile(files, { path, content, origin: CORE_ORIGIN, conflict: 'error', replaceable: new Set() })
 
+const projectValues = ({ projectName, answers, selected }: ComposeInput): ProjectValues => {
+  const alias = answers.settings[IMPORT_ALIAS_SETTING]
+  const importAlias = typeof alias === 'string' ? alias : DEFAULT_IMPORT_ALIAS
+  if (!IMPORT_ALIAS.test(importAlias)) {
+    throw new ComposeError(
+      `the import alias "${importAlias}" is invalid; use a pattern such as "@/*" or "~/*"`,
+    )
+  }
+  const packageManager = findPackageManager(selected)?.name ?? FALLBACK_PACKAGE_MANAGER
+  const sourceRoot = answers.settings[SRC_DIR_SETTING] === true ? `./${SOURCE_DIRECTORY}/` : './'
+  return {
+    name: projectName,
+    importAlias,
+    importAliasTarget: `${sourceRoot}*`,
+    packageManager,
+    run: `${packageManager} run`,
+  }
+}
+
 /**
  * Composes the project in memory: merges the contributions of the base project and the selected
  * plugins, renders their files, and adds package.json and next-suite.json. Nothing is written.
@@ -266,11 +302,15 @@ const addCoreFile = (files: VirtualFiles, path: string, content: string): void =
 export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> => {
   const plugins = [input.base, ...input.selected]
   const values = mergeContributions(
-    plugins.map((plugin) => plugin.manifest),
+    [
+      input.base.manifest,
+      settingContributions(input.answers.settings),
+      ...input.selected.map((plugin) => plugin.manifest),
+    ],
     input.catalog,
   )
   const context: RenderContext = {
-    projectName: input.projectName,
+    project: projectValues(input),
     answers: input.answers,
     values,
     facts: collectFacts([input.base, ...input.available], input.answers),

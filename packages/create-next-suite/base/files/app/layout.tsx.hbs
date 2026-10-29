@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+{{#each rootProviders.opening}}
+{{import}}
+{{/each}}
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: {
+    default: "{{project.name}}",
+    template: "%s | {{project.name}}",
+  },
+  description: "Created with create-next-suite",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html lang="en">
+      <body>
+{{#each rootProviders.opening}}
+        <{{component}}>
+{{/each}}
+        {children}
+{{#each rootProviders.closing}}
+        </{{this}}>
+{{/each}}
+      </body>
+    </html>
+  );
+}

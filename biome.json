@@ -11,7 +11,8 @@
       "**",
       "!pnpm-lock.yaml",
       "!**/*.md",
-      "!packages/create-next-suite/plugins/*/*/files"
+      "!packages/create-next-suite/plugins/*/*/files",
+      "!packages/create-next-suite/base/files"
     ]
   },
   "formatter": {

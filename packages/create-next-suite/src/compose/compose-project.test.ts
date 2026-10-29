@@ -231,6 +231,14 @@ describe('composeProject', () => {
     })
   })
 
+  it('rejects an import alias that is no pattern such as @/*', async () => {
+    const answers = answersWith([], { 'src-dir': false, 'import-alias': '@"x' })
+
+    await expect(compose(await writeBase(), [], answers)).rejects.toThrow(
+      'the import alias "@"x" is invalid',
+    )
+  })
+
   it('records the run in next-suite.json', async () => {
     const drizzle = await writePlugin('drizzle', DRIZZLE_MANIFEST, { 'files/db.ts.hbs': '' })
     const answers = {

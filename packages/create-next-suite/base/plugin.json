@@ -1,0 +1,62 @@
+{
+  "$schema": "../generated/schemas/plugin.json",
+  "name": "base",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Next.js",
+  "description": "The files every Next.js app gets: App Router, TypeScript, error boundaries and the shared files plugins add to.",
+  "dependencies": {
+    "next": "catalog:next",
+    "react": "catalog:react",
+    "react-dom": "catalog:react-dom"
+  },
+  "devDependencies": {
+    "typescript": "catalog:typescript",
+    "@types/node": "catalog:types-node",
+    "@types/react": "catalog:types-react",
+    "@types/react-dom": "catalog:types-react-dom"
+  },
+  "contributes": {
+    "package": {
+      "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "typecheck": "next typegen && tsc --noEmit"
+      },
+      "fields": { "private": true, "type": "module" }
+    },
+    "gitignore": [
+      "/node_modules",
+      "/.next/",
+      "/out/",
+      "/build",
+      "/coverage",
+      ".DS_Store",
+      "*.pem",
+      "npm-debug.log*",
+      ".env*",
+      "!.env.example",
+      ".vercel",
+      "*.tsbuildinfo",
+      "next-env.d.ts"
+    ],
+    "stack": ["Next.js", "TypeScript"],
+    "nextSteps": [{ "script": "dev" }]
+  },
+  "files": [
+    { "source": "files/gitignore.hbs", "target": ".gitignore" },
+    { "source": "files/editorconfig", "target": ".editorconfig" },
+    { "source": "files/env.example.hbs", "target": ".env.example" },
+    { "source": "files/README.md.hbs", "target": "README.md" },
+    { "source": "files/tsconfig.json.hbs", "target": "tsconfig.json" },
+    { "source": "files/next.config.ts.hbs", "target": "next.config.ts" },
+    { "source": "files/app/layout.tsx.hbs", "target": "app/layout.tsx", "root": "source" },
+    { "source": "files/app/page.tsx.hbs", "target": "app/page.tsx", "root": "source" },
+    { "source": "files/app/error.tsx", "target": "app/error.tsx", "root": "source" },
+    { "source": "files/app/global-error.tsx", "target": "app/global-error.tsx", "root": "source" },
+    { "source": "files/app/not-found.tsx", "target": "app/not-found.tsx", "root": "source" },
+    { "source": "files/app/globals.css", "target": "app/globals.css", "root": "source" },
+    { "source": "files/app/icon.svg", "target": "app/icon.svg", "root": "source" }
+  ]
+}
