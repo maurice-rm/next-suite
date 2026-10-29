@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "vitest",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Vitest",
+  "description": "Tests with Vitest and React Testing Library in jsdom.",
+  "category": "unit-tests",
+  "devDependencies": {
+    "vitest": "catalog:vitest",
+    "vite": "catalog:vite",
+    "@vitejs/plugin-react": "catalog:vitejs-plugin-react",
+    "vite-tsconfig-paths": "catalog:vite-tsconfig-paths",
+    "jsdom": "catalog:jsdom",
+    "@testing-library/react": "catalog:testing-library-react",
+    "@testing-library/dom": "catalog:testing-library-dom"
+  },
+  "contributes": {
+    "package": { "scripts": { "test": "vitest run", "test:watch": "vitest" } },
+    "stack": ["Vitest"]
+  },
+  "files": [
+    { "source": "files/vitest.config.mts.hbs", "target": "vitest.config.mts" },
+    { "source": "files/__tests__/page.test.tsx.hbs", "target": "__tests__/page.test.tsx" }
+  ]
+}

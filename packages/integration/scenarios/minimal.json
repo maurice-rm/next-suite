@@ -2,5 +2,6 @@
   "linter": null,
   "formatter": null,
   "unused-code": null,
-  "git-hooks": null
+  "styling": [],
+  "unit-tests": null
 }

@@ -6,6 +6,7 @@ import { evaluateCondition } from '../answers/evaluate-condition.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { applyConditionalDependencies } from './apply-conditional-dependencies.ts'
 import { assertNoPathCollisions } from './assert-no-path-collisions.ts'
 import { assertSafeTarget } from './assert-safe-target.ts'
 import { compareNames } from './compare-names.ts'
@@ -74,6 +75,8 @@ type ProjectValues = {
   /** The import alias, such as `@/*`, and the folder it points to, such as `./src/*`. */
   importAlias: string
   importAliasTarget: string
+  /** What an import through the alias starts with, such as `@/`. */
+  importPrefix: string
   packageManager: string
   /** How a script runs with the package manager, such as `pnpm run`. */
   run: string
@@ -296,6 +299,7 @@ const projectValues = ({ projectName, answers, selected }: ComposeInput): Projec
     name: projectName,
     importAlias,
     importAliasTarget: `${sourceRoot}*`,
+    importPrefix: importAlias.slice(0, -1),
     packageManager,
     run: `${packageManager} run`,
   }
@@ -312,7 +316,7 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
       input.base.manifest,
       settingContributions(input.answers.settings),
       ...input.selected.map((plugin) => plugin.manifest),
-    ],
+    ].map((manifest) => applyConditionalDependencies(manifest, input.answers)),
     input.catalog,
   )
   const context: RenderContext = {

@@ -3,10 +3,11 @@ Files:
   .env.example (1 line, base)
   .gitignore (13 lines, base)
   .husky/pre-commit (1 line, lint-staged)
-  README.md (26 lines, base)
+  README.md (28 lines, base)
+  __tests__/page.test.tsx (10 lines, vitest)
   app/error.tsx (18 lines, base)
   app/global-error.tsx (14 lines, base)
-  app/globals.css (12 lines, base)
+  app/globals.css (13 lines, base)
   app/icon.svg (1 line, base)
   app/layout.tsx (20 lines, base)
   app/not-found.tsx (11 lines, base)
@@ -14,24 +15,35 @@ Files:
   biome.json (34 lines, biome)
   knip.json (3 lines, knip)
   lint-staged.config.mjs (6 lines, lint-staged)
-  next-suite.json (38 lines, create-next-suite)
+  next-suite.json (52 lines, create-next-suite)
   next.config.ts (8 lines, base)
-  package.json (39 lines, create-next-suite)
+  package.json (50 lines, create-next-suite)
   pnpm-workspace.yaml (2 lines, pnpm)
+  postcss.config.mjs (7 lines, tailwind)
   tsconfig.json (30 lines, base)
+  vitest.config.mts (10 lines, vitest)
 Dependencies:
   next 16.4.3
   react 19.3.1
   react-dom 19.3.1
 Dev dependencies:
   @biomejs/biome 2.6.3
+  @tailwindcss/postcss 4.3.3
+  @testing-library/dom 10.4.2
+  @testing-library/react 16.3.3
   @types/node 24.19.2
   @types/react 19.3.0
   @types/react-dom 19.3.0
+  @vitejs/plugin-react 6.1.2
   husky 9.1.7
+  jsdom 30.1.3
   knip 6.43.0
   lint-staged 17.6.0
+  tailwindcss 4.3.3
   typescript 5.9.3
+  vite 8.3.5
+  vite-tsconfig-paths 6.1.1
+  vitest 5.0.5
 
 ===================================================================
 --- /dev/null
@@ -83,7 +95,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ README.md
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,28 @@
 +# my-app
 +
 +A [Next.js](https://nextjs.org) app created with
@@ -110,6 +122,23 @@ Dev dependencies:
 +| `format:check` | `biome format` |
 +| `knip` | `knip` |
 +| `prepare` | `husky` |
++| `test` | `vitest run` |
++| `test:watch` | `vitest` |
+
+===================================================================
+--- /dev/null
++++ __tests__/page.test.tsx
+@@ -0,0 +1,10 @@
++import { render, screen } from "@testing-library/react";
++import { expect, test } from "vitest";
++
++import Home from "@/app/page";
++
++test("the home page shows the project name", () => {
++  render(<Home />);
++
++  expect(screen.getByRole("heading", { level: 1, name: "my-app" })).toBeDefined();
++});
 
 ===================================================================
 --- /dev/null
@@ -156,7 +185,8 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ app/globals.css
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,13 @@
++@import "tailwindcss";
 +:root {
 +  color-scheme: light dark;
 +}
@@ -293,7 +323,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ next-suite.json
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,52 @@
 +{
 +  "cli": "0.0.0",
 +  "contract": "1.0.0",
@@ -301,6 +331,11 @@ Dev dependencies:
 +  "plugins": [
 +    {
 +      "name": "pnpm",
++      "source": "builtin",
++      "version": "1.0.0"
++    },
++    {
++      "name": "tailwind",
 +      "source": "builtin",
 +      "version": "1.0.0"
 +    },
@@ -318,6 +353,11 @@ Dev dependencies:
 +      "name": "lint-staged",
 +      "source": "builtin",
 +      "version": "1.0.0"
++    },
++    {
++      "name": "vitest",
++      "source": "builtin",
++      "version": "1.0.0"
 +    }
 +  ],
 +  "answers": {
@@ -326,10 +366,14 @@ Dev dependencies:
 +    "import-alias": "@/*",
 +    "react-compiler": false,
 +    "cache-components": true,
++    "styling": [
++      "tailwind"
++    ],
 +    "linter": "biome",
 +    "formatter": null,
 +    "unused-code": "knip",
-+    "git-hooks": "lint-staged"
++    "git-hooks": "lint-staged",
++    "unit-tests": "vitest"
 +  }
 +}
 
@@ -349,7 +393,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ package.json
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,50 @@
 +{
 +  "name": "my-app",
 +  "private": true,
@@ -364,7 +408,9 @@ Dev dependencies:
 +    "format": "biome format --write",
 +    "format:check": "biome format",
 +    "knip": "knip",
-+    "prepare": "husky"
++    "prepare": "husky",
++    "test": "vitest run",
++    "test:watch": "vitest"
 +  },
 +  "dependencies": {
 +    "next": "16.4.3",
@@ -373,13 +419,22 @@ Dev dependencies:
 +  },
 +  "devDependencies": {
 +    "@biomejs/biome": "2.6.3",
++    "@tailwindcss/postcss": "4.3.3",
++    "@testing-library/dom": "10.4.2",
++    "@testing-library/react": "16.3.3",
 +    "@types/node": "24.19.2",
 +    "@types/react": "19.3.0",
 +    "@types/react-dom": "19.3.0",
++    "@vitejs/plugin-react": "6.1.2",
 +    "husky": "9.1.7",
++    "jsdom": "30.1.3",
 +    "knip": "6.43.0",
 +    "lint-staged": "17.6.0",
-+    "typescript": "5.9.3"
++    "tailwindcss": "4.3.3",
++    "typescript": "5.9.3",
++    "vite": "8.3.5",
++    "vite-tsconfig-paths": "6.1.1",
++    "vitest": "5.0.5"
 +  },
 +  "devEngines": {
 +    "packageManager": {
@@ -396,6 +451,18 @@ Dev dependencies:
 @@ -0,0 +1,2 @@
 +minimumReleaseAge: 1440
 +allowBuilds:
+
+===================================================================
+--- /dev/null
++++ postcss.config.mjs
+@@ -0,0 +1,7 @@
++const config = {
++  plugins: {
++    "@tailwindcss/postcss": {},
++  },
++};
++
++export default config;
 
 ===================================================================
 --- /dev/null
@@ -431,4 +498,19 @@ Dev dependencies:
 +  ],
 +  "exclude": ["node_modules"]
 +}
+
+===================================================================
+--- /dev/null
++++ vitest.config.mts
+@@ -0,0 +1,10 @@
++import react from "@vitejs/plugin-react";
++import tsconfigPaths from "vite-tsconfig-paths";
++import { defineConfig } from "vitest/config";
++
++export default defineConfig({
++  plugins: [tsconfigPaths(), react()],
++  test: {
++    environment: "jsdom",
++  },
++});
 

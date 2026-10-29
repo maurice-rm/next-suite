@@ -10,7 +10,7 @@ Files:
   app/layout.tsx (20 lines, base)
   app/not-found.tsx (11 lines, base)
   app/page.tsx (10 lines, base)
-  next-suite.json (23 lines, create-next-suite)
+  next-suite.json (25 lines, create-next-suite)
   next.config.ts (8 lines, base)
   package.json (30 lines, create-next-suite)
   pnpm-workspace.yaml (2 lines, pnpm)
@@ -216,7 +216,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ next-suite.json
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,25 @@
 +{
 +  "cli": "0.0.0",
 +  "contract": "1.0.0",
@@ -234,10 +234,12 @@ Dev dependencies:
 +    "import-alias": "@/*",
 +    "react-compiler": false,
 +    "cache-components": true,
++    "styling": [],
 +    "linter": null,
 +    "formatter": null,
 +    "unused-code": null,
-+    "git-hooks": null
++    "git-hooks": null,
++    "unit-tests": null
 +  }
 +}
 

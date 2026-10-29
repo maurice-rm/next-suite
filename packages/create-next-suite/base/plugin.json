@@ -60,7 +60,7 @@
       "root": "source"
     },
     { "source": "files/app/not-found.tsx.hbs", "target": "app/not-found.tsx", "root": "source" },
-    { "source": "files/app/globals.css", "target": "app/globals.css", "root": "source" },
+    { "source": "files/app/globals.css.hbs", "target": "app/globals.css", "root": "source" },
     { "source": "files/app/icon.svg", "target": "app/icon.svg", "root": "source" }
   ]
 }
