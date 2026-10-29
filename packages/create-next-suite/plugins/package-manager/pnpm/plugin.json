@@ -2,14 +2,14 @@
   "$schema": "../../../generated/schemas/plugin.json",
   "name": "pnpm",
   "version": "1.0.0",
-  "engine": "^1.0.0",
+  "contract": "^1.0.0",
   "title": "pnpm",
   "description": "Installs with pnpm, takes new releases after a day and runs only allowed dependency builds.",
   "category": "package-manager",
   "packageManager": {
     "version": "catalog:pnpm",
-    "onFail": "download",
-    "allowedBuilds": "config-file"
+    "whenVersionDiffers": "download",
+    "allowedBuildsIn": "pnpm-workspace.yaml"
   },
   "files": [{ "source": "files/pnpm-workspace.yaml.hbs", "target": "pnpm-workspace.yaml" }]
 }

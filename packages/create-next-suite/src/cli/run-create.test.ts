@@ -22,7 +22,7 @@ const manifest = (name: string, extra: object = {}): string =>
   JSON.stringify({
     name,
     version: '1.0.0',
-    engine: '^1.0.0',
+    contract: '^1.0.0',
     title: name,
     description: `The ${name} plugin.`,
     ...extra,
@@ -58,11 +58,19 @@ const ASSETS = {
     'export default function Page() { return <h1>{{project.name}}</h1> }\n',
   'assets/plugins/package-manager/pnpm/plugin.json': manifest('pnpm', {
     category: 'package-manager',
-    packageManager: { version: '12.16.1', onFail: 'download', allowedBuilds: 'config-file' },
+    packageManager: {
+      version: '12.16.1',
+      whenVersionDiffers: 'download',
+      allowedBuildsIn: 'package.json#allowScripts',
+    },
   }),
   'assets/plugins/package-manager/npm/plugin.json': manifest('npm', {
     category: 'package-manager',
-    packageManager: { version: '12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+    packageManager: {
+      version: '12.2.1',
+      whenVersionDiffers: 'warn',
+      allowedBuildsIn: 'package.json#allowScripts',
+    },
   }),
   'assets/plugins/orm/drizzle/plugin.json': manifest('drizzle', {
     category: 'orm',
@@ -146,7 +154,7 @@ describe('runCreate', () => {
         'Files:',
         '  app/page.tsx (1 line, base)',
         '  next-suite.json (21 lines, create-next-suite)',
-        '  package.json (18 lines, create-next-suite)',
+        '  package.json (19 lines, create-next-suite)',
         'Dependencies:',
         '  next 16.4.3',
         '',

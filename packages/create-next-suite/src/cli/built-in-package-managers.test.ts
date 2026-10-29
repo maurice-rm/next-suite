@@ -25,7 +25,7 @@ const writeTestPlugin = async (name: string, manifest: object, files: Record<str
     JSON.stringify({
       name,
       version: '1.0.0',
-      engine: '^1.0.0',
+      contract: '^1.0.0',
       title: name,
       description: name,
       ...manifest,

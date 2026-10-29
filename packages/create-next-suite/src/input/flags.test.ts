@@ -60,7 +60,7 @@ describe('createFlags', () => {
     const clash = pluginManifestSchema.parse({
       name: 'drizzle-casing',
       version: '1.0.0',
-      engine: '^1.0.0',
+      contract: '^1.0.0',
       title: 'x',
       description: 'x',
     })

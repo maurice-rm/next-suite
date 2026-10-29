@@ -9,7 +9,7 @@
  * const manifest: PluginManifest = {
  *   name: 'acme-auth',
  *   version: '1.0.0',
- *   engine: '^1.0.0',
+ *   contract: '^1.0.0',
  *   title: 'Acme Auth',
  *   description: 'Sign-in through the Acme identity provider.',
  * }

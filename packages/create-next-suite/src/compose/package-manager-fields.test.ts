@@ -4,17 +4,17 @@ import { packageManagerFields } from './package-manager-fields.ts'
 
 const CATALOG = { pnpm: '12.16.1' }
 
-const fieldsFor = (allowedBuilds: 'config-file' | 'allow-scripts' | 'dependencies-meta') =>
+const fieldsFor = (allowedBuildsIn: string) =>
   packageManagerFields({
     name: 'pnpm',
-    packageManager: { version: 'catalog:pnpm', onFail: 'download', allowedBuilds },
+    packageManager: { version: 'catalog:pnpm', whenVersionDiffers: 'download', allowedBuildsIn },
     allowedBuilds: ['esbuild', 'sharp'],
     catalog: CATALOG,
   })
 
 describe('packageManagerFields', () => {
   it('pins the exact version and allows the same major in devEngines', () => {
-    expect(fieldsFor('config-file')).toEqual({
+    expect(fieldsFor('pnpm-workspace.yaml')).toEqual({
       packageManager: 'pnpm@12.16.1',
       fields: {
         devEngines: {
@@ -25,10 +25,10 @@ describe('packageManagerFields', () => {
   })
 
   it('writes the allowed builds into the package.json field the manager reads', () => {
-    expect(fieldsFor('allow-scripts').fields).toMatchObject({
+    expect(fieldsFor('package.json#allowScripts').fields).toMatchObject({
       allowScripts: { esbuild: true, sharp: true },
     })
-    expect(fieldsFor('dependencies-meta').fields).toMatchObject({
+    expect(fieldsFor('package.json#dependenciesMeta').fields).toMatchObject({
       dependenciesMeta: { esbuild: { built: true }, sharp: { built: true } },
     })
   })
@@ -36,7 +36,11 @@ describe('packageManagerFields', () => {
   it('takes an exact version as it is', () => {
     const fields = packageManagerFields({
       name: 'npm',
-      packageManager: { version: '12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+      packageManager: {
+        version: '12.2.1',
+        whenVersionDiffers: 'warn',
+        allowedBuildsIn: 'package.json#allowScripts',
+      },
       allowedBuilds: [],
       catalog: {},
     })

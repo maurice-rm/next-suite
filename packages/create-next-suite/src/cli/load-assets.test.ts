@@ -16,7 +16,7 @@ const writePlugin = async (path: string, extra: object = {}): Promise<void> => {
     JSON.stringify({
       name: path.split('/').at(-1),
       version: '1.0.0',
-      engine: '^1.0.0',
+      contract: '^1.0.0',
       title: 'x',
       description: 'x',
       ...extra,

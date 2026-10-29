@@ -48,13 +48,13 @@ const parseManifest = (folder: string, json: unknown): ParsedPluginManifest => {
   return result.data
 }
 
-const assertEngine = (folder: string, manifest: ParsedPluginManifest): void => {
-  if (semver.satisfies(CONTRACT_VERSION, manifest.engine)) {
+const assertContract = (folder: string, manifest: ParsedPluginManifest): void => {
+  if (semver.satisfies(CONTRACT_VERSION, manifest.contract)) {
     return
   }
   throw new PluginLoadError(
     folder,
-    `it needs plugin contract ${manifest.engine}, this create-next-suite implements ${CONTRACT_VERSION}`,
+    `it needs plugin contract ${manifest.contract}, this create-next-suite implements ${CONTRACT_VERSION}`,
   )
 }
 
@@ -94,7 +94,7 @@ const assertSourceFile = async (folder: string, source: string): Promise<void> =
 export const loadPlugin = async (folder: string): Promise<LoadedPlugin> => {
   const root = resolve(folder)
   const manifest = parseManifest(root, await readManifestJson(root))
-  assertEngine(root, manifest)
+  assertContract(root, manifest)
   for (const file of manifest.files ?? []) {
     await assertSourceFile(root, file.source)
   }

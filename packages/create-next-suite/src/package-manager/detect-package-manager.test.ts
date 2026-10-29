@@ -13,11 +13,15 @@ const packageManager = (name: string): ParsedPluginManifest =>
   pluginManifestSchema.parse({
     name,
     version: '1.0.0',
-    engine: '^1.0.0',
+    contract: '^1.0.0',
     title: name,
     description: name,
     category: 'package-manager',
-    packageManager: { version: '1.0.0', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+    packageManager: {
+      version: '1.0.0',
+      whenVersionDiffers: 'warn',
+      allowedBuildsIn: 'package.json#allowScripts',
+    },
   })
 
 const PLUGINS = [packageManager('pnpm'), packageManager('npm'), packageManager('yarn')]

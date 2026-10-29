@@ -70,7 +70,7 @@ describe('buildQuestions', () => {
     const plugin = pluginManifestSchema.parse({
       name: 'x',
       version: '1.0.0',
-      engine: '^1.0.0',
+      contract: '^1.0.0',
       title: 'x',
       description: 'x',
       category: 'cms',
@@ -91,7 +91,7 @@ describe('buildQuestions', () => {
     const plugin = pluginManifestSchema.parse({
       name: 'prisma',
       version: '1.0.0',
-      engine: '^1.0.0',
+      contract: '^1.0.0',
       title: 'p',
       description: 'p',
       category: 'orm',

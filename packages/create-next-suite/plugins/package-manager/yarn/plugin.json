@@ -2,14 +2,14 @@
   "$schema": "../../../generated/schemas/plugin.json",
   "name": "yarn",
   "version": "1.0.0",
-  "engine": "^1.0.0",
+  "contract": "^1.0.0",
   "title": "Yarn",
   "description": "Installs with Yarn 4 into node_modules, takes new releases after a day and runs only allowed dependency builds.",
   "category": "package-manager",
   "packageManager": {
     "version": "catalog:yarn",
-    "onFail": "warn",
-    "allowedBuilds": "dependencies-meta"
+    "whenVersionDiffers": "warn",
+    "allowedBuildsIn": "package.json#dependenciesMeta"
   },
   "files": [{ "source": "files/yarnrc.yml", "target": ".yarnrc.yml" }],
   "contributes": {

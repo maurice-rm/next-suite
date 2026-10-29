@@ -11,7 +11,7 @@ import { PluginLoadError } from './plugin-load-error.ts'
 const manifestFor = (name: string, extra: object = {}): object => ({
   name,
   version: '1.0.0',
-  engine: '^1.0.0',
+  contract: '^1.0.0',
   title: name,
   description: `The ${name} plugin.`,
   ...extra,
@@ -76,9 +76,9 @@ describe('loadPlugin', () => {
     expect((await loadError('bad')).message).toMatch(/invalid plugin\.json[\s\S]*version/)
   })
 
-  it('rejects a plugin whose engine range the contract version does not satisfy', async () => {
+  it('rejects a plugin whose contract range the contract version does not satisfy', async () => {
     await writeFiles({
-      'future/plugin.json': JSON.stringify(manifestFor('future', { engine: '^2.0.0' })),
+      'future/plugin.json': JSON.stringify(manifestFor('future', { contract: '^2.0.0' })),
     })
 
     expect((await loadError('future')).message).toContain('needs plugin contract ^2.0.0')

@@ -7,7 +7,7 @@ const manifest = (name: string, extra: object = {}): ParsedPluginManifest =>
   pluginManifestSchema.parse({
     name,
     version: '1.0.0',
-    engine: '^1.0.0',
+    contract: '^1.0.0',
     title: name,
     description: `The ${name} plugin.`,
     ...extra,
@@ -40,11 +40,20 @@ export const TEST_CATEGORIES: Category[] = categoriesSchema.parse([
 export const TEST_PLUGINS: ParsedPluginManifest[] = [
   manifest('pnpm', {
     category: 'package-manager',
-    packageManager: { version: '12.16.1', onFail: 'download', allowedBuilds: 'config-file' },
+    packageManager: {
+      version: '12.16.1',
+      whenVersionDiffers: 'download',
+      allowedBuildsIn: 'pnpm-workspace.yaml',
+    },
+    files: [{ source: 'files/pnpm-workspace.yaml.hbs', target: 'pnpm-workspace.yaml' }],
   }),
   manifest('npm', {
     category: 'package-manager',
-    packageManager: { version: '12.2.1', onFail: 'warn', allowedBuilds: 'allow-scripts' },
+    packageManager: {
+      version: '12.2.1',
+      whenVersionDiffers: 'warn',
+      allowedBuildsIn: 'package.json#allowScripts',
+    },
   }),
   manifest('drizzle', {
     category: 'orm',

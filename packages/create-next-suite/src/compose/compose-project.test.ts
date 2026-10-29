@@ -23,7 +23,7 @@ const writePlugin = async (
     'plugin.json': JSON.stringify({
       name,
       version: '1.0.0',
-      engine: '^1.0.0',
+      contract: '^1.0.0',
       title: name,
       description: name,
       ...manifest,
@@ -155,8 +155,8 @@ describe('composeProject', () => {
       category: 'package-manager',
       packageManager: {
         version: 'catalog:bun',
-        onFail: 'warn',
-        allowedBuilds: 'trusted-dependencies',
+        whenVersionDiffers: 'warn',
+        allowedBuildsIn: 'package.json#trustedDependencies',
       },
     })
     const sharp = await writePlugin('images', { contributes: { allowedBuilds: ['sharp'] } })
