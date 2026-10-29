@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../generated/schemas/plugin.json",
+  "name": "pino",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Logging with pino",
+  "description": "Logs with pino and reports server errors through instrumentation.ts.",
+  "category": "logging",
+  "dependencies": { "pino": "catalog:pino" },
+  "env": [
+    {
+      "name": "LOG_LEVEL",
+      "scope": "server",
+      "secret": false,
+      "example": "info",
+      "default": "info",
+      "description": "The lowest level pino logs: trace, debug, info, warn, error or fatal."
+    }
+  ],
+  "contributes": { "stack": ["pino"] },
+  "files": [
+    { "source": "files/lib/logger.ts.hbs", "target": "lib/logger.ts", "root": "source" },
+    { "source": "files/instrumentation.ts.hbs", "target": "instrumentation.ts", "root": "source" }
+  ]
+}

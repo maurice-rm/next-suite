@@ -57,5 +57,34 @@
         "default": "vitest"
       }
     ]
+  },
+  {
+    "section": "App",
+    "categories": [
+      {
+        "id": "env-validation",
+        "question": "Validate environment variables?",
+        "cardinality": "at-most-one",
+        "default": "t3-env"
+      },
+      {
+        "id": "logging",
+        "question": "Which logger would you like to use?",
+        "cardinality": "at-most-one",
+        "default": "pino"
+      },
+      {
+        "id": "security-headers",
+        "question": "Send security headers?",
+        "cardinality": "at-most-one",
+        "default": "static-csp"
+      },
+      {
+        "id": "seo",
+        "question": "Add robots.txt, a sitemap and the site URL?",
+        "cardinality": "at-most-one",
+        "default": "seo"
+      }
+    ]
   }
 ]

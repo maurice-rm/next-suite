@@ -1,31 +1,38 @@
 Files:
   .editorconfig (12 lines, base)
-  .env.example (1 line, base)
+  .env.example (9 lines, base)
   .gitignore (13 lines, base)
   .husky/pre-commit (1 line, lint-staged)
   .prettierignore (5 lines, prettier)
-  README.md (28 lines, base)
+  README.md (32 lines, base)
   __tests__/page.test.tsx (10 lines, vitest)
   eslint.config.mjs (11 lines, eslint)
   knip.json (3 lines, knip)
   lint-staged.config.mjs (7 lines, lint-staged)
-  next-suite.json (57 lines, create-next-suite)
-  next.config.ts (7 lines, base)
-  package.json (54 lines, create-next-suite)
+  next-suite.json (76 lines, create-next-suite)
+  next.config.ts (9 lines, base)
+  package.json (55 lines, create-next-suite)
   pnpm-workspace.yaml (3 lines, pnpm)
   postcss.config.mjs (7 lines, tailwind)
   prettier.config.mjs (6 lines, prettier)
+  security-headers.ts (22 lines, static-csp)
   src/app/error.tsx (18 lines, base)
   src/app/global-error.tsx (14 lines, base)
   src/app/globals.css (13 lines, base)
   src/app/icon.svg (1 line, base)
-  src/app/layout.tsx (20 lines, base)
+  src/app/layout.tsx (21 lines, base)
   src/app/not-found.tsx (11 lines, base)
   src/app/page.tsx (10 lines, base)
+  src/app/robots.ts (10 lines, seo)
+  src/app/sitemap.ts (7 lines, seo)
+  src/instrumentation.ts (12 lines, pino)
+  src/lib/logger.ts (3 lines, pino)
+  src/lib/site-url.ts (1 line, seo)
   tsconfig.json (30 lines, base)
   vitest.config.mts (10 lines, vitest)
 Dependencies:
   next 16.4.3
+  pino 10.4.0
   react 19.3.1
   react-dom 19.3.1
 Dev dependencies:
@@ -71,8 +78,16 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ .env.example
-@@ -0,0 +1,1 @@
+@@ -0,0 +1,9 @@
 +# Copy this file to .env and fill in the values.
++
++# Logging with pino
++# The lowest level pino logs: trace, debug, info, warn, error or fatal.
++LOG_LEVEL=info
++
++# SEO
++# The public URL of the site, for absolute links in metadata, robots.txt and the sitemap.
++NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 ===================================================================
 --- /dev/null
@@ -111,7 +126,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ README.md
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,32 @@
 +# my-app
 +
 +A [Next.js](https://nextjs.org) app created with
@@ -140,6 +155,10 @@ Dev dependencies:
 +| `prepare` | `husky` |
 +| `test` | `vitest run` |
 +| `test:watch` | `vitest` |
++
++## Security headers
++
++`security-headers.ts` sets a static Content Security Policy and the common security headers for every route. HSTS leaves out `includeSubDomains`, so subdomains keep plain HTTP until you opt in.
 
 ===================================================================
 --- /dev/null
@@ -195,7 +214,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ next-suite.json
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,76 @@
 +{
 +  "cli": "0.0.0",
 +  "contract": "1.0.0",
@@ -235,6 +254,21 @@ Dev dependencies:
 +      "name": "vitest",
 +      "source": "builtin",
 +      "version": "1.0.0"
++    },
++    {
++      "name": "pino",
++      "source": "builtin",
++      "version": "1.0.0"
++    },
++    {
++      "name": "static-csp",
++      "source": "builtin",
++      "version": "1.0.0"
++    },
++    {
++      "name": "seo",
++      "source": "builtin",
++      "version": "1.0.0"
 +    }
 +  ],
 +  "answers": {
@@ -250,18 +284,24 @@ Dev dependencies:
 +    "formatter": "prettier",
 +    "unused-code": "knip",
 +    "git-hooks": "lint-staged",
-+    "unit-tests": "vitest"
++    "unit-tests": "vitest",
++    "env-validation": null,
++    "logging": "pino",
++    "security-headers": "static-csp",
++    "seo": "seo"
 +  }
 +}
 
 ===================================================================
 --- /dev/null
 +++ next.config.ts
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,9 @@
 +import type { NextConfig } from "next";
++import { securityHeaders } from "./security-headers";
 +
 +const nextConfig: NextConfig = {
 +  reactCompiler: true,
++  headers: async () => [{ source: "/(.*)", headers: securityHeaders }],
 +};
 +
 +export default nextConfig;
@@ -269,7 +309,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ package.json
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,55 @@
 +{
 +  "name": "my-app",
 +  "private": true,
@@ -290,6 +330,7 @@ Dev dependencies:
 +  },
 +  "dependencies": {
 +    "next": "16.4.3",
++    "pino": "10.4.0",
 +    "react": "19.3.1",
 +    "react-dom": "19.3.1"
 +  },
@@ -355,6 +396,33 @@ Dev dependencies:
 +};
 +
 +export default config;
+
+===================================================================
+--- /dev/null
++++ security-headers.ts
+@@ -0,0 +1,22 @@
++const isDevelopment = process.env.NODE_ENV === "development";
++
++const contentSecurityPolicy = [
++  "default-src 'self'",
++  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
++  "style-src 'self' 'unsafe-inline'",
++  "img-src 'self' blob: data:",
++  "font-src 'self'",
++  "object-src 'none'",
++  "base-uri 'self'",
++  "form-action 'self'",
++  "frame-ancestors 'none'",
++  "upgrade-insecure-requests",
++].join("; ");
++
++export const securityHeaders = [
++  { key: "Content-Security-Policy", value: contentSecurityPolicy },
++  { key: "Strict-Transport-Security", value: "max-age=63072000" },
++  { key: "X-Content-Type-Options", value: "nosniff" },
++  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
++  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
++];
 
 ===================================================================
 --- /dev/null
@@ -425,7 +493,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ src/app/layout.tsx
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,21 @@
 +import type { Metadata } from "next";
 +import "./globals.css";
 +
@@ -435,6 +503,7 @@ Dev dependencies:
 +    template: "%s | my-app",
 +  },
 +  description: "Created with create-next-suite",
++  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
 +};
 +
 +export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -477,6 +546,64 @@ Dev dependencies:
 +    </main>
 +  );
 +}
+
+===================================================================
+--- /dev/null
++++ src/app/robots.ts
+@@ -0,0 +1,10 @@
++import type { MetadataRoute } from "next";
++
++import { siteUrl } from "~/lib/site-url";
++
++export default function robots(): MetadataRoute.Robots {
++  return {
++    rules: { userAgent: "*", allow: "/" },
++    sitemap: `${siteUrl}/sitemap.xml`,
++  };
++}
+
+===================================================================
+--- /dev/null
++++ src/app/sitemap.ts
+@@ -0,0 +1,7 @@
++import type { MetadataRoute } from "next";
++
++import { siteUrl } from "~/lib/site-url";
++
++export default function sitemap(): MetadataRoute.Sitemap {
++  return [{ url: siteUrl }];
++}
+
+===================================================================
+--- /dev/null
++++ src/instrumentation.ts
+@@ -0,0 +1,12 @@
++import type { Instrumentation } from "next";
++
++export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
++  if (process.env.NEXT_RUNTIME !== "nodejs") {
++    return;
++  }
++  const { logger } = await import("~/lib/logger");
++  logger.error(
++    { err: error, path: request.path, method: request.method, ...context },
++    "request failed",
++  );
++};
+
+===================================================================
+--- /dev/null
++++ src/lib/logger.ts
+@@ -0,0 +1,3 @@
++import pino from "pino";
++
++export const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
+
+===================================================================
+--- /dev/null
++++ src/lib/site-url.ts
+@@ -0,0 +1,1 @@
++export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 ===================================================================
 --- /dev/null

@@ -2,5 +2,6 @@
   "src-dir": true,
   "import-alias": "~/*",
   "react-compiler": true,
-  "cache-components": false
+  "cache-components": false,
+  "env-validation": null
 }

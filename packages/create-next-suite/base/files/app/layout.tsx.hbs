@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     template: "%s | {{project.name}}",
   },
   description: "Created with create-next-suite",
+{{#each layoutMetadata}}
+  {{key}}: {{value}},
+{{/each}}
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

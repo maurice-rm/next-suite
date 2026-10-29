@@ -183,6 +183,28 @@ describe('mergeContributions', () => {
     ])
   })
 
+  it('lists the variables by scope with their schema, and the layout metadata', () => {
+    const values = mergeContributions(
+      [
+        manifest('logging', {
+          env: [{ ...variable('LOG_LEVEL'), default: 'info' }, variable('LOG_TOKEN')],
+        }),
+        manifest('seo', {
+          env: [{ ...variable('NEXT_PUBLIC_SITE_URL'), scope: 'client' }],
+          contributes: { layoutMetadata: [{ key: 'metadataBase', value: 'new URL("x")' }] },
+        }),
+      ],
+      CATALOG,
+    )
+
+    expect(values.env.server).toEqual([
+      { name: 'LOG_LEVEL', schema: 'z.string().default("info")' },
+      { name: 'LOG_TOKEN', schema: 'z.string()' },
+    ])
+    expect(values.env.client).toEqual([{ name: 'NEXT_PUBLIC_SITE_URL', schema: 'z.string()' }])
+    expect(values.layoutMetadata).toEqual([{ key: 'metadataBase', value: 'new URL("x")' }])
+  })
+
   it('wraps the next.config export in plugin order and imports every wrapper', () => {
     const values = mergeContributions(
       [

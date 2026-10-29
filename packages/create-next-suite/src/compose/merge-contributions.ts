@@ -19,7 +19,13 @@ export type CompositionValues = {
   fields: Record<string, FieldValue>
   dependencies: Record<string, string>
   devDependencies: Record<string, string>
-  env: { groups: { title: string; variables: EnvVariable[] }[] }
+  env: {
+    groups: { title: string; variables: EnvVariable[] }[]
+    /** The variables by scope, each with its Zod schema as code, for an env schema file. */
+    server: EnvSchemaEntry[]
+    client: EnvSchemaEntry[]
+  }
+  layoutMetadata: { key: string; value: string }[]
   allowedBuilds: string[]
   deniedBuilds: string[]
   cssImports: string[]
@@ -31,6 +37,8 @@ export type CompositionValues = {
   nextConfig: { imports: string[]; options: { key: string; value: string }[]; exported: string }
   rootProviders: { opening: RootProvider[]; closing: string[] }
 }
+
+type EnvSchemaEntry = { name: string; schema: string }
 
 type Definition<Value> = { name: string; value: Value; origin: string }
 
@@ -44,6 +52,7 @@ type Accumulator = {
   devDependencies: Definitions<string>
   envVariables: Definitions<EnvVariable>
   nextConfigOptions: Definitions<string>
+  layoutMetadata: Definitions<string>
   envGroups: CompositionValues['env']['groups']
   allowedBuilds: string[]
   deniedBuilds: string[]
@@ -64,6 +73,7 @@ const createAccumulator = (): Accumulator => ({
   devDependencies: new Map(),
   envVariables: new Map(),
   nextConfigOptions: new Map(),
+  layoutMetadata: new Map(),
   envGroups: [],
   allowedBuilds: [],
   deniedBuilds: [],
@@ -179,6 +189,31 @@ const addNextConfig = (accumulator: Accumulator, manifest: ParsedPluginManifest)
   }
 }
 
+const addLayoutMetadata = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
+  for (const field of manifest.contributes?.layoutMetadata ?? []) {
+    define(
+      accumulator.layoutMetadata,
+      { name: field.key, value: field.value, origin: manifest.name },
+      'the layout metadata field',
+    )
+  }
+}
+
+/** The Zod schema of a variable as code: a string, with its default when it has one. */
+const envSchemaOf = (variable: EnvVariable): EnvSchemaEntry => ({
+  name: variable.name,
+  schema:
+    variable.default === undefined
+      ? 'z.string()'
+      : `z.string().default(${JSON.stringify(variable.default)})`,
+})
+
+const envOfScope = (accumulator: Accumulator, scope: EnvVariable['scope']): EnvSchemaEntry[] =>
+  [...accumulator.envVariables.values()]
+    .map((definition) => definition.value)
+    .filter((variable) => variable.scope === scope)
+    .map(envSchemaOf)
+
 const addLists = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
   accumulator.allowedBuilds.push(...(manifest.contributes?.allowedBuilds ?? []))
   accumulator.deniedBuilds.push(...(manifest.contributes?.deniedBuilds ?? []))
@@ -212,7 +247,15 @@ const toValues = (accumulator: Accumulator): CompositionValues => ({
   fields: valuesOf(accumulator.fields),
   dependencies: sortedValuesOf(accumulator.dependencies),
   devDependencies: sortedValuesOf(accumulator.devDependencies),
-  env: { groups: accumulator.envGroups },
+  env: {
+    groups: accumulator.envGroups,
+    server: envOfScope(accumulator, 'server'),
+    client: envOfScope(accumulator, 'client'),
+  },
+  layoutMetadata: [...accumulator.layoutMetadata.values()].map(({ name, value }) => ({
+    key: name,
+    value,
+  })),
   allowedBuilds: unique(accumulator.allowedBuilds).sort(compareNames),
   deniedBuilds: unique(accumulator.deniedBuilds)
     .filter((name) => !accumulator.allowedBuilds.includes(name))
@@ -250,6 +293,7 @@ export const mergeContributions = (
     addPackage(accumulator, manifest, catalog)
     addEnv(accumulator, manifest)
     addNextConfig(accumulator, manifest)
+    addLayoutMetadata(accumulator, manifest)
     addLists(accumulator, manifest)
   }
   assertNoDoubleDependencies(accumulator)

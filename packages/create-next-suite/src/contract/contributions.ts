@@ -86,6 +86,13 @@ export const contributionsSchema = z.strictObject({
       description:
         'Commands the end of a run suggests: a plain `command`, or a `script` run with the package manager.',
     }),
+  layoutMetadata: z
+    .array(z.strictObject({ key: nonEmpty, value: nonEmpty }))
+    .optional()
+    .meta({
+      description:
+        'Fields of the `metadata` the root layout exports, such as `metadataBase`, with their value as code.',
+    }),
   rootProviders: z
     .array(z.strictObject({ import: nonEmpty, component: nonEmpty }))
     .optional()
