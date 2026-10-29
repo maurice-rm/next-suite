@@ -116,13 +116,45 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/answers",
+                      "**/answers/**",
                       "**/loader",
                       "**/loader/**",
+                      "**/template",
+                      "**/template/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
                     ],
                     "message": "create-next-suite: contract/ is the innermost module and imports no other"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/answers/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/loader",
+                      "**/loader/**",
+                      "**/template",
+                      "**/template/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: answers/ imports only from contract/"
                   }
                 ]
               }
@@ -141,8 +173,36 @@
               "options": {
                 "patterns": [
                   {
+                    "group": [
+                      "**/answers",
+                      "**/answers/**",
+                      "**/template",
+                      "**/template/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: loader/ imports only from contract/"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/template/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
                     "group": ["**/create-next-suite.ts", "**/next-suite.ts", "**/plugin.ts"],
-                    "message": "create-next-suite: loader/ never imports the package entries"
+                    "message": "create-next-suite: template/ never imports the package entries"
                   }
                 ]
               }
