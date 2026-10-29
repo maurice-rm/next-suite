@@ -11,6 +11,7 @@
     "dev": "turbo run dev",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "test:types": "turbo run test:types",
     "lint": "biome check --error-on-warnings .",
     "lint:fix": "biome check --write .",
     "knip": "knip",

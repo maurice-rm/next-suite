@@ -6,4 +6,4 @@
       failing.
 - [ ] A change to what `create-next-suite` ships or generates has a changeset (`pnpm changeset`).
 - [ ] Documentation, TSDoc and error messages that the change makes wrong are updated.
-- [ ] `pnpm lint && pnpm knip && pnpm boundaries && pnpm turbo check-types test build` passes.
+- [ ] `pnpm lint && pnpm knip && pnpm boundaries && pnpm turbo check-types test test:types build` passes.

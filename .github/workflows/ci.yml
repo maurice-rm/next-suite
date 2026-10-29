@@ -91,7 +91,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        task: [check-types, test, build]
+        task: [check-types, test, "test:types", build]
     steps:
       # Full history, so `--affected` can find the merge base; blobs are fetched on demand.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

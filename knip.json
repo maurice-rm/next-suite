@@ -1,3 +1,10 @@
 {
-  "$schema": "https://unpkg.com/knip@6/schema.json"
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "packages/create-next-suite": {
+      "vitest": {
+        "entry": ["src/**/*.test.ts", "src/**/*.test-d.ts"]
+      }
+    }
+  }
 }

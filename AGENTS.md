@@ -62,7 +62,7 @@ says what next-suite does; this file says how code is written here.
 ## Tests
 
 - A new test fails before the code that makes it pass, and the report says how it was seen red.
-- Tests sit next to the file they test: `x.test.ts`. Tests of the built CLI live in
+- Tests sit next to the file they test: `x.test.ts` for runtime, `x.test-d.ts` for types. Tests of the built CLI live in
   `packages/integration` and run it the way a user does.
 - Snapshot changes are deliberate and land in the same commit as the output change that causes
   them.
@@ -72,7 +72,7 @@ says what next-suite does; this file says how code is written here.
 Green before a change counts as done:
 
 ```bash
-pnpm lint && pnpm knip && pnpm boundaries && pnpm turbo check-types test build
+pnpm lint && pnpm knip && pnpm boundaries && pnpm turbo check-types test test:types build
 ```
 
 After a change touching more than one file, run an independent review against this file.

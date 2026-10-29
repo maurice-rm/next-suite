@@ -1,13 +1,23 @@
 /**
- * The version of the plugin contract this release of create-next-suite implements.
- *
- * The contract is not defined yet; `0.0.0` marks a release without one.
+ * The plugin contract of create-next-suite: the types a plugin's manifest follows. Plugins import
+ * types only.
  *
  * @example
  * ```ts
- * import { CONTRACT_VERSION } from 'create-next-suite/plugin'
+ * import type { PluginManifest } from 'create-next-suite/plugin'
  *
- * console.log(CONTRACT_VERSION) // '0.0.0'
+ * const manifest: PluginManifest = {
+ *   name: 'acme-auth',
+ *   version: '1.0.0',
+ *   engine: '^1.0.0',
+ *   title: 'Acme Auth',
+ *   description: 'Sign-in through the Acme identity provider.',
+ * }
  * ```
+ *
+ * @packageDocumentation
  */
-export const CONTRACT_VERSION: string = '0.0.0'
+export type { Category } from './contract/category.ts'
+export type { Condition } from './contract/condition.ts'
+export type { PluginManifest } from './contract/plugin-manifest.ts'
+export type { PluginOption } from './contract/plugin-option.ts'
