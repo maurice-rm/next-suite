@@ -96,6 +96,7 @@ const compose = async (base: LoadedPlugin, selected: LoadedPlugin[], answers: An
     available: selected,
     selected,
     answers,
+    recordedAnswers: { recorded: true },
     catalog: CATALOG,
     cliVersion: '2.0.0',
     createdAt: CREATED_AT,
@@ -163,7 +164,7 @@ describe('composeProject', () => {
       contract: '1.0.0',
       createdAt: '2026-11-01T10:00:00.000Z',
       plugins: [{ name: 'drizzle', source: 'builtin', version: '1.0.0' }],
-      answers: { orm: 'drizzle', 'src-dir': false, 'drizzle.casing': 'snake' },
+      answers: { recorded: true },
     })
   })
 

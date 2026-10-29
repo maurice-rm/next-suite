@@ -24,8 +24,8 @@ says what next-suite does; this file says how code is written here.
   `node_modules/turbo/docs`), the `.d.ts` in `node_modules`, or the official site. Name the
   source when a choice is not obvious.
 - Where a choice has alternatives, check how well-regarded projects solve it.
-- What Node.js provides is taken from Node.js (`util.styleText`, `node:fs`, `node:child_process`).
-  The command line is defined with Commander.
+- What Node.js provides is taken from Node.js (`node:fs`, `node:child_process`). The command line
+  is defined with Commander, terminal colours go through ansis in `src/ui/theme.ts`.
 - A new dependency needs the maintainer's approval. Install only versions older than one day
   (`minimumReleaseAge`); never add an exclusion to get around it.
 

@@ -35,6 +35,7 @@ type ComposeInput = {
   available: readonly LoadedPlugin[]
   selected: readonly LoadedPlugin[]
   answers: Answers
+  recordedAnswers: Readonly<Record<string, unknown>>
   catalog: VersionCatalog
   cliVersion: string
   createdAt: Date
@@ -182,7 +183,7 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
       cliVersion: input.cliVersion,
       createdAt: input.createdAt,
       plugins: input.selected,
-      answers: input.answers,
+      answers: input.recordedAnswers,
     }),
   )
   assertNoPathCollisions(files)
