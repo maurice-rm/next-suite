@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { CommandResult } from './run-command.ts'
 import { type PostStepsInput, runPostSteps, type StepReporter } from './run-post-steps.ts'
 
+const FORMAT = { script: 'format', running: 'Formatting', done: 'Formatted' }
 const SUCCESS: CommandResult = { isSuccess: true, output: '' }
 const FAILURE: CommandResult = { isSuccess: false, output: 'boom' }
 
@@ -39,26 +40,61 @@ const run = async (input: Partial<PostStepsInput>, results: Results = {}) => {
 
 const OUTSIDE_REPOSITORY: Results = { 'git rev-parse --is-inside-work-tree': FAILURE }
 
+const COMMIT =
+  'git -c user.name=create-next-suite -c user.email=create-next-suite@users.noreply.github.com commit --no-verify --message chore: initial commit'
+
 describe('runPostSteps', () => {
-  it('initializes git, installs, runs the scripts and commits, in this order', async () => {
-    const { commands } = await run({ scripts: ['format'] }, OUTSIDE_REPOSITORY)
+  it('initializes git on main, installs, runs the scripts and commits, in this order', async () => {
+    const { commands, events } = await run({ scripts: [FORMAT] }, OUTSIDE_REPOSITORY)
 
     expect(commands).toEqual([
       'git rev-parse --is-inside-work-tree',
-      'git init',
+      'git --version',
+      'git init --initial-branch main',
       'pnpm --version',
       'pnpm install',
       'pnpm run format',
       'git add --all',
-      'git commit --message Initial commit from create-next-suite',
+      'git config user.email',
+      COMMIT,
     ])
+    expect(events).toEqual([
+      'Initialized git repository',
+      'Installed dependencies',
+      'Formatted',
+      'Created initial commit',
+    ])
+  })
+
+  it('commits with the configured identity when git has one', async () => {
+    const { commands } = await run(
+      { shouldInstall: false },
+      {
+        ...OUTSIDE_REPOSITORY,
+        'git config user.email': { isSuccess: true, output: 'me@example.com\n' },
+      },
+    )
+
+    expect(commands.at(-1)).toBe('git commit --no-verify --message chore: initial commit')
+  })
+
+  it('reports a missing git as a failed git step', async () => {
+    const { commands, events } = await run(
+      { shouldInstall: false },
+      { ...OUTSIDE_REPOSITORY, 'git --version': FAILURE },
+    )
+
+    expect(commands).toEqual(['git rev-parse --is-inside-work-tree', 'git --version'])
+    expect(events).toEqual(['Could not initialize git repository'])
   })
 
   it('skips git inside an existing repository', async () => {
     const { commands, events } = await run({ shouldInstall: false })
 
     expect(commands).toEqual(['git rev-parse --is-inside-work-tree'])
-    expect(events).toEqual(['The directory is inside a git repository already; skipped git init'])
+    expect(events).toEqual([
+      'The directory is inside a git repository already — skipping git init.',
+    ])
   })
 
   it('runs nothing the user turned off', async () => {
@@ -67,14 +103,16 @@ describe('runPostSteps', () => {
     expect(commands).toEqual([])
   })
 
-  it('names the command to run when the package manager does not start', async () => {
+  it('names the command to run when the package manager is not on the PATH', async () => {
     const { commands, events } = await run(
-      { shouldInitializeGit: false, scripts: ['format'] },
+      { shouldInitializeGit: false, scripts: [FORMAT] },
       { 'pnpm --version': FAILURE },
     )
 
     expect(commands).toEqual(['pnpm --version'])
-    expect(events).toEqual(['pnpm did not start; install it, then run `pnpm install`'])
+    expect(events).toEqual([
+      'pnpm was not found on your PATH — skipping install. Install it, then run `pnpm install`.',
+    ])
   })
 
   it('rejects Yarn 1 with the way to Yarn 4', async () => {
@@ -84,27 +122,36 @@ describe('runPostSteps', () => {
     )
 
     expect(commands).toEqual(['yarn --version'])
-    expect(events[0]).toMatch(/^Yarn 1 is not supported; .*then run `yarn install`$/)
+    expect(events[0]).toMatch(/^Yarn 1 is not supported; .*then run `yarn install`\.$/)
   })
 
   it('skips the scripts after a failed install, but still commits', async () => {
     const { commands, events } = await run(
-      { scripts: ['format'] },
+      { scripts: [FORMAT] },
       { ...OUTSIDE_REPOSITORY, 'pnpm install': FAILURE },
     )
 
     expect(commands).not.toContain('pnpm run format')
-    expect(commands.at(-1)).toBe('git commit --message Initial commit from create-next-suite')
-    expect(events).toContain('Could not install dependencies; run `pnpm install` yourself')
+    expect(commands.at(-1)).toBe(COMMIT)
+    expect(events).toContain('Could not install — run `pnpm install` yourself')
+  })
+
+  it('names the command for a failed script', async () => {
+    const { events } = await run(
+      { scripts: [FORMAT], shouldInitializeGit: false },
+      { 'pnpm run format': FAILURE },
+    )
+
+    expect(events.at(-1)).toBe('Could not run format — run `pnpm run format` yourself')
   })
 
   it('does not commit when git init failed', async () => {
     const { commands } = await run(
       { shouldInstall: false },
-      { ...OUTSIDE_REPOSITORY, 'git init': FAILURE },
+      { ...OUTSIDE_REPOSITORY, 'git init --initial-branch main': FAILURE },
     )
 
-    expect(commands).toEqual(['git rev-parse --is-inside-work-tree', 'git init'])
+    expect(commands.at(-1)).toBe('git init --initial-branch main')
   })
 
   it('reports a failed add as a failed commit', async () => {
@@ -114,6 +161,6 @@ describe('runPostSteps', () => {
     )
 
     expect(commands.at(-1)).toBe('git add --all')
-    expect(events.at(-1)).toBe('Could not create the first commit')
+    expect(events.at(-1)).toBe('Could not create initial commit')
   })
 })

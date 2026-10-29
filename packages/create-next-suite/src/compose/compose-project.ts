@@ -46,9 +46,17 @@ export type ProjectPlan = {
   devDependencies: Record<string, string>
   /** The command of the selected package manager, if a package manager plugin is selected. */
   packageManager: string | undefined
-  /** The scripts to run after the install, in plugin order. */
-  postSteps: string[]
+  /** The scripts to run after the install, in plugin order, with what the run shows for them. */
+  postSteps: PostStepScript[]
+  /** What the end of the run shows: the stack line and the suggested next commands. */
+  summary: { stack: string[]; nextSteps: NextStep[] }
 }
+
+/** A plugin script that runs after the install, with what the run says while and after it runs. */
+type PostStepScript = { script: string; running: string; done: string }
+
+/** A command the end of a run suggests: plain, or a script run with the package manager. */
+export type NextStep = { command: string } | { script: string }
 
 type PluginFile = NonNullable<ParsedPluginManifest['files']>[number]
 
@@ -188,23 +196,65 @@ const createPackageJson = ({
   return `${JSON.stringify(packageJson, null, 2)}\n`
 }
 
+const assertScript = (
+  scripts: Readonly<Record<string, string>>,
+  script: string,
+  detail: string,
+) => {
+  if (!Object.hasOwn(scripts, script)) {
+    throw new ComposeError(`${detail} "${script}", but no plugin defines it`)
+  }
+}
+
 const collectPostSteps = (
   plugins: readonly LoadedPlugin[],
   answers: Answers,
   scripts: Readonly<Record<string, string>>,
-): string[] =>
+): PostStepScript[] =>
   plugins.flatMap(({ manifest }) =>
     (manifest.postSteps ?? [])
       .filter((step) => step.when === undefined || evaluateCondition(step.when, answers))
       .map((step) => {
-        if (!Object.hasOwn(scripts, step.script)) {
-          throw new ComposeError(
-            `${manifest.name} runs the script "${step.script}" after the install, but no plugin defines it`,
-          )
+        assertScript(scripts, step.script, `${manifest.name} runs the script after the install:`)
+        return {
+          script: step.script,
+          running: step.running ?? `Running ${step.script}`,
+          done: step.done ?? `Ran ${step.script}`,
         }
-        return step.script
       }),
   )
+
+/** The stack in plugin order, and the next steps with those of the base project, such as `dev`, last. */
+const uniqueSteps = (steps: NextStep[]): NextStep[] => {
+  const seen = new Set<string>()
+  return steps.filter((step) => {
+    const key = JSON.stringify(step)
+    const isNew = !seen.has(key)
+    seen.add(key)
+    return isNew
+  })
+}
+
+const collectSummary = (
+  plugins: readonly LoadedPlugin[],
+  answers: Answers,
+  scripts: Readonly<Record<string, string>>,
+): ProjectPlan['summary'] => ({
+  stack: [...new Set(plugins.flatMap(({ manifest }) => manifest.contributes?.stack ?? []))],
+  nextSteps: uniqueSteps(
+    [...plugins.slice(1), ...plugins.slice(0, 1)].flatMap(({ manifest }) =>
+      (manifest.contributes?.nextSteps ?? [])
+        .filter((step) => step.when === undefined || evaluateCondition(step.when, answers))
+        .map((step): NextStep => {
+          if ('command' in step) {
+            return { command: step.command }
+          }
+          assertScript(scripts, step.script, `${manifest.name} suggests the script`)
+          return { script: step.script }
+        }),
+    ),
+  ),
+})
 
 const addCoreFile = (files: VirtualFiles, path: string, content: string): void =>
   addFile(files, { path, content, origin: CORE_ORIGIN, conflict: 'error', replaceable: new Set() })
@@ -254,5 +304,6 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     devDependencies: values.devDependencies,
     packageManager: findPackageManager(input.selected)?.name,
     postSteps: collectPostSteps(plugins, input.answers, values.scripts),
+    summary: collectSummary(plugins, input.answers, values.scripts),
   }
 }

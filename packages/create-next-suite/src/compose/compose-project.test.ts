@@ -194,7 +194,9 @@ describe('composeProject', () => {
 
     const plan = await compose(await writeBase(), [formatter], answersWith([]))
 
-    expect(plan.postSteps).toEqual(['format'])
+    expect(plan.postSteps).toEqual([
+      { script: 'format', running: 'Running format', done: 'Ran format' },
+    ])
     expect(plan.packageManager).toBeUndefined()
   })
 
@@ -203,9 +205,30 @@ describe('composeProject', () => {
       const formatter = await writePlugin(`formatter-${script}`, { postSteps: [{ script }] })
 
       await expect(compose(await writeBase(), [formatter], answersWith([]))).rejects.toThrow(
-        `formatter-${script} runs the script "${script}" after the install, but no plugin defines it`,
+        `formatter-${script} runs the script after the install: "${script}", but no plugin defines it`,
       )
     }
+  })
+
+  it('collects the stack and the next steps whose condition holds, in plugin order', async () => {
+    const database = await writePlugin('postgres', {
+      contributes: {
+        package: { scripts: { 'db:migrate': 'drizzle-kit migrate' } },
+        stack: ['PostgreSQL'],
+        nextSteps: [
+          { command: 'docker compose up -d' },
+          { script: 'db:migrate' },
+          { command: 'never', when: { category: 'orm' } },
+        ],
+      },
+    })
+
+    const plan = await compose(await writeBase(), [database], answersWith([]))
+
+    expect(plan.summary).toEqual({
+      stack: ['PostgreSQL'],
+      nextSteps: [{ command: 'docker compose up -d' }, { script: 'db:migrate' }],
+    })
   })
 
   it('records the run in next-suite.json', async () => {

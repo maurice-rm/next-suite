@@ -2,6 +2,7 @@ import type { Writable } from 'node:stream'
 
 import packageJson from '../../package.json' with { type: 'json' }
 import { renderBanner } from '../ui/banner.ts'
+import { type Outro, renderOutroSummary, renderPlainSummary } from '../ui/outro.ts'
 import { failure, renderCancelled, renderFramed, renderIntro, renderOutro } from '../ui/theme.ts'
 
 const INTRO = "Let's lay the foundation"
@@ -38,10 +39,13 @@ export const presentNothingGenerated = ({ output, isFramed }: Presenter): void =
   output.write(isFramed ? renderOutro(NOTHING_GENERATED) : `${NOTHING_GENERATED}\n`)
 }
 
-/** Confirms the written project. */
-export const presentCreated = ({ output, isFramed }: Presenter, directory: string): void => {
-  const message = `Created ${directory}`
-  output.write(isFramed ? renderOutro(message) : `${message}\n`)
+/** Confirms the written project with its stack and the commands to run next. */
+export const presentCreated = (
+  { output, isFramed }: Presenter,
+  summary: Omit<Outro, 'docsLink'>,
+): void => {
+  const outro = { ...summary, docsLink: REPOSITORY_LINK }
+  output.write(isFramed ? renderOutroSummary(outro) : renderPlainSummary(outro))
 }
 
 /** Closes the frame of a run the user cancelled. */

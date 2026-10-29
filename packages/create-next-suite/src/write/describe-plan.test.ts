@@ -13,6 +13,7 @@ const PLAN: ProjectPlan = {
   devDependencies: {},
   packageManager: 'pnpm',
   postSteps: [],
+  summary: { stack: [], nextSteps: [] },
 }
 
 describe('describePlan', () => {
