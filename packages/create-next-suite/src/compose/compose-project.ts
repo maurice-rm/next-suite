@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import type { Answers, AnswerValue } from '../answers/answers.ts'
 import { evaluateCondition } from '../answers/evaluate-condition.ts'
+import type { Logic } from '../contract/logic.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
@@ -21,6 +22,7 @@ import {
 } from './merge-contributions.ts'
 import { packageManagerFields } from './package-manager-fields.ts'
 import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
+import { runLogic } from './run-logic.ts'
 import { settingContributions } from './setting-contributions.ts'
 import {
   BASE_TEMPLATE_BLOCKS,
@@ -47,6 +49,8 @@ type ComposeInput = {
   available: readonly LoadedPlugin[]
   selected: readonly LoadedPlugin[]
   answers: Answers
+  /** The logic modules of the selected plugins that have one, already trusted and loaded. */
+  logic: ReadonlyMap<string, Logic>
   recordedAnswers: Readonly<Record<string, unknown>>
   catalog: VersionCatalog
   cliVersion: string
@@ -114,7 +118,7 @@ const requiredPlugins = (manifest: ParsedPluginManifest): ReadonlySet<string> =>
     (manifest.requires ?? []).flatMap((rule) => ('plugin' in rule.when ? [rule.when.plugin] : [])),
   )
 
-const targetPath = (file: PluginFile, answers: Answers): string =>
+const targetPath = (file: Pick<PluginFile, 'root' | 'target'>, answers: Answers): string =>
   file.root === 'source' && answers.settings[SRC_DIR_SETTING] === true
     ? `${SOURCE_DIRECTORY}/${file.target}`
     : file.target
@@ -351,18 +355,35 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
   ]
     .map((manifest) => applyConditionalDependencies(manifest, input.answers))
     .flatMap((manifest) => expandConditionalContributions(manifest, input.answers))
-  const values = mergeContributions(manifests, input.catalog)
+  const project = projectValues(input)
+  const facts = collectFacts([input.base, ...input.available], input.answers)
+  const computed = await runLogic({
+    manifests: plugins.map((plugin) => plugin.manifest),
+    logic: input.logic,
+    answers: input.answers,
+    project,
+    facts,
+  })
+  const values = mergeContributions([...manifests, ...computed.extraManifests], input.catalog)
   for (const check of values.ciChecks) {
     assertScript(values.scripts, check, 'a plugin runs in CI the script')
   }
-  const context: RenderContext = {
-    project: projectValues(input),
-    answers: input.answers,
-    values,
-    facts: collectFacts([input.base, ...input.available], input.answers),
-  }
+  const context: RenderContext = { project, answers: input.answers, values, facts }
   const files: VirtualFiles = new Map()
   await addPluginFiles(files, plugins, context)
+  const manifestOf = new Map(plugins.map((plugin) => [plugin.manifest.name, plugin.manifest]))
+  for (const file of computed.files) {
+    const path = targetPath(file, input.answers)
+    const manifest = manifestOf.get(file.origin)
+    assertSafeTarget(path, file.origin)
+    addFile(files, {
+      path,
+      content: file.content,
+      origin: file.origin,
+      conflict: file.conflict,
+      replaceable: manifest === undefined ? new Set() : requiredPlugins(manifest),
+    })
+  }
   addCoreFile(
     files,
     PACKAGE_FILE,
@@ -392,7 +413,7 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     installArgs: findPackageManager(input.selected)?.packageManager.installArgs ?? ['install'],
     postSteps: collectPostSteps(plugins, input.answers, values.scripts),
     summary: collectSummary({
-      manifests,
+      manifests: [...manifests, ...computed.extraManifests],
       baseName: input.base.manifest.name,
       answers: input.answers,
       scripts: values.scripts,

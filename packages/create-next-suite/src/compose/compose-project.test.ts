@@ -96,6 +96,7 @@ const compose = async (base: LoadedPlugin, selected: LoadedPlugin[], answers: An
     available: selected,
     selected,
     answers,
+    logic: new Map(),
     recordedAnswers: { recorded: true },
     catalog: CATALOG,
     cliVersion: '2.0.0',

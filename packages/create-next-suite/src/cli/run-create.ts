@@ -6,6 +6,7 @@ import type { TargetAction } from '../answers/target-action.ts'
 import { composeProject } from '../compose/compose-project.ts'
 import type { Assets } from '../loader/load-assets.ts'
 import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
+import { loadLogic } from '../loader/load-logic.ts'
 import { assertUniqueNames } from '../loader/load-plugins.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
@@ -176,14 +177,16 @@ const create = async (run: Run): Promise<void> => {
     presentNothingGenerated(presenter)
     return
   }
+  const selected = answers.plugins.flatMap((answer) =>
+    assets.plugins.filter((plugin) => plugin.manifest.name === answer.name),
+  )
   const plan = await composeProject({
     projectName: projectNameOf(directory, environment.cwd),
     base: assets.base,
     available: assets.plugins,
-    selected: answers.plugins.flatMap((answer) =>
-      assets.plugins.filter((plugin) => plugin.manifest.name === answer.name),
-    ),
+    selected,
     answers,
+    logic: await loadLogic([assets.base, ...selected]),
     recordedAnswers: recordAnswers(questions, answers),
     catalog: assets.catalog,
     cliVersion: environment.cliVersion,

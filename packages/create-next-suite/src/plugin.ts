@@ -19,5 +19,6 @@
  */
 export type { Category } from './contract/category.ts'
 export type { Condition } from './contract/condition.ts'
+export type { Logic, LogicContext, LogicResult } from './contract/logic.ts'
 export type { PluginManifest } from './contract/plugin-manifest.ts'
 export type { PluginOption } from './contract/plugin-option.ts'

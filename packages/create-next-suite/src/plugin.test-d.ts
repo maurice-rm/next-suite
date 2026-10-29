@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from 'vitest'
 
-import type { Condition, PluginManifest } from './plugin.ts'
+import type { Condition, Logic, PluginManifest } from './plugin.ts'
 
 const MINIMAL = {
   name: 'acme-auth',
@@ -33,5 +33,24 @@ describe('Condition', () => {
 
   it('rejects a condition kind that does not exist', () => {
     expectTypeOf({ unless: { plugin: 'drizzle' } }).not.toExtend<Condition>()
+  })
+})
+
+describe('Logic', () => {
+  it('computes files from the context, synchronously or not', () => {
+    const logic: Logic = async (context) => ({
+      files: [
+        { target: 'lib/name.ts', content: `export const name = '${context.project.name}'\n` },
+      ],
+      contributes: { gitignore: context.has('plugin:prettier') ? ['/cache'] : [] },
+    })
+
+    expectTypeOf(logic).toExtend<Logic>()
+  })
+
+  it('rejects a file without content', () => {
+    const logic = () => ({ files: [{ target: 'a.ts' }] })
+
+    expectTypeOf(logic).not.toExtend<Logic>()
   })
 })

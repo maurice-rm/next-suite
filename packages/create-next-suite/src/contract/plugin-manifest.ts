@@ -179,6 +179,10 @@ export const pluginManifestSchema = z
       description:
         'Contributions added only when a condition holds, such as an option for when no plugin of a category is selected.',
     }),
+    logic: z.string().min(1).optional().meta({
+      description:
+        'The logic module in the plugin folder, such as `logic.ts`: computes files and contributions from the answers. TypeScript must run by stripping types.',
+    }),
     packageManager: packageManagerSchema.optional(),
     postSteps: z.array(postStepSchema).optional().meta({
       description: 'Scripts to run after the dependencies are installed, in this order.',
