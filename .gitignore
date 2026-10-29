@@ -16,6 +16,8 @@ next-env.d.ts
 # Generated sources
 .source
 generated
+apps/docs/content/docs/options
+apps/docs/content/docs/cli.mdx
 
 # Tooling caches
 .turbo
