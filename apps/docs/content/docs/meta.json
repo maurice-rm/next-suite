@@ -1,3 +1,3 @@
 {
-  "pages": ["index", "cli", "options"]
+  "pages": ["index", "cli", "options", "plugins"]
 }

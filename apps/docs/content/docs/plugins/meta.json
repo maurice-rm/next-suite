@@ -1,0 +1,12 @@
+{
+  "title": "Plugins",
+  "pages": [
+    "index",
+    "templates",
+    "composition",
+    "logic",
+    "sources-and-trust",
+    "testing",
+    "manifest"
+  ]
+}

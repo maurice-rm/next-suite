@@ -18,6 +18,7 @@ next-env.d.ts
 generated
 apps/docs/content/docs/options
 apps/docs/content/docs/cli.mdx
+apps/docs/content/docs/plugins/manifest.mdx
 
 # Tooling caches
 .turbo

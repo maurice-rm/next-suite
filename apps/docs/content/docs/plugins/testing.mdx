@@ -1,0 +1,31 @@
+---
+title: Testing plugins
+description: Validate a plugin and test the projects it generates.
+---
+
+Check a plugin folder and its templates:
+
+```bash
+npx -p create-next-suite next-suite plugin validate ./my-plugin
+```
+
+Test the project it generates with `create-next-suite/testing`:
+
+```ts title="my-plugin.test.ts"
+import { createTestProject } from 'create-next-suite/testing'
+import { expect, test } from 'vitest'
+
+test('the project builds with my plugin', async () => {
+  const project = await createTestProject({
+    plugins: ['./my-plugin'],
+    answers: { 'my-plugin': true },
+    install: true,
+  })
+
+  expect((await project.run('build')).isSuccess).toBe(true)
+})
+```
+
+Every question you leave out takes its default; git stays off. Run the checks of the generated
+project, such as `typecheck`, `lint` and `test`, the way the CI of create-next-suite checks its own
+plugins with every package manager.

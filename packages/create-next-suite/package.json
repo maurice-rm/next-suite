@@ -37,6 +37,7 @@
   },
   "exports": {
     "./plugin": "./dist/plugin.mjs",
+    "./testing": "./dist/testing.mjs",
     "./schemas/plugin.json": "./dist/schemas/plugin.json",
     "./schemas/categories.json": "./dist/schemas/categories.json",
     "./schemas/registry.json": "./dist/schemas/registry.json",

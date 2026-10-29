@@ -1,0 +1,55 @@
+---
+title: Writing plugins
+description: How a plugin is built, loaded and shared.
+---
+
+Every choice in create-next-suite is a plugin: the package manager, the linter, the styling. Your
+own plugins work the same way. A plugin is a folder:
+
+```text
+my-plugin/
+├─ plugin.json        the manifest: what the plugin is, asks and contributes
+├─ files/             files it adds; sources ending in .hbs are templates
+└─ logic.ts           optional: computes what data cannot express
+```
+
+The smallest plugin is a manifest:
+
+```json title="plugin.json"
+{
+  "$schema": "https://unpkg.com/create-next-suite/dist/schemas/plugin.json",
+  "name": "hello",
+  "version": "1.0.0",
+  "contract": "^1.0.0",
+  "title": "Hello",
+  "description": "Adds a greeting.",
+  "files": [{ "source": "files/hello.ts.hbs", "target": "lib/hello.ts", "root": "source" }]
+}
+```
+
+Use it with `--plugin`:
+
+```bash
+npx create-next-suite my-app --plugin ./hello
+```
+
+A plugin without a `category` becomes a yes/no question, with a flag of its name (`--hello`,
+`--no-hello`). A plugin with a `category` is one of the choices of that category's question.
+Options in `options` become further questions and flags (`--hello-<option>`).
+
+## What a plugin can do
+
+- **Add files** from `files/`, as they are or rendered as [templates](./templates).
+- **Contribute** to the files several plugins share, such as `package.json` scripts, `.gitignore`,
+  `next.config.ts` or the root layout, through [composition points](./composition).
+- **Add dependencies**, from the version catalog (`catalog:<name>`) or as a semver range, and
+  conditionally with `conditionalDependencies`.
+- **Declare rules**: `requires` and `conflicts`, each with a reason the wizard shows.
+- **Run scripts after the install** with `postSteps`, such as a format run.
+- **Compute** files and contributions in a [logic module](./logic).
+
+## The contract
+
+`contract` is the range of the plugin contract the plugin works with. create-next-suite checks it
+before loading a plugin and refuses one it does not fit. The [manifest reference](./manifest) lists
+every field.
