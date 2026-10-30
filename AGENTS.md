@@ -56,37 +56,44 @@ says what next-suite does; this file says how code is written here.
   are enforced with `noRestrictedImports` overrides per directory, added in `biome.json` together
   with the directories they guard. In `packages/create-next-suite/src`:
 
-  | Directory           | Imports from                                       |
-  | ------------------- | -------------------------------------------------- |
-  | `contract/`         | no other module                                    |
-  | `ui/`               | no other module                                    |
-  | `answers/`          | `contract/`                                        |
-  | `loader/`           | `contract/`                                        |
-  | `package-manager/`  | `contract/`                                        |
-  | `post-steps/`       | `contract/`, `package-manager/`                    |
-  | `trust/`            | `contract/`, `loader/`                             |
-  | `compose/`          | `contract/`, `answers/`, `loader/`                 |
-  | `compose/template/` | `contract/`, `answers/`, `loader/`, not `compose/` |
-  | `questions/`        | `contract/`, `answers/`, `loader/`, `ui/`          |
-  | `write/`            | `contract/`, `answers/`, `loader/`, `compose/`     |
-  | `cli/`              | every module, never the package entries            |
+  | Directory           | Imports from                                                                              |
+  | ------------------- | ----------------------------------------------------------------------------------------- |
+  | `contract/`         | no other module                                                                           |
+  | `file-system/`      | no other module                                                                           |
+  | `ui/`               | `expected-error.ts`                                                                       |
+  | `answers/`          | `contract/`                                                                               |
+  | `package-manager/`  | `contract/`, the error files                                                              |
+  | `post-steps/`       | `contract/`, `package-manager/`, the error files                                          |
+  | `user-config/`      | `contract/`, `file-system/`, the error files                                              |
+  | `loader/`           | `contract/`, `file-system/`, the error files                                              |
+  | `loader/remote/`    | as `loader/`, but not the loader modules around it                                        |
+  | `trust/`            | `contract/`, `file-system/`, `loader/`, the error files                                   |
+  | `compose/`          | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                       |
+  | `compose/template/` | as `compose/`, but not `compose/` itself                                                  |
+  | `questions/`        | `contract/`, `answers/`, `loader/`, `ui/`, `file-system/`, the error files                |
+  | `write/`            | `contract/`, `answers/`, `loader/`, `compose/`, `file-system/`, the error files           |
+  | `test-support/`     | `contract/`, `answers/`, `loader/`, `questions/`, `cli/`, `file-system/`, the error files |
+  | `cli/`              | every module, never the package entries                                                   |
+
+  The error files are `expected-error.ts` and `input-error.ts` at the root of `src/`.
 - **Plugins:** a built-in plugin is one directory under
   `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` for an extra (a
-  plugin without a category), and changes no other file; a plugin that needs another file changed is missing a
-  composition point, which is a change to the core of its own. Built-in plugins import only the public plugin
-  contract (`create-next-suite/plugin`), like any external plugin.
+  plugin without a category), and changes no other file; a plugin that needs another file
+  changed is missing a composition point, which is a change to the core of its own. Built-in
+  plugins import only the public plugin contract (`create-next-suite/plugin`), like any external
+  plugin.
 - **Templates:** a plugin file whose source ends in `.hbs` is a Handlebars template; its target
-  path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript sources end in
-  `.hbs` even without placeholders, so the repository's own tools never check them as code; JSX
-  double braces in such a file are written `\{{`.
+  path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript
+  sources end in `.hbs` even without placeholders, so the repository's own tools never check them
+  as code; JSX double braces in such a file are written `\{{`.
 - **The core owns every side effect:** plugins compute, the core writes files, runs processes
   and fetches.
 
 ## Tests
 
 - A new test fails before the code that makes it pass, and the report says how it was seen red.
-- Tests sit next to the file they test: `x.test.ts` for runtime, `x.test-d.ts` for types. Tests of the built CLI live in
-  `packages/integration` and run it the way a user does.
+- Tests sit next to the file they test: `x.test.ts` for runtime, `x.test-d.ts` for types. Tests
+  of the built CLI live in `packages/integration` and run it the way a user does.
 - Snapshot changes are deliberate and land in the same commit as the output change that causes
   them.
 
