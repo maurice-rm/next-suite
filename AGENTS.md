@@ -62,7 +62,7 @@ says what next-suite does; this file says how code is written here.
   | `file-system/`       | no other module                                                                                                 |
   | `ui/`                | `expected-error.ts`                                                                                             |
   | `code-edit/`         | `expected-error.ts`                                                                                             |
-  | `project-model/`     | `code-edit/`, `expected-error.ts`                                                                               |
+  | `project-model/`     | `code-edit/`, `file-system/`, `expected-error.ts`                                                               |
   | `plugin-definition/` | `code-edit/`, `project-model/`, `expected-error.ts`                                                             |
   | `assembly/`          | `plugin-definition/`, `project-model/`, `code-edit/`, `expected-error.ts`                                       |
   | `answers/`           | `contract/`                                                                                                     |

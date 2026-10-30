@@ -87,6 +87,21 @@ describe('createProject', () => {
     )
   })
 
+  it('refuses a path that could leave the project', () => {
+    expect(() => openProject().write('../outside.ts', '', 'acme')).toThrow(
+      'acme writes to "../outside.ts", which contains the segment ".."',
+    )
+  })
+
+  it('refuses two paths that are one file on case-insensitive systems', () => {
+    const project = openProject()
+    project.write('@/app/Page.tsx', '', 'landing')
+
+    expect(() => project.print()).toThrow(
+      'base writes app/page.tsx and landing writes app/Page.tsx, one file on case-insensitive systems',
+    )
+  })
+
   it('parses a module once, so every edit works on the same text', () => {
     const project = openProject()
     project.write('@/lib/logger.ts', 'export const logger = pino({});\n', 'pino')

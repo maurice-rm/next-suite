@@ -1003,8 +1003,6 @@
                       "**/ui/**",
                       "**/cli",
                       "**/cli/**",
-                      "**/file-system",
-                      "**/file-system/**",
                       "**/test-support",
                       "**/test-support/**",
                       "**/plugin-definition",
@@ -1017,7 +1015,7 @@
                       "**/plugin.ts",
                       "**/testing.ts"
                     ],
-                    "message": "create-next-suite: project-model/ imports from code-edit/ and expected-error.ts only"
+                    "message": "create-next-suite: project-model/ imports from code-edit/, file-system/ and expected-error.ts only"
                   }
                 ]
               }
