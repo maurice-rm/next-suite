@@ -22,7 +22,6 @@ plugin.
 | `provides`, `collects` | maps by point name | the value points and collector points the plugin [provides](./points) |
 | `replaces` | string | the plugin that does not run when this one is selected; this one takes over its points |
 | `conflicts` | map of reasons | plugins that cannot be selected together with this one, each with the reason |
-| `packageManager` | object | the package manager the project runs with; only for a plugin of the `package-manager` category |
 
 Metadata are written as literals: strings, booleans, arrays and object literals, and the points
 under `uses`, `provides`, `collects` and `extend` by written-out keys, whatever their values. A
@@ -84,6 +83,7 @@ title.
 | `postSteps` | `{ script, running?, done?, when? }` | scripts that run after the install; `when` gets `{ initializesGit }` |
 | `extend` | a function per collector point | contributions to the [points](./points) of other plugins |
 | `edit` | a [file edit](./files-and-edits#edits) per project path | direct edits of files others write |
+| `packageManager` | `{ version, whenVersionDiffers, ciInstallArgs, installArgs? }` | the package manager the project runs with, named after the plugin; only for a plugin of the `package-manager` category |
 | `setup` | `(project, context) => void` | free code for what no field covers: `packageJson.setField`, `tsconfig.addPath`, `tsconfig.addInclude`, `module`, `write` |
 
 A script a next step, a post-step or CI names must exist in `package.json`.
