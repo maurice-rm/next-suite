@@ -142,13 +142,19 @@ describe('the npm dependencies of an external plugin', () => {
     await expect(readFile(join(loaded.module.directory, '.npmrc'))).rejects.toThrow()
   })
 
-  it('are installed once per content and taken from the cache afterwards', async () => {
+  it('are installed anew for every run, so a copy changed in the cache never runs', async () => {
     await writePlugin()
+    const first = await load()
+    const installedGreet = join(first.module.directory, 'node_modules/greet/index.js')
+    await writeFile(installedGreet, "export const greeting = 'tampered'\n")
 
-    await load()
-    await load()
+    const second = await load()
 
-    expect(commands).toHaveLength(1)
+    expect(second.module.directory).toBe(first.module.directory)
+    expect(await readFile(installedGreet, 'utf8')).toBe(
+      "export const greeting = 'Hello from greet'\n",
+    )
+    expect(commands).toHaveLength(2)
   })
 
   it('install from the lockfile the plugin ships, which npm checks against its integrity', async () => {

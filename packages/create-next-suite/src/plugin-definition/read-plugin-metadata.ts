@@ -3,6 +3,7 @@ import * as z from 'zod'
 
 import { CodeEditError } from '../code-edit/code-edit-error.ts'
 import { findDefaultExport, unwrapExpression } from '../code-edit/find-object.ts'
+import { CONTROL_CHARACTER } from '../contract/printable-text.ts'
 import {
   METADATA_FIELDS,
   type PluginMetadata,
@@ -21,12 +22,6 @@ const METADATA_KEYS: ReadonlySet<string> = new Set(METADATA_FIELDS)
 const POINT_KEYS: ReadonlySet<string> = new Set(POINT_FIELDS)
 /** A plugin name, also its flag: lowercase, optionally scoped, such as `mail` or `@acme/mail`. */
 const PLUGIN_NAME = /^(?:@[a-z0-9][a-z0-9-]*\/)?[a-z0-9][a-z0-9-]*$/
-
-/**
- * Control and format characters, such as escape sequences or bidi overrides: in a title or a
- * question, a terminal would run them, and could hide what the trust question says.
- */
-const CONTROL_CHARACTER = /[\p{Cc}\p{Cf}]/u
 
 const text = z.string().min(1)
 const choiceSchema = z.union([
