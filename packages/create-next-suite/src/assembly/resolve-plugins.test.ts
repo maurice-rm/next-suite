@@ -71,7 +71,7 @@ describe('resolvePlugins', () => {
       name: 'first',
       title: 'First',
       uses: { orm },
-      provides: { database: { dialect: 'sqlite' } },
+      provides: { database: { dialect: 'sqlite', urlVariable: 'DATABASE_URL' } },
     })
     const second = definePlugin({
       name: 'second',

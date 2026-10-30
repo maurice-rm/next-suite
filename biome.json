@@ -155,6 +155,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -210,13 +211,13 @@
                       "**/file-system/**",
                       "**/test-support",
                       "**/test-support/**",
-                      "**/expected-error.ts",
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -225,12 +226,10 @@
                       "**/assembly/**",
                       "**/contract",
                       "**/contract/**",
-                      "**/code-edit",
-                      "**/code-edit/**",
                       "**/project-config",
                       "**/project-config/**"
                     ],
-                    "message": "create-next-suite: points/ holds the shared points and imports no other module"
+                    "message": "create-next-suite: points/ holds the shared points and imports from code-edit/ and expected-error.ts only"
                   }
                 ]
               }
@@ -281,6 +280,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -341,6 +341,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -395,6 +396,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/assembly",
@@ -447,6 +449,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "../load-*.ts",
                       "../registry.ts",
                       "../assert-unique-names.ts",
@@ -500,6 +503,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -546,6 +550,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/package-manager",
                       "**/package-manager/**",
                       "**/project-model",
@@ -602,6 +607,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/assembly",
@@ -654,6 +660,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -717,6 +724,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -776,6 +784,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/package-manager",
                       "**/package-manager/**",
                       "**/project-model",
@@ -834,6 +843,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -888,6 +898,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/plugin-definition",
@@ -923,7 +934,8 @@
                       "**/next-suite.ts",
                       "**/config.ts",
                       "**/plugin.ts",
-                      "**/testing.ts"
+                      "**/testing.ts",
+                      "**/points.ts"
                     ],
                     "message": "create-next-suite: cli/ never imports the package entries"
                   }
@@ -962,6 +974,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-model",
                       "**/project-model/**",
                       "**/assembly",
@@ -1025,6 +1038,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/points",
                       "**/points/**",
                       "**/project-config",
@@ -1080,6 +1094,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-config",
                       "**/project-config/**"
                     ],
@@ -1133,6 +1148,7 @@
                       "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
+                      "**/points.ts",
                       "**/project-config",
                       "**/project-config/**"
                     ],
@@ -1182,7 +1198,8 @@
                       "**/next-suite.ts",
                       "**/config.ts",
                       "**/plugin.ts",
-                      "**/testing.ts"
+                      "**/testing.ts",
+                      "**/points.ts"
                     ],
                     "message": "create-next-suite: project-config/ imports from contract/, file-system/, plugin-definition/, answers/, project-model/, loader/ and the error classes only"
                   }

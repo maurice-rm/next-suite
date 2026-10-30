@@ -21,6 +21,22 @@ const PLUGIN_NAMES = [
   'ValuePoints',
   'CollectorPoints',
 ]
+/** The shared points a plugin uses, provides and contributes to without naming another plugin. */
+const POINTS_NAMES = [
+  'database',
+  'orm',
+  'validatedEnv',
+  'databaseSchema',
+  'container',
+  'health',
+  'readFromValidatedEnv',
+  'Database',
+  'Orm',
+  'ValidatedEnv',
+  'DatabaseSchema',
+  'Container',
+  'HealthChecks',
+]
 /** What a project's next-suite.config.ts writes against. */
 const CONFIG_NAMES = ['defineSuiteConfig', 'definePlugin', 'PluginRegistry', 'SuiteConfig']
 
@@ -47,6 +63,12 @@ describe('the published types', () => {
   it('export definePlugin, the points and the types of a plugin', async () => {
     expect(exportedNames(await readDeclarations('plugin.d.mts'))).toEqual(
       expect.arrayContaining(PLUGIN_NAMES),
+    )
+  })
+
+  it('export the shared points, their values and collectors', async () => {
+    expect(exportedNames(await readDeclarations('points.d.mts'))).toEqual(
+      expect.arrayContaining(POINTS_NAMES),
     )
   })
 

@@ -5,14 +5,15 @@ import { createJiti } from 'jiti'
 import * as z from 'zod'
 
 import { parseWith } from '../file-system/read-json-file.ts'
-import { createPluginModule, type LoadedPluginModule } from '../loader/load-plugin-module.ts'
+import {
+  contractAliases,
+  createPluginModule,
+  type LoadedPluginModule,
+} from '../loader/load-plugin-module.ts'
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import { ProjectConfigError } from './project-config-error.ts'
 import { CONFIG_MODULE } from './project-paths.ts'
 import type { SuiteConfig } from './suite-config.ts'
-
-/** The module plugins import `definePlugin` from. */
-const PLUGIN_CONTRACT = 'create-next-suite/plugin'
 
 /** A plugin defined in place: what `definePlugin` returns, its fields run as given. */
 const inlinePluginSchema = z.looseObject({
@@ -60,7 +61,7 @@ const run = async (path: string, { configEntry, pluginEntry }: Entries): Promise
   const jiti = createJiti(import.meta.url, {
     fsCache: false,
     moduleCache: false,
-    alias: { [CONFIG_MODULE]: configEntry, [PLUGIN_CONTRACT]: pluginEntry },
+    alias: { [CONFIG_MODULE]: configEntry, ...contractAliases(pluginEntry) },
   })
   try {
     return await jiti.import(path, { default: true })

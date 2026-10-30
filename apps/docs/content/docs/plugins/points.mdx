@@ -92,7 +92,68 @@ answers `false` then.
 
 ## Shared points
 
-create-next-suite defines three collector points and exports their collectors:
+A point that several plugins could provide cannot live in one of them: an ORM plugin for Drizzle
+and one for Prisma both state `orm`. create-next-suite defines these contracts in
+`create-next-suite/points`, so a plugin depends on the contract instead of another plugin:
+
+| Point | Kind | What flows | Provider |
+| --- | --- | --- | --- |
+| `database` | value | `dialect` (`postgresql` or `sqlite`) and `urlVariable`, the environment variable holding the URL, such as `DATABASE_URL` | a database plugin |
+| `orm` | value | `kind` (`drizzle` or `prisma`), the `dialect` of its database and `client`, the import of its client such as `{ name: 'db', from: '@/db' }` | an ORM plugin |
+| `validatedEnv` | value | `import`, the module of the validated variables such as `{ name: 'env', from: '@/env' }`, and `reference(name)`, the code that reads one, such as `env.LOG_LEVEL` | the plugin that validates environment variables, such as t3-env |
+| `databaseSchema` | collector | modules of tables, each under a name, in the language of the ORM: `add(name, code)`; `createDatabaseSchema` | an ORM plugin |
+| `container` | collector | `buildArg(name)` for `next build` in the image, `env(name, value)` for the app's container, `service(name, service)` for a Compose service beside it; `createContainer` | a container plugin |
+| `health` | collector | `check(name, run)`: a function the health route runs, which throws while what it checks is down; `createHealthChecks` | a health plugin |
+
+```ts
+import { definePlugin } from 'create-next-suite/plugin'
+import { database } from 'create-next-suite/points'
+
+export default definePlugin({
+  name: 'postgres',
+  title: 'PostgreSQL',
+  env: { DATABASE_URL: { scope: 'server', description: 'The URL of the PostgreSQL database.' } },
+  provides: { database: { dialect: 'postgresql', urlVariable: 'DATABASE_URL' } },
+  extend: {
+    container: (container) =>
+      container.service('db', {
+        image: 'postgres:18-alpine',
+        environment: { POSTGRES_PASSWORD: 'postgres' },
+      }),
+  },
+})
+```
+
+A contribution that contradicts an earlier one, such as another module under a name the database
+schema has already, stops the run with a `PointError` naming the plugin; the same contribution
+twice is kept once.
+
+### Reading validated variables
+
+Code reads an environment variable from `process.env`. When a plugin validates the variables,
+code should read them from its module instead, which has them parsed and with their defaults.
+`readFromValidatedEnv` does that in a file edit: the file reads `process.env` as written, and with
+a provider of `validatedEnv` it imports the validated variables and each named top-level variable
+reads its environment variable from there:
+
+```ts
+uses: { validatedEnv: optional(validatedEnv) },
+env: { LOG_LEVEL: { scope: 'server', default: 'info' } },
+files: {
+  '@/lib/logger.ts': {
+    source: 'files/lib/logger.ts', // const level = process.env.LOG_LEVEL ?? "info";
+    edit: (logger, { validatedEnv }) =>
+      readFromValidatedEnv(logger, validatedEnv, { level: 'LOG_LEVEL' }), // const level = env.LOG_LEVEL;
+  },
+},
+```
+
+The point is named `validatedEnv`, not `env`, since `env` in a context is the list of every
+environment variable.
+
+### Points of the core
+
+Three more shared points come with `create-next-suite/plugin`, their collectors too:
 
 | Point | Provider | Collector |
 | --- | --- | --- |
@@ -102,3 +163,7 @@ create-next-suite defines three collector points and exports their collectors:
 
 The built-in plugins define further points, such as `lintStaged`, `prettierPlugins`, `knip`, `csp`,
 `logRedact`, `testSetup` and `agents`.
+
+Elements at the end of `<body>` and the code `instrumentation-client.ts` loads need no point: the
+core owns those files, and every plugin adds to them through `layout.appendToBody` and
+`instrumentation.client`.

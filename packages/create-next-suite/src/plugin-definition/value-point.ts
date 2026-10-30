@@ -1,3 +1,7 @@
+import type { Database } from '../points/database.ts'
+import type { Orm } from '../points/orm.ts'
+import type { ValidatedEnv } from '../points/validated-env.ts'
+
 /**
  * The value points by name, each with the type of the value its provider states. A point module
  * adds its entry by module augmentation.
@@ -11,8 +15,14 @@
  * }
  * ```
  */
-// biome-ignore lint/suspicious/noEmptyInterface: point modules fill it by module augmentation
-export interface ValuePoints {}
+export interface ValuePoints {
+  /** The selected database: its dialect and the variable holding its URL; a database plugin provides it. */
+  database: Database
+  /** The selected ORM: which one, its dialect and its client; an ORM plugin provides it. */
+  orm: Orm
+  /** How code reads a validated environment variable; the plugin that validates them provides it. */
+  validatedEnv: ValidatedEnv
+}
 
 export type ValuePointName = keyof ValuePoints
 

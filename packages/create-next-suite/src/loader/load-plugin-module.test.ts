@@ -41,6 +41,21 @@ describe('loadPluginModule', () => {
     expect(loaded.readFile('files/acme.txt')).toBe('acme\n')
   })
 
+  it('resolves create-next-suite/points to the entry beside the plugin entry', async () => {
+    await writeFiles(root, {
+      'blog/plugin.ts': [
+        "import { definePlugin } from 'create-next-suite/plugin'",
+        "import { orm } from 'create-next-suite/points'",
+        "export default definePlugin({ name: 'blog', title: 'Blog', uses: { orm } })",
+        '',
+      ].join('\n'),
+    })
+
+    const loaded = await load('blog')
+
+    expect(loaded.plugin.uses).toEqual({ orm: { kind: 'value', name: 'orm' } })
+  })
+
   it('refuses a directory without plugin.ts', async () => {
     await writeFiles(root, { 'acme/README.md': '' })
 

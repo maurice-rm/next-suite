@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, it } from 'vitest'
 
 import type { TypescriptModule } from '../code-edit/typescript-module.ts'
+import type { Database } from '../points/database.ts'
 import {
   type CspSources,
   csp,
@@ -43,7 +44,7 @@ describe('the context of a plugin', () => {
       uses: { csp, database: optional(database), maybeCsp: optional(csp) },
       env: ({ csp, database, maybeCsp }) => {
         expectTypeOf(csp).toEqualTypeOf<true>()
-        expectTypeOf(database).toEqualTypeOf<{ dialect: Dialect } | undefined>()
+        expectTypeOf(database).toEqualTypeOf<Database | undefined>()
         expectTypeOf(maybeCsp).toEqualTypeOf<true | undefined>()
         return {}
       },

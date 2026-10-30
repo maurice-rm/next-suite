@@ -1,5 +1,8 @@
 import type { BuiltDependencies } from '../points/built-dependencies.ts'
 import type { CiChecks } from '../points/ci-checks.ts'
+import type { Container } from '../points/container.ts'
+import type { DatabaseSchema } from '../points/database-schema.ts'
+import type { HealthChecks } from '../points/health-checks.ts'
 import type { LintIgnores } from '../points/lint-ignores.ts'
 
 /**
@@ -25,6 +28,12 @@ export interface CollectorPoints {
   lintIgnores: LintIgnores
   /** The scripts CI runs; the selected CI plugin provides it. */
   ciChecks: CiChecks
+  /** The tables of the database; the selected ORM plugin provides it. */
+  databaseSchema: DatabaseSchema
+  /** Build arguments, variables and services of the app's container; a container plugin provides it. */
+  container: Container
+  /** The checks the health route runs; a health plugin provides it. */
+  health: HealthChecks
 }
 
 export type CollectorPointName = keyof CollectorPoints
