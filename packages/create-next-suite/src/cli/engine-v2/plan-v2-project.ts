@@ -2,6 +2,7 @@ import type { Answers, AnswerValue } from '../../answers/answers.ts'
 import { optionsOf } from '../../answers/plugin-options.ts'
 import { assembleProject } from '../../assembly/assemble-project.ts'
 import type { PluginAnswers } from '../../assembly/resolve-answers.ts'
+import type { RunSteps } from '../../assembly/run-steps.ts'
 import type { ProjectPlan } from '../../compose/compose-project.ts'
 import { createProjectManifest, PROJECT_MANIFEST_FILE } from '../../compose/project-manifest.ts'
 import { importAliasOf, usesSourceDirectory } from '../../compose/project-values.ts'
@@ -9,6 +10,7 @@ import { InputError } from '../../input-error.ts'
 import type { LoadedPluginModule } from '../../loader/load-plugin-module.ts'
 import { CATEGORIES } from '../../plugin-definition/categories.ts'
 import { CORE_OWNER, createProject, PROJECT_FILES } from '../../project-model/project.ts'
+import { GIT_SETTING } from '../../questions/run-settings.ts'
 import { BUILT_IN_PLUGIN_VERSION } from './built-in-plugin-version.ts'
 import type { EngineV2Assets } from './engine-v2-assets.ts'
 import { ENGINE_VARIABLE } from './select-engine.ts'
@@ -76,6 +78,22 @@ const originOf = (path: string, owner: string): string =>
     ? CORE_ORIGIN
     : owner
 
+/** The base project's stack first and its next steps last, as the manifest engine lists them. */
+const summaryOf = (runSteps: RunSteps): ProjectPlan['summary'] => ({
+  stack: [...new Set([...BASE_SUMMARY.stack, ...runSteps.stack])],
+  nextSteps: [...runSteps.nextSteps, ...BASE_SUMMARY.nextSteps].filter(
+    (step, index, steps) =>
+      steps.findIndex((other) => JSON.stringify(other) === JSON.stringify(step)) === index,
+  ),
+})
+
+const postStepsOf = (runSteps: RunSteps, answers: Answers): ProjectPlan['postSteps'] => {
+  const run = { initializesGit: answers.settings[GIT_SETTING] === true }
+  return runSteps.postSteps
+    .filter((step) => step.runsFor(run))
+    .map(({ script, running, done }) => ({ script, running, done }))
+}
+
 const dependenciesOf = (files: ReadonlyMap<string, string>): Required<PackageJsonDependencies> => {
   const packageJson: PackageJsonDependencies = JSON.parse(
     files.get(PROJECT_FILES.packageJson) ?? '{}',
@@ -117,7 +135,7 @@ export const planV2Project = (input: PlanInput): ProjectPlan => {
     }),
     CORE_ORIGIN,
   )
-  const { files, owners } = assembleProject({
+  const { files, owners, runSteps } = assembleProject({
     project,
     plugins,
     categoryOrder: CATEGORIES.map(({ id }) => id),
@@ -141,7 +159,7 @@ export const planV2Project = (input: PlanInput): ProjectPlan => {
     packageManager: packageManager?.name,
     projectPackageManager: packageManager?.name ?? FALLBACK_PACKAGE_MANAGER,
     installArgs: [...(packageManager?.packageManager?.installArgs ?? DEFAULT_INSTALL_ARGS)],
-    postSteps: [],
-    summary: BASE_SUMMARY,
+    postSteps: postStepsOf(runSteps, answers),
+    summary: summaryOf(runSteps),
   }
 }

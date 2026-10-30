@@ -1,6 +1,7 @@
 import type { ChildrenWrapper } from '../code-edit/order-wrappers.ts'
 import type { TypescriptModule } from '../code-edit/typescript-module.ts'
 import { ExpectedError } from '../expected-error.ts'
+import type { NextStep } from '../plugin-definition/next-step.ts'
 import type {
   AnyContext,
   AnyFinishContext,
@@ -12,12 +13,14 @@ import type {
   NextConfigContribution,
 } from '../plugin-definition/plugin-definition.ts'
 import type { PluginProject } from '../plugin-definition/plugin-project.ts'
+import type { PostStep } from '../plugin-definition/post-step.ts'
 import { pointOf } from '../plugin-definition/used-point.ts'
 import { PROJECT_FILES, type Project } from '../project-model/project.ts'
 import type { OperationKind } from '../project-model/provenance.ts'
 import { AssemblyError } from './assembly-error.ts'
 import type { LoadedPlugin } from './loaded-plugin.ts'
 import { type PluginAnswers, resolveAnswers } from './resolve-answers.ts'
+import type { PluginRunSteps } from './run-steps.ts'
 
 /** The points of one assembly: who provides each, the values stated and the collectors created. */
 export type PointState = {
@@ -48,6 +51,8 @@ export type PluginRun = {
   finishCollectors: () => void
   /** Phase 5: direct edits of files others write. */
   editOtherFiles: () => void
+  /** The plugin's stack, next steps and post-steps, read while it collects. */
+  runSteps: () => PluginRunSteps
 }
 
 /** A field's value: the value itself, or what its function returns for the context. */
@@ -82,6 +87,7 @@ export const createPluginRun = (
   const ownEdits: [string, FileEdit<AnyFinishContext>][] = []
   let context: AnyContext | undefined
   let wrapper: ChildrenWrapper | undefined
+  let runSteps: PluginRunSteps = { plugin: name, stack: [], nextSteps: [], postSteps: [] }
 
   const record = (path: string, operation: string, kind: OperationKind): void => {
     project.provenance.record({
@@ -321,6 +327,15 @@ export const createPluginRun = (
     },
   })
 
+  const readRunSteps = (): void => {
+    runSteps = {
+      plugin: name,
+      stack: fieldValue<readonly string[]>('stack', plugin.stack) ?? [],
+      nextSteps: fieldValue<readonly NextStep[]>('nextSteps', plugin.nextSteps) ?? [],
+      postSteps: fieldValue<readonly PostStep[]>('postSteps', plugin.postSteps) ?? [],
+    }
+  }
+
   const provide = (): void => {
     for (const [point, value] of entriesOf<unknown>(plugin.provides)) {
       points.values.set(
@@ -344,6 +359,7 @@ export const createPluginRun = (
       copyFiles()
       applyLayout()
       applyNextConfig()
+      readRunSteps()
       const { setup } = plugin
       if (setup !== undefined) {
         inStep(name, 'setup', () => setup(setupProject(), contextOf()))
@@ -351,6 +367,8 @@ export const createPluginRun = (
     },
 
     layoutWrapper: () => wrapper,
+
+    runSteps: () => runSteps,
 
     extend: () => {
       for (const [point, contribute] of entriesOf<

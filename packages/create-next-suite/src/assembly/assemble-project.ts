@@ -5,6 +5,7 @@ import type { LoadedPlugin } from './loaded-plugin.ts'
 import { createPluginRun, type PluginRun, type PointState } from './plugin-run.ts'
 import type { PluginAnswers } from './resolve-answers.ts'
 import { resolvePlugins } from './resolve-plugins.ts'
+import { collectRunSteps, type RunSteps } from './run-steps.ts'
 
 export type AssemblyInput = {
   /** The project over the base files, with its settings. */
@@ -26,15 +27,18 @@ export type AssembledProject = {
   owners: Map<string, string>
   /** Which plugin did what to which file and point. */
   provenance: ProvenanceLog
+  /** What the plugins state for the end of the run: stack, next steps and post-steps. */
+  runSteps: RunSteps
 }
 
 /**
  * Assembles the project from the selected plugins. The plugins are resolved first (replacements,
  * conflicts, providers, order) and the base settings applied; then every phase runs for all plugins in order before the next
- * one: collect, extend, own file edits, finishing the collector points, direct edits. The project
- * is printed last.
+ * one: collect, extend, own file edits, finishing the collector points, direct edits. The scripts
+ * the plugins' next steps and post-steps name are checked, and the project is printed last.
  *
- * @throws AssemblyError when the plugins cannot run together or a plugin's step fails.
+ * @throws AssemblyError when the plugins cannot run together, a plugin's step fails, or a next
+ * step or post-step names a script the project lacks.
  * @throws ProjectError when the project cannot take a change, such as a second owner of a file.
  */
 export const assembleProject = ({
@@ -78,9 +82,13 @@ export const assembleProject = ({
   runPhase((run) => run.finishCollectors())
   runPhase((run) => run.editOtherFiles())
 
+  const runSteps = collectRunSteps(
+    runs.map((run) => run.runSteps()),
+    () => project.packageJson().scripts(),
+  )
   const files = project.print()
   const owners = new Map(
     [...files.keys()].map((path) => [path, project.ownerOf(path) ?? CORE_OWNER]),
   )
-  return { files, owners, provenance: project.provenance.toJson() }
+  return { files, owners, provenance: project.provenance.toJson(), runSteps }
 }
