@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -10,19 +10,6 @@ let root: string
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'next-suite-testing-'))
-  await mkdir(join(root, 'greet'))
-  await writeFile(
-    join(root, 'greet/plugin.json'),
-    JSON.stringify({
-      name: 'greet',
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: 'Greet',
-      description: 'Greets.',
-      files: [{ source: 'greet.txt', target: 'greet.txt' }],
-    }),
-  )
-  await writeFile(join(root, 'greet/greet.txt'), 'hello\n')
 })
 
 afterEach(async () => {
@@ -30,20 +17,20 @@ afterEach(async () => {
 })
 
 describe('createTestProject', () => {
-  it('generates a project with the plugin under test and its answers', async () => {
+  it('generates a project with the answers given and the defaults for the rest', async () => {
     const project = await createTestProject({
-      plugins: [join(root, 'greet')],
-      answers: { greet: true },
+      plugins: [],
+      answers: { linter: 'biome' },
       parent: root,
     })
 
-    expect(await readFile(join(project.directory, 'greet.txt'), 'utf8')).toBe('hello\n')
+    expect(await readFile(join(project.directory, 'biome.json'), 'utf8')).toContain('"$schema"')
     expect(project.output).toContain('test-app is ready')
   })
 
-  it('names the reason when the project cannot be generated', async () => {
-    await expect(
-      createTestProject({ plugins: [join(root, 'missing')], parent: root }),
-    ).rejects.toThrow('could not generate the test project')
+  it('names the reason when the project cannot be generated, such as a plugin address', async () => {
+    await expect(createTestProject({ plugins: ['./greet'], parent: root })).rejects.toThrow(
+      /could not generate the test project:\n.*--plugin cannot be used/,
+    )
   })
 })

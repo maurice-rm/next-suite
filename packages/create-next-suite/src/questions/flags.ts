@@ -1,12 +1,10 @@
-import { InvalidArgumentError, Option } from 'commander'
+import { Option } from 'commander'
 
 import type { AnswerInput } from '../answers/answers.ts'
-import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from '../input-error.ts'
 import type { CategoryQuestion, Question } from './build-questions.ts'
-import { isNumberText } from './value-guards.ts'
+import type { QuestionOption } from './question-option.ts'
 
-const NOT_A_NUMBER = 'not a number'
 /** The help group of extras that name no section. */
 const EXTRAS_SECTION = 'Extras'
 
@@ -24,13 +22,6 @@ const splitList = (value: string): string[] =>
     .map((item) => item.trim())
     .filter((item) => item !== '')
 
-const parseNumber = (value: string): number => {
-  if (!isNumberText(value)) {
-    throw new InvalidArgumentError(NOT_A_NUMBER)
-  }
-  return Number(value)
-}
-
 const flagNameOf = (question: Question): string => {
   if (question.kind !== 'option') {
     return question.key
@@ -39,7 +30,7 @@ const flagNameOf = (question: Question): string => {
 }
 
 /** The description of an option, or a statement naming it: "turn on" it for a boolean. */
-const optionDescriptionOf = (option: PluginOption, name: string): string => {
+const optionDescriptionOf = (option: QuestionOption, name: string): string => {
   if (option.description !== undefined) {
     return option.description
   }
@@ -70,14 +61,12 @@ const negatedOption = (name: string): Option => new Option(`--no-${name}`, `turn
 const quotedChoices = (choices: readonly string[]): string =>
   choices.map((choice) => `"${choice}"`).join(', ')
 
-const valueOptions = (name: string, description: string, option: PluginOption): Option[] => {
+const valueOptions = (name: string, description: string, option: QuestionOption): Option[] => {
   switch (option.type) {
     case 'boolean':
       return [new Option(`--${name}`, description), negatedOption(name)]
     case 'string':
       return [new Option(`--${name} <value>`, description)]
-    case 'number':
-      return [new Option(`--${name} <number>`, description).argParser(parseNumber)]
     case 'select':
       return [
         new Option(`--${name} <value>`, description).choices(

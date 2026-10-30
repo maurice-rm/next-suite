@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { collectOutput } from '../test-support/collect-output.ts'
 import { readJson } from '../test-support/read-json.ts'
 import { stubRemote } from '../test-support/stub-remote.ts'
-import { testManifestJson } from '../test-support/test-manifest.ts'
 import { writeFiles } from '../test-support/write-files.ts'
 import { runNextSuite } from './run-next-suite.ts'
 
@@ -38,7 +37,6 @@ beforeEach(async () => {
       name: '@acme',
       plugins: [{ name: 'mail', path: 'mail', description: 'Sends mail.' }],
     }),
-    'registry/mail/plugin.json': testManifestJson('mail'),
   })
 })
 
@@ -91,23 +89,12 @@ describe('next-suite trust', () => {
 })
 
 describe('next-suite plugin validate', () => {
-  it('accepts a valid plugin and names the problem of an invalid template', async () => {
-    await writeFiles(root, {
-      'good/plugin.json': testManifestJson('good', {
-        files: [{ source: 'a.ts.hbs', target: 'a.ts' }],
-      }),
-      'good/a.ts.hbs': 'export const name = "{{project.name}}"\n',
-      'bad/plugin.json': testManifestJson('bad', {
-        files: [{ source: 'a.ts.hbs', target: 'a.ts' }],
-      }),
-      'bad/a.ts.hbs': '{{#with project}}{{name}}{{/with}}\n',
-    })
+  it('says that it cannot check plugins in this version', async () => {
+    const result = await run(['plugin', 'validate', './mail'])
 
-    expect((await run(['plugin', 'validate', './good'])).output).toBe(
-      'good 1.0.0 is a valid plugin\n',
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain(
+      'next-suite: plugin validate cannot be used: plugins from outside create-next-suite are moving to the plugin.ts form',
     )
-    const bad = await run(['plugin', 'validate', './bad'])
-    expect(bad.exitCode).toBe(1)
-    expect(bad.error).toContain('with')
   })
 })

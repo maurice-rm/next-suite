@@ -1,11 +1,11 @@
 import type { AnswerInput, Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
-import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { InputError } from '../input-error.ts'
+import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import { renderFramed } from '../ui/frame.ts'
 import type { Streams } from '../ui/prompts.ts'
 import type { Question, SettingScope } from './build-questions.ts'
-import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
+import { assertCompatible, findConflicts } from './find-incompatibilities.ts'
 import { resolveAnswers } from './resolve-answers.ts'
 import { type AskContext, createAsk } from './wizard/create-ask.ts'
 import { runWizard, type TargetInput } from './wizard/run-wizard.ts'
@@ -22,7 +22,7 @@ type AnswerMode =
 /** Where the answers of a run come from and how open questions are answered. */
 export type AnswerSources = TargetInput & {
   questions: readonly Question[]
-  plugins: readonly ParsedPluginManifest[]
+  plugins: readonly Plugin[]
   input: AnswerInput
   flagKeys: ReadonlySet<string>
   mode: AnswerMode
@@ -85,7 +85,7 @@ const askInWizard = async (
     action: sources.action,
     hasExistingFiles: sources.hasExistingFiles,
     ask: createAsk(streams, context),
-    findProblems: (answers) => findIncompatibilities(plugins, answers),
+    findProblems: (answers) => findConflicts(plugins, answers),
     showProblems: (problems) =>
       streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
   })
@@ -137,7 +137,7 @@ const resolveFromInput = (
       `answers are missing; pass them as flags or in --answers, or use --yes:\n${listMissing(resolution.missing)}`,
     )
   }
-  assertCompatible(findIncompatibilities(plugins, resolution.answers))
+  assertCompatible(findConflicts(plugins, resolution.answers))
   return { answers: resolution.answers, directory, action }
 }
 

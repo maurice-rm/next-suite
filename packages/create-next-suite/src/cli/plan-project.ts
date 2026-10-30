@@ -1,26 +1,30 @@
-import type { Answers, AnswerValue } from '../../answers/answers.ts'
-import { optionsOf } from '../../answers/plugin-options.ts'
-import { assembleProject } from '../../assembly/assemble-project.ts'
-import type { PluginAnswers } from '../../assembly/resolve-answers.ts'
-import type { RunSteps } from '../../assembly/run-steps.ts'
-import type { ProjectPlan } from '../../compose/compose-project.ts'
-import { createProjectManifest, PROJECT_MANIFEST_FILE } from '../../compose/project-manifest.ts'
-import { importAliasOf, usesSourceDirectory } from '../../compose/project-values.ts'
-import { InputError } from '../../input-error.ts'
-import type { LoadedPluginModule } from '../../loader/load-plugin-module.ts'
-import { CATEGORIES } from '../../plugin-definition/categories.ts'
-import { CORE_OWNER, createProject, PROJECT_FILES } from '../../project-model/project.ts'
-import { GIT_SETTING } from '../../questions/run-settings.ts'
-import { BUILT_IN_PLUGIN_VERSION } from './built-in-plugin-version.ts'
-import type { EngineV2Assets } from './engine-v2-assets.ts'
-import { ENGINE_VARIABLE } from './select-engine.ts'
+import type { Answers, AnswerValue } from '../answers/answers.ts'
+import { optionsOf } from '../answers/plugin-options.ts'
+import { assembleProject } from '../assembly/assemble-project.ts'
+import type { PluginAnswers } from '../assembly/resolve-answers.ts'
+import type { RunSteps } from '../assembly/run-steps.ts'
+import { InputError } from '../input-error.ts'
+import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
+import { CATEGORIES } from '../plugin-definition/categories.ts'
+import { CORE_OWNER, createProject, PROJECT_FILES } from '../project-model/project.ts'
+import { GIT_SETTING } from '../questions/run-settings.ts'
+import type { BuiltInAssets } from './built-in-assets.ts'
+import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
+import type { ProjectPlan } from './project-plan.ts'
 
-/** How the plan names the core, as the manifest engine does. */
+/** How the plan names the core. */
 const CORE_ORIGIN = 'create-next-suite'
 const BASE_OWNER = 'base'
 const BUILT_IN_SOURCE = 'builtin'
+/** The version next-suite.json records for a built-in plugin. */
+const BUILT_IN_PLUGIN_VERSION = '1.0.0'
+const SRC_DIR_SETTING = 'src-dir'
+const IMPORT_ALIAS_SETTING = 'import-alias'
 const REACT_COMPILER_SETTING = 'react-compiler'
 const CACHE_COMPONENTS_SETTING = 'cache-components'
+const DEFAULT_IMPORT_ALIAS = '@/*'
+/** An alias such as `@/*` or `~/*`: no spaces or quotes, ending in `/*` like create-next-app. */
+const IMPORT_ALIAS = /^[^\s"'\\]+\/\*$/
 const DEFAULT_INSTALL_ARGS = ['install']
 /** What the end of a run shows for the base project. */
 const BASE_SUMMARY: ProjectPlan['summary'] = {
@@ -29,7 +33,7 @@ const BASE_SUMMARY: ProjectPlan['summary'] = {
 }
 
 type PlanInput = {
-  assets: EngineV2Assets
+  assets: BuiltInAssets
   projectName: string
   answers: Answers
   /** The answers as next-suite.json records them. */
@@ -43,21 +47,30 @@ type PackageJsonDependencies = {
   devDependencies?: Record<string, string>
 }
 
+/**
+ * The import alias the answers set, such as `@/*`.
+ *
+ * @throws InputError for an alias that does not end in `/*` or holds spaces or quotes.
+ */
+const importAliasOf = (answers: Answers): string => {
+  const alias = answers.settings[IMPORT_ALIAS_SETTING]
+  const importAlias = typeof alias === 'string' ? alias : DEFAULT_IMPORT_ALIAS
+  if (!IMPORT_ALIAS.test(importAlias)) {
+    throw new InputError(
+      `the import alias "${importAlias}" is invalid; use a pattern such as "@/*" or "~/*"`,
+    )
+  }
+  return importAlias
+}
+
+/** The selected built-in plugins, in the order the answers name them. */
 const selectPlugins = ({
   assets,
   answers,
 }: Pick<PlanInput, 'assets' | 'answers'>): LoadedPluginModule[] =>
-  answers.plugins.map(({ name }) => {
-    const loaded = assets.plugins.find(({ plugin }) => plugin.name === name)
-    if (loaded === undefined) {
-      throw new InputError(
-        `${name} comes from --plugin, which ${ENGINE_VARIABLE}=v2 does not run yet; unset ${ENGINE_VARIABLE} to use it`,
-      )
-    }
-    return loaded
-  })
+  answers.plugins.flatMap(({ name }) => assets.plugins.filter(({ plugin }) => plugin.name === name))
 
-/** The answers to a plugin's options; the questions of a `plugin.ts` option never take a number. */
+/** The answers to a plugin's options; a question of a plugin's option never takes a number. */
 const pluginAnswersOf = (name: string, answers: Answers): PluginAnswers =>
   Object.fromEntries(
     Object.entries(optionsOf(name, answers)).flatMap(([key, value]: [string, AnswerValue]) =>
@@ -70,13 +83,13 @@ const answersOf = (plugins: readonly LoadedPluginModule[], answers: Answers) =>
     plugins.map(({ plugin }) => [plugin.name, pluginAnswersOf(plugin.name, answers)]),
   )
 
-/** The plan names the core for package.json, as the manifest engine, which writes it. */
+/** The plan names the core for package.json, which it writes from the base project's. */
 const originOf = (path: string, owner: string): string =>
   owner === CORE_OWNER || (owner === BASE_OWNER && path === PROJECT_FILES.packageJson)
     ? CORE_ORIGIN
     : owner
 
-/** The base project's stack first and its next steps last, as the manifest engine lists them. */
+/** The base project's stack first and its next steps last. */
 const summaryOf = (runSteps: RunSteps): ProjectPlan['summary'] => ({
   stack: [...new Set([...BASE_SUMMARY.stack, ...runSteps.stack])],
   nextSteps: [...runSteps.nextSteps, ...BASE_SUMMARY.nextSteps].filter(
@@ -103,18 +116,15 @@ const dependenciesOf = (files: ReadonlyMap<string, string>): Required<PackageJso
 }
 
 /**
- * Plans a project with the engine of plugins written as `plugin.ts`: the base project as real
- * files, the base settings and the selected plugins, assembled in memory, with next-suite.json.
- * The plan has the form the manifest engine gives it, so writing and the steps after it stay the
- * same.
+ * Plans a project: the base project as real files, the base settings and the selected plugins,
+ * assembled in memory, with next-suite.json. Nothing is written.
  *
- * @throws InputError when a selected plugin is none of the built-in plugins, such as one from
- * `--plugin`.
+ * @throws InputError for an invalid import alias.
  */
-export const planV2Project = (input: PlanInput): ProjectPlan => {
+export const planProject = (input: PlanInput): ProjectPlan => {
   const { assets, answers, projectName } = input
   const plugins = selectPlugins(input)
-  const isSrcDirectory = usesSourceDirectory(answers)
+  const isSrcDirectory = answers.settings[SRC_DIR_SETTING] === true
   const importAlias = importAliasOf(answers)
   const project = createProject({
     files: assets.baseFiles,

@@ -7,8 +7,7 @@ const SCENARIO_EXTENSION = '.json'
 
 /**
  * The scenarios whose snapshots are frozen with every package manager; every other scenario has a
- * snapshot with the snapshot package manager only. The engine of plugins written as plugin.ts is
- * held to all of them byte for byte.
+ * snapshot with the snapshot package manager only.
  */
 export const FROZEN_SCENARIOS = ['bare', 'tooling', 'biome-tooling']
 

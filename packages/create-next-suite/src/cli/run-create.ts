@@ -4,21 +4,14 @@ import type { Writable } from 'node:stream'
 import { CommanderError } from 'commander'
 import type { Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
-import { composeProject, type ProjectPlan } from '../compose/compose-project.ts'
-import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { InputError } from '../input-error.ts'
-import { assertUniqueNames } from '../loader/assert-unique-names.ts'
-import type { Assets } from '../loader/load-assets.ts'
-import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
-import { loadLogic } from '../loader/load-logic.ts'
-import { type LoadedPlugin, namedPlugin } from '../loader/load-plugin.ts'
-import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
 import {
   detectPackageManager,
   findUsablePackageManager,
 } from '../package-manager/detect-package-manager.ts'
 import { preferPackageManager } from '../package-manager/prefer-package-manager.ts'
 import { CATEGORIES } from '../plugin-definition/categories.ts'
+import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
@@ -30,10 +23,10 @@ import { recordAnswers } from '../questions/record-answers.ts'
 import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
 import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
 import type { Streams } from '../ui/prompts.ts'
-import { readUserConfig } from '../user-config/user-config.ts'
 import { findEmptyingProblem } from '../write/empty-target.ts'
 import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
 import { writeProject } from '../write/write-project.ts'
+import type { BuiltInAssets } from './built-in-assets.ts'
 import {
   type GivenAnswers,
   type Invocation,
@@ -44,15 +37,12 @@ import {
   targetActionOf,
 } from './command-line.ts'
 import { CREATE_COMMAND } from './command-name.ts'
-import { confirmTrust } from './confirm-trust.ts'
 import { describeError } from './describe-error.ts'
 import { describePlan, diffPlan } from './describe-plan.ts'
-import type { EngineV2Assets } from './engine-v2/engine-v2-assets.ts'
-import { planV2Project } from './engine-v2/plan-v2-project.ts'
-import { questionPlugins } from './engine-v2/question-plugins.ts'
-import { ENGINE_VARIABLE, selectEngine } from './engine-v2/select-engine.ts'
 import { EXIT_CANCELLED, EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
+import { refuseExternalPlugins } from './external-plugins.ts'
 import { listNextSteps } from './list-next-steps.ts'
+import { planProject } from './plan-project.ts'
 import {
   openFrame,
   type Presenter,
@@ -60,8 +50,8 @@ import {
   presentCreated,
   presentDryRun,
   presentFailure,
-  presentNothingGenerated,
 } from './presenter.ts'
+import type { ProjectPlan } from './project-plan.ts'
 import { createStepReporter } from './step-reporter.ts'
 
 /**
@@ -70,8 +60,8 @@ import { createStepReporter } from './step-reporter.ts'
  */
 export type CreateEnvironment = {
   argv: readonly string[]
-  /** Loads the base project, categories, built-in plugins and version catalog of the package. */
-  loadAssets: () => Promise<Assets>
+  /** Loads the base project and the built-in plugins of the package. */
+  loadAssets: () => Promise<BuiltInAssets>
   cliVersion: string
   cwd: string
   streams: Streams & { error: Writable }
@@ -80,26 +70,16 @@ export type CreateEnvironment = {
   now: () => Date
   userAgent: string | undefined
   runCommand: CommandRunner
-  remote: RemoteEnvironment
-  /** Where the user configuration with trusted sources and registries lives. */
-  userConfigPath: string
   /** The latest published version for the banner; answers nothing when unknown. */
   fetchLatestVersion: () => Promise<string | undefined>
-  /** The value of `NEXT_SUITE_ENGINE`, which selects the engine; `v2` assembles from `plugin.ts`. */
-  engine: string | undefined
-  /** Loads the base project and the built-in plugins written as `plugin.ts`, for engine `v2`. */
-  loadEngineV2Assets: () => Promise<EngineV2Assets>
 }
 
 /** Everything one run knows once the command line is read. */
 type Run = {
   environment: CreateEnvironment
-  /** The assets of the package, with the external plugins among its plugins. */
-  assets: Assets
-  /** The assets of engine `v2`, when it is selected. */
-  engineV2: EngineV2Assets | undefined
+  assets: BuiltInAssets
   /** The plugins the questions offer. */
-  plugins: ParsedPluginManifest[]
+  plugins: Plugin[]
   invocation: Invocation
   given: GivenAnswers
   questions: Question[]
@@ -114,50 +94,19 @@ type Project = {
   projectName: string
   action: TargetAction
   answers: Answers
-  selected: LoadedPlugin[]
-}
-
-/** The plugins the questions offer: with engine `v2`, each in its `plugin.ts` form where it has one. */
-const offeredPlugins = (
-  assets: Assets,
-  engineV2: EngineV2Assets | undefined,
-): ParsedPluginManifest[] => {
-  const manifests = assets.plugins.map((plugin) => plugin.manifest)
-  return engineV2 === undefined
-    ? manifests
-    : questionPlugins(
-        manifests,
-        engineV2.plugins.map(({ plugin }) => plugin),
-      )
 }
 
 /**
- * The questions this run can ask: those of the offered plugins, and the settings only when a base
- * project exists to apply them to. The package manager that started the run becomes the default.
- * Engine `v2` takes its categories from the core.
+ * The questions this run can ask: those of the built-in plugins, the base settings and the
+ * settings of the run. The package manager that started the run becomes the default.
  */
-const prepareQuestions = (
-  assets: Assets,
-  {
-    plugins,
-    engineV2,
-    userAgent,
-  }: {
-    plugins: readonly ParsedPluginManifest[]
-    engineV2: EngineV2Assets | undefined
-    userAgent: string | undefined
-  },
-) => {
-  const canGenerate = assets.base !== undefined
+const prepareQuestions = (plugins: readonly Plugin[], userAgent: string | undefined) => {
   const detectedPackageManager = findUsablePackageManager(plugins, detectPackageManager(userAgent))
   const questions = buildQuestions({
-    categories: preferPackageManager(
-      engineV2 === undefined ? assets.categories : CATEGORIES,
-      detectedPackageManager,
-    ),
+    categories: preferPackageManager(CATEGORIES, detectedPackageManager),
     plugins,
-    settings: canGenerate ? BASE_SETTINGS : [],
-    runSettings: canGenerate ? RUN_SETTINGS : [],
+    settings: BASE_SETTINGS,
+    runSettings: RUN_SETTINGS,
   })
   return { questions, detectedPackageManager }
 }
@@ -226,43 +175,19 @@ const askQuestions = ({
   })
 }
 
-/** Composes the project in memory, once its plugins are trusted; engine `v2` assembles it. */
-const composePlan = async (
-  { environment, assets, engineV2, invocation, questions, presenter }: Run,
-  { projectName, answers, selected }: Project,
-  base: LoadedPlugin,
-): Promise<ProjectPlan> => {
-  const recordedAnswers = recordAnswers(questions, answers)
-  if (engineV2 !== undefined) {
-    return planV2Project({
-      assets: engineV2,
-      projectName,
-      answers,
-      recordedAnswers,
-      cliVersion: environment.cliVersion,
-      createdAt: environment.now(),
-    })
-  }
-  await confirmTrust({
-    plugins: selected,
-    isDryRun: invocation.flags.dryRun === true,
-    flagPatterns: invocation.flags.trust ?? [],
-    userConfigPath: environment.userConfigPath,
-    streams: presenter.isFramed ? environment.streams : undefined,
-  })
-  return composeProject({
+/** Assembles the project in memory. */
+const planRun = (
+  { environment, assets, questions }: Run,
+  { projectName, answers }: Project,
+): ProjectPlan =>
+  planProject({
+    assets,
     projectName,
-    base,
-    available: assets.plugins,
-    selected,
     answers,
-    logic: await loadLogic([base, ...selected]),
-    recordedAnswers,
-    catalog: assets.catalog,
+    recordedAnswers: recordAnswers(questions, answers),
     cliVersion: environment.cliVersion,
     createdAt: environment.now(),
   })
-}
 
 /** Writes the project, runs the steps after writing, and shows what to do next. */
 const writeAndFinish = async (
@@ -297,11 +222,11 @@ const writeAndFinish = async (
 }
 
 /**
- * Runs the steps of create-next-suite: ask the questions, compose the project in memory, write
+ * Runs the steps of create-next-suite: ask the questions, assemble the project in memory, write
  * it, then initialize git, install and commit.
  */
 const create = async (run: Run): Promise<void> => {
-  const { environment, assets, invocation, presenter } = run
+  const { environment, invocation, presenter } = run
   const { cwd } = environment
   if (presenter.isFramed) {
     openFrame(presenter.output, {
@@ -312,61 +237,19 @@ const create = async (run: Run): Promise<void> => {
   }
   const { answers, directory, action } = await askQuestions(run)
   assertUsableDirectory(directory, { cwd, action })
-  if (assets.base === undefined) {
-    presentNothingGenerated(presenter)
-    return
-  }
   const project: Project = {
     directory,
     projectName: projectNameOf(directory, cwd),
     action,
     answers,
-    selected: answers.plugins.flatMap((answer) =>
-      assets.plugins.filter((plugin) => plugin.manifest.name === answer.name),
-    ),
   }
-  const plan = await composePlan(run, project, assets.base)
+  const plan = planRun(run, project)
   if (invocation.flags.dryRun) {
     const report = describePlan(plan)
     presentDryRun(presenter, invocation.flags.diff ? `${report}\n\n${diffPlan(plan)}` : report)
     return
   }
   await writeAndFinish(run, project, plan)
-}
-
-/** The assets of the package together with the external plugins the command line names. */
-const loadRunAssets = async (environment: CreateEnvironment): Promise<Assets> => {
-  const assets = await environment.loadAssets()
-  const { registries } = await readUserConfig(environment.userConfigPath)
-  const external = await loadExternalPlugins(readPluginAddresses(environment.argv), {
-    cwd: environment.cwd,
-    remote: environment.remote,
-    registries,
-  })
-  const plugins = [...assets.plugins, ...external]
-  assertUniqueNames(
-    [...(assets.base === undefined ? [] : [assets.base]), ...plugins].map(namedPlugin),
-  )
-  return { ...assets, plugins }
-}
-
-/**
- * The assets of engine `v2` when `NEXT_SUITE_ENGINE` selects it, which runs built-in plugins only.
- *
- * @throws InputError for another value than `v1` or `v2`, or `--plugin` with engine `v2`.
- */
-const loadEngineV2 = async (
-  environment: CreateEnvironment,
-): Promise<EngineV2Assets | undefined> => {
-  if (selectEngine(environment.engine) === 'v1') {
-    return undefined
-  }
-  if (readPluginAddresses(environment.argv).length > 0) {
-    throw new InputError(
-      `--plugin loads no plugins while ${ENGINE_VARIABLE} is v2; unset it to load other plugins`,
-    )
-  }
-  return environment.loadEngineV2Assets()
 }
 
 /**
@@ -379,14 +262,12 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
   const plain: Presenter = { output: streams.output, error: streams.error, isFramed: false }
   let presenter = plain
   try {
-    const engineV2 = await loadEngineV2(environment)
-    const assets = await loadRunAssets(environment)
-    const plugins = offeredPlugins(assets, engineV2)
-    const { questions, detectedPackageManager } = prepareQuestions(assets, {
-      plugins,
-      engineV2,
-      userAgent: environment.userAgent,
-    })
+    if (readPluginAddresses(environment.argv).length > 0) {
+      refuseExternalPlugins('--plugin')
+    }
+    const assets = await environment.loadAssets()
+    const plugins = assets.plugins.map(({ plugin }) => plugin)
+    const { questions, detectedPackageManager } = prepareQuestions(plugins, environment.userAgent)
     const questionFlags = createFlags(questions, RESERVED_NAMES)
     const invocation = await parseCommandLine(
       { argv: environment.argv, cliVersion: environment.cliVersion, ...streams },
@@ -397,7 +278,6 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
     await create({
       environment,
       assets,
-      engineV2,
       plugins,
       invocation,
       given,

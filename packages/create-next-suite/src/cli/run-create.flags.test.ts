@@ -1,67 +1,63 @@
-import { readFile, rm } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 
 import { describe, expect, it } from 'vitest'
 
 import { readJson } from '../test-support/read-json.ts'
 import { setUpCreateRuns } from '../test-support/run-create-harness.ts'
-import { testManifestJson } from '../test-support/test-manifest.ts'
 
 const { run, pathOf, write } = setUpCreateRuns()
+
+/** Every category but the package manager left empty: the base project and a package manager. */
+const BARE_ANSWERS = {
+  styling: [],
+  linter: null,
+  formatter: null,
+  'unused-code': null,
+  'git-hooks': null,
+  'unit-tests': null,
+  'env-validation': null,
+  logging: null,
+  'security-headers': null,
+  seo: null,
+  ci: null,
+  agents: null,
+}
+
+const runBare = async (flags: string[]) => {
+  await write({ 'bare.json': JSON.stringify(BARE_ANSWERS) })
+  return run(['my-app', '--answers', pathOf('bare.json'), ...flags])
+}
 
 describe('runCreate with flags and answer files', () => {
   it('shows the plan of a quick start with --yes --dry-run and writes nothing', async () => {
     const result = await run(['my-app', '--yes', '--dry-run'])
 
-    expect(result).toEqual({
-      exitCode: 0,
-      output: [
-        'Files:',
-        '  app/page.tsx (1 line, base)',
-        '  next-suite.json (21 lines, create-next-suite)',
-        '  package.json (19 lines, create-next-suite)',
-        'Dependencies:',
-        '  next 16.4.3',
-        '',
-      ].join('\n'),
-      error: '',
-      commands: [],
-    })
-  })
-
-  it('asks only the plugin questions and generates nothing without a base project', async () => {
-    await rm(pathOf('assets/base'), { recursive: true })
-
-    const result = await run(['my-app', '--yes'])
-    const withSetting = await run(['my-app', '--yes', '--src-dir'])
-
-    expect(result).toEqual({
-      exitCode: 0,
-      output: 'Nothing generated yet: the base project is still missing\n',
-      error: '',
-      commands: [],
-    })
+    expect(result).toMatchObject({ exitCode: 0, error: '', commands: [] })
+    expect(result.output).toMatch(/^Files:\n/)
+    expect(result.output).toContain('  package.json (')
+    expect(result.output).toContain('  next-suite.json (')
+    expect(result.output).toContain('Dev dependencies:')
     await expect(readFile(pathOf('my-app/package.json'))).rejects.toThrow()
-    expect(withSetting.error).toContain("unknown option '--src-dir'")
   })
 
   it('takes plugins and settings from flags', async () => {
-    const result = await run(['my-app', '--yes', '--dry-run', '--orm', 'drizzle', '--src-dir'])
+    const result = await runBare(['--yes', '--dry-run', '--linter', 'biome', '--src-dir'])
 
-    expect(result.output).toContain('src/lib/db.ts (1 line, drizzle)')
-    expect(result.output).toContain('drizzle-orm ^1.0.0')
+    expect(result.output).toContain('  biome.json (')
+    expect(result.output).toContain('  src/app/page.tsx (')
   })
 
   it('writes the project', async () => {
     expect((await run(['my-app', '--yes'])).exitCode).toBe(0)
 
-    expect(await readFile(pathOf('my-app/app/page.tsx'), 'utf8')).toContain('<h1>my-app</h1>')
+    expect(await readFile(pathOf('my-app/app/page.tsx'), 'utf8')).toContain('my-app')
     expect((await readJson(pathOf('my-app/next-suite.json'))).answers).toMatchObject({
       'package-manager': 'pnpm',
     })
   })
 
   it('initializes git, installs, commits and shows the next steps after writing', async () => {
-    const result = await run(['my-app', '--yes'])
+    const result = await runBare(['--yes'])
 
     expect(result.commands).toEqual([
       'git rev-parse --is-inside-work-tree',
@@ -81,13 +77,14 @@ describe('runCreate with flags and answer files', () => {
         'my-app is ready',
         'Next steps:',
         '  cd my-app',
+        '  pnpm run dev',
         '',
       ].join('\n'),
     )
   })
 
   it('skips the install and git with --no-install and --no-git, and records neither', async () => {
-    const result = await run(['my-app', '--yes', '--no-install', '--no-git'])
+    const result = await runBare(['--yes', '--no-install', '--no-git'])
     const recorded = await readJson(pathOf('my-app/next-suite.json'))
 
     expect(result.commands).toEqual([])
@@ -95,59 +92,48 @@ describe('runCreate with flags and answer files', () => {
     expect(recorded.answers).not.toHaveProperty('git')
   })
 
+  it('installs with the arguments of the package manager', async () => {
+    const result = await runBare(['--yes', '--package-manager', 'yarn'])
+
+    expect(result.error).toBe('')
+    expect(result.commands).toContain('yarn install --no-immutable')
+    expect(result.output).toContain('my-app is ready')
+  })
+
   it('preselects the package manager that started it', async () => {
-    const result = await run(['my-app', '--yes', '--no-git'], {
+    await write({ 'bare.json': JSON.stringify(BARE_ANSWERS) })
+
+    const result = await run(['my-app', '--yes', '--no-git', '--answers', pathOf('bare.json')], {
       userAgent: 'npm/12.2.1 node/v24.15.0 linux x64 workspaces/false',
     })
     const packageJson = await readJson(pathOf('my-app/package.json'))
 
     expect(result.commands).toEqual(['npm --version', 'npm install'])
-    expect(packageJson).toMatchObject({ packageManager: 'npm@12.2.1', allowScripts: {} })
+    expect(packageJson.packageManager).toMatch(/^npm@/)
   })
 
   it('rebuilds the same project from the answers in next-suite.json', async () => {
-    await run(['first', '--yes', '--orm', 'drizzle', '--no-better-auth'])
+    await run(['first', '--yes', '--linter', 'biome', '--no-ci'])
     const recorded = (await readJson(pathOf('first/next-suite.json'))).answers
     await write({ 'answers.json': JSON.stringify(recorded) })
 
-    const again = await run(['second', '--answers', 'answers.json', '--dry-run'])
+    const again = await run(['first-again', '--answers', 'answers.json', '--dry-run'])
     const original = await run([
       'first-again',
       '--yes',
-      '--orm',
-      'drizzle',
-      '--no-better-auth',
+      '--linter',
+      'biome',
+      '--no-ci',
       '--dry-run',
     ])
 
-    expect(recorded).toEqual({
-      'package-manager': 'pnpm',
-      orm: 'drizzle',
-      'better-auth': false,
-      'src-dir': false,
-      'import-alias': '@/*',
-      'react-compiler': false,
-      'cache-components': true,
-    })
+    expect(recorded).toMatchObject({ linter: 'biome', formatter: null, ci: null, 'src-dir': false })
     expect(again).toEqual(original)
   })
 
-  it('drops an answer of the file whose question a flag made obsolete', async () => {
+  it('reads answers from a file, which flags override', async () => {
     await write({
-      'answers.json': JSON.stringify({ orm: 'drizzle', 'drizzle.casing': 'snake' }),
-    })
-    await write({
-      'assets/plugins/orm/drizzle/plugin.json': testManifestJson('drizzle', {
-        category: 'orm',
-        options: {
-          casing: {
-            type: 'select',
-            question: 'Casing?',
-            choices: [{ value: 'snake', label: 'snake' }],
-            default: 'snake',
-          },
-        },
-      }),
+      'answers.json': JSON.stringify({ ...BARE_ANSWERS, linter: 'eslint' }),
     })
 
     const result = await run([
@@ -155,30 +141,12 @@ describe('runCreate with flags and answer files', () => {
       '--yes',
       '--answers',
       'answers.json',
-      '--no-orm',
+      '--no-linter',
       '--dry-run',
     ])
 
     expect(result.exitCode).toBe(0)
-  })
-
-  it('reads answers from a file, which flags override', async () => {
-    await write({
-      'answers.json': JSON.stringify({
-        'package-manager': 'npm',
-        orm: 'drizzle',
-        'better-auth': false,
-        'src-dir': false,
-        'import-alias': '@/*',
-        'react-compiler': false,
-        'cache-components': true,
-      }),
-    })
-
-    const result = await run(['my-app', '--answers', 'answers.json', '--no-orm', '--dry-run'])
-
-    expect(result.exitCode).toBe(0)
-    expect(result.output).not.toContain('drizzle')
+    expect(result.output).not.toContain('eslint')
   })
 
   it('lists the missing answers without a terminal and without --yes', async () => {
@@ -186,14 +154,31 @@ describe('runCreate with flags and answer files', () => {
 
     expect(result.exitCode).toBe(1)
     expect(result.error).toContain('answers are missing')
-    expect(result.error).toContain('  orm\n')
+    expect(result.error).toContain('  linter\n')
   })
 
   it('names the reason of an incompatible choice', async () => {
-    const result = await run(['my-app', '--yes', '--better-auth', '--dry-run'])
+    const result = await run([
+      'my-app',
+      '--yes',
+      '--linter',
+      'biome',
+      '--formatter',
+      'prettier',
+      '--dry-run',
+    ])
 
     expect(result).toMatchObject({ exitCode: 1, output: '' })
-    expect(result.error).toContain('better-auth: Stores sessions in the database.')
+    expect(result.error).toContain('Prettier: Biome formats the code already.')
+  })
+
+  it('refuses plugins from addresses in this version', async () => {
+    const result = await run(['my-app', '--yes', '--dry-run', '--plugin', './mail'])
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain(
+      'create-next-suite: --plugin cannot be used: plugins from outside create-next-suite are moving to the plugin.ts form',
+    )
   })
 
   it('creates the project in a path, named after its last directory', async () => {
@@ -229,11 +214,13 @@ describe('runCreate with flags and answer files', () => {
     expect(result.error).toContain("option '--overwrite' cannot be used with option '--empty'")
   })
 
-  it('rejects an invalid project name', async () => {
-    const result = await run(['My App', '--yes', '--dry-run'])
+  it('rejects an invalid project name and an invalid import alias', async () => {
+    const name = await run(['My App', '--yes', '--dry-run'])
+    const alias = await run(['my-app', '--yes', '--dry-run', '--import-alias', '@'])
 
-    expect(result.exitCode).toBe(1)
-    expect(result.error).toContain('"My App" is not a valid package name')
+    expect(name.exitCode).toBe(1)
+    expect(name.error).toContain('"My App" is not a valid package name')
+    expect(alias.error).toContain('the import alias "@" is invalid')
   })
 
   it('needs a project name without a terminal, also with --yes', async () => {
@@ -257,9 +244,9 @@ describe('runCreate with flags and answer files', () => {
     const result = await run(['--help'])
 
     expect(result.exitCode).toBe(0)
-    expect(result.output).toContain('--orm <plugin>')
-    expect(result.output).toContain('--no-orm')
-    expect(result.output).toContain('--better-auth')
+    expect(result.output).toContain('--linter <plugin>')
+    expect(result.output).toContain('--no-linter')
+    expect(result.output).toContain('--styling <plugins>')
   })
 
   it('reports a missing answer file plainly, before any wizard frame opens', async () => {
@@ -270,15 +257,6 @@ describe('runCreate with flags and answer files', () => {
     expect(result.exitCode).toBe(1)
     expect(result.output).toBe('')
     expect(result.error).toMatch(/^create-next-suite: cannot read the answer file/)
-  })
-
-  it('reports invalid package assets like any expected failure', async () => {
-    await write({ 'assets/catalog.json': '{' })
-
-    const result = await run(['my-app', '--yes', '--dry-run'])
-
-    expect(result.exitCode).toBe(1)
-    expect(result.error).toMatch(/^create-next-suite: .*catalog\.json is not valid JSON/)
   })
 
   it('asks to report an unexpected error instead of crashing', async () => {

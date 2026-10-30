@@ -3,7 +3,23 @@ import { describe, expect, it } from 'vitest'
 import { KEYS } from '../test-support/keys.ts'
 import { setUpCreateRuns } from '../test-support/run-create-harness.ts'
 
-const { run, write } = setUpCreateRuns()
+const { run, pathOf, write } = setUpCreateRuns()
+
+/** Every category but the package manager left empty. */
+const BARE_ANSWERS = {
+  styling: [],
+  linter: null,
+  formatter: null,
+  'unused-code': null,
+  'git-hooks': null,
+  'unit-tests': null,
+  'env-validation': null,
+  logging: null,
+  'security-headers': null,
+  seo: null,
+  ci: null,
+  agents: null,
+}
 
 describe('runCreate in the wizard', () => {
   it('asks in the wizard what to do with a directory that has files', async () => {
@@ -42,12 +58,14 @@ describe('runCreate in the wizard', () => {
     })
 
     expect(result.output).toContain('npm (detected)')
-    expect(result.output).not.toContain('The pnpm plugin.')
-    expect(result.output).not.toContain('The npm plugin.')
+    expect(result.output).not.toContain('Installs with pnpm')
+    expect(result.output).not.toContain('Installs with npm')
   })
 
   it('asks no base settings in the wizard, only git and install after the plugins', async () => {
-    const result = await run(['my-app', '--dry-run', '--no-better-auth', '--no-orm'], {
+    await write({ 'bare.json': JSON.stringify(BARE_ANSWERS) })
+
+    const result = await run(['my-app', '--dry-run', '--answers', pathOf('bare.json')], {
       isInteractive: true,
       keys: [KEYS.enter, 'n', 'y', 'y'],
     })

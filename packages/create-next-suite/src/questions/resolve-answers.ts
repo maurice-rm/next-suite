@@ -5,11 +5,10 @@ import {
   isSelected,
   type WorkingAnswers,
 } from '../answers/answers.ts'
-import { holdsFor } from '../answers/evaluate-condition.ts'
-import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from '../input-error.ts'
 import type { CategoryQuestion, Question } from './build-questions.ts'
-import { findPluginProblems } from './find-incompatibilities.ts'
+import { findConflictReasons } from './find-incompatibilities.ts'
+import type { QuestionOption } from './question-option.ts'
 import { isStringList } from './value-guards.ts'
 
 type ResolveInput = {
@@ -56,7 +55,11 @@ const validateCategory = (question: CategoryQuestion, value: unknown): QuestionV
   return value
 }
 
-const validateOption = (question: Question, option: PluginOption, value: unknown): AnswerValue => {
+const validateOption = (
+  question: Question,
+  option: QuestionOption,
+  value: unknown,
+): AnswerValue => {
   switch (option.type) {
     case 'boolean':
       if (typeof value !== 'boolean') {
@@ -66,11 +69,6 @@ const validateOption = (question: Question, option: PluginOption, value: unknown
     case 'string':
       if (typeof value !== 'string') {
         throw invalidAnswerError(question, value, 'a string')
-      }
-      return value
-    case 'number':
-      if (typeof value !== 'number' || !Number.isFinite(value)) {
-        throw invalidAnswerError(question, value, 'a number')
       }
       return value
     case 'select': {
@@ -111,7 +109,7 @@ export const defaultAnswer = (question: Question): QuestionValue => {
     case 'category':
       return question.category.default
     case 'extra':
-      return question.plugin.selectedByDefault ?? false
+      return false
     case 'option':
     case 'setting':
       return question.option.default
@@ -147,22 +145,18 @@ const isAsked = (question: Question, answers: WorkingAnswers): boolean => {
   if (question.kind !== 'option') {
     return true
   }
-  return isSelected(answers, question.plugin.name) && holdsFor(question.option.when, answers)
+  return isSelected(answers, question.plugin.name)
 }
 
-/**
- * Whether a plugin cannot join the answers so far: one of its conflicts holds or a requirement does
- * not.
- */
+/** Whether a plugin cannot join the answers so far, because it conflicts with a selected one. */
 const doesNotFit = (question: CategoryQuestion, name: string, answers: WorkingAnswers): boolean => {
   const plugin = question.choices.find((choice) => choice.name === name)
-  return plugin !== undefined && findPluginProblems(plugin, answers).length > 0
+  return plugin !== undefined && findConflictReasons(plugin, answers).length > 0
 }
 
 /**
- * The default of a question for the answers so far. A default plugin that does not fit, because
- * one of its conflicts holds or a requirement does not, is left out where the category allows
- * none: Prettier once Biome is the linter, lint-staged without linter and formatter.
+ * The default of a question for the answers so far. A default plugin that conflicts with a
+ * selected one is left out where the category allows none: Prettier once Biome is the linter.
  */
 const defaultFor = (question: Question, answers: WorkingAnswers): QuestionValue => {
   const fallback = defaultAnswer(question)
@@ -177,8 +171,8 @@ const defaultFor = (question: Question, answers: WorkingAnswers): QuestionValue 
 
 /**
  * Resolves answers question by question: input wins, then the default when `useDefaults` is set;
- * otherwise the question stays open. Options of plugins that are not selected, or whose condition
- * does not hold, are not asked. Invalid values fail with the expected values.
+ * otherwise the question stays open. Options of plugins that are not selected are not asked.
+ * Invalid values fail with the expected values.
  */
 export const resolveAnswers = ({ questions, input, useDefaults }: ResolveInput): Resolution => {
   const answers: WorkingAnswers = { plugins: [], settings: {}, options: {} }

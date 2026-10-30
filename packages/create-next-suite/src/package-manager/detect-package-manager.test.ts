@@ -1,19 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import { parseTestManifest } from '../test-support/test-manifest.ts'
 import { detectPackageManager, findUsablePackageManager } from './detect-package-manager.ts'
 
-const packageManager = (name: string): ParsedPluginManifest =>
-  parseTestManifest(name, {
-    category: 'package-manager',
-    packageManager: {
-      version: '1.0.0',
-      ciInstallArgs: ['ci'],
-      whenVersionDiffers: 'warn',
-      allowedBuildsIn: 'package.json#allowScripts',
-    },
-  })
+const packageManager = (name: string) => ({ name, category: 'package-manager' })
 
 const PLUGINS = [packageManager('pnpm'), packageManager('npm'), packageManager('yarn')]
 describe('detectPackageManager', () => {

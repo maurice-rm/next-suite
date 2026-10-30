@@ -1,8 +1,8 @@
-import type { Category } from '../contract/category.ts'
-import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from '../input-error.ts'
+import type { Category } from '../plugin-definition/categories.ts'
+import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import { PROJECT_SECTION, type Setting } from './base-settings.ts'
+import { type QuestionOption, questionOptionOf } from './question-option.ts'
 import { SETUP_SECTION } from './run-settings.ts'
 
 type QuestionPlace = {
@@ -15,10 +15,10 @@ type QuestionPlace = {
 /** One question of a run, with the key its answer has in answer files and next-suite.json. */
 export type Question = QuestionPlace &
   (
-    | { kind: 'category'; category: Category; choices: ParsedPluginManifest[] }
-    | { kind: 'extra'; plugin: ParsedPluginManifest }
-    | { kind: 'option'; plugin: ParsedPluginManifest; optionKey: string; option: PluginOption }
-    | { kind: 'setting'; option: PluginOption; scope: SettingScope }
+    | { kind: 'category'; category: Category; choices: Plugin[] }
+    | { kind: 'extra'; plugin: Plugin }
+    | { kind: 'option'; plugin: Plugin; optionKey: string; option: QuestionOption }
+    | { kind: 'setting'; option: QuestionOption; scope: SettingScope }
   )
 
 /** Whether a setting is a base setting, recorded in next-suite.json, or a run setting. */
@@ -28,21 +28,18 @@ export type CategoryQuestion = Extract<Question, { kind: 'category' }>
 
 type QuestionSources = {
   categories: readonly Category[]
-  plugins: readonly ParsedPluginManifest[]
+  plugins: readonly Plugin[]
   settings: readonly Setting[]
   runSettings: readonly Setting[]
 }
 
-const optionQuestions = (
-  plugin: ParsedPluginManifest,
-  place: Omit<QuestionPlace, 'key'>,
-): Question[] =>
+const optionQuestions = (plugin: Plugin, place: Omit<QuestionPlace, 'key'>): Question[] =>
   Object.entries(plugin.options ?? {}).map(([optionKey, option]) => ({
     kind: 'option',
     key: `${plugin.name}.${optionKey}`,
     plugin,
     optionKey,
-    option,
+    option: questionOptionOf(option),
     ...place,
   }))
 
@@ -54,12 +51,9 @@ const defaultNames = (category: Category): string[] => {
 }
 
 /** The plugins of a category in the order it lists them, the others after them as loaded. */
-const inCategoryOrder = (
-  category: Category,
-  plugins: readonly ParsedPluginManifest[],
-): ParsedPluginManifest[] => {
+const inCategoryOrder = (category: Category, plugins: readonly Plugin[]): Plugin[] => {
   const order = category.order ?? []
-  const rank = (plugin: ParsedPluginManifest): number => {
+  const rank = (plugin: Plugin): number => {
     const index = order.indexOf(plugin.name)
     return index === -1 ? order.length : index
   }
@@ -68,10 +62,7 @@ const inCategoryOrder = (
     .sort((first, second) => rank(first) - rank(second))
 }
 
-const categoryQuestion = (
-  category: Category,
-  plugins: readonly ParsedPluginManifest[],
-): CategoryQuestion => {
+const categoryQuestion = (category: Category, plugins: readonly Plugin[]): CategoryQuestion => {
   const choices = inCategoryOrder(category, plugins)
   if (choices.length === 0 && category.cardinality === 'one') {
     throw new InputError(
@@ -104,7 +95,7 @@ const withOptions = (question: CategoryQuestion): Question[] => [
 
 const assertKnownCategories = (
   categories: readonly Category[],
-  plugins: readonly ParsedPluginManifest[],
+  plugins: readonly Plugin[],
 ): void => {
   for (const plugin of plugins) {
     if (

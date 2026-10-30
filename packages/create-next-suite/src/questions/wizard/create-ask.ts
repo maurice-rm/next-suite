@@ -1,10 +1,7 @@
 import type { Answers } from '../../answers/answers.ts'
 import type { TargetAction } from '../../answers/target-action.ts'
-import {
-  PACKAGE_MANAGER_CATEGORY,
-  type ParsedPluginManifest,
-} from '../../contract/plugin-manifest.ts'
-import type { OptionChoice, PluginOption } from '../../contract/plugin-option.ts'
+import { PACKAGE_MANAGER_CATEGORY } from '../../plugin-definition/categories.ts'
+import type { Plugin } from '../../plugin-definition/plugin-definition.ts'
 import { renderSectionBadge } from '../../ui/frame.ts'
 import { PromptCancelledError } from '../../ui/prompt-cancelled-error.ts'
 import {
@@ -18,17 +15,17 @@ import {
   text,
 } from '../../ui/prompts.ts'
 import type { CategoryQuestion } from '../build-questions.ts'
-import { findPluginProblems } from '../find-incompatibilities.ts'
+import { findConflictReasons } from '../find-incompatibilities.ts'
 import { DEFAULT_PROJECT_DIRECTORY } from '../project-directory.ts'
+import type { QuestionChoice, QuestionOption } from '../question-option.ts'
 import { defaultAnswer } from '../resolve-answers.ts'
-import { isNumberText, isStringList } from '../value-guards.ts'
+import { isStringList } from '../value-guards.ts'
 import type { Ask, WizardStep } from './run-wizard.ts'
 
 const NONE_LABEL = 'None'
 const DETECTED_HINT = 'detected'
 const PROJECT_NAME_QUESTION = 'Enter your project name or path ("." = current directory)'
 const QUICK_START_QUESTION = 'Quick start with recommended defaults?'
-const NOT_A_NUMBER = 'enter a number'
 const CANCEL = 'cancel'
 const EMPTY_LABEL = 'Empty the directory — delete everything except .git'
 const OVERWRITE_LABEL = 'Continue (keep existing files)'
@@ -61,7 +58,7 @@ type StepAsk = { base: PromptOptions; answers: Answers; previous: unknown; conte
  * The hint beside a plugin: a package manager shows only whether it started the run, any other
  * plugin its description.
  */
-const hintOf = (plugin: ParsedPluginManifest, context: AskContext): string | undefined => {
+const hintOf = (plugin: Plugin, context: AskContext): string | undefined => {
   if (plugin.category !== PACKAGE_MANAGER_CATEGORY) {
     return plugin.description
   }
@@ -69,16 +66,10 @@ const hintOf = (plugin: ParsedPluginManifest, context: AskContext): string | und
 }
 
 /** A plugin choice, disabled when one of its conflicts already holds. */
-const pluginChoice = (
-  plugin: ParsedPluginManifest,
-  answers: Answers,
-  context: AskContext,
-): Choice<string> => {
-  const conflict = findPluginProblems(plugin, answers).find(
-    (problem) => problem.kind === 'conflict',
-  )
+const pluginChoice = (plugin: Plugin, answers: Answers, context: AskContext): Choice<string> => {
+  const [conflict] = findConflictReasons(plugin, answers)
   if (conflict !== undefined) {
-    return { value: plugin.name, label: plugin.title, hint: conflict.reason, disabled: true }
+    return { value: plugin.name, label: plugin.title, hint: conflict, disabled: true }
   }
   const hint = hintOf(plugin, context)
   return hint === undefined
@@ -87,12 +78,11 @@ const pluginChoice = (
 }
 
 /** An option choice, with its description as the hint beside it. */
-const optionChoice = ({ value, label, description }: OptionChoice): Choice<string> =>
+const optionChoice = ({ value, label, description }: QuestionChoice): Choice<string> =>
   description === undefined ? { value, label } : { value, label, hint: description }
 
 const isString = (value: unknown): value is string => typeof value === 'string'
 const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
-const isNumber = (value: unknown): value is number => typeof value === 'number'
 const isNameOrNone = (value: unknown): value is string | null => value === null || isString(value)
 const isTargetActionReply = (value: unknown): value is TargetActionReply =>
   value === 'empty' || value === 'overwrite' || value === CANCEL
@@ -105,7 +95,7 @@ const previousOr = <Value>(
 ): Value => (fits(previous) ? previous : fallback)
 
 const askOption = async (
-  option: PluginOption,
+  option: QuestionOption,
   { base, previous }: { base: PromptOptions; previous: unknown },
 ): Promise<unknown> => {
   const message = option.question
@@ -123,16 +113,6 @@ const askOption = async (
         defaultValue: option.default,
         initialValue: previousOr(previous, undefined, isString),
       })
-    case 'number': {
-      const answer = await text({
-        ...base,
-        message,
-        defaultValue: String(option.default),
-        initialValue: isNumber(previous) ? String(previous) : undefined,
-        validate: (value) => (isNumberText(value) ? undefined : NOT_A_NUMBER),
-      })
-      return typeof answer === 'string' ? Number(answer) : answer
-    }
     case 'select':
       return select({
         ...base,

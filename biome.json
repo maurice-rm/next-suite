@@ -641,14 +641,12 @@
                       "**/package-manager/**",
                       "**/project-model",
                       "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
                       "**/points/**"
                     ],
-                    "message": "create-next-suite: questions/ imports from contract/, answers/, loader/, ui/, file-system/ and the error classes only"
+                    "message": "create-next-suite: questions/ imports from contract/, answers/, loader/, plugin-definition/, ui/, file-system/ and the error classes only"
                   }
                 ]
               }
@@ -696,14 +694,12 @@
                       "**/testing.ts",
                       "**/project-model",
                       "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
                       "**/points/**"
                     ],
-                    "message": "create-next-suite: package-manager/ imports from contract/ and the error classes only"
+                    "message": "create-next-suite: package-manager/ imports from contract/, plugin-definition/ and the error classes only"
                   }
                 ]
               }

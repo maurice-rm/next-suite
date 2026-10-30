@@ -1,4 +1,5 @@
-import { PACKAGE_MANAGER_CATEGORY, type ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import { PACKAGE_MANAGER_CATEGORY } from '../plugin-definition/categories.ts'
+import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import { findUnsupportedVersion, type PackageManagerVersion } from './supported-versions.ts'
 
 const USER_AGENT = /^([a-z][a-z0-9-]*)\/(\S+)/
@@ -20,7 +21,7 @@ export const detectPackageManager = (
  * version is supported, or nothing.
  */
 export const findUsablePackageManager = (
-  plugins: readonly ParsedPluginManifest[],
+  plugins: readonly Pick<Plugin, 'name' | 'category'>[],
   invoking: PackageManagerVersion | undefined,
 ): string | undefined => {
   const isUsable =

@@ -1,27 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
-import { findIncompatibilities } from './find-incompatibilities.ts'
+import { findConflicts } from './find-incompatibilities.ts'
 import { resolveAnswers } from './resolve-answers.ts'
 
-const incompatibilities = (input: Record<string, unknown>): string[] =>
-  findIncompatibilities(
+const conflicts = (input: Record<string, unknown>): string[] =>
+  findConflicts(
     TEST_PLUGINS,
     resolveAnswers({ questions: TEST_QUESTIONS, input, useDefaults: true }).answers,
   )
 
-describe('findIncompatibilities', () => {
+describe('findConflicts', () => {
   it('finds nothing for compatible answers', () => {
-    expect(incompatibilities({ orm: 'drizzle', 'better-auth': true })).toEqual([])
+    expect(conflicts({ orm: 'drizzle', 'better-auth': true })).toEqual([])
   })
 
-  it('names a requirement that does not hold, with the reason from the manifest', () => {
-    expect(incompatibilities({ 'better-auth': true })).toEqual([
-      'better-auth: Stores sessions in the database.',
-    ])
-  })
-
-  it('names a conflict that holds', () => {
-    expect(incompatibilities({ orm: 'prisma', 'better-auth': true })).toEqual([
+  it('names a conflict with a selected plugin, with the reason the plugin gives', () => {
+    expect(conflicts({ orm: 'prisma', 'better-auth': true })).toEqual([
       'better-auth: Not tested with Prisma.',
     ])
   })

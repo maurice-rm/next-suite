@@ -2,16 +2,16 @@ import { fileURLToPath } from 'node:url'
 
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { assembleProject } from '../../assembly/assemble-project.ts'
-import { loadBaseProject } from '../../loader/load-base-project.ts'
-import { loadGroupedPluginModules } from '../../loader/load-grouped-plugin-modules.ts'
-import type { LoadedPluginModule } from '../../loader/load-plugin-module.ts'
-import { CATEGORIES } from '../../plugin-definition/categories.ts'
-import type { Plugin } from '../../plugin-definition/plugin-definition.ts'
-import { createProject } from '../../project-model/project.ts'
+import { assembleProject } from '../assembly/assemble-project.ts'
+import { loadBaseProject } from '../loader/load-base-project.ts'
+import { loadGroupedPluginModules } from '../loader/load-grouped-plugin-modules.ts'
+import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
+import { CATEGORIES } from '../plugin-definition/categories.ts'
+import type { Plugin } from '../plugin-definition/plugin-definition.ts'
+import { createProject } from '../project-model/project.ts'
 
-const PACKAGE_ROOT = new URL('../../../', import.meta.url)
-const PLUGIN_ENTRY = fileURLToPath(new URL('../../plugin.ts', import.meta.url))
+const PACKAGE_ROOT = new URL('../../', import.meta.url)
+const PLUGIN_ENTRY = fileURLToPath(new URL('../plugin.ts', import.meta.url))
 
 type LintIgnores = { ignore: (...globs: string[]) => void }
 type KnipOptions = {

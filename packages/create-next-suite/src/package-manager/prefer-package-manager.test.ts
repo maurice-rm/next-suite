@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Category } from '../contract/category.ts'
+import type { Category } from '../plugin-definition/categories.ts'
 import { preferPackageManager } from './prefer-package-manager.ts'
 
 const CATEGORIES: Category[] = [

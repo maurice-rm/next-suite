@@ -1,14 +1,15 @@
 /**
  * Test helpers for plugin authors: generate a project with the plugins under test, then run its
- * scripts, the way the CI of create-next-suite checks its own plugins.
+ * scripts, the way the CI of create-next-suite checks its own plugins. Plugins from addresses
+ * cannot be loaded in this version, so a test project holds built-in plugins only.
  *
  * @example
  * ```ts
  * import { createTestProject } from 'create-next-suite/testing'
  *
  * const project = await createTestProject({
- *   plugins: ['./my-plugin'],
- *   answers: { 'my-plugin': true },
+ *   plugins: [],
+ *   answers: { linter: 'biome' },
  *   install: true,
  * })
  * expect((await project.run('build')).isSuccess).toBe(true)
@@ -22,20 +23,20 @@ import { extname, join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import packageJson from '../package.json' with { type: 'json' }
-import { loadEngineV2Assets } from './cli/engine-v2/engine-v2-assets.ts'
-import { processRemoteEnvironment, processUserConfigPath } from './cli/process-environment.ts'
+import { loadBuiltInAssets } from './cli/built-in-assets.ts'
 import { runCreate } from './cli/run-create.ts'
-import { loadAssets } from './loader/load-assets.ts'
 import { type CommandResult, runCommand } from './post-steps/run-command.ts'
 import { collectOutput } from './test-support/collect-output.ts'
-import { sourceOf } from './trust/trust-level.ts'
 
 const PROJECT_NAME = 'test-app'
 const DEFAULT_PACKAGE_MANAGER = 'pnpm'
 
 /** What to generate: the plugins under test and the answers for them and any other question. */
 export type TestProjectOptions = {
-  /** Addresses of the plugins under test, such as `./my-plugin`; they are trusted for the test. */
+  /**
+   * Addresses of the plugins under test, such as `./my-plugin`. Plugins from addresses cannot be
+   * loaded in this version: any address makes the run fail.
+   */
   plugins: readonly string[]
   /** Answers in the format of `answers` in next-suite.json; every other question takes its default. */
   answers?: Readonly<Record<string, unknown>>
@@ -71,17 +72,18 @@ export type TestProject = {
  *
  * @param options - The plugins under test, the answers and how to generate.
  * @returns The generated project, ready to run its scripts.
- * @throws Error with the output of the run when the project cannot be generated.
+ * @throws Error with the output of the run when the project cannot be generated, such as for any
+ * plugin address in this version.
  *
  * @example
  * ```ts
  * import { createTestProject } from 'create-next-suite/testing'
  * import { expect, test } from 'vitest'
  *
- * test('the project builds with my plugin', async () => {
+ * test('the project builds with Biome', async () => {
  *   const project = await createTestProject({
- *     plugins: ['./my-plugin'],
- *     answers: { 'my-plugin': true },
+ *     plugins: [],
+ *     answers: { linter: 'biome' },
  *     install: true,
  *   })
  *
@@ -105,9 +107,13 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
       packageManager,
       '--no-git',
       ...(options.install === true ? [] : ['--no-install']),
-      ...options.plugins.flatMap((address) => ['--plugin', address, '--trust', sourceOf(address)]),
+      ...options.plugins.flatMap((address) => ['--plugin', address]),
     ],
-    loadAssets: () => loadAssets(join(import.meta.dirname, '..')),
+    loadAssets: () =>
+      loadBuiltInAssets(
+        join(import.meta.dirname, '..'),
+        join(import.meta.dirname, `plugin${extname(import.meta.filename)}`),
+      ),
     cliVersion: packageJson.version,
     cwd: parent,
     streams: { input: Readable.from([]), output: output.stream, error: output.stream },
@@ -116,15 +122,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
     now: () => new Date(),
     userAgent: undefined,
     runCommand,
-    remote: processRemoteEnvironment(),
-    userConfigPath: processUserConfigPath(),
     fetchLatestVersion: async () => undefined,
-    engine: undefined,
-    loadEngineV2Assets: () =>
-      loadEngineV2Assets(
-        join(import.meta.dirname, '..'),
-        join(import.meta.dirname, `plugin${extname(import.meta.filename)}`),
-      ),
   })
   if (exitCode !== 0) {
     throw new Error(`create-next-suite could not generate the test project:\n${output.text()}`)

@@ -86,8 +86,8 @@ describe('collectAnswers from the input', () => {
   })
 
   it('rejects plugins that do not fit together, with the reasons', async () => {
-    await expect(collect({ input: { ...ALL_ANSWERS, 'better-auth': true } })).rejects.toThrow(
-      'the answers do not fit together:\nbetter-auth: Stores sessions in the database.',
-    )
+    await expect(
+      collect({ input: { ...ALL_ANSWERS, orm: 'prisma', 'better-auth': true } }),
+    ).rejects.toThrow('the answers do not fit together:\nbetter-auth: Not tested with Prisma.')
   })
 })
