@@ -9,7 +9,6 @@ import type { pluginManifestSchema } from './contract/plugin-manifest.ts'
 import type { pluginOptionSchema } from './contract/plugin-option.ts'
 import type {
   CategoriesFile,
-  Category,
   Condition,
   Contributions,
   Logic,
@@ -52,12 +51,6 @@ describe('the public types', () => {
     >()
     expectTypeOf<Normalized<CategoriesFile>>().toEqualTypeOf<
       Normalized<z.input<typeof categoriesSchema>>
-    >()
-  })
-
-  it('equal what parsing the categories file gives for a category', () => {
-    expectTypeOf<Normalized<Category>>().toEqualTypeOf<
-      Normalized<z.output<typeof categoriesSchema>[number]>
     >()
   })
 })

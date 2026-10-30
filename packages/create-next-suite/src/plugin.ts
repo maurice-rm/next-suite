@@ -17,12 +17,7 @@
  *
  * @packageDocumentation
  */
-export type {
-  CategoriesFile,
-  Category,
-  CategorySection,
-  ListedCategory,
-} from './contract/category.ts'
+export type { CategoriesFile, CategorySection, ListedCategory } from './contract/category.ts'
 export type { Condition } from './contract/condition.ts'
 export type {
   CodeEntry,
