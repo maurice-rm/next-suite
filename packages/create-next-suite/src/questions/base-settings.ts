@@ -14,18 +14,38 @@ export type Setting = { key: string; option: PluginOption }
 export const BASE_SETTINGS: readonly Setting[] = [
   {
     key: 'src-dir',
-    option: { type: 'boolean', question: 'Put the code inside a src/ directory?', default: false },
+    option: {
+      type: 'boolean',
+      question: 'Put the code inside a src/ directory?',
+      description: 'put the code inside a src/ directory',
+      default: false,
+    },
   },
   {
     key: 'import-alias',
-    option: { type: 'string', question: 'Which import alias?', default: '@/*' },
+    option: {
+      type: 'string',
+      question: 'Which import alias?',
+      description: 'the import alias, such as @/*',
+      default: '@/*',
+    },
   },
   {
     key: 'react-compiler',
-    option: { type: 'boolean', question: 'Use the React Compiler?', default: false },
+    option: {
+      type: 'boolean',
+      question: 'Use the React Compiler?',
+      description: 'use the React Compiler',
+      default: false,
+    },
   },
   {
     key: 'cache-components',
-    option: { type: 'boolean', question: 'Enable Cache Components?', default: true },
+    option: {
+      type: 'boolean',
+      question: 'Enable Cache Components?',
+      description: 'turn on Cache Components',
+      default: true,
+    },
   },
 ]

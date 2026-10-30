@@ -44,13 +44,13 @@ const CORE_OPTIONS = [
   ),
   new Option('--dry-run', 'show what would be created, write nothing'),
   new Option('--diff', 'with --dry-run, show the content of every file'),
-  new Option('--overwrite', 'write into a folder that has files, keeping the others').conflicts(
+  new Option('--overwrite', 'write into a directory that has files, keeping the others').conflicts(
     'empty',
   ),
-  new Option('--empty', 'empty a folder that has files first, keeping only .git'),
+  new Option('--empty', 'empty a directory that has files first, keeping only .git'),
   new Option(
     '--plugin <address>',
-    'add a plugin from a folder, npm, GitHub, GitLab, Git or a URL; repeatable',
+    'add a plugin from a directory, npm, GitHub, GitLab, Git or a URL; repeatable',
   ).argParser((address: string, previous: string[] = []) => [...previous, address]),
   new Option(
     '--trust <pattern>',
@@ -95,7 +95,7 @@ export const parseCommandLine = async (
     .version(cliVersion)
     .argument(
       '[directory]',
-      'project name or path, "." for the current directory; the folder name is the package name',
+      'project name or path, "." for the current directory; the directory name is the package name',
     )
     .exitOverride()
     .configureOutput({

@@ -11,7 +11,10 @@ const choiceSchema = z.strictObject({
 
 const questionFields = {
   question: z.string().min(1),
-  description: z.string().min(1).optional(),
+  description: z.string().min(1).optional().meta({
+    description:
+      'What the option sets, as a short statement such as "use the React Compiler"; the help of its flag shows it.',
+  }),
   when: conditionSchema.optional(),
 }
 

@@ -16,10 +16,20 @@ export const GIT_SETTING = 'git'
 export const RUN_SETTINGS: readonly Setting[] = [
   {
     key: GIT_SETTING,
-    option: { type: 'boolean', question: 'Initialize a git repository?', default: true },
+    option: {
+      type: 'boolean',
+      question: 'Initialize a git repository?',
+      description: 'initialize a git repository',
+      default: true,
+    },
   },
   {
     key: INSTALL_SETTING,
-    option: { type: 'boolean', question: 'Install dependencies?', default: true },
+    option: {
+      type: 'boolean',
+      question: 'Install dependencies?',
+      description: 'install the dependencies',
+      default: true,
+    },
   },
 ]
