@@ -13,7 +13,6 @@ type TrustCheck = {
   /** Patterns from `--trust`, trusted for this run only. */
   flagPatterns: readonly string[]
   userConfigPath: string
-  /** The terminal to ask in, or nothing without one. */
   streams: Streams | undefined
 }
 
@@ -55,10 +54,10 @@ const askForTrust = async (
 }
 
 /**
- * Checks every external plugin of a run: built-in plugins, local directories and trusted sources pass;
- * any other source is asked about in the terminal, where "always" adds it to the trust list, and
- * fails without one unless `--trust` covers it. A plugin without a logic module can still run code
- * through its scripts, post-steps or config files, so only a dry run skips it.
+ * Checks every external plugin of a run: built-in plugins, local directories and trusted sources
+ * pass; any other source is asked about in the terminal, where "always" adds it to the trust list,
+ * and fails without one unless `--trust` covers it. A plugin without a logic module can still run
+ * code through its scripts, post-steps or config files, so only a dry run skips it.
  */
 export const confirmTrust = async ({
   plugins,

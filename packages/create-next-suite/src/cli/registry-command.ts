@@ -67,7 +67,6 @@ const forgetRegistry = async (environment: NextSuiteEnvironment, name: string): 
   return `Removed ${name}`
 }
 
-/** Adds `next-suite registry` with its subcommands add, list and remove. */
 export const addRegistryCommand = (
   program: Command,
   environment: NextSuiteEnvironment,

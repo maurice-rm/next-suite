@@ -2,7 +2,6 @@ import semver from 'semver'
 
 type NodeVersionCheck = { command: string; current: string; required: string }
 
-/** Answers why this Node.js version cannot run a command of the package, or nothing when it can. */
 export const findNodeVersionProblem = ({
   command,
   current,

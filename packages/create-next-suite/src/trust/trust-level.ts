@@ -3,7 +3,9 @@ import semver from 'semver'
 import type { PluginSource } from '../loader/load-plugin.ts'
 import { parsePluginAddress } from '../loader/plugin-address.ts'
 
-/** How far a plugin's code is trusted: shipped with create-next-suite, trusted by the user, or not. */
+/**
+ * How far a plugin's code is trusted: shipped with create-next-suite, trusted by the user, or not.
+ */
 export type TrustLevel = 'builtin' | 'trusted' | 'unknown'
 
 const REGEX_SPECIAL = /[.+?^${}()|[\]\\]/g

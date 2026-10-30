@@ -6,7 +6,6 @@ import { brand, chosen, SYMBOLS, warning } from './theme.ts'
 export const renderStepRunning = (spinnerFrame: string, message: string): string =>
   `${brand(spinnerFrame)}  ${message}…`
 
-/** A step that succeeded. */
 export const renderStepDone = (message: string): string => `${chosen(SYMBOLS.submit)}  ${message}`
 
 /** A step that failed, with what to do instead. */

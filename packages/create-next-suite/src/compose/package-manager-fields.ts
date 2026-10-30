@@ -6,7 +6,9 @@ import { resolveVersion } from './resolve-version.ts'
 
 type PackageManager = NonNullable<ParsedPluginManifest['packageManager']>
 
-/** The selected package manager plugin: its name, which is the command, and how the core uses it. */
+/**
+ * The selected package manager plugin: its name, which is the command, and how the core uses it.
+ */
 export type SelectedPackageManager = { name: string; packageManager: PackageManager }
 
 /** The dependencies whose install scripts may run, and those known to need none. */

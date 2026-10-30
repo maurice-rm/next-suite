@@ -24,7 +24,6 @@ export type Question = QuestionPlace &
 /** Whether a setting belongs to the project, recorded in next-suite.json, or only to the run. */
 export type SettingScope = 'project' | 'run'
 
-/** A question that picks the plugins of a category. */
 export type CategoryQuestion = Extract<Question, { kind: 'category' }>
 
 type QuestionSources = {

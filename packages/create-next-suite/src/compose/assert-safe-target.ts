@@ -54,8 +54,8 @@ const describeProblem = (form: string): string | undefined => {
 
 /**
  * Rejects a target path that could leave the project or reach into its git repository: absolute
- * paths, `..`, `.` and `.git` segments, backslashes, control characters, also after repeated URL decoding. Rejected means the run stops;
- * the path is never cleaned up into something else.
+ * paths, `..`, `.` and `.git` segments, backslashes, control characters, also after repeated URL
+ * decoding. Rejected means the run stops; the path is never cleaned up into something else.
  */
 export const assertSafeTarget = (target: string, origin: string): void => {
   for (const form of decodings(target)) {

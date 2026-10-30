@@ -54,7 +54,10 @@ const nextStepsOf = (
       return { script: step.script }
     })
 
-/** The stack in plugin order, and the next steps with those of the base project, such as `dev`, last. */
+/**
+ * The stack in plugin order, and the next steps with those of the base project, such as `dev`,
+ * last.
+ */
 export const collectSummary = ({
   manifests,
   baseName,

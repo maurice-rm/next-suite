@@ -48,7 +48,9 @@ export const instrumentationFile = ({
   return `${parts.join('\n').trimEnd()}\n`
 }
 
-/** The content of instrumentation-client.ts from the plugins' contributions, or nothing without any. */
+/**
+ * The content of instrumentation-client.ts from the plugins' contributions, or nothing without any.
+ */
 export const instrumentationClientFile = (
   entries: CompositionValues['instrumentationClient'],
 ): string | undefined => {

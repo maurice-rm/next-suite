@@ -44,7 +44,9 @@ type TargetActionReply = Exclude<TargetAction, 'create'> | typeof CANCEL
  */
 export type AskContext = {
   findDirectoryProblem: (directory: string) => string | undefined
-  /** Whether a directory may be emptied; never the current directory, a root or the home directory. */
+  /**
+   * Whether a directory may be emptied; never the current directory, a root or the home directory.
+   */
   canEmpty: (directory: string) => boolean
   detectedPackageManager: string | undefined
 }

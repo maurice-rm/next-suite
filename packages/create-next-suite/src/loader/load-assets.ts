@@ -28,7 +28,9 @@ const BASE_DIRECTORY = 'base'
 const PLUGINS_DIRECTORY = 'plugins'
 const CATEGORIES_FILE = 'categories.json'
 const CATALOG_FILE = 'catalog.json'
-/** The directory of the plugins without a category; every other directory is named after a category. */
+/**
+ * The directory of the plugins without a category; every other directory is named after a category.
+ */
 const EXTRAS_DIRECTORY = 'extras'
 
 const exists = async (path: string): Promise<boolean> =>

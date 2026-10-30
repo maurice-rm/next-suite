@@ -1,4 +1,6 @@
-/** The Handlebars block helpers templates may use; the template environment removes every other one. */
+/**
+ * The Handlebars block helpers templates may use; the template environment removes every other one.
+ */
 export const BLOCK_HELPERS = ['if', 'unless', 'each'] as const
 
 export type BlockHelper = (typeof BLOCK_HELPERS)[number]

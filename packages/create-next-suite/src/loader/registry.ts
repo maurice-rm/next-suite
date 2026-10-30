@@ -11,7 +11,6 @@ import type { RemoteEnvironment } from './remote/remote-source.ts'
 
 const REGISTRY_FILE = 'registry.json'
 
-/** A fetched registry: its directory, what its source resolved to, and its index. */
 export type FetchedRegistry = {
   directory: string
   resolved: string | undefined

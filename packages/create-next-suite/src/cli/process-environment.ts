@@ -45,5 +45,4 @@ export const processRemoteEnvironment = (): RemoteEnvironment => {
   }
 }
 
-/** Where this user's next-suite configuration lives. */
 export const processUserConfigPath = (): string => userConfigPath(process.env, homedir())

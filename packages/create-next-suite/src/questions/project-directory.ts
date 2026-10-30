@@ -20,8 +20,8 @@ const findNameProblem = (name: string): string | undefined => {
 
 /**
  * Answers what is wrong with a project directory as typed, a name or a path such as `.`: it is
- * required, stays inside `cwd`, and its directory name is a valid name for a new npm package. What is
- * on disk at the path is checked by the writer. Answers nothing when the input is fine.
+ * required, stays inside `cwd`, and its directory name is a valid name for a new npm package. What
+ * is on disk at the path is checked by the writer. Answers nothing when the input is fine.
  */
 export const findProjectDirectoryProblem = (directory: string, cwd: string): string | undefined => {
   if (directory.trim() === '') {

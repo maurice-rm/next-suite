@@ -20,7 +20,9 @@ const envSchemaOf = (variable: EnvVariable): KeyValue => ({
       : `z.string().default(${JSON.stringify(variable.default)})`,
 })
 
-/** Each variable in the group of the first plugin that defines it; a plugin without one has none. */
+/**
+ * Each variable in the group of the first plugin that defines it; a plugin without one has none.
+ */
 const groupByPlugin = (manifests: readonly ParsedPluginManifest[]): EnvValues['groups'] => {
   const listed = new Set<string>()
   return manifests.flatMap((manifest) => {

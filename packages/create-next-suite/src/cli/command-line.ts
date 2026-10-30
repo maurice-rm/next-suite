@@ -19,7 +19,6 @@ type CoreFlags = {
   trust?: string[]
 }
 
-/** A parsed command line: the directory argument and every flag value. */
 export type Invocation = {
   directory: string | undefined
   flags: CoreFlags & Record<string, unknown>
@@ -115,7 +114,6 @@ export const parseCommandLine = async (
   return invocation
 }
 
-/** What to do with a target directory that has files, as the flags say, if they say anything. */
 export const targetActionOf = ({ flags }: Invocation): TargetAction | undefined => {
   if (flags.overwrite === true) {
     return 'overwrite'

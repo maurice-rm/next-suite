@@ -30,7 +30,6 @@ export const openFrame = (
   output.write(renderIntro(INTRO))
 }
 
-/** Shows the report of a dry run: what would be created, nothing written. */
 export const presentDryRun = ({ output, isFramed }: Presenter, report: string): void => {
   output.write(isFramed ? renderFramed(report) + renderOutro(DRY_RUN_DONE) : `${report}\n`)
 }
@@ -49,7 +48,6 @@ export const presentCreated = (
   output.write(isFramed ? renderOutroSummary(outro) : renderPlainSummary(outro))
 }
 
-/** Closes the frame of a run the user cancelled. */
 export const presentCancelled = ({ output }: Presenter): void => {
   output.write(renderCancelled(CANCELLED))
 }

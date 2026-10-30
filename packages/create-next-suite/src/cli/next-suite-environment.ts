@@ -13,5 +13,4 @@ export type NextSuiteEnvironment = {
   userConfigPath: string
 }
 
-/** Shows the result of a command to the user. */
 export type Report = (text: string) => void

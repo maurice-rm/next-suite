@@ -54,7 +54,9 @@ export const templateValues = (values: CompositionValues): TemplateValues => ({
   logRedact: values.logRedact,
 })
 
-/** Everything a template reads; the run values keep their names whatever a template value is called. */
+/**
+ * Everything a template reads; the run values keep their names whatever a template value is called.
+ */
 export const templateContext = (
   values: TemplateValues,
   run: RunValues,

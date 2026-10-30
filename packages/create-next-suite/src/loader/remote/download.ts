@@ -107,7 +107,6 @@ export const download = async (
   }
 }
 
-/** Downloads a URL and checks the JSON it answers against a schema. */
 export const downloadJson = async <Schema extends z.ZodType>(
   environment: RemoteEnvironment,
   request: DownloadRequest,

@@ -12,7 +12,9 @@ import { runWizard, type TargetInput } from './wizard/run-wizard.ts'
 
 const INCOMPATIBLE_IN_WIZARD = 'The answers do not fit together; change one with b:'
 
-/** How open questions are answered: asked in the wizard, or from the input and maybe the defaults. */
+/**
+ * How open questions are answered: asked in the wizard, or from the input and maybe the defaults.
+ */
 type AnswerMode =
   | ({ kind: 'wizard'; streams: Streams } & AskContext)
   | { kind: 'input'; useDefaults: boolean }
@@ -103,7 +105,10 @@ const directoryFromInput = (directory: string | undefined, useDefaults: boolean)
   )
 }
 
-/** The action for the target without asking: what the flags say, or create when nothing is in the way. */
+/**
+ * The action for the target without asking: what the flags say, or create when nothing is in the
+ * way.
+ */
 const actionFromInput = (sources: AnswerSources, directory: string): TargetAction => {
   if (sources.action !== undefined) {
     return sources.action

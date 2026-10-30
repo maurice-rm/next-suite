@@ -74,7 +74,6 @@ export type CreateEnvironment = {
   now: () => Date
   userAgent: string | undefined
   runCommand: CommandRunner
-  /** How external plugins are fetched: network, cache directory and tokens. */
   remote: RemoteEnvironment
   /** Where the user configuration with trusted sources and registries lives. */
   userConfigPath: string

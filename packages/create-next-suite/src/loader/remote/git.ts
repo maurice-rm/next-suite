@@ -64,7 +64,10 @@ const gitWith =
   (args) =>
     execFileAsync('git', [...GIT_HARDENING, ...args], { env })
 
-/** Clones the ref of a repository into a directory: a branch or tag directly, a commit by fetching it. */
+/**
+ * Clones the ref of a repository into a directory: a branch or tag directly, a commit by fetching
+ * it.
+ */
 const cloneInto = async (git: Git, { url, ref }: GitAddress, directory: string) => {
   if (ref !== undefined && COMMIT_ID.test(ref)) {
     await git(['init', '--quiet', directory])

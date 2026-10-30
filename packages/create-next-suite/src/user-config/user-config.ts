@@ -8,7 +8,10 @@ import { isMissingFileError } from '../file-system/error-code.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
 import { UserConfigError } from './user-config-error.ts'
 
-/** Keys other tools keep in the same file, such as the server settings of `next-suite provision`, stay. */
+/**
+ * Keys other tools keep in the same file, such as the server settings of `next-suite provision`,
+ * stay.
+ */
 const userConfigSchema = z.looseObject({
   trust: z.array(z.string().min(1)).default([]),
   registries: z.record(registryName, z.string().min(1)).default({}),

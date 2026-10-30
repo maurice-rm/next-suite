@@ -19,7 +19,6 @@ const listTrust = async (environment: NextSuiteEnvironment): Promise<string> => 
   return trust.length === 0 ? 'No trusted sources yet' : trust.join('\n')
 }
 
-/** Adds `next-suite trust` with its subcommands add, list and remove. */
 export const addTrustCommand = (
   program: Command,
   environment: NextSuiteEnvironment,

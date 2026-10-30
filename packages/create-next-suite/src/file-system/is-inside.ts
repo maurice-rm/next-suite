@@ -13,6 +13,5 @@ export const isInside = (directory: string, path: string): boolean => {
   )
 }
 
-/** Whether a path is a directory itself or lies below it. */
 export const isInsideOrSame = (directory: string, path: string): boolean =>
   relative(directory, path) === '' || isInside(directory, path)

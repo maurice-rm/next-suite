@@ -22,6 +22,5 @@ export type Answers = { readonly [Key in keyof WorkingAnswers]: Readonly<Working
 /** Answers as answer files, flags and next-suite.json write them, keyed by question key. */
 export type AnswerInput = Readonly<Record<string, unknown>>
 
-/** Whether the answers select the plugin of this name. */
 export const isSelected = (answers: Pick<Answers, 'plugins'>, name: string): boolean =>
   answers.plugins.some((plugin) => plugin.name === name)

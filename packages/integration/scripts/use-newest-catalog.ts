@@ -40,7 +40,10 @@ const catalogEntriesOf = (dependencies: Dependencies = {}): [string, string][] =
     version.startsWith(CATALOG_PREFIX) ? [[version.slice(CATALOG_PREFIX.length), packageName]] : [],
   )
 
-/** The package name behind each catalog entry a plugin depends on, such as `@types/node` for `types-node`. */
+/**
+ * The package name behind each catalog entry a plugin depends on, such as `@types/node` for
+ * `types-node`.
+ */
 const packageNamesByEntry = (manifests: PluginManifest[]): Map<string, string> =>
   new Map(
     manifests.flatMap((manifest) => [

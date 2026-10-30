@@ -23,7 +23,6 @@ const validatePlugin = async (environment: NextSuiteEnvironment, directory: stri
   return `${plugin.manifest.name} ${plugin.manifest.version} is a valid plugin`
 }
 
-/** Adds `next-suite plugin` with its subcommand validate. */
 export const addPluginCommand = (
   program: Command,
   environment: NextSuiteEnvironment,

@@ -18,7 +18,6 @@ export const parseWith = <Schema extends z.ZodType>(
   return parsed.data
 }
 
-/** Parses JSON text and checks it against a schema. */
 export const parseJsonWith = <Schema extends z.ZodType>(
   text: string,
   schema: Schema,

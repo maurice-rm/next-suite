@@ -30,7 +30,6 @@ const INSTRUMENTATION_CLIENT_FILE = 'instrumentation-client.ts'
 
 type PluginFile = NonNullable<ParsedPluginManifest['files']>[number]
 
-/** What templates render with. */
 export type RenderContext = {
   project: ProjectValues
   answers: Answers
@@ -128,7 +127,6 @@ type LogicFilesInput = {
   answers: Answers
 }
 
-/** Adds the files the logic modules computed. */
 export const addLogicFiles = (
   files: VirtualFiles,
   { logicFiles, plugins, answers }: LogicFilesInput,

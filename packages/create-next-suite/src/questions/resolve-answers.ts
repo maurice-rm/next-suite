@@ -150,7 +150,10 @@ const isAsked = (question: Question, answers: WorkingAnswers): boolean => {
   return isSelected(answers, question.plugin.name) && holdsFor(question.option.when, answers)
 }
 
-/** Whether a plugin cannot join the answers so far: one of its conflicts holds or a requirement does not. */
+/**
+ * Whether a plugin cannot join the answers so far: one of its conflicts holds or a requirement does
+ * not.
+ */
 const doesNotFit = (question: CategoryQuestion, name: string, answers: WorkingAnswers): boolean => {
   const plugin = question.choices.find((choice) => choice.name === name)
   return plugin !== undefined && findPluginProblems(plugin, answers).length > 0

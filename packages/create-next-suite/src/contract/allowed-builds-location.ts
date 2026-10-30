@@ -1,6 +1,9 @@
 import * as z from 'zod'
 
-/** Marks `allowedBuildsIn` values that name a field of package.json, such as `package.json#allowScripts`. */
+/**
+ * Marks `allowedBuildsIn` values that name a field of package.json, such as
+ * `package.json#allowScripts`.
+ */
 export const PACKAGE_JSON_FIELD_PREFIX = 'package.json#'
 
 /** The package.json fields a package manager reads its allowed dependency builds from. */

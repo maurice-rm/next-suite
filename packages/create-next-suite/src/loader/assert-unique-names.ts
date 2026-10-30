@@ -1,7 +1,6 @@
 import type { LoadedPlugin } from './load-plugin.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
-/** Fails when two plugins share a name. */
 export const assertUniqueNames = (plugins: readonly LoadedPlugin[]): void => {
   const seen = new Set<string>()
   for (const plugin of plugins) {

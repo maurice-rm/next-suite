@@ -38,7 +38,9 @@ const isNamePart = (part: string): boolean => NAME_PART.test(part) && part !== '
 const isDirectoryPath = (path: string): boolean =>
   path === '' || path.split('/').every((segment) => segment !== '' && isNamePart(segment))
 
-/** A GitHub or GitLab address, or nothing when it is none or names a path outside the repository. */
+/**
+ * A GitHub or GitLab address, or nothing when it is none or names a path outside the repository.
+ */
 const parseHosted = (address: string): PluginAddress | undefined => {
   const [, host, owner, repo, path, ref] = HOSTED.exec(address) ?? []
   if (host === undefined || owner === undefined || repo === undefined) {

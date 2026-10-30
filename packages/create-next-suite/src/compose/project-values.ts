@@ -22,7 +22,10 @@ export type ProjectValues = {
   /** What an import through the alias starts with, such as `@/`. */
   importPrefix: string
   packageManager: string
-  /** The exact version of the package manager, such as `12.16.1`; only with a package manager plugin. */
+  /**
+   * The exact version of the package manager, such as `12.16.1`; only with a package manager
+   * plugin.
+   */
   packageManagerVersion?: string
   /** How a script runs with the package manager, such as `pnpm run`. */
   run: string
@@ -52,7 +55,6 @@ const importAliasOf = (answers: Answers): string => {
 export const usesSourceDirectory = (answers: Answers): boolean =>
   answers.settings[SRC_DIR_SETTING] === true
 
-/** The values about the project, from the answers and the selected package manager. */
 export const projectValues = ({
   projectName,
   answers,

@@ -23,7 +23,6 @@ type Service = NonNullable<NonNullable<Contributions['container']>['services']>[
 type SectionText = { section: string; text: string }
 type RootProvider = { import: string; component: string }
 
-/** The merged contributions of all plugins. */
 export type CompositionValues = {
   scripts: Record<string, string>
   fields: Record<string, FieldValue>
