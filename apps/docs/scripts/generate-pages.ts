@@ -3,6 +3,7 @@ import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import packageJson from 'create-next-suite/package.json' with { type: 'json' }
+import type { Plugin } from 'create-next-suite/plugin'
 
 /** Writes the docs pages that come from create-next-suite itself: its options and its CLI help. */
 
@@ -14,8 +15,6 @@ type Category = {
   cardinality: 'one' | 'at-most-one' | 'many'
   default: string | string[] | null
 }
-/** The fields of a built-in plugin these pages show. */
-type Plugin = { name: string; title: string; description?: string; category?: string }
 type Section = { section: string; categories: Category[] }
 
 const PACKAGE_ROOT = fileURLToPath(

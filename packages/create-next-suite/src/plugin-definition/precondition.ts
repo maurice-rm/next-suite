@@ -1,5 +1,5 @@
 /** What a precondition gets: the plugins the run selects. */
-type PreconditionContext = {
+export type PreconditionContext = {
   /** Whether a plugin of that name is selected. */
   has: (pluginName: string) => boolean
   /** Whether a plugin of that category is selected, such as `linter`. */

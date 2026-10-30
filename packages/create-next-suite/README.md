@@ -81,7 +81,7 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 
 | Import                                    | What it holds                                                                    |
 | ----------------------------------------- | -------------------------------------------------------------------------------- |
-| `create-next-suite/plugin`                | `definePlugin` and the collectors of the shared points                           |
+| `create-next-suite/plugin`                | `definePlugin`, the points and the types of a plugin                             |
 | `create-next-suite/testing`               | `createTestProject`, which generates a project and runs its scripts              |
 | `create-next-suite/schemas/registry.json` | the JSON schema of `registry.json`                                               |
 
