@@ -1,12 +1,14 @@
-import { readFile, stat } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import type * as z from 'zod'
 
 import { type Category, categoriesSchema } from '../contract/category.ts'
 import { type VersionCatalog, versionCatalogSchema } from '../contract/version-catalog.ts'
+import { ExpectedError } from '../expected-error.ts'
 import { isMissingFileError } from '../file-system/error-code.ts'
 import { listFolders } from '../file-system/list-folders.ts'
+import { readJsonFile } from '../file-system/read-json-file.ts'
 import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
 import { assertUniqueNames, loadPlugins } from './load-plugins.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
@@ -44,7 +46,11 @@ const readJson = async <Schema extends z.ZodType>(
   if (!(await exists(path))) {
     return fallback
   }
-  return schema.parse(JSON.parse(await readFile(path, 'utf8')))
+  return readJsonFile(
+    path,
+    schema,
+    (problem, options) => new ExpectedError(`${path} ${problem}`, options),
+  )
 }
 
 const assertInGroup = (directory: string, group: string, plugins: LoadedPlugin[]): void => {

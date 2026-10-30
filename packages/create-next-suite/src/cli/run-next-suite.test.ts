@@ -65,7 +65,7 @@ describe('next-suite registry', () => {
     const result = await run(['registry', 'add', '@other', './registry'])
 
     expect(result.exitCode).toBe(1)
-    expect(result.error).toContain('./registry is the registry @acme, not @other')
+    expect(result.error).toBe('next-suite: ./registry is the registry @acme, not @other\n')
   })
 })
 

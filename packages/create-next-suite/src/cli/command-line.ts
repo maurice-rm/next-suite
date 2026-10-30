@@ -4,7 +4,6 @@ import type { Writable } from 'node:stream'
 import { Command, Option } from 'commander'
 
 import type { TargetAction } from '../answers/target-action.ts'
-import { InputError } from '../input-error.ts'
 import { answersFromFlags, type QuestionFlag } from '../questions/flags.ts'
 import { readAnswerFile } from '../questions/read-answer-file.ts'
 import type { AnswerInput } from '../questions/resolve-answers.ts'
@@ -112,7 +111,7 @@ export const parseCommandLine = async (
   }
   await program.parseAsync([...argv], { from: 'user' })
   if (invocation === undefined) {
-    throw new InputError('the command line did not run the command')
+    throw new Error('the command line did not run the command')
   }
   return invocation
 }

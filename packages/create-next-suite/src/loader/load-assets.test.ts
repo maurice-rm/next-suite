@@ -5,6 +5,7 @@ import { basename, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import type { PluginManifest } from '../contract/plugin-manifest.ts'
+import { ExpectedError } from '../expected-error.ts'
 import { testManifestJson } from '../test-support/test-manifest.ts'
 import { writeFiles } from '../test-support/write-files.ts'
 import { loadAssets } from './load-assets.ts'
@@ -54,5 +55,12 @@ describe('loadAssets', () => {
     await writePlugin('plugins/extras/seo')
 
     await expect(loadAssets(root)).rejects.toThrow('two plugins are named seo')
+  })
+
+  it('names an invalid categories.json instead of failing with a raw schema error', async () => {
+    await writeFiles(root, { 'categories.json': JSON.stringify([{ section: 'Data' }]) })
+
+    await expect(loadAssets(root)).rejects.toThrow(ExpectedError)
+    await expect(loadAssets(root)).rejects.toThrow('categories.json is invalid')
   })
 })

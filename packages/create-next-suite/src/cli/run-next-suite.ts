@@ -13,7 +13,7 @@ import { parsePluginAddress } from '../loader/plugin-address.ts'
 import { fetchRegistry } from '../loader/registry.ts'
 import { readUserConfig, type UserConfig, writeUserConfig } from '../trust/user-config.ts'
 import { failure } from '../ui/theme.ts'
-import { CREATE_COMMAND, NEXT_SUITE_COMMAND } from './command-name.ts'
+import { NEXT_SUITE_COMMAND } from './command-name.ts'
 import { EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import { describeExpectedError } from './report-error.ts'
 
@@ -204,7 +204,7 @@ export const runNextSuite = async (environment: NextSuiteEnvironment): Promise<n
     if (error instanceof CommanderError) {
       return error.exitCode
     }
-    environment.error.write(`${failure(describeExpectedError(error, CREATE_COMMAND))}\n`)
+    environment.error.write(`${failure(describeExpectedError(error, NEXT_SUITE_COMMAND))}\n`)
     return EXIT_FAILURE
   }
 }
