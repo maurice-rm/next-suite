@@ -26,11 +26,7 @@
   "files": [
     "dist",
     "base",
-    "base-project",
-    "plugins",
-    "plugins-v2",
-    "categories.json",
-    "catalog.json"
+    "plugins"
   ],
   "bin": {
     "create-next-suite": "./dist/create-next-suite.mjs",
@@ -39,8 +35,6 @@
   "exports": {
     "./plugin": "./dist/plugin.mjs",
     "./testing": "./dist/testing.mjs",
-    "./schemas/plugin.json": "./dist/schemas/plugin.json",
-    "./schemas/categories.json": "./dist/schemas/categories.json",
     "./schemas/registry.json": "./dist/schemas/registry.json",
     "./package.json": "./package.json"
   },
@@ -65,7 +59,6 @@
     "ansis": "4.4.0",
     "commander": "15.0.0",
     "diff": "9.0.0",
-    "handlebars": "4.7.10",
     "jiti": "2.7.0",
     "magic-string": "1.4.5",
     "oxc-parser": "0.156.0",

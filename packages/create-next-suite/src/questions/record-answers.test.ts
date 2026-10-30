@@ -22,7 +22,6 @@ describe('recordAnswers', () => {
       styling: ['tailwind', 'sass'],
       seo: true,
       'seo.og-image': true,
-      'seo.og-title': 'Shop',
       'better-auth': true,
     }
     const { answers, missing } = resolveFrom(input)

@@ -1,4 +1,3 @@
-import type { ResolvedPostStep } from '../contract/post-step.ts'
 import { findUnsupportedVersion } from '../package-manager/supported-versions.ts'
 import type { CommandResult, CommandRunner } from './run-command.ts'
 
@@ -11,6 +10,9 @@ const FALLBACK_IDENTITY = [
   '-c',
   'user.email=create-next-suite@users.noreply.github.com',
 ]
+
+/** A script of package.json that runs after the install, with what the run shows for it. */
+type PostStep = { script: string; running: string; done: string }
 
 /** What a step says while it runs, when it succeeds and when it fails. */
 type StepMessages = { running: string; done: string; failed: string }
@@ -26,7 +28,7 @@ export type PostStepsInput = {
   directory: string
   packageManager: string | undefined
   installArgs: readonly string[]
-  scripts: readonly ResolvedPostStep[]
+  scripts: readonly PostStep[]
   shouldInstall: boolean
   shouldInitializeGit: boolean
   runCommand: CommandRunner

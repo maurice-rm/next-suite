@@ -169,4 +169,30 @@ describe('resolvePlugins', () => {
 
     expect(order(prettier, biome, oxfmt)).toEqual(['prettier', 'oxfmt'])
   })
+
+  it('refuses a plugin whose precondition fails among the plugins that run, with its reason', () => {
+    const lintStaged = definePlugin({
+      name: 'lint-staged',
+      title: 'lint-staged',
+      precondition: ({ hasCategory }) => hasCategory('linter') || 'it needs a linter',
+    })
+    const eslint = definePlugin({ name: 'eslint', title: 'ESLint', category: 'linter' })
+
+    expect(() => order(lintStaged, eslint)).not.toThrow()
+    expect(() => order(lintStaged)).toThrow(
+      new AssemblyError('lint-staged cannot run: it needs a linter'),
+    )
+  })
+
+  it('asks a precondition with the selected plugins, a replaced one included', () => {
+    const header = definePlugin({
+      name: 'header',
+      title: 'Header',
+      precondition: ({ has }) => has('static-csp') || 'it needs static-csp',
+    })
+    const staticCsp = definePlugin({ name: 'static-csp', title: 'S' })
+    const myCsp = definePlugin({ name: 'my-csp', title: 'M', replaces: 'static-csp' })
+
+    expect(order(header, staticCsp, myCsp)).toEqual(['header', 'my-csp'])
+  })
 })

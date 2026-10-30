@@ -13,8 +13,8 @@
       "!**/*.md",
       "!packages/create-next-suite/plugins/*/*/files",
       "!packages/create-next-suite/base/files",
-      "!packages/create-next-suite/base-project",
-      "!packages/create-next-suite/plugins-v2/*/*/files"
+      "!packages/create-next-suite/base",
+      "!packages/create-next-suite/plugins/*/*/files"
     ]
   },
   "formatter": {
@@ -124,16 +124,12 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -185,16 +181,12 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -248,8 +240,6 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -258,8 +248,6 @@
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -309,14 +297,10 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -368,14 +352,10 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -419,14 +399,10 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -465,105 +441,6 @@
       }
     },
     {
-      "includes": ["packages/create-next-suite/src/compose/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "**/trust",
-                      "**/trust/**",
-                      "**/user-config",
-                      "**/user-config/**",
-                      "**/write",
-                      "**/write/**",
-                      "**/questions",
-                      "**/questions/**",
-                      "**/post-steps",
-                      "**/post-steps/**",
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
-                      "**/cli",
-                      "**/cli/**",
-                      "**/create-next-suite.ts",
-                      "**/next-suite.ts",
-                      "**/plugin.ts",
-                      "**/testing.ts",
-                      "**/project-model",
-                      "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
-                      "**/assembly",
-                      "**/assembly/**",
-                      "**/points",
-                      "**/points/**"
-                    ],
-                    "message": "create-next-suite: compose/ imports from contract/, answers/, loader/, file-system/ and the error classes only"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/create-next-suite/src/compose/template/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "**/trust",
-                      "**/trust/**",
-                      "**/user-config",
-                      "**/user-config/**",
-                      "../*.ts",
-                      "**/write",
-                      "**/write/**",
-                      "**/questions",
-                      "**/questions/**",
-                      "**/post-steps",
-                      "**/post-steps/**",
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
-                      "**/cli",
-                      "**/cli/**",
-                      "**/create-next-suite.ts",
-                      "**/next-suite.ts",
-                      "**/plugin.ts",
-                      "**/testing.ts",
-                      "**/project-model",
-                      "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
-                      "**/assembly",
-                      "**/assembly/**",
-                      "**/points",
-                      "**/points/**"
-                    ],
-                    "message": "create-next-suite: compose/template/ imports from contract/, answers/, loader/, file-system/ and the error classes only, never from compose/"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["packages/create-next-suite/src/write/**"],
       "linter": {
         "rules": {
@@ -574,8 +451,6 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/questions",
@@ -601,7 +476,7 @@
                       "**/points",
                       "**/points/**"
                     ],
-                    "message": "create-next-suite: write/ imports from contract/, answers/, loader/, compose/, file-system/ and the error classes only"
+                    "message": "create-next-suite: write/ imports from contract/, answers/, loader/, file-system/ and the error classes only"
                   }
                 ]
               }
@@ -621,12 +496,8 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/post-steps",
@@ -641,14 +512,12 @@
                       "**/package-manager/**",
                       "**/project-model",
                       "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
                       "**/points/**"
                     ],
-                    "message": "create-next-suite: questions/ imports from contract/, answers/, loader/, ui/, file-system/ and the error classes only"
+                    "message": "create-next-suite: questions/ imports from contract/, answers/, loader/, plugin-definition/, ui/, file-system/ and the error classes only"
                   }
                 ]
               }
@@ -668,16 +537,12 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -696,14 +561,12 @@
                       "**/testing.ts",
                       "**/project-model",
                       "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
                       "**/points/**"
                     ],
-                    "message": "create-next-suite: package-manager/ imports from contract/ and the error classes only"
+                    "message": "create-next-suite: package-manager/ imports from contract/, plugin-definition/ and the error classes only"
                   }
                 ]
               }
@@ -723,16 +586,12 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -776,8 +635,6 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -786,8 +643,6 @@
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -838,8 +693,6 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -848,8 +701,6 @@
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -888,57 +739,6 @@
       }
     },
     {
-      "includes": ["packages/create-next-suite/src/trust/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "**/user-config",
-                      "**/user-config/**",
-                      "**/answers",
-                      "**/answers/**",
-                      "**/compose",
-                      "**/compose/**",
-                      "**/write",
-                      "**/write/**",
-                      "**/questions",
-                      "**/questions/**",
-                      "**/post-steps",
-                      "**/post-steps/**",
-                      "**/package-manager",
-                      "**/package-manager/**",
-                      "**/ui",
-                      "**/ui/**",
-                      "**/cli",
-                      "**/cli/**",
-                      "**/create-next-suite.ts",
-                      "**/next-suite.ts",
-                      "**/plugin.ts",
-                      "**/testing.ts",
-                      "**/project-model",
-                      "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
-                      "**/assembly",
-                      "**/assembly/**",
-                      "**/points",
-                      "**/points/**"
-                    ],
-                    "message": "create-next-suite: trust/ imports from contract/, loader/, file-system/ and the error classes only"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["packages/create-next-suite/src/user-config/**"],
       "linter": {
         "rules": {
@@ -949,14 +749,10 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -1029,12 +825,8 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/post-steps",
@@ -1074,8 +866,6 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -1084,8 +874,6 @@
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -1132,8 +920,6 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -1142,8 +928,6 @@
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -1186,8 +970,6 @@
                 "patterns": [
                   {
                     "group": [
-                      "**/trust",
-                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -1196,8 +978,6 @@
                       "**/answers/**",
                       "**/loader",
                       "**/loader/**",
-                      "**/compose",
-                      "**/compose/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",

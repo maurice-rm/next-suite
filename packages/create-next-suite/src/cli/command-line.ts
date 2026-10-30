@@ -67,8 +67,8 @@ export const RESERVED_NAMES: ReadonlySet<string> = new Set([
 const PLUGIN_FLAG = '--plugin'
 
 /**
- * The plugin addresses on a command line, read before it is parsed in full, because the plugins
- * decide which other flags exist.
+ * The plugin addresses on a command line, read before it is parsed in full, so a run that names
+ * one stops before its questions.
  */
 export const readPluginAddresses = (argv: readonly string[]): string[] =>
   argv.flatMap((arg, index) => {

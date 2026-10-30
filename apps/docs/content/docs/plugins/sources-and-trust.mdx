@@ -3,6 +3,13 @@ title: Sources and trust
 description: Where plugins come from, and which of them may run.
 ---
 
+<Callout type="warn">
+  Plugins from outside create-next-suite move to the `plugin.ts` form. In this version `--plugin`
+  stops with a message for every address; registries and trusted sources can be managed with
+  `next-suite`, but their plugins are not loaded. This page describes how sources and trust work
+  once they load again.
+</Callout>
+
 `--plugin` takes an address:
 
 | Form | Example |
@@ -26,16 +33,16 @@ as one held by an SSH agent.
 
 ## Trust
 
-A plugin from anywhere but a local directory can run code on your machine: through its logic module,
-but also through scripts, post-steps or package manager settings. So it needs your trust:
+A plugin from anywhere but a local directory can run code on your machine: through its
+`plugin.ts`, but also through scripts, post-steps or package manager settings. So it needs your
+trust:
 
 - in a terminal, create-next-suite asks: allow a pinned version once, always trust the source, or
   cancel;
 - without one, pass `--trust "github:acme/*"` for the run;
 - or keep trusted patterns with `next-suite trust add "github:acme/*"`.
 
-A dry run of a plugin without a logic module needs no trust. Patterns match the address without its
-ref or version, and `*` stands for anything.
+Patterns match the address without its ref or version, and `*` stands for anything.
 
 GitHub serves commits of forks through the original repository too. A commit pinned under a trusted
 owner can therefore come from someone else's fork; pin tags or branches of repositories you trust.

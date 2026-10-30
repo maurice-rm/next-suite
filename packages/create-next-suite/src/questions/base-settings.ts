@@ -1,10 +1,10 @@
-import type { PluginOption } from '../contract/plugin-option.ts'
+import type { QuestionOption } from './question-option.ts'
 
 /** The section of the wizard that asks the project name and offers the quick start. */
 export const PROJECT_SECTION = 'Project'
 
 /** A setting the core reads itself, asked like a plugin option. */
-export type Setting = { key: string; option: PluginOption }
+export type Setting = { key: string; option: QuestionOption }
 
 /**
  * The base settings, which the core and the base project read, with the defaults of

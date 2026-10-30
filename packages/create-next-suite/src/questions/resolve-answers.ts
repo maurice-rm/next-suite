@@ -5,11 +5,12 @@ import {
   isSelected,
   type WorkingAnswers,
 } from '../answers/answers.ts'
-import { holdsFor } from '../answers/evaluate-condition.ts'
-import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from '../input-error.ts'
+import type { Plugin } from '../plugin-definition/plugin-definition.ts'
+import { findUnmetPrecondition } from '../plugin-definition/precondition.ts'
 import type { CategoryQuestion, Question } from './build-questions.ts'
-import { findPluginProblems } from './find-incompatibilities.ts'
+import { findConflictReasons } from './find-incompatibilities.ts'
+import type { QuestionOption } from './question-option.ts'
 import { isStringList } from './value-guards.ts'
 
 type ResolveInput = {
@@ -26,6 +27,9 @@ export type Resolution = {
 }
 
 type QuestionValue = AnswerValue | null
+
+/** A resolution and the plugins only a default selected, where the category allows none. */
+type ResolutionPass = { resolution: Resolution; defaulted: Plugin[] }
 
 const formatValue = (value: unknown): string => JSON.stringify(value) ?? String(value)
 
@@ -56,7 +60,11 @@ const validateCategory = (question: CategoryQuestion, value: unknown): QuestionV
   return value
 }
 
-const validateOption = (question: Question, option: PluginOption, value: unknown): AnswerValue => {
+const validateOption = (
+  question: Question,
+  option: QuestionOption,
+  value: unknown,
+): AnswerValue => {
   switch (option.type) {
     case 'boolean':
       if (typeof value !== 'boolean') {
@@ -66,11 +74,6 @@ const validateOption = (question: Question, option: PluginOption, value: unknown
     case 'string':
       if (typeof value !== 'string') {
         throw invalidAnswerError(question, value, 'a string')
-      }
-      return value
-    case 'number':
-      if (typeof value !== 'number' || !Number.isFinite(value)) {
-        throw invalidAnswerError(question, value, 'a number')
       }
       return value
     case 'select': {
@@ -111,7 +114,7 @@ export const defaultAnswer = (question: Question): QuestionValue => {
     case 'category':
       return question.category.default
     case 'extra':
-      return question.plugin.selectedByDefault ?? false
+      return false
     case 'option':
     case 'setting':
       return question.option.default
@@ -147,43 +150,59 @@ const isAsked = (question: Question, answers: WorkingAnswers): boolean => {
   if (question.kind !== 'option') {
     return true
   }
-  return isSelected(answers, question.plugin.name) && holdsFor(question.option.when, answers)
+  return isSelected(answers, question.plugin.name)
 }
 
 /**
- * Whether a plugin cannot join the answers so far: one of its conflicts holds or a requirement does
- * not.
+ * Whether a default plugin cannot join the answers so far: it conflicts with a selected one, or
+ * an earlier pass left it out for its precondition.
  */
-const doesNotFit = (question: CategoryQuestion, name: string, answers: WorkingAnswers): boolean => {
+const doesNotFit = (
+  question: CategoryQuestion,
+  name: string,
+  { answers, excluded }: { answers: WorkingAnswers; excluded: ReadonlySet<string> },
+): boolean => {
   const plugin = question.choices.find((choice) => choice.name === name)
-  return plugin !== undefined && findPluginProblems(plugin, answers).length > 0
+  return (
+    plugin !== undefined && (excluded.has(name) || findConflictReasons(plugin, answers).length > 0)
+  )
 }
 
 /**
- * The default of a question for the answers so far. A default plugin that does not fit, because
- * one of its conflicts holds or a requirement does not, is left out where the category allows
- * none: Prettier once Biome is the linter, lint-staged without linter and formatter.
+ * The default of a question for the answers so far. A default plugin that does not fit is left
+ * out where the category allows none: Prettier once Biome is the linter.
  */
-const defaultFor = (question: Question, answers: WorkingAnswers): QuestionValue => {
+const defaultFor = (
+  question: Question,
+  fit: { answers: WorkingAnswers; excluded: ReadonlySet<string> },
+): QuestionValue => {
   const fallback = defaultAnswer(question)
   if (question.kind !== 'category' || question.category.cardinality === 'one') {
     return fallback
   }
   if (Array.isArray(fallback)) {
-    return fallback.filter((name) => !doesNotFit(question, name, answers))
+    return fallback.filter((name) => !doesNotFit(question, name, fit))
   }
-  return typeof fallback === 'string' && doesNotFit(question, fallback, answers) ? null : fallback
+  return typeof fallback === 'string' && doesNotFit(question, fallback, fit) ? null : fallback
 }
 
-/**
- * Resolves answers question by question: input wins, then the default when `useDefaults` is set;
- * otherwise the question stays open. Options of plugins that are not selected, or whose condition
- * does not hold, are not asked. Invalid values fail with the expected values.
- */
-export const resolveAnswers = ({ questions, input, useDefaults }: ResolveInput): Resolution => {
+/** The plugins a default selected for a category question that allows none. */
+const defaultedPlugins = (question: Question, value: QuestionValue): Plugin[] => {
+  if (question.kind !== 'category' || question.category.cardinality === 'one' || value === null) {
+    return []
+  }
+  const names = [value].flat()
+  return question.choices.filter((plugin) => names.includes(plugin.name))
+}
+
+const resolvePass = (
+  { questions, input, useDefaults }: ResolveInput,
+  excluded: ReadonlySet<string>,
+): ResolutionPass => {
   const answers: WorkingAnswers = { plugins: [], settings: {}, options: {} }
   const missing: Question[] = []
   const used = new Set<string>()
+  const defaulted: Plugin[] = []
   for (const question of questions) {
     if (!isAsked(question, answers)) {
       continue
@@ -195,12 +214,39 @@ export const resolveAnswers = ({ questions, input, useDefaults }: ResolveInput):
     }
     if (given !== undefined) {
       used.add(question.key)
+      applyAnswer(question, validateAnswer(question, given), answers)
+      continue
     }
-    applyAnswer(
-      question,
-      given === undefined ? defaultFor(question, answers) : validateAnswer(question, given),
-      answers,
-    )
+    const value = defaultFor(question, { answers, excluded })
+    defaulted.push(...defaultedPlugins(question, value))
+    applyAnswer(question, value, answers)
   }
-  return { answers, missing, unused: Object.keys(input).filter((key) => !used.has(key)) }
+  return {
+    resolution: { answers, missing, unused: Object.keys(input).filter((key) => !used.has(key)) },
+    defaulted,
+  }
+}
+
+/**
+ * Resolves answers question by question: input wins, then the default when `useDefaults` is set;
+ * otherwise the question stays open. Options of plugins that are not selected are not asked.
+ * A plugin only a default selected is left out where the category allows none when its
+ * precondition fails on the whole selection; the answers are then resolved again without it.
+ * Invalid values fail with the expected values.
+ */
+export const resolveAnswers = (resolveInput: ResolveInput): Resolution => {
+  const excluded = new Set<string>()
+  for (;;) {
+    const { resolution, defaulted } = resolvePass(resolveInput, excluded)
+    const unavailable = defaulted.filter(
+      (plugin) =>
+        findUnmetPrecondition(plugin.precondition, resolution.answers.plugins) !== undefined,
+    )
+    if (unavailable.length === 0) {
+      return resolution
+    }
+    for (const plugin of unavailable) {
+      excluded.add(plugin.name)
+    }
+  }
 }

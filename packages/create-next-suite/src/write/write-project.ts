@@ -2,7 +2,6 @@ import { lstat, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import type { TargetAction } from '../answers/target-action.ts'
-import type { ProjectPlan } from '../compose/compose-project.ts'
 import { isMissingFileError } from '../file-system/error-code.ts'
 import { isInsideOrSame } from '../file-system/is-inside.ts'
 import { emptyTarget } from './empty-target.ts'
@@ -16,6 +15,9 @@ type CreatedPaths = { files: string[]; directories: string[] }
 export type WriteTarget = { directory: string; action: TargetAction; cwd: string }
 
 type ProjectFile = { path: string; content: string; canReplace: boolean }
+
+/** The files a run writes, by project path. */
+type PlannedFiles = { files: readonly { path: string; content: string }[] }
 
 /** Fails when what is at the target does not fit the action. */
 const assertTargetFits = (state: TargetState, { directory, action }: WriteTarget): void => {
@@ -74,7 +76,7 @@ const assertInsideTarget = async (realTarget: string, directory: string): Promis
 }
 
 const writeFiles = async (
-  plan: ProjectPlan,
+  plan: PlannedFiles,
   { directory, action }: WriteTarget,
   created: CreatedPaths,
 ): Promise<void> => {
@@ -97,12 +99,12 @@ const removeCreated = async (created: CreatedPaths): Promise<void> => {
 }
 
 /**
- * Writes a composed project into its target. `create` needs a missing or empty directory, `empty`
+ * Writes a planned project into its target. `create` needs a missing or empty directory, `empty`
  * deletes everything but `.git` first, `overwrite` writes over existing files. A file is never
  * written through a link or over a directory. If writing fails, every file and directory this run
  * created is removed again; files it replaced stay replaced.
  */
-export const writeProject = async (plan: ProjectPlan, target: WriteTarget): Promise<void> => {
+export const writeProject = async (plan: PlannedFiles, target: WriteTarget): Promise<void> => {
   const { directory, action, cwd } = target
   const state = inspectTarget(directory)
   assertTargetFits(state, target)

@@ -1,8 +1,12 @@
 import { Command } from 'commander'
 import { describe, expect, it } from 'vitest'
 
-import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
-import { TEST_CATEGORIES, TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
+import {
+  TEST_CATEGORIES,
+  TEST_PLUGINS,
+  TEST_QUESTIONS,
+  testPlugin,
+} from '../test-support/questions.ts'
 import { buildQuestions } from './build-questions.ts'
 import { answersFromFlags, createFlags } from './flags.ts'
 
@@ -57,13 +61,7 @@ describe('createFlags', () => {
   })
 
   it('rejects two questions with the same flag', () => {
-    const clash = pluginManifestSchema.parse({
-      name: 'drizzle-casing',
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: 'x',
-      description: 'x',
-    })
+    const clash = testPlugin('drizzle-casing')
     const questions = buildQuestions({
       categories: TEST_CATEGORIES,
       plugins: [...TEST_PLUGINS, clash],
@@ -114,7 +112,6 @@ describe('createFlags', () => {
       '--no-seo  turn off --seo',
       '--seo-og-image  turn on the og-image option of seo',
       '--no-seo-og-image  turn off --seo-og-image',
-      '--seo-og-title <value>  the og-title option of seo',
       '',
       'Extras:',
       '--better-auth  add better-auth',

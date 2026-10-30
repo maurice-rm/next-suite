@@ -1,4 +1,4 @@
-export type AnswerValue = string | number | boolean | string[]
+export type AnswerValue = string | boolean | string[]
 
 /** A plugin the answers select, with the category it was chosen in. */
 type SelectedPlugin = {

@@ -250,3 +250,23 @@ describe('a plugin definition rejects', () => {
     })
   })
 })
+
+describe('the precondition of a plugin', () => {
+  it('reads the selection and answers true or the reason', () => {
+    definePlugin({
+      ...NAMES,
+      precondition: ({ has, hasCategory }) => {
+        expectTypeOf(has).toEqualTypeOf<(pluginName: string) => boolean>()
+        return hasCategory('linter') || 'it needs a linter'
+      },
+    })
+  })
+
+  it('refuses any other answer', () => {
+    definePlugin({
+      ...NAMES,
+      // @ts-expect-error a precondition answers true or the reason, never false
+      precondition: ({ hasCategory }) => hasCategory('linter'),
+    })
+  })
+})

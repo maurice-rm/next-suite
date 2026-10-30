@@ -21,6 +21,9 @@ export type Category = CategoryFields &
     | { cardinality: 'many'; default: string[] }
   )
 
+/** The category of the package manager plugins, whose name is the command the project runs with. */
+export const PACKAGE_MANAGER_CATEGORY = 'package-manager'
+
 const PROJECT = 'Project'
 const UI = 'UI'
 const TOOLING = 'Tooling'
@@ -30,7 +33,7 @@ const DEPLOYMENT = 'Deployment'
 /** The categories of the built-in plugins in the order the wizard asks them; plugins run in it too. */
 export const CATEGORIES: readonly Category[] = [
   {
-    id: 'package-manager',
+    id: PACKAGE_MANAGER_CATEGORY,
     question: 'Which package manager would you like to use?',
     section: PROJECT,
     cardinality: 'one',

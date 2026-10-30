@@ -1,6 +1,6 @@
 import { createTwoFilesPatch } from 'diff'
 
-import type { ProjectPlan } from '../compose/compose-project.ts'
+import type { ProjectPlan } from './project-plan.ts'
 
 const NEW_FILE = '/dev/null'
 const EMPTY_SOURCE = ''

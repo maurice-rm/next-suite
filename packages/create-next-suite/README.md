@@ -31,7 +31,7 @@ Requires Node.js 24.12 or newer.
 | `--answers <file>`           | reads answers from a JSON file in the format of `answers` in next-suite.json |
 | `--dry-run`                  | shows what would be created and writes nothing; `--diff` adds file contents  |
 | `--overwrite`, `--empty`     | writes into a directory that has files, keeping or removing them             |
-| `--plugin <address>`         | adds a plugin from a directory, npm, GitHub, GitLab, Git or a URL            |
+| `--plugin <address>`         | adds a plugin from a directory, npm, GitHub, GitLab, Git or a URL; see below |
 | `--trust <pattern>`          | lets plugins from matching sources run code, for this run                    |
 | `--package-manager <plugin>` | `npm`, `pnpm`, `yarn` or `bun`                                               |
 | `--<category> <plugin>`      | picks a plugin of a category, such as `--linter biome`                       |
@@ -40,6 +40,10 @@ Requires Node.js 24.12 or newer.
 
 `npx create-next-suite@latest --help` lists every flag. With `npm create`, flags follow a `--`:
 `npm create next-suite@latest my-app -- --yes`.
+
+Plugins move to the `plugin.ts` form. In this version only the built-in plugins run: `--plugin`
+and `next-suite plugin validate` stop with a message, and registries can be managed but their
+plugins not loaded.
 
 ## Without questions
 
@@ -71,17 +75,15 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | ------------------------------------------------ | --------------------------------------------------------- |
 | `registry add <name> <source>`, `list`, `remove` | manages the registries `--plugin @name/plugin` loads from |
 | `trust add <pattern>`, `list`, `remove`          | manages the sources whose plugins may run code            |
-| `plugin validate <directory>`                    | checks a plugin and its templates                         |
+| `plugin validate <directory>`                    | checks a plugin; not available in this version            |
 
 ## For plugin authors
 
-| Import                                      | What it holds                                                                        |
-| ------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `create-next-suite/plugin`                  | the types of the plugin contract, such as `PluginManifest` and `Logic`               |
-| `create-next-suite/testing`                 | `createTestProject`, which generates a project with your plugin and runs its scripts |
-| `create-next-suite/schemas/plugin.json`     | the JSON schema of `plugin.json`                                                     |
-| `create-next-suite/schemas/categories.json` | the JSON schema of `categories.json`                                                 |
-| `create-next-suite/schemas/registry.json`   | the JSON schema of `registry.json`                                                   |
+| Import                                    | What it holds                                                                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------- |
+| `create-next-suite/plugin`                | `definePlugin`, the points and the types of a plugin                             |
+| `create-next-suite/testing`               | `createTestProject`, which generates a project and runs its scripts              |
+| `create-next-suite/schemas/registry.json` | the JSON schema of `registry.json`                                               |
 
 The [documentation](https://github.com/maurice-rm/next-suite/tree/main/apps/docs/content/docs)
 explains how to write, test and share plugins.

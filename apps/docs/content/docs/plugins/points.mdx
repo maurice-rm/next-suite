@@ -1,0 +1,104 @@
+---
+title: Points
+description: How plugins work together without naming each other.
+---
+
+A point is a typed interface between plugins: a name and the type of what flows through it. At run
+time it is only its name; its type comes from a registry the module that defines it fills by module
+augmentation.
+
+## Value points
+
+Information flows from one provider to every user. The point module declares the type and the
+point:
+
+```ts title="orm-point.ts"
+import { defineValuePoint } from 'create-next-suite/plugin'
+
+declare module 'create-next-suite/plugin' {
+  interface ValuePoints {
+    orm: { kind: 'drizzle' | 'prisma'; client: { name: string; from: string } }
+  }
+}
+
+export const orm = defineValuePoint('orm')
+```
+
+The provider states the value under `provides`; a user names the point under `uses` and reads it
+in every function, which also makes it run after the provider:
+
+```ts
+// the ORM plugin
+provides: { orm: { kind: 'drizzle', client: { name: 'db', from: '@/db' } } },
+
+// a plugin that needs the client
+uses: { orm },
+files: {
+  '@/lib/auth.ts': {
+    source: 'files/auth.ts',
+    edit: (auth, { orm }) => auth.addImport({ names: [orm.client.name], from: orm.client.from }),
+  },
+},
+```
+
+A required point without a provider fails the run.
+
+## Collector points
+
+Information flows from the users to one provider. The provider creates a collector under
+`collects` and finishes it into files once every contribution is in; other plugins contribute
+under `extend`:
+
+```ts
+declare module 'create-next-suite/plugin' {
+  interface CollectorPoints {
+    logRedact: { redact: (...paths: string[]) => void; paths: () => readonly string[] }
+  }
+}
+
+// the logger plugin
+collects: {
+  logRedact: {
+    create: createLogRedact,
+    finish: (redact, { module }) => {
+      const paths = redact.paths().map((path) => JSON.stringify(path))
+      module('@/lib/logger.ts').object('logger').addToArray('redact', ...paths)
+    },
+  },
+},
+
+// any other plugin
+extend: { logRedact: (redact) => redact.redact('req.body.password') },
+```
+
+A contribution to a point no selected plugin provides is dropped, so a plugin can offer to the
+logger without depending on one. `uses: { csp }` with a collector point requires a provider and
+reads `true`.
+
+## Optional use
+
+`optional(point)` lets a plugin run without a provider; it then reads `undefined`:
+
+```ts
+uses: { csp: optional(csp) },
+scripts: ({ csp }) => (csp === undefined ? {} : { 'csp:check': 'node check-csp.ts' }),
+```
+
+## Replacing a plugin
+
+`replaces: 'static-csp'` keeps the named plugin from running when this one is selected. Users of
+its points reach the replacement, as long as it provides the same points. `has('static-csp')`
+answers `false` then.
+
+## Shared points
+
+create-next-suite defines three collector points and exports their collectors:
+
+| Point | Provider | Collector |
+| --- | --- | --- |
+| `builtDependencies` | the package manager plugin: the dependencies whose install scripts may run | `createBuiltDependencies` |
+| `lintIgnores` | the linter plugin: the globs it skips | `createLintIgnores` |
+| `ciChecks` | the CI plugin: the scripts CI runs | `createCiChecks` |
+
+The built-in plugins define further points, such as `lintStaged`, `prettierPlugins`, `knip`, `csp`,
+`logRedact`, `testSetup` and `agents`.

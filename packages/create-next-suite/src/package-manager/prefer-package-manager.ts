@@ -1,5 +1,4 @@
-import type { Category } from '../contract/category.ts'
-import { PACKAGE_MANAGER_CATEGORY } from '../contract/plugin-manifest.ts'
+import { type Category, PACKAGE_MANAGER_CATEGORY } from '../plugin-definition/categories.ts'
 
 /** Makes a package manager the default of the package manager question; nothing keeps it. */
 export const preferPackageManager = (

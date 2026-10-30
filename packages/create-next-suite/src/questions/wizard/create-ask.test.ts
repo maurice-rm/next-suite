@@ -3,10 +3,10 @@ import { stripVTControlCharacters } from 'node:util'
 
 import { describe, expect, it } from 'vitest'
 
-import type { PluginOption } from '../../contract/plugin-option.ts'
 import { collectOutput } from '../../test-support/collect-output.ts'
 import { KEYS } from '../../test-support/keys.ts'
-import { parseTestManifest } from '../../test-support/test-manifest.ts'
+import { testPlugin } from '../../test-support/questions.ts'
+import type { QuestionOption } from '../question-option.ts'
 import { createAsk } from './create-ask.ts'
 
 const CHOICES = [
@@ -20,7 +20,7 @@ const CONTEXT = {
   detectedPackageManager: undefined,
 }
 
-const OPTIONS: PluginOption[] = [
+const OPTIONS: QuestionOption[] = [
   {
     type: 'select',
     question: 'Column casing?',
@@ -36,11 +36,11 @@ const OPTIONS: PluginOption[] = [
 ]
 
 /** Asks an option step, answers it with Enter and returns what the wizard rendered. */
-const renderOptionStep = async (option: PluginOption): Promise<string> => {
+const renderOptionStep = async (option: QuestionOption): Promise<string> => {
   const input = new PassThrough()
   const output = collectOutput()
   const ask = createAsk({ input, output: output.stream }, CONTEXT)
-  const plugin = parseTestManifest('drizzle', { options: { casing: option } })
+  const plugin = testPlugin('drizzle')
   const answer = ask(
     {
       kind: 'option',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProjectPlan } from '../compose/compose-project.ts'
 import { describePlan, diffPlan } from './describe-plan.ts'
+import type { ProjectPlan } from './project-plan.ts'
 
 const PLAN: ProjectPlan = {
   files: [

@@ -1,0 +1,119 @@
+---
+title: Plugin definition
+description: Every field of definePlugin and the context its functions get.
+---
+
+A plugin is the default export of `plugin.ts`, made with `definePlugin` from
+`create-next-suite/plugin`. Every field but the metadata is a value or a function of the
+[context](#context). The metadata are fixed values, so they can be read without running the
+plugin.
+
+## Metadata
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `name` | string | the plugin's name, such as `better-auth`; also its flag |
+| `title` | string | the name the wizard shows |
+| `description` | string | what the plugin adds, in one sentence; the hint beside it in the wizard |
+| `category` | string | the category whose question it answers; without one it is an extra, which runs last |
+| `section` | string | the section of the wizard that asks an extra |
+| `options` | map of [options](#options) | further questions, by option name |
+| `uses` | map of points | the [points](./points) the plugin reads, by the name its functions get them under |
+| `provides`, `collects` | maps by point name | the value points and collector points the plugin [provides](./points) |
+| `replaces` | string | the plugin that does not run when this one is selected; this one takes over its points |
+| `conflicts` | map of reasons | plugins that cannot be selected together with this one, each with the reason |
+| `packageManager` | object | the package manager the project runs with; only for a plugin of the `package-manager` category |
+
+The categories are fixed in create-next-suite, in the order the wizard asks them; the
+[options pages](../options/project) list them with their plugins.
+
+## Options
+
+An option is a question with a default:
+
+| Form | Answer |
+| --- | --- |
+| `{ question, choices, default }` | one of the choices; `type: 'select'` may be written |
+| `{ type: 'multiselect', question, choices, default }` | a list of the choices |
+| `{ type: 'boolean', question, default }` | `true` or `false` |
+
+A choice is its value, or `{ value, label?, description? }` for the label and hint the wizard
+shows. `description` on the option says what its flag sets. Functions read the answers as
+`options`, each narrowed to its choices.
+
+## Precondition
+
+`precondition` is what a plugin needs from the rest of the selection. It gets `has(pluginName)`
+and `hasCategory(category)` and answers `true` or the reason:
+
+```ts
+precondition: ({ hasCategory }) =>
+  hasCategory('linter') ||
+  hasCategory('formatter') ||
+  'it needs a linter or a formatter to run on the staged files',
+```
+
+The core asks it before the run, on the whole selection. A plugin only a default selected is left
+out silently when its precondition fails, as lint-staged is when the quick start runs without a
+linter and a formatter. A plugin the user chose stops the run with the reason, after the plugin's
+title.
+
+## What a plugin adds
+
+| Field | Value | Where it goes |
+| --- | --- | --- |
+| `dependencies`, `devDependencies` | versions by package | `package.json` |
+| `scripts` | commands by name | `package.json`; the same name with another command fails |
+| `env` | `{ scope, description, default?, example?, secret? }` by variable name | `.env.example`, grouped under the plugin's title; the same variable defined differently fails |
+| `files` | project path → source, or `{ source, edit }` | [files and edits](./files-and-edits) |
+| `layout` | `imports`, `wrapChildren`, `appendToBody`, `htmlAttributes`, `metadata` | the root layout `app/layout.tsx` |
+| `nextConfig` | `imports`, `options` (code by key), `wrap` (calls, the last outermost) | `next.config.ts` |
+| `css` | `{ imports }` | stylesheets the global stylesheet imports first, such as `tailwindcss` |
+| `gitignore` | lines | `.gitignore` |
+| `generatedDirectories` | project paths, such as `@/generated` | `.gitignore` after every plugin's lines; edits read them as paths on disk |
+| `readme` | sections by title | `README.md` |
+| `instrumentation` | `register`, `onRequestError`, `client` module exports | `instrumentation.ts` and `instrumentation-client.ts`, written once a plugin adds to them |
+| `stack` | names | the stack line at the end of the run |
+| `nextSteps` | `{ script }` or `{ command }` | the commands the end of the run suggests, before those of the base project |
+| `postSteps` | `{ script, running?, done?, when? }` | scripts that run after the install; `when` gets `{ initializesGit }` |
+| `extend` | a function per collector point | contributions to the [points](./points) of other plugins |
+| `edit` | a [file edit](./files-and-edits#edits) per project path | direct edits of files others write |
+| `setup` | `(project, context) => void` | free code for what no field covers: `packageJson.setField`, `tsconfig.addPath`, `tsconfig.addInclude`, `module`, `write` |
+
+A script a next step, a post-step or CI names must exist in `package.json`.
+
+## Context
+
+Every function of a plugin gets the value of each point it uses under its name, and:
+
+| Name | Meaning |
+| --- | --- |
+| `options` | the answers to the plugin's options |
+| `projectName` | the project's name, also its directory name |
+| `packageManager` | `name`, `version`, `run` (such as `pnpm run`) and `ciInstall` of the project's package manager |
+| `has(name)` | whether a plugin of that name runs; branch on the values of points instead where a point exists |
+| `diskPath(path)` | where a project path such as `@/db/schema` lies on disk, for config files that name paths |
+| `readFile(source)` | the text of a file of the plugin's directory |
+| `versionOf(dependency)` | the version a dependency of the project is pinned to |
+| `fail(message)` | stops the run with a message the user can act on |
+
+File edits and `finish` run once every plugin has contributed, and get more:
+
+| Name | Meaning |
+| --- | --- |
+| `env` | every environment variable of the project |
+| `generatedDirectories` | every directory of generated code, as a path on disk |
+| `scripts` | every script of `package.json` |
+| `module(path)` | the [module](./files-and-edits#code-operations) of a TypeScript file, also one another plugin wrote |
+| `write(path, content)` | adds a file the plugin owns |
+| `packageJson.setField(name, value)` | sets a top-level field of `package.json` |
+
+What depends on the contributions of other plugins belongs in an edit or a `finish`; the types
+allow `env`, `module` and `write` only there.
+
+## Order
+
+The selected plugins run in category order, extras last; a plugin that uses a point runs after the
+plugin that provides it. Every phase runs for all plugins before the next one: the fields are
+collected, the collector points extended, the plugins' own file edits run, the collector points
+finished, and the direct edits run last.

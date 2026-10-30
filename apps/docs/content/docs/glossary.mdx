@@ -7,28 +7,35 @@ Code, messages and these pages use each word below for one concept only.
 
 | Term | Meaning |
 | --- | --- |
-| plugin | a directory with a `plugin.json`; every choice in create-next-suite is one, the built-in ones included |
-| manifest | the `plugin.json` of a plugin: what it is, asks and contributes |
-| plugin contract | the format of the manifest and the types of `create-next-suite/plugin`, versioned; a plugin names the range it works with in `contract` |
-| base project | the files every app gets, which plugins add to |
+| plugin | a directory with a `plugin.ts` and the files it adds; every choice in create-next-suite is one, the built-in ones included |
+| plugin contract | what `create-next-suite/plugin` offers a plugin: `definePlugin`, the points and the types |
+| plugin definition | the object `plugin.ts` passes to `definePlugin`: metadata, the points it uses and provides, and what it adds |
+| base project | the Next.js app of real files every project starts from; plugins add to it |
 | category | a group of plugins answering one question, such as `linter`; it takes exactly one, at most one or any number of plugins |
 | extra | a plugin without a category, asked with yes or no and selected with `--<plugin>`; the built-in ones live in `plugins/extras/` |
 | section | a part of the wizard that asks its questions together, such as "Project" |
 | option | a further question of one plugin, with a flag `--<plugin>-<option>` |
+| precondition | what a plugin needs from the rest of the selection, such as a linter for lint-staged; the core asks it before the run, leaves out a plugin only a default selected and stops the run for one the user chose |
 | base setting | a value the core and the base project read, such as `src-dir`; set by flag or answer file, never asked |
 | run setting | a choice about this run only, such as `install` or `git`; asked last in the wizard, never recorded in next-suite.json |
 | quick start | the wizard's offer to take the default for every question left |
 | project directory | the directory a run writes the project to; its name is the package name |
 | target action | what a run does with the project directory: create it or fill an empty one, empty it first except `.git` (`--empty`), or write over the files there (`--overwrite`) |
 | answers | what a run was told, by wizard, flags or an answer file (`--answers`); next-suite.json records them |
-| composition point | a file several plugins share, such as `package.json` or `.gitignore`, and the rule that merges what they contribute |
-| contribution | an entry a plugin adds to a composition point, under `contributes` |
-| template | a plugin file whose source ends in `.hbs`, rendered with the template values |
-| template value | a value a template reads, such as `project.name` or `scripts` |
-| fact | a named condition over the answers that templates and logic modules ask through `has` |
-| logic module | code a plugin names in `logic` to compute files and contributions; it computes, the core writes |
+| context | what the functions of a plugin get: the value of each used point, the answers to its options and helpers such as `has` and `readFile` |
+| point | a typed interface between plugins, a name plus the type of what flows through it; a value point or a collector point |
+| value point | a point whose one provider states a value every user reads, such as `orm` |
+| collector point | a point whose provider creates a collector the other plugins contribute to and finishes it into files, such as `logRedact` |
+| provider | the selected plugin that provides a point, under `provides` for a value point or `collects` for a collector point |
+| uses | the points a plugin reads, by the name its functions get them under; a used point's provider runs first |
+| extend | a plugin's contributions to collector points; one without a selected provider is dropped |
+| replaces | the plugin that does not run when this one is selected; this one takes over its points |
+| conflict | a plugin that cannot be selected together with another, with the reason, under `conflicts` |
+| file edit | code operations on a TypeScript file, run once every plugin has contributed: on a plugin's own file under `files`, or on a file others write under `edit` |
+| direct edit | a file edit under `edit` on a file another plugin or the base project writes; recorded, and it breaks when that file changes |
+| assembly | the core building a project in memory from the base project and the selected plugins, before anything is written |
+| phase | one step of an assembly that runs for every plugin before the next: collect, extend, own file edits, finish, direct edits |
 | post-step | a script that runs after the install, such as a format run |
-| version catalog | the versions `catalog:<name>` resolves to |
 | core | the part of create-next-suite that writes files, runs processes and fetches |
 | address | where `--plugin` loads a plugin from, such as `./mail`, `npm:mail@^1` or `@acme/mail` |
 | source | an address without its ref or version; trust patterns match it |

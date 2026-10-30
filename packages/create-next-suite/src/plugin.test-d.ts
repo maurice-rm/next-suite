@@ -1,101 +1,89 @@
 import { describe, expectTypeOf, it } from 'vitest'
-import type * as z from 'zod'
 
-import type { categoriesSchema } from './contract/category.ts'
-import type { conditionSchema } from './contract/condition.ts'
-import type { contributionsSchema } from './contract/contributions.ts'
-import type { logicResultSchema } from './contract/logic.ts'
-import type { pluginManifestSchema } from './contract/plugin-manifest.ts'
-import type { pluginOptionSchema } from './contract/plugin-option.ts'
-import type {
-  CategoriesFile,
-  Condition,
-  Contributions,
-  Logic,
-  LogicResult,
-  PluginManifest,
-  PluginOption,
+import {
+  type BuiltDependencies,
+  type CollectorPoints,
+  createBuiltDependencies,
+  createCiChecks,
+  createLintIgnores,
+  defineCollectorPoint,
+  definePlugin,
+  defineValuePoint,
+  type FinishContext,
+  type ObjectLiteral,
+  optional,
+  type Plugin,
+  type PluginContext,
+  type Precondition,
+  type PreconditionContext,
+  type TypescriptModule,
+  type ValuePoint,
 } from './plugin.ts'
 
-/** Flattens intersections such as zod's `X & {}`, so identical shapes compare as equal. */
-type Normalized<Type> = Type extends readonly (infer Item)[]
-  ? Normalized<Item>[]
-  : Type extends object
-    ? { [Key in keyof Type]: Normalized<Type[Key]> }
-    : Type
-
-const MINIMAL = {
-  name: 'acme-auth',
-  version: '1.0.0',
-  contract: '^1.0.0',
-  title: 'Acme Auth',
-  description: 'Sign-in through Acme.',
+declare module './plugin-definition/value-point.ts' {
+  interface ValuePoints {
+    greeting: { text: string }
+  }
 }
 
-describe('the public types', () => {
-  it('equal what the schemas accept', () => {
-    expectTypeOf<Normalized<PluginManifest>>().toEqualTypeOf<
-      Normalized<z.input<typeof pluginManifestSchema>>
-    >()
-    expectTypeOf<Normalized<PluginOption>>().toEqualTypeOf<
-      Normalized<z.input<typeof pluginOptionSchema>>
-    >()
-    expectTypeOf<Normalized<Condition>>().toEqualTypeOf<
-      Normalized<z.input<typeof conditionSchema>>
-    >()
-    expectTypeOf<Normalized<Contributions>>().toEqualTypeOf<
-      Normalized<z.input<typeof contributionsSchema>>
-    >()
-    expectTypeOf<Normalized<LogicResult>>().toEqualTypeOf<
-      Normalized<z.input<typeof logicResultSchema>>
-    >()
-    expectTypeOf<Normalized<CategoriesFile>>().toEqualTypeOf<
-      Normalized<z.input<typeof categoriesSchema>>
-    >()
-  })
-})
+declare module './plugin-definition/collector-point.ts' {
+  interface CollectorPoints {
+    guestbook: { sign: (name: string) => void }
+  }
+}
 
-describe('PluginManifest', () => {
-  it('accepts a file without a conflict strategy, since the strategy has a default', () => {
-    const manifest = { ...MINIMAL, files: [{ source: 'files/auth.ts', target: 'lib/auth.ts' }] }
+const greeting = defineValuePoint('greeting')
+const guestbook = defineCollectorPoint('guestbook')
 
-    expectTypeOf(manifest).toExtend<PluginManifest>()
+describe('create-next-suite/plugin', () => {
+  it('answers a Plugin from definePlugin', () => {
+    expectTypeOf(definePlugin({ name: 'acme', title: 'Acme' })).toEqualTypeOf<Plugin>()
   })
 
-  it('rejects an unknown conflict strategy', () => {
-    const file = { source: 'a', target: 'b', conflict: 'merge' as const }
-
-    expectTypeOf({ ...MINIMAL, files: [file] }).not.toExtend<PluginManifest>()
-  })
-})
-
-describe('Condition', () => {
-  it('nests conditions in all, any and not', () => {
-    const condition = { all: [{ plugin: 'drizzle' }, { not: { any: [{ category: 'api' }] } }] }
-
-    expectTypeOf(condition).toExtend<Condition>()
-  })
-
-  it('rejects a condition kind that does not exist', () => {
-    expectTypeOf({ unless: { plugin: 'drizzle' } }).not.toExtend<Condition>()
-  })
-})
-
-describe('Logic', () => {
-  it('computes files from the context, synchronously or not', () => {
-    const logic: Logic = async (context) => ({
-      files: [
-        { target: 'lib/name.ts', content: `export const name = '${context.project.name}'\n` },
-      ],
-      contributes: { gitignore: context.has('plugin:prettier') ? ['/cache'] : [] },
+  it('types the points a plugin defines, uses, provides and extends', () => {
+    expectTypeOf(greeting).toEqualTypeOf<ValuePoint<'greeting'>>()
+    definePlugin({
+      name: 'host',
+      title: 'Host',
+      provides: { greeting: { text: 'hello' } },
+      collects: {
+        guestbook: {
+          create: () => ({ sign: () => undefined }),
+          finish: (collected, context) => {
+            expectTypeOf(collected).toEqualTypeOf<CollectorPoints['guestbook']>()
+            expectTypeOf(context.module).returns.toEqualTypeOf<TypescriptModule>()
+          },
+        },
+      },
     })
-
-    expectTypeOf(logic).toExtend<Logic>()
+    definePlugin({
+      name: 'guest',
+      title: 'Guest',
+      uses: { greeting, guestbook: optional(guestbook) },
+      readme: ({ greeting, guestbook }) => {
+        expectTypeOf(greeting.text).toEqualTypeOf<string>()
+        expectTypeOf(guestbook).toEqualTypeOf<true | undefined>()
+        return {}
+      },
+      extend: { guestbook: (collector) => collector.sign('guest') },
+    })
   })
 
-  it('rejects a file without content', () => {
-    const logic = () => ({ files: [{ target: 'a.ts' }] })
+  it('names the contexts of the functions of a plugin', () => {
+    type Uses = { greeting: typeof greeting }
+    expectTypeOf<PluginContext<Uses, object>['greeting']>().toEqualTypeOf<{ text: string }>()
+    expectTypeOf<FinishContext<Uses, object>['module']>().returns.toEqualTypeOf<TypescriptModule>()
+    expectTypeOf<TypescriptModule['object']>().returns.toEqualTypeOf<ObjectLiteral>()
+  })
 
-    expectTypeOf(logic).not.toExtend<Logic>()
+  it('answers a precondition with true or the reason', () => {
+    expectTypeOf<Precondition>().parameter(0).toEqualTypeOf<PreconditionContext>()
+    expectTypeOf<Precondition>().returns.toEqualTypeOf<true | string>()
+  })
+
+  it('creates the collectors of the shared points', () => {
+    expectTypeOf(createBuiltDependencies).returns.toEqualTypeOf<BuiltDependencies>()
+    expectTypeOf(createCiChecks).returns.toEqualTypeOf<CollectorPoints['ciChecks']>()
+    expectTypeOf(createLintIgnores).returns.toEqualTypeOf<CollectorPoints['lintIgnores']>()
   })
 })

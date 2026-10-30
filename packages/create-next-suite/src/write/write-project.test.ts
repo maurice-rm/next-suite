@@ -4,18 +4,12 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { TargetAction } from '../answers/target-action.ts'
-import type { ProjectPlan } from '../compose/compose-project.ts'
 import { writeProject } from './write-project.ts'
 
-const planOf = (files: Record<string, string>): ProjectPlan => ({
-  files: Object.entries(files).map(([path, content]) => ({ path, content, origin: 'base' })),
-  dependencies: {},
-  devDependencies: {},
-  packageManager: undefined,
-  projectPackageManager: 'npm',
-  installArgs: ['install'],
-  postSteps: [],
-  summary: { stack: [], nextSteps: [] },
+type Plan = Parameters<typeof writeProject>[0]
+
+const planOf = (files: Record<string, string>): Plan => ({
+  files: Object.entries(files).map(([path, content]) => ({ path, content })),
 })
 
 const BROKEN_PLAN = planOf({
@@ -26,7 +20,7 @@ const BROKEN_PLAN = planOf({
 
 let root: string
 
-const write = (plan: ProjectPlan, directory: string, action: TargetAction = 'create') =>
+const write = (plan: Plan, directory: string, action: TargetAction = 'create') =>
   writeProject(plan, { directory: join(root, directory), action, cwd: root })
 
 beforeEach(async () => {

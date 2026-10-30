@@ -1,12 +1,4 @@
 {
   "title": "Plugins",
-  "pages": [
-    "index",
-    "templates",
-    "composition",
-    "logic",
-    "sources-and-trust",
-    "testing",
-    "manifest"
-  ]
+  "pages": ["index", "definition", "files-and-edits", "points", "sources-and-trust", "testing"]
 }

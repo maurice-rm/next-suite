@@ -1,0 +1,72 @@
+---
+title: Files and edits
+description: How a plugin adds files and changes code.
+---
+
+## Files
+
+`files` maps a project path to a file of the plugin's directory:
+
+```ts
+files: {
+  'lint-staged.config.mjs': 'files/lint-staged.config.mjs',
+  '@/lib/logger.ts': 'files/lib/logger.ts',
+},
+```
+
+A path starting with `@/` lies under the source root, `src/` with `--src-dir`; any other path lies
+in the project root. Imports of `@/` inside the files are written with the project's import alias.
+The files are real files: they are copied as they are, nothing is filled in. Where they import the
+packages the plugin installs, a `package.json` with only `"private": true` beside them lets the
+tools of your repository check them as a project of their own; the plugin never copies it.
+
+`files` may be a function of the context, to pick a variant:
+
+```ts
+files: ({ has }) => ({
+  '@/lib/logger.ts': has('t3-env') ? 'files/lib/logger.t3-env.ts' : 'files/lib/logger.ts',
+}),
+```
+
+Each path has one owner. A second plugin writing the same path fails; it changes the file through
+a point its owner offers or through a direct edit.
+
+## Edits
+
+A file entry `{ source, edit }` copies the file and then edits the copy, once every plugin has
+contributed:
+
+```ts
+files: {
+  '@/lib/auth.ts': {
+    source: 'files/auth.ts',
+    edit: (auth, { options }) => {
+      if (options.signUp === 'closed') {
+        auth.object('auth').object('emailAndPassword').set('disableSignUp', 'true')
+      }
+    },
+  },
+},
+```
+
+`edit` changes files another plugin or the base project writes, by project path. Such a direct edit
+is recorded as the plugin's and breaks when the file changes; use a field or a point where one
+exists.
+
+## Code operations
+
+An edit gets the module of a TypeScript or TSX file. Each operation finds its place in the syntax
+tree and changes only the text there; inserted code takes the file's indentation, quotes and
+semicolons.
+
+| Operation | What it does |
+| --- | --- |
+| `addImport({ names?, defaultName?, from, isTypeOnly? })` | adds an import, merged into one of the same module |
+| `object(variableName)` | the object literal a top-level variable holds, also through `satisfies`, `as` or a call |
+| `defaultExportObject()` | the object literal behind `export default` |
+| `wrapDefaultExport(wrapper)` | `export default x` becomes `export default wrapper(x)` |
+| `appendStatement(code)` | adds a statement at the end of the file |
+| `editRaw(change)` | the escape hatch: an edit on oxc's syntax tree with magic-string |
+
+An object literal offers `get(key)`, `set(key, code)`, `object(key)`, `addToArray(key, …elements)`
+and `removeFromArray(key, element)`. Values are code: `set('level', JSON.stringify(level))`.

@@ -86,7 +86,7 @@ describe('runWizard', () => {
     const result = await wizard(ask)
 
     expect(asked).toEqual(['package-manager', 'quick-start'])
-    expect(pluginNames(result)).toEqual(['pnpm', 'tailwind', 'seo'])
+    expect(pluginNames(result)).toEqual(['pnpm', 'tailwind'])
   })
 
   it('keeps answers from the input with the quick start', async () => {
@@ -94,7 +94,7 @@ describe('runWizard', () => {
 
     const result = await wizard(ask, { 'package-manager': 'npm', orm: 'drizzle' })
 
-    expect(pluginNames(result)).toEqual(['npm', 'drizzle', 'tailwind', 'seo'])
+    expect(pluginNames(result)).toEqual(['npm', 'drizzle', 'tailwind'])
   })
 
   it('goes back one question and asks it again', async () => {
@@ -189,6 +189,16 @@ describe('runWizard', () => {
 
   it('shows incompatible answers and goes back to the last question', async () => {
     const shown: string[][] = []
+    const { ask } = scripted(['pnpm', false, 'prisma', [], false, true, false])
+
+    const result = await wizard(ask, {}, shown)
+
+    expect(shown).toEqual([['better-auth: Not tested with Prisma.']])
+    expect(pluginNames(result)).toEqual(['pnpm', 'prisma'])
+  })
+
+  it('shows the reason of a chosen plugin whose precondition fails and goes back', async () => {
+    const shown: string[][] = []
     const { ask } = scripted(['pnpm', false, null, [], false, true, false])
 
     const result = await wizard(ask, {}, shown)
@@ -209,14 +219,14 @@ describe('runWizard', () => {
     const input = {
       ...SETTINGS,
       'package-manager': 'pnpm',
-      orm: null,
+      orm: 'prisma',
       styling: [],
       seo: false,
       'better-auth': true,
     }
 
     await expect(wizard(scripted([]).ask, input)).rejects.toThrow(
-      'better-auth: Stores sessions in the database.',
+      'better-auth: Not tested with Prisma.',
     )
     await expect(
       runWizard({
@@ -229,7 +239,7 @@ describe('runWizard', () => {
         action: undefined,
         hasExistingFiles: () => false,
       }),
-    ).rejects.toThrow('better-auth: Stores sessions in the database.')
+    ).rejects.toThrow('better-auth: Not tested with Prisma.')
   })
 
   it('asks what to do with a directory that has files, right after the name, and returns it', async () => {

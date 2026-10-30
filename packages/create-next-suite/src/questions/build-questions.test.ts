@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { categoriesSchema } from '../contract/category.ts'
-import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
-import { TEST_CATEGORIES, TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
+import type { Category } from '../plugin-definition/categories.ts'
+import {
+  TEST_CATEGORIES,
+  TEST_PLUGINS,
+  TEST_QUESTIONS,
+  testPlugin,
+} from '../test-support/questions.ts'
 import { buildQuestions } from './build-questions.ts'
 import { RUN_SETTINGS } from './run-settings.ts'
 
@@ -19,7 +23,6 @@ describe('buildQuestions', () => {
       'styling',
       'seo',
       'seo.og-image',
-      'seo.og-title',
       'better-auth',
     ])
   })
@@ -67,29 +70,17 @@ describe('buildQuestions', () => {
   })
 
   it('lists the plugins of a category in its order, the others after them as loaded', () => {
-    const plugin = (name: string) =>
-      pluginManifestSchema.parse({
-        name,
-        version: '1.0.0',
-        contract: '^1.0.0',
-        title: name,
-        description: name,
-        category: 'orm',
-      })
-    const categories = categoriesSchema.parse([
+    const plugin = (name: string) => testPlugin(name, { category: 'orm' })
+    const categories: Category[] = [
       {
+        id: 'orm',
+        question: '?',
         section: 'Data',
-        categories: [
-          {
-            id: 'orm',
-            question: '?',
-            cardinality: 'at-most-one',
-            default: null,
-            order: ['prisma'],
-          },
-        ],
+        cardinality: 'at-most-one',
+        default: null,
+        order: ['prisma'],
       },
-    ])
+    ]
 
     const [question] = buildQuestions({
       categories,
@@ -106,14 +97,7 @@ describe('buildQuestions', () => {
   })
 
   it('rejects a plugin of an unknown category', () => {
-    const plugin = pluginManifestSchema.parse({
-      name: 'x',
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: 'x',
-      description: 'x',
-      category: 'cms',
-    })
+    const plugin = testPlugin('x', { category: 'cms' })
 
     expect(() =>
       buildQuestions({ categories: [], plugins: [plugin], settings: [], runSettings: [] }),
@@ -121,20 +105,10 @@ describe('buildQuestions', () => {
   })
 
   it('rejects a category default that is not a plugin of the category', () => {
-    const categories = categoriesSchema.parse([
-      {
-        section: 'Data',
-        categories: [{ id: 'orm', question: '?', cardinality: 'at-most-one', default: 'drizzle' }],
-      },
-    ])
-    const plugin = pluginManifestSchema.parse({
-      name: 'prisma',
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: 'p',
-      description: 'p',
-      category: 'orm',
-    })
+    const categories: Category[] = [
+      { id: 'orm', question: '?', section: 'Data', cardinality: 'at-most-one', default: 'drizzle' },
+    ]
+    const plugin = testPlugin('prisma', { category: 'orm' })
 
     expect(() =>
       buildQuestions({ categories, plugins: [plugin], settings: [], runSettings: [] }),

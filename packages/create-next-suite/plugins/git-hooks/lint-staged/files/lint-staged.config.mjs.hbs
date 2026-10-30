@@ -1,8 +1,0 @@
-/** @type {import("lint-staged").Configuration} */
-const config = {
-{{#each lintStaged}}
-  "{{key}}": [{{#each values}}"{{this}}", {{/each}}],
-{{/each}}
-};
-
-export default config;

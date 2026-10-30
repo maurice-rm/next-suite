@@ -1,7 +1,7 @@
 import type { AnswerInput, Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
-import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { InputError } from '../input-error.ts'
+import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import { renderFramed } from '../ui/frame.ts'
 import type { Streams } from '../ui/prompts.ts'
 import type { Question, SettingScope } from './build-questions.ts'
@@ -22,7 +22,7 @@ type AnswerMode =
 /** Where the answers of a run come from and how open questions are answered. */
 export type AnswerSources = TargetInput & {
   questions: readonly Question[]
-  plugins: readonly ParsedPluginManifest[]
+  plugins: readonly Plugin[]
   input: AnswerInput
   flagKeys: ReadonlySet<string>
   mode: AnswerMode
@@ -65,7 +65,10 @@ const assertNoUnused = (unused: readonly string[], sources: AnswerSources): void
   }
 }
 
-/** Fails before the first question when the input alone already selects conflicting plugins. */
+/**
+ * Fails before the first question when the input alone already selects conflicting plugins; a
+ * precondition waits for every answer, since a later one may meet it.
+ */
 const assertInputHasNoConflicts = (sources: AnswerSources, input: AnswerInput): void => {
   const { answers } = resolveAnswers({ questions: sources.questions, input, useDefaults: false })
   assertCompatible(findConflicts(sources.plugins, answers))

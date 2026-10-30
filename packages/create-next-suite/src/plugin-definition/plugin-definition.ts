@@ -18,6 +18,7 @@ import type {
 import type { Answer, PluginOption } from './plugin-option.ts'
 import type { PluginProject } from './plugin-project.ts'
 import type { PostStep } from './post-step.ts'
+import type { Precondition } from './precondition.ts'
 import type { ValuePointName, ValuePoints } from './value-point.ts'
 
 /**
@@ -142,6 +143,12 @@ type PluginFields<Uses, Options, Context, Finish> = {
   readonly replaces?: string
   /** Plugins that cannot be selected together with this one, each with the reason. */
   readonly conflicts?: Readonly<Record<string, string>>
+  /**
+   * What the plugin needs from the rest of the selection, asked before the run: a plugin selected
+   * only by default whose precondition fails is left out, one the user chose stops the run with
+   * the reason.
+   */
+  readonly precondition?: Precondition
   /** The points the plugin reads, by the name its functions get them under. */
   readonly uses?: Uses
   /** Further questions, by option name. */

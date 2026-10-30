@@ -1,4 +1,4 @@
 {
   "extends": "@next-suite/tsconfig/node.json",
-  "include": ["src", "scripts", "plugins-v2/*/*/plugin.ts", "*.config.ts"]
+  "include": ["src", "scripts", "plugins/*/*/plugin.ts", "*.config.ts"]
 }
