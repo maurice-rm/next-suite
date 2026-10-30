@@ -20,6 +20,17 @@ const BARE_ANSWERS = {
   agents: null,
 }
 const PACKAGE_MANAGERS = ['pnpm', 'npm', 'yarn', 'bun']
+/** The tooling plugins with each linter, everything else left empty. */
+const TOOLING_ANSWERS = [
+  {
+    ...BARE_ANSWERS,
+    linter: 'eslint',
+    formatter: 'prettier',
+    'unused-code': 'knip',
+    'git-hooks': 'lint-staged',
+  },
+  { ...BARE_ANSWERS, linter: 'biome', 'unused-code': 'knip', 'git-hooks': 'lint-staged' },
+]
 
 const dryRun = async (engine: string, flags: string[]) => {
   await write({ 'bare.json': JSON.stringify(BARE_ANSWERS) })
@@ -58,6 +69,28 @@ describe('runCreate with NEXT_SUITE_ENGINE=v2', () => {
     }
     expect(await dryRun('v2', flags)).toEqual(v1)
   })
+
+  it.each(
+    TOOLING_ANSWERS.flatMap((answers) => [
+      { answers, git: '--git' },
+      { answers, git: '--no-git' },
+    ]),
+  )(
+    'runs the post-steps and shows the stack and next steps of $answers.linter with $git as the manifest engine does',
+    async ({ answers, git }) => {
+      await write({ 'tooling.json': JSON.stringify(answers) })
+      const create = (engine: string) =>
+        run(['my-app', '--yes', '--overwrite', '--answers', pathOf('tooling.json'), git], {
+          engine,
+        })
+
+      const v2 = await create('v2')
+
+      expect(v2.error).toBe('')
+      expect(v2.output).toContain('Formatted files')
+      expect(v2).toEqual(await create('v1'))
+    },
+  )
 
   it('refuses a plugin that has no plugin.ts form yet', async () => {
     const result = await run(['my-app', '--yes', '--dry-run'], { engine: 'v2' })
