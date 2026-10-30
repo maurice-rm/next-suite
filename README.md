@@ -56,6 +56,10 @@ pnpm turbo build --filter=create-next-suite
 pnpm --filter @next-suite/integration matrix base pnpm
 ```
 
+`NEXT_SUITE_ENGINE=v2` in front of either command generates with the engine that assembles the
+project from plugins written as `plugin.ts`; so far it runs the base project and the package
+managers, as in the scenario `bare`.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Vulnerabilities are reported
