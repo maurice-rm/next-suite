@@ -324,12 +324,10 @@
                       "**/testing.ts",
                       "**/project-model",
                       "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
                       "**/assembly",
                       "**/assembly/**"
                     ],
-                    "message": "create-next-suite: loader/ imports from contract/, file-system/ and the error classes only"
+                    "message": "create-next-suite: loader/ imports from contract/, file-system/, plugin-definition/ and the error classes only"
                   }
                 ]
               }

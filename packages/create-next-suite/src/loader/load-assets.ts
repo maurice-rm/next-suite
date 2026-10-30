@@ -65,12 +65,18 @@ const loadPluginsIn = async (directory: string): Promise<LoadedPlugin[]> => {
   return Promise.all(names.map((name) => loadPlugin(join(directory, name))))
 }
 
-const assertInGroup = (directory: string, group: string, plugins: LoadedPlugin[]): void => {
-  for (const plugin of plugins) {
-    const expected = plugin.manifest.category ?? EXTRAS_DIRECTORY
-    if (expected !== group) {
-      throw new PluginLoadError(plugin.directory, `it belongs in ${join(directory, expected)}`)
-    }
+/**
+ * Fails for a plugin outside the directory of its category, or of the extras without one.
+ *
+ * @throws PluginLoadError naming the directory the plugin belongs in.
+ */
+export const assertInGroup = (
+  plugin: { category: string | undefined; location: string },
+  { directory, group }: { directory: string; group: string },
+): void => {
+  const expected = plugin.category ?? EXTRAS_DIRECTORY
+  if (expected !== group) {
+    throw new PluginLoadError(plugin.location, `it belongs in ${join(directory, expected)}`)
   }
 }
 
@@ -83,7 +89,12 @@ const loadGroupedPlugins = async (directory: string): Promise<LoadedPlugin[]> =>
   const plugins: LoadedPlugin[] = []
   for (const group of groups) {
     const inGroup = await loadPluginsIn(join(directory, group))
-    assertInGroup(directory, group, inGroup)
+    for (const plugin of inGroup) {
+      assertInGroup(
+        { category: plugin.manifest.category, location: plugin.directory },
+        { directory, group },
+      )
+    }
     plugins.push(...inGroup)
   }
   assertUniqueNames(plugins.map(namedPlugin))
