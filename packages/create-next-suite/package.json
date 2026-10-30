@@ -26,6 +26,7 @@
   "files": [
     "dist",
     "base",
+    "base-project",
     "plugins",
     "plugins-v2",
     "categories.json",

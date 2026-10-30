@@ -13,6 +13,7 @@
       "!**/*.md",
       "!packages/create-next-suite/plugins/*/*/files",
       "!packages/create-next-suite/base/files",
+      "!packages/create-next-suite/base-project",
       "!packages/create-next-suite/plugins-v2/*/*/files"
     ]
   },
