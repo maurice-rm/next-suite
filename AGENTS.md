@@ -93,6 +93,10 @@ says what next-suite does; this file says how code is written here.
   path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript
   sources end in `.hbs` even without placeholders, so the repository's own tools never check them
   as code; JSX double braces in such a file are written `\{{`.
+- **Plugin files:** the files under `plugins-v2/*/*/files/` are real files of a generated
+  project. Where they import the packages the plugin installs, a `package.json` with only
+  `"private": true` sits beside them, so `turbo boundaries` takes them for a project of their own;
+  the plugin never copies it.
 - **Versions:** a built-in plugin written as `plugin.ts` names the exact version of each package
   it installs once, in a constant `VERSIONS` at the top of `plugin.ts` keyed by npm package
   (`{ eslint: '9.39.5' }`); Renovate and `use-newest-catalog` find them there. Until

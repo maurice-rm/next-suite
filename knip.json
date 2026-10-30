@@ -3,7 +3,7 @@
   "workspaces": {
     "packages/create-next-suite": {
       "entry": ["plugins-v2/*/*/plugin.ts"],
-      "ignore": ["base-project/**"],
+      "ignore": ["base-project/**", "plugins-v2/*/*/files/**"],
       "vitest": {
         "entry": ["src/**/*.test.ts", "src/**/*.test-d.ts"]
       }
