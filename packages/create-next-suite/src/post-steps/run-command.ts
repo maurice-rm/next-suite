@@ -8,8 +8,16 @@ import {
 const COMMAND_TIMEOUT_MS = 600_000
 const IS_WINDOWS = process.platform === 'win32'
 
-/** How a command ended, with its output on stdout and stderr together. */
-export type CommandResult = { isSuccess: boolean; output: string }
+/** How a command ended. */
+export type CommandResult = {
+  /** Whether the command exited with code 0. */
+  isSuccess: boolean
+  /**
+   * What the command printed on stdout and stderr together, and why it did not start or was
+   * stopped.
+   */
+  output: string
+}
 
 /** Runs a command in a directory and answers how it ended; a command that cannot start fails. */
 export type CommandRunner = (

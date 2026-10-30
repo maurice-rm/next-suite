@@ -25,7 +25,7 @@ import packageJson from '../package.json' with { type: 'json' }
 import { processRemoteEnvironment, processUserConfigPath } from './cli/process-environment.ts'
 import { runCreate } from './cli/run-create.ts'
 import { loadAssets } from './loader/load-assets.ts'
-import { runCommand } from './post-steps/run-command.ts'
+import { type CommandResult, runCommand } from './post-steps/run-command.ts'
 import { collectOutput } from './test-support/collect-output.ts'
 import { sourceOf } from './trust/trust-level.ts'
 
@@ -46,21 +46,47 @@ export type TestProjectOptions = {
   parent?: string
 }
 
+/** How a script of a test project ended. */
+export type ScriptResult = CommandResult
+
 /** A generated test project. */
 export type TestProject = {
   /** The project directory. */
   directory: string
   /** What the run printed. */
   output: string
-  /** Runs a script of the project with its package manager and answers how it ended. */
-  run: (script: string) => Promise<{ isSuccess: boolean; output: string }>
+  /**
+   * Runs a script of the project with its package manager. A script that fails or cannot start
+   * resolves with `isSuccess: false` rather than rejecting.
+   *
+   * @param script - The name of the script in package.json, such as `build`.
+   */
+  run: (script: string) => Promise<ScriptResult>
 }
 
 /**
  * Generates a project with the plugins under test, without a terminal: every question takes the
  * answer given or its default, git stays off.
  *
+ * @param options - The plugins under test, the answers and how to generate.
+ * @returns The generated project, ready to run its scripts.
  * @throws Error with the output of the run when the project cannot be generated.
+ *
+ * @example
+ * ```ts
+ * import { createTestProject } from 'create-next-suite/testing'
+ * import { expect, test } from 'vitest'
+ *
+ * test('the project builds with my plugin', async () => {
+ *   const project = await createTestProject({
+ *     plugins: ['./my-plugin'],
+ *     answers: { 'my-plugin': true },
+ *     install: true,
+ *   })
+ *
+ *   expect((await project.run('build')).isSuccess).toBe(true)
+ * })
+ * ```
  */
 export const createTestProject = async (options: TestProjectOptions): Promise<TestProject> => {
   const parent = options.parent ?? (await mkdtemp(join(tmpdir(), 'next-suite-test-')))
