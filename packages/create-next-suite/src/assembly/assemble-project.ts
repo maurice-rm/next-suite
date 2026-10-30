@@ -1,5 +1,6 @@
 import type { Project } from '../project-model/project.ts'
 import type { ProvenanceLog } from '../project-model/provenance.ts'
+import { applyBaseSettings, type BaseSettings } from './apply-base-settings.ts'
 import type { LoadedPlugin } from './loaded-plugin.ts'
 import { createPluginRun, type PluginRun, type PointState } from './plugin-run.ts'
 import type { PluginAnswers } from './resolve-answers.ts'
@@ -14,6 +15,8 @@ export type AssemblyInput = {
   categoryOrder: readonly string[]
   /** The answers by plugin name; an option without an answer takes its default. */
   answers?: Readonly<Record<string, PluginAnswers>>
+  /** The settings the core applies to the base files before the plugins run. */
+  baseSettings?: BaseSettings
 }
 
 export type AssembledProject = {
@@ -25,7 +28,7 @@ export type AssembledProject = {
 
 /**
  * Assembles the project from the selected plugins. The plugins are resolved first (replacements,
- * conflicts, providers, order); then every phase runs for all plugins in order before the next
+ * conflicts, providers, order) and the base settings applied; then every phase runs for all plugins in order before the next
  * one: collect, extend, own file edits, finishing the collector points, direct edits. The project
  * is printed last.
  *
@@ -37,6 +40,7 @@ export const assembleProject = ({
   plugins,
   categoryOrder,
   answers = {},
+  baseSettings,
 }: AssemblyInput): AssembledProject => {
   const resolved = resolvePlugins({ plugins, categoryOrder })
   const running = new Set(resolved.plugins.map(({ plugin }) => plugin.name))
@@ -48,6 +52,10 @@ export const assembleProject = ({
   project.provenance.recordOrder([...running])
   for (const [point, provider] of resolved.providers) {
     project.provenance.recordProvider(point, provider)
+  }
+  if (baseSettings !== undefined) {
+    const categories = resolved.plugins.flatMap(({ plugin }) => plugin.category ?? [])
+    applyBaseSettings(project, baseSettings, new Set(categories))
   }
   const runs = resolved.plugins.map((loaded) =>
     createPluginRun(loaded, { project, points, running, answers: answers[loaded.plugin.name] }),

@@ -447,6 +447,57 @@ describe('assembleProject', () => {
     })
   })
 
+  it('applies the base settings before the plugins, agent rules off without an agents plugin', () => {
+    const headers = definePlugin({
+      name: 'headers',
+      title: 'Headers',
+      category: 'security-headers',
+      nextConfig: { options: { headers: 'async () => []' } },
+    })
+    const settings = {
+      projectName: 'app',
+      importAlias: '@/*',
+      isSrcDirectory: false,
+      usesReactCompiler: false,
+      usesCacheComponents: true,
+    }
+    const agents = definePlugin({ name: 'agents-md', title: 'AGENTS.md', category: 'agents' })
+
+    const base = {
+      ...BASE_FILES,
+      '@/app/layout.tsx': fileOf(new Map(Object.entries(BASE_FILES)), '@/app/layout.tsx').replace(
+        'title: "app"',
+        'title: { default: "next-suite-app", template: "%s" }',
+      ),
+      '@/app/page.tsx': 'export default () => <h1>next-suite-app</h1>;\n',
+    }
+    const assembleWith = (plugins: AssemblyInput['plugins']) =>
+      assembleProject({
+        project: createProject({
+          files: new Map(Object.entries(base)),
+          settings: { alias: '@/*', isSrcDirectory: false },
+        }),
+        plugins,
+        categoryOrder: CATEGORY_ORDER,
+        baseSettings: settings,
+      })
+
+    const without = assembleWith([withFiles(headers)])
+    const withAgents = assembleWith([withFiles(headers), withFiles(agents)])
+
+    expect(fileOf(without.files, 'next.config.ts')).toContain(
+      source(
+        'const nextConfig: NextConfig = {',
+        '  agentRules: false,',
+        '  cacheComponents: true,',
+        '  partialPrefetching: true,',
+        '  headers: async () => [],',
+        '};',
+      ),
+    )
+    expect(fileOf(withAgents.files, 'next.config.ts')).not.toContain('agentRules')
+  })
+
   it('drops contributions to a collector point nobody provides', () => {
     const analytics = definePlugin({
       name: 'analytics',
