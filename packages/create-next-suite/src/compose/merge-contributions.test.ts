@@ -142,7 +142,7 @@ describe('mergeContributions', () => {
     )
 
     expect(values.gitignore).toEqual(['.next', 'out', 'coverage'])
-    expect(values.readme.sections.map((entry) => entry.section)).toEqual(['Setup', 'Tests'])
+    expect(values.readme.map((entry) => entry.section)).toEqual(['Setup', 'Tests'])
   })
 
   it('collects the allowed builds of all plugins once, sorted by name', () => {
@@ -176,8 +176,8 @@ describe('mergeContributions', () => {
     )
 
     expect(values.lintStaged).toEqual([
-      { glob: '*.ts', commands: ['eslint --fix'] },
-      { glob: '*', commands: ['prettier --write'] },
+      { key: '*.ts', values: ['eslint --fix'] },
+      { key: '*', values: ['prettier --write'] },
     ])
   })
 
@@ -196,10 +196,10 @@ describe('mergeContributions', () => {
     )
 
     expect(values.env.server).toEqual([
-      { name: 'LOG_LEVEL', schema: 'z.string().default("info")' },
-      { name: 'LOG_TOKEN', schema: 'z.string()' },
+      { key: 'LOG_LEVEL', value: 'z.string().default("info")' },
+      { key: 'LOG_TOKEN', value: 'z.string()' },
     ])
-    expect(values.env.client).toEqual([{ name: 'NEXT_PUBLIC_SITE_URL', schema: 'z.string()' }])
+    expect(values.env.client).toEqual([{ key: 'NEXT_PUBLIC_SITE_URL', value: 'z.string()' }])
     expect(values.layoutMetadata).toEqual([{ key: 'metadataBase', value: 'new URL("x")' }])
   })
 
@@ -284,7 +284,7 @@ describe('mergeContributions', () => {
     )
 
     expect(values.generatedDirs).toEqual(['src/generated'])
-    expect(values.lint.ignores).toEqual(['src/generated/**'])
+    expect(values.lintIgnores).toEqual(['src/generated/**'])
     expect(values.knip).toEqual([
       { key: 'entry', values: ['seed.ts'] },
       { key: 'ignore', values: ['src/generated/**'] },
@@ -295,14 +295,14 @@ describe('mergeContributions', () => {
     expect(mergeContributions([], CATALOG).knip).toEqual([])
   })
 
-  it('accepts the same tsconfig path twice and renders its targets as JSON', () => {
+  it('accepts the same tsconfig path twice and lists its targets', () => {
     const paths = { '~/content/*': ['./content/*'] }
     const values = mergeContributions(
       [contributing('a', { tsconfig: { paths } }), contributing('b', { tsconfig: { paths } })],
       CATALOG,
     )
 
-    expect(values.tsconfig.paths).toEqual([{ alias: '~/content/*', targets: '["./content/*"]' }])
+    expect(values.tsconfig.paths).toEqual([{ key: '~/content/*', values: ['./content/*'] }])
   })
 
   it('rejects one tsconfig path pointing to different targets', () => {
@@ -339,8 +339,8 @@ describe('mergeContributions', () => {
     )
 
     expect(values.csp).toEqual([
-      { directive: 'img-src', sources: ["'self'", 'https://cdn.example.com'] },
-      { directive: 'object-src', sources: ["'none'"] },
+      { key: 'img-src', values: ["'self'", 'https://cdn.example.com'] },
+      { key: 'object-src', values: ["'none'"] },
     ])
   })
 

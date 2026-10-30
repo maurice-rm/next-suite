@@ -16,7 +16,11 @@
     "plugins": [{ "name": "next" }],
     "paths": {
 {{#each tsconfig.paths}}
-      "{{alias}}": {{targets}},
+      "{{key}}": [
+{{#each values}}
+        "{{this}}",
+{{/each}}
+      ],
 {{/each}}
       "{{project.importAlias}}": ["{{project.importAliasTarget}}"]
     }

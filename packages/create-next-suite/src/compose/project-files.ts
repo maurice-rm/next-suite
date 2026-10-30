@@ -20,6 +20,7 @@ import {
   PLUGIN_TEMPLATE_BLOCKS,
 } from './template/block-helpers.ts'
 import { renderTemplate } from './template/render-template.ts'
+import { type TemplateValues, templateContext } from './template-values.ts'
 import { addFile, type VirtualFiles } from './virtual-files.ts'
 
 const CORE_ORIGIN = 'create-next-suite'
@@ -34,7 +35,7 @@ type PluginFile = NonNullable<ParsedPluginManifest['files']>[number]
 export type RenderContext = {
   project: ProjectValues
   answers: Answers
-  values: CompositionValues
+  values: TemplateValues
   facts: Facts
 }
 
@@ -66,12 +67,11 @@ const readPluginFile = async ({
   if (!file.source.endsWith(TEMPLATE_EXTENSION)) {
     return source
   }
-  const values = {
+  const values = templateContext(context.values, {
     project: context.project,
     settings: context.answers.settings,
     options: optionsOf(plugin.manifest.name, context.answers),
-    ...context.values,
-  }
+  })
   try {
     return renderTemplate({
       source,

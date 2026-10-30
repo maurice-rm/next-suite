@@ -26,6 +26,7 @@ import { resolveModules } from './resolve-modules.ts'
 import { runLogic } from './run-logic.ts'
 import { collectPostSteps, collectSummary, type RunSummary } from './run-summary.ts'
 import { settingContributions } from './setting-contributions.ts'
+import { templateValues } from './template-values.ts'
 import type { VirtualFile, VirtualFiles } from './virtual-files.ts'
 
 const DEFAULT_INSTALL_ARGS = ['install']
@@ -72,7 +73,7 @@ const assertValuesFit = (values: CompositionValues, project: ProjectValues): voi
   for (const check of values.ciChecks) {
     assertScript(values.scripts, check, 'a plugin runs in CI the script')
   }
-  if (values.tsconfig.paths.some(({ alias }) => alias === project.importAlias)) {
+  if (values.tsconfig.paths.some(({ key }) => key === project.importAlias)) {
     throw new ComposeError(
       `a plugin redefines the tsconfig path "${project.importAlias}", the project's import alias`,
     )
@@ -106,7 +107,12 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
   assertValuesFit(values, project)
 
   const files: VirtualFiles = new Map()
-  await addPluginFiles(files, plugins, { project, answers, values, facts })
+  await addPluginFiles(files, plugins, {
+    project,
+    answers,
+    values: templateValues(values),
+    facts,
+  })
   addLogicFiles(files, { logicFiles, plugins, answers })
   addInstrumentationFiles(files, values, answers)
   addCoreFile(

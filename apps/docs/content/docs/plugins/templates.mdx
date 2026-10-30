@@ -24,14 +24,68 @@ A missing value or an unknown fact fails the run, so a typo never produces a bro
 
 ## Values
 
-| Value | What it holds |
-| --- | --- |
-| `project.name` | the package name |
-| `project.importAlias`, `project.importPrefix` | the import alias, such as `@/*`, and what an import starts with, such as `@/` |
-| `project.packageManager`, `project.run` | the package manager, such as `pnpm`, and how it runs a script, such as `pnpm run` |
-| `settings` | the base settings, such as `src-dir` |
-| `options` | the answers to this plugin's options |
-| every composition point | the merged contributions of all plugins, such as `scripts`, `gitignore` or `env.server` |
+Templates read the values below. They follow two rules: an ordered map is a list of
+`{ key, value }` entries, or `{ key, values }` where the value is a list, so `{{#each}}` keeps the
+plugin order; a plain list is an array of strings. What only the core reads, such as the
+dependencies, the package.json fields and the instrumentation hooks, is no template value.
+
+### The project and the answers
+
+| Value | Shape | Example |
+| --- | --- | --- |
+| `project.name` | string | `my-app` |
+| `project.importAlias` | string | `@/*` |
+| `project.importAliasTarget` | string, the directory the alias points to | `./src/*` |
+| `project.importPrefix` | string, what an import through the alias starts with | `@/` |
+| `project.packageManager` | string, the command; `npm` without a package manager plugin | `pnpm` |
+| `project.packageManagerVersion` | string, the exact version; only with a package manager plugin | `12.16.1` |
+| `project.run` | string, how a script runs | `pnpm run` |
+| `project.ciInstall` | string, the CI install that keeps the lockfile | `pnpm install --frozen-lockfile` |
+| `settings` | the base settings by name | `{{settings.[src-dir]}}` is `true` |
+| `options` | the answers to this plugin's options by option name | `{{options.casing}}` is `snake` |
+
+### Merged contributions
+
+| Value | Shape | Example entry |
+| --- | --- | --- |
+| `scripts` | `{ key, value }[]` | `{ key: "dev", value: "next dev" }` |
+| `env.groups` | `{ title, variables }[]`, the variables of each plugin as in its manifest | `{ title: "Logging", variables: [{ name: "LOG_LEVEL", … }] }` |
+| `env.server`, `env.client` | `{ key, value }[]`, each variable with its Zod schema as code | `{ key: "LOG_LEVEL", value: 'z.string().default("info")' }` |
+| `layoutMetadata` | `{ key, value }[]`, the value as code | `{ key: "metadataBase", value: "new URL(siteUrl)" }` |
+| `nextConfig.imports` | string[] | `import createMDX from "@next/mdx"` |
+| `nextConfig.options` | `{ key, value }[]`, the value as code | `{ key: "reactCompiler", value: "true" }` |
+| `nextConfig.exported` | string, the config wrapped by every wrapper | `withMDX(nextConfig)` |
+| `rootProviders.opening` | `{ import, component }[]` | `{ import: 'import { Theme } from "./theme"', component: "Theme" }` |
+| `rootProviders.closing` | string[], the components in reverse order | `Theme` |
+| `bodyEnd` | `{ module, export }[]` | `{ module: "@vercel/analytics/next", export: "Analytics" }` |
+| `tsconfig.paths` | `{ key, values }[]`, an alias and its targets | `{ key: "~/content/*", values: ["./content/*"] }` |
+| `tsconfig.include` | string[] | `next-env.d.ts` |
+| `gitignore` | string[], generated directories included | `/src/generated` |
+| `lintIgnores` | string[], generated directories included | `src/generated/**` |
+| `knip` | `{ key, values }[]`, only the options that have values | `{ key: "entry", values: ["seed.ts"] }` |
+| `lintStaged` | `{ key, values }[]`, a glob and its commands | `{ key: "*.ts", values: ["eslint --fix"] }` |
+| `csp` | `{ key, values }[]`, a directive and its sources | `{ key: "img-src", values: ["'self'", "https:"] }` |
+| `allowedBuilds`, `deniedBuilds` | string[], sorted by name | `sharp` |
+| `cssImports` | string[] | `tailwindcss` |
+| `prettierPlugins` | string[] | `prettier-plugin-tailwindcss` |
+| `ciChecks` | string[], script names | `lint` |
+| `testSetup` | string[] | `test/setup.ts` |
+| `logRedact` | string[] | `req.headers.authorization` |
+| `agents`, `readme` | `{ section, text }[]` | `{ section: "Database", text: "Run …" }` |
+| `container.buildArgs` | `{ name, description }[]` | `{ name: "SENTRY_RELEASE", description: "…" }` |
+| `container.env` | `{ key, value }[]` | `{ key: "PORT", value: "3000" }` |
+| `container.services` | `{ name, image, ports?, environment?, volumes? }[]` | `{ name: "db", image: "postgres:18" }` |
+| `health` | `{ name, module, export }[]` | `{ name: "db", module: "@/lib/db", export: "isUp" }` |
+
+Module paths in `bodyEnd` and `health` that start with `#src/` arrive resolved through the import
+alias, such as `@/lib/db`. An entry with a key reads as `{{key}}` and `{{value}}` inside
+`{{#each}}`:
+
+```hbs
+{{#each scripts}}
+- `{{@root.project.run}} {{key}}`: `{{value}}`
+{{/each}}
+```
 
 ## Facts
 

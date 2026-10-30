@@ -3,7 +3,15 @@ import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
-import { collect, define, keyValuePairs, unique, uniqueBy } from './merge-entries.ts'
+import {
+  collect,
+  define,
+  type KeyValue,
+  type KeyValues,
+  keyValuePairs,
+  unique,
+  uniqueBy,
+} from './merge-entries.ts'
 import { type EnvValues, mergeEnv } from './merge-env.ts'
 import { assertUniqueExports, mergeModuleExports } from './merge-module-exports.ts'
 import { resolveVersion } from './resolve-version.ts'
@@ -12,7 +20,7 @@ type Manifests = readonly ParsedPluginManifest[]
 type Contributions = NonNullable<ParsedPluginManifest['contributes']>
 type FieldValue = NonNullable<NonNullable<Contributions['package']>['fields']>[string]
 type Service = NonNullable<NonNullable<Contributions['container']>['services']>[number]
-type ReadmeSection = { section: string; text: string }
+type SectionText = { section: string; text: string }
 type RootProvider = { import: string; component: string }
 
 /** The merged contributions of all plugins. */
@@ -22,20 +30,20 @@ export type CompositionValues = {
   dependencies: Record<string, string>
   devDependencies: Record<string, string>
   env: EnvValues
-  layoutMetadata: { key: string; value: string }[]
+  layoutMetadata: KeyValue[]
   allowedBuilds: string[]
   deniedBuilds: string[]
   cssImports: string[]
   prettierPlugins: string[]
   ciChecks: string[]
-  agents: { sections: ReadmeSection[] }
+  agents: SectionText[]
   /** Globs of staged files with the commands lint-staged runs on them, in plugin order. */
-  lintStaged: { glob: string; commands: string[] }[]
+  lintStaged: KeyValues[]
   gitignore: string[]
-  readme: { sections: ReadmeSection[] }
+  readme: SectionText[]
   nextConfig: {
     imports: string[]
-    options: { key: string; value: string }[]
+    options: KeyValue[]
     exported: string
   }
   rootProviders: { opening: RootProvider[]; closing: string[] }
@@ -45,18 +53,17 @@ export type CompositionValues = {
   }
   instrumentationClient: ModuleExport[]
   bodyEnd: NamedModuleExport[]
-  /** Each path's targets are a JSON array, ready for tsconfig.json. */
-  tsconfig: { paths: { alias: string; targets: string }[]; include: string[] }
+  tsconfig: { paths: KeyValues[]; include: string[] }
   generatedDirs: string[]
-  lint: { ignores: string[] }
+  lintIgnores: string[]
   /** The Knip options that have values, such as `entry`, in the order Knip documents them. */
-  knip: { key: string; values: string[] }[]
+  knip: KeyValues[]
   container: {
     buildArgs: { name: string; description: string }[]
-    env: { name: string; value: string }[]
+    env: KeyValue[]
     services: Service[]
   }
-  csp: { directive: string; sources: string[] }[]
+  csp: KeyValues[]
   health: { name: string; module: string; export: string }[]
   testSetup: string[]
   logRedact: string[]
@@ -121,8 +128,8 @@ const mergeNextConfig = (manifests: Manifests): CompositionValues['nextConfig'] 
 const mergeLintStaged = (manifests: Manifests): CompositionValues['lintStaged'] => {
   const entries = collect(manifests, ({ contributes }) => contributes?.lintStaged)
   return unique(entries.map(({ glob }) => glob)).map((glob) => ({
-    glob,
-    commands: unique(entries.filter((entry) => entry.glob === glob).map(({ command }) => command)),
+    key: glob,
+    values: unique(entries.filter((entry) => entry.glob === glob).map(({ command }) => command)),
   }))
 }
 
@@ -139,13 +146,13 @@ const mergePaths = (manifests: Manifests): CompositionValues['tsconfig']['paths'
     ...define(manifests, 'the tsconfig path', ({ contributes }) =>
       Object.entries(contributes?.tsconfig?.paths ?? {}),
     ),
-  ].map(([alias, targets]) => ({ alias, targets: JSON.stringify(targets) }))
+  ].map(([alias, targets]) => ({ key: alias, values: targets }))
 
 const mergeCsp = (manifests: Manifests): CompositionValues['csp'] => {
   const directives = collect(manifests, ({ contributes }) => Object.entries(contributes?.csp ?? {}))
   return unique(directives.map(([directive]) => directive)).map((directive) => ({
-    directive,
-    sources: unique(
+    key: directive,
+    values: unique(
       directives.filter(([name]) => name === directive).flatMap(([, sources]) => sources),
     ),
   }))
@@ -157,7 +164,7 @@ const mergeCsp = (manifests: Manifests): CompositionValues['csp'] => {
  */
 const mergeGeneratedDirs = (
   manifests: Manifests,
-): Pick<CompositionValues, 'generatedDirs' | 'gitignore' | 'lint'> & {
+): Pick<CompositionValues, 'generatedDirs' | 'gitignore' | 'lintIgnores'> & {
   knipIgnore: string[]
 } => {
   const generatedDirs = unique(collect(manifests, ({ contributes }) => contributes?.generatedDirs))
@@ -168,12 +175,10 @@ const mergeGeneratedDirs = (
       ...collect(manifests, ({ contributes }) => contributes?.gitignore),
       ...generatedDirs.map((directory) => `/${directory}`),
     ]),
-    lint: {
-      ignores: unique([
-        ...collect(manifests, ({ contributes }) => contributes?.lint?.ignores),
-        ...globs,
-      ]),
-    },
+    lintIgnores: unique([
+      ...collect(manifests, ({ contributes }) => contributes?.lint?.ignores),
+      ...globs,
+    ]),
     knipIgnore: unique([
       ...collect(manifests, ({ contributes }) => contributes?.knip?.ignore),
       ...globs,
@@ -204,7 +209,7 @@ const mergeContainer = (manifests: Manifests): CompositionValues['container'] =>
   env: uniqueBy(
     collect(manifests, ({ contributes }) => contributes?.container?.env),
     ({ name }) => name,
-  ),
+  ).map(({ name, value }) => ({ key: name, value })),
   services: [
     ...define(manifests, 'the compose service', ({ contributes }) =>
       contributes?.container?.services?.map((service) => [service.name, service]),
@@ -245,13 +250,9 @@ export const mergeContributions = (
     cssImports: unique(collect(manifests, ({ contributes }) => contributes?.cssImports)),
     prettierPlugins: unique(collect(manifests, ({ contributes }) => contributes?.prettierPlugins)),
     ciChecks: unique(collect(manifests, ({ contributes }) => contributes?.ciChecks)),
-    agents: {
-      sections: collect(manifests, ({ contributes }) => contributes?.agents),
-    },
+    agents: collect(manifests, ({ contributes }) => contributes?.agents),
     lintStaged: mergeLintStaged(manifests),
-    readme: {
-      sections: collect(manifests, ({ contributes }) => contributes?.readme),
-    },
+    readme: collect(manifests, ({ contributes }) => contributes?.readme),
     nextConfig: mergeNextConfig(manifests),
     rootProviders: mergeRootProviders(manifests),
     instrumentation: {

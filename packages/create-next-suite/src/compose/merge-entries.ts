@@ -3,6 +3,12 @@ import { ComposeError } from './compose-error.ts'
 
 type Manifests = readonly ParsedPluginManifest[]
 
+/** An entry of an ordered map whose value is a single value, such as a script and its command. */
+export type KeyValue<Value = string> = { key: string; value: Value }
+
+/** An entry of an ordered map whose value is a list, such as a CSP directive and its sources. */
+export type KeyValues = { key: string; values: string[] }
+
 /** A named value with the plugin that defines it. */
 type Definition<Value> = { name: string; value: Value; origin: string }
 
@@ -50,6 +56,5 @@ export const define = <Value>(
 }
 
 /** The entries of a map as a list that keeps their order. */
-export const keyValuePairs = <Value>(
-  values: ReadonlyMap<string, Value>,
-): { key: string; value: Value }[] => [...values].map(([key, value]) => ({ key, value }))
+export const keyValuePairs = <Value>(values: ReadonlyMap<string, Value>): KeyValue<Value>[] =>
+  [...values].map(([key, value]) => ({ key, value }))

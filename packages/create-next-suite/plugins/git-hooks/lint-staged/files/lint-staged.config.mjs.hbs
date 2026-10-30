@@ -1,7 +1,7 @@
 /** @type {import("lint-staged").Configuration} */
 const config = {
 {{#each lintStaged}}
-  "{{glob}}": [{{#each commands}}"{{this}}", {{/each}}],
+  "{{key}}": [{{#each values}}"{{this}}", {{/each}}],
 {{/each}}
 };
 

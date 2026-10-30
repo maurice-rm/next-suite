@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", {{#each lint.ignores}}"!{{this}}", {{/each}}"!node_modules", "!.next", "!dist", "!build", "!package-lock.json", "!bun.lock"]
+    "includes": ["**", {{#each lintIgnores}}"!{{this}}", {{/each}}"!node_modules", "!.next", "!dist", "!build", "!package-lock.json", "!bun.lock"]
   },
   "formatter": {
     "enabled": true,

@@ -1,22 +1,20 @@
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import { define, uniqueBy } from './merge-entries.ts'
+import { define, type KeyValue, uniqueBy } from './merge-entries.ts'
 
 type EnvVariable = NonNullable<ParsedPluginManifest['env']>[number]
-
-/** A variable with its Zod schema as code, for an env schema file. */
-type EnvSchemaEntry = { name: string; schema: string }
 
 /** The merged environment variables: by plugin for `.env.example`, by scope for an env schema. */
 export type EnvValues = {
   groups: { title: string; variables: EnvVariable[] }[]
-  server: EnvSchemaEntry[]
-  client: EnvSchemaEntry[]
+  /** Each variable of the scope by name, with its Zod schema as code. */
+  server: KeyValue[]
+  client: KeyValue[]
 }
 
 /** The Zod schema of a variable as code: a string, with its default when it has one. */
-const envSchemaOf = (variable: EnvVariable): EnvSchemaEntry => ({
-  name: variable.name,
-  schema:
+const envSchemaOf = (variable: EnvVariable): KeyValue => ({
+  key: variable.name,
+  value:
     variable.default === undefined
       ? 'z.string()'
       : `z.string().default(${JSON.stringify(variable.default)})`,
