@@ -1,5 +1,5 @@
 import type { Condition } from '../contract/condition.ts'
-import type { Answers, AnswerValue } from './answers.ts'
+import { type Answers, type AnswerValue, isSelected } from './answers.ts'
 
 type ComparableValue = string | number | boolean
 
@@ -13,7 +13,7 @@ const matchesValue = (answer: AnswerValue | undefined, expected: ComparableValue
  */
 export const evaluateCondition = (condition: Condition, answers: Answers): boolean => {
   if ('plugin' in condition) {
-    return answers.plugins.some((plugin) => plugin.name === condition.plugin)
+    return isSelected(answers, condition.plugin)
   }
   if ('category' in condition) {
     return answers.plugins.some((plugin) => plugin.category === condition.category)
@@ -34,3 +34,7 @@ export const evaluateCondition = (condition: Condition, answers: Answers): boole
   }
   return !evaluateCondition(condition.not, answers)
 }
+
+/** Whether an optional condition holds; without a condition it always does. */
+export const holdsFor = (when: Condition | undefined, answers: Answers): boolean =>
+  when === undefined || evaluateCondition(when, answers)

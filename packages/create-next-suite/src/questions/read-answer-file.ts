@@ -1,10 +1,12 @@
 import { readFile } from 'node:fs/promises'
 
-import { InputError } from './input-error.ts'
-import type { AnswerInput } from './resolve-answers.ts'
+import * as z from 'zod'
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
+import type { AnswerInput } from '../answers/answers.ts'
+import { parseJsonWith } from '../file-system/read-json-file.ts'
+import { InputError } from '../input-error.ts'
+
+const answerFileSchema = z.record(z.string(), z.unknown(), { error: 'must hold a JSON object' })
 
 /** Reads an answer file: a JSON object in the format of `answers` in next-suite.json. */
 export const readAnswerFile = async (path: string): Promise<AnswerInput> => {
@@ -14,14 +16,9 @@ export const readAnswerFile = async (path: string): Promise<AnswerInput> => {
   } catch (error) {
     throw new InputError(`cannot read the answer file ${path}`, { cause: error })
   }
-  let json: unknown
-  try {
-    json = JSON.parse(text)
-  } catch (error) {
-    throw new InputError(`the answer file ${path} is not valid JSON`, { cause: error })
-  }
-  if (!isRecord(json)) {
-    throw new InputError(`the answer file ${path} must hold a JSON object`)
-  }
-  return json
+  return parseJsonWith(
+    text,
+    answerFileSchema,
+    (problem, options) => new InputError(`the answer file ${path} ${problem}`, options),
+  )
 }

@@ -5,6 +5,11 @@ const config: UserConfig = defineConfig({
   format: 'esm',
   platform: 'node',
   hash: false,
+  treeshake: {
+    // External modules count as side-effectful, so dist/plugin.d.mts would keep a bare
+    // `import 'zod'`: https://rolldown.rs/in-depth/external-modules
+    moduleSideEffects: 'no-external',
+  },
   copy: { from: 'generated/schemas/*.json', to: 'dist/schemas' },
   dts: {
     entry: ['src/plugin.ts', 'src/testing.ts'],

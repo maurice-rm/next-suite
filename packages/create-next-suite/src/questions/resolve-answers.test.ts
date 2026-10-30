@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { categoriesSchema } from '../contract/category.ts'
 import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
 import { TEST_QUESTIONS } from '../test-support/questions.ts'
-import { buildQuestions } from './questions.ts'
+import { buildQuestions } from './build-questions.ts'
 import { resolveAnswers } from './resolve-answers.ts'
 
 const resolve = (input: Record<string, unknown>, useDefaults = true) =>

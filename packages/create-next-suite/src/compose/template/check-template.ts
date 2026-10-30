@@ -1,12 +1,7 @@
 import Handlebars from 'handlebars'
 
+import { type BlockHelper, FACT_HELPER } from './block-helpers.ts'
 import { TemplateError } from './template-error.ts'
-
-export type BlockHelper = 'if' | 'unless' | 'each'
-
-/** Plugin templates may use every block; files of the base project may not branch. */
-export const PLUGIN_TEMPLATE_BLOCKS: readonly BlockHelper[] = ['if', 'unless', 'each']
-export const BASE_TEMPLATE_BLOCKS: readonly BlockHelper[] = ['each']
 
 const CONDITION_BLOCKS: ReadonlySet<string> = new Set(['if', 'unless'])
 
@@ -15,7 +10,7 @@ type Node = hbs.AST.Node
 const position = (node: Node): string =>
   `line ${node.loc.start.line}, column ${node.loc.start.column + 1}`
 
-const fail = (node: Node, problem: string): never => {
+function fail(node: Node, problem: string): never {
   throw new TemplateError(`${problem} (${position(node)})`)
 }
 
@@ -29,7 +24,7 @@ const isFactQuery = (expression: hbs.AST.Expression): boolean => {
   const query = expression as hbs.AST.SubExpression
   const [fact] = query.params
   return (
-    query.path.original === 'has' &&
+    query.path.original === FACT_HELPER &&
     query.params.length === 1 &&
     fact?.type === 'StringLiteral' &&
     (query.hash?.pairs.length ?? 0) === 0
@@ -45,13 +40,13 @@ const checkBlock = (block: hbs.AST.BlockStatement, allowedBlocks: readonly Block
   if (block.params.length !== 1 || argument === undefined || (block.hash?.pairs.length ?? 0) > 0) {
     fail(block, `{{#${helper}}} takes exactly one argument`)
   }
-  if (CONDITION_BLOCKS.has(helper) && argument !== undefined && !isFactQuery(argument)) {
+  if (CONDITION_BLOCKS.has(helper) && !isFactQuery(argument)) {
     fail(
       block,
       `{{#${helper}}} asks a named fact only, such as {{#${helper} (has "plugin:drizzle")}}`,
     )
   }
-  if (helper === 'each' && argument?.type !== 'PathExpression') {
+  if (helper === 'each' && argument.type !== 'PathExpression') {
     fail(block, '{{#each}} iterates over a value, such as {{#each items}}')
   }
   if (helper === 'each' && block.inverse) {
@@ -66,7 +61,7 @@ const checkMustache = (mustache: hbs.AST.MustacheStatement): void => {
   if (
     mustache.path.type !== 'PathExpression' ||
     hasArguments(mustache) ||
-    (mustache.path as hbs.AST.PathExpression).original === 'has'
+    (mustache.path as hbs.AST.PathExpression).original === FACT_HELPER
   ) {
     fail(mustache, 'only plain values such as {{project.name}} are allowed, no helpers')
   }

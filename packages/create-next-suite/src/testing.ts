@@ -19,14 +19,15 @@
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Readable, Writable } from 'node:stream'
+import { Readable } from 'node:stream'
 
 import packageJson from '../package.json' with { type: 'json' }
 import { processRemoteEnvironment, processUserConfigPath } from './cli/process-environment.ts'
 import { runCreate } from './cli/run-create.ts'
 import { loadAssets } from './loader/load-assets.ts'
-import { runCommand } from './post-steps/run-command.ts'
-import { sourcePattern } from './trust/trust-level.ts'
+import { type CommandResult, runCommand } from './post-steps/run-command.ts'
+import { collectOutput } from './test-support/collect-output.ts'
+import { sourceOf } from './trust/trust-level.ts'
 
 const PROJECT_NAME = 'test-app'
 const DEFAULT_PACKAGE_MANAGER = 'pnpm'
@@ -41,40 +42,58 @@ export type TestProjectOptions = {
   packageManager?: string
   /** Whether to install the dependencies, which a script run needs; off by default. */
   install?: boolean
-  /** The folder the project is created in; a fresh temporary folder by default. */
+  /** The directory the project is created in; a fresh temporary directory by default. */
   parent?: string
 }
 
+/** How a script of a test project ended. */
+export type ScriptResult = CommandResult
+
 /** A generated test project. */
 export type TestProject = {
-  /** The project folder. */
+  /** The project directory. */
   directory: string
   /** What the run printed. */
   output: string
-  /** Runs a script of the project with its package manager and answers how it ended. */
-  run: (script: string) => Promise<{ isSuccess: boolean; output: string }>
+  /**
+   * Runs a script of the project with its package manager. A script that fails or cannot start
+   * resolves with `isSuccess: false` rather than rejecting.
+   *
+   * @param script - The name of the script in package.json, such as `build`.
+   */
+  run: (script: string) => Promise<ScriptResult>
 }
-
-const collect = (lines: string[]) =>
-  new Writable({
-    write: (chunk, _encoding, done) => {
-      lines.push(String(chunk))
-      done()
-    },
-  })
 
 /**
  * Generates a project with the plugins under test, without a terminal: every question takes the
  * answer given or its default, git stays off.
  *
+ * @param options - The plugins under test, the answers and how to generate.
+ * @returns The generated project, ready to run its scripts.
  * @throws Error with the output of the run when the project cannot be generated.
+ *
+ * @example
+ * ```ts
+ * import { createTestProject } from 'create-next-suite/testing'
+ * import { expect, test } from 'vitest'
+ *
+ * test('the project builds with my plugin', async () => {
+ *   const project = await createTestProject({
+ *     plugins: ['./my-plugin'],
+ *     answers: { 'my-plugin': true },
+ *     install: true,
+ *   })
+ *
+ *   expect((await project.run('build')).isSuccess).toBe(true)
+ * })
+ * ```
  */
 export const createTestProject = async (options: TestProjectOptions): Promise<TestProject> => {
   const parent = options.parent ?? (await mkdtemp(join(tmpdir(), 'next-suite-test-')))
   const answersFile = join(parent, 'answers.json')
   await writeFile(answersFile, JSON.stringify(options.answers ?? {}))
   const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER
-  const output: string[] = []
+  const output = collectOutput()
   const exitCode = await runCreate({
     argv: [
       PROJECT_NAME,
@@ -85,17 +104,12 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
       packageManager,
       '--no-git',
       ...(options.install === true ? [] : ['--no-install']),
-      ...options.plugins.flatMap((address) => [
-        '--plugin',
-        address,
-        '--trust',
-        sourcePattern(address),
-      ]),
+      ...options.plugins.flatMap((address) => ['--plugin', address, '--trust', sourceOf(address)]),
     ],
-    assets: await loadAssets(join(import.meta.dirname, '..')),
+    loadAssets: () => loadAssets(join(import.meta.dirname, '..')),
     cliVersion: packageJson.version,
     cwd: parent,
-    streams: { input: Readable.from([]), output: collect(output), error: collect(output) },
+    streams: { input: Readable.from([]), output: output.stream, error: output.stream },
     isInteractive: false,
     columns: 80,
     now: () => new Date(),
@@ -106,12 +120,12 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
     fetchLatestVersion: async () => undefined,
   })
   if (exitCode !== 0) {
-    throw new Error(`create-next-suite could not generate the test project:\n${output.join('')}`)
+    throw new Error(`create-next-suite could not generate the test project:\n${output.text()}`)
   }
   const directory = join(parent, PROJECT_NAME)
   return {
     directory,
-    output: output.join(''),
+    output: output.text(),
     run: (script) => runCommand(packageManager, ['run', script], directory),
   }
 }

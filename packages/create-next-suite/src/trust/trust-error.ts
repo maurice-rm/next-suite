@@ -1,7 +1,6 @@
-/** A plugin source that is not trusted, or a user configuration that cannot be read. */
-export class TrustError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(`create-next-suite: ${message}`, options)
-    this.name = 'TrustError'
-  }
+import { ExpectedError } from '../expected-error.ts'
+
+/** A plugin from a source the user does not trust, in a run that cannot ask about it. */
+export class TrustError extends ExpectedError {
+  override name = 'TrustError'
 }

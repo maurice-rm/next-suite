@@ -34,12 +34,15 @@ says what next-suite does; this file says how code is written here.
 - **Public exports carry complete TSDoc:** a summary; `@typeParam` for every type parameter;
   `@param name -` and `@returns` where they say more than the type; `@throws` for every error
   raised on purpose; at least one `@example` per entry point. No types inside `@param`. Public
-  means the `create-next-suite/plugin` subpath; the bins are no API.
+  means the `create-next-suite/plugin` and `create-next-suite/testing` subpaths; the field
+  descriptions of the JSON schemas under `create-next-suite/schemas/` are read by users too. The
+  bins are no API.
 - **Internal code** gets a doc comment only where name and signature do not say enough. An inline
   comment is reserved for a workaround (with a link), a non-obvious constraint, or a dense
   algorithm. Design history and rationale stay out of TSDoc — TSDoc ships in `dist`.
-- **One word per concept,** as the glossary of the documentation defines it — in code, error
-  messages and documentation alike.
+- **One word per concept,** as the [glossary](apps/docs/content/docs/glossary.mdx) defines it —
+  in code, error messages and documentation alike. A new term enters the glossary in the change
+  that introduces it.
 - **A rule exists once.** Before writing something that resembles existing code, find the
   existing code. Similar code is named and compared the second time and merged the third time;
   a domain rule never gets a second copy.
@@ -50,25 +53,47 @@ says what next-suite does; this file says how code is written here.
   (`useMaxParams`, `noExcessiveCognitiveComplexity`, `useNamingConvention`, `noImportCycles`).
 - **Imports inside a package are relative and name the file with its extension** (`./x.ts`), the
   way Node.js loads TypeScript. No path aliases in packages. Module boundaries inside a package
-  are enforced with `noRestrictedImports` overrides per folder, added in `biome.json` together
-  with the folders they guard.
-- **Plugins:** a built-in plugin is one folder under
-  `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` without a
-  category, and changes no other file; a plugin that needs another file changed is missing a
-  composition point, which is a change to the core of its own. Built-in plugins import only the public plugin
-  contract (`create-next-suite/plugin`), like any external plugin.
+  are enforced with `noRestrictedImports` overrides per directory, added in `biome.json` together
+  with the directories they guard. In `packages/create-next-suite/src`:
+
+  | Directory           | Imports from                                                                              |
+  | ------------------- | ----------------------------------------------------------------------------------------- |
+  | `contract/`         | no other module                                                                           |
+  | `file-system/`      | no other module                                                                           |
+  | `ui/`               | `expected-error.ts`                                                                       |
+  | `answers/`          | `contract/`                                                                               |
+  | `package-manager/`  | `contract/`, the error files                                                              |
+  | `post-steps/`       | `contract/`, `package-manager/`, the error files                                          |
+  | `user-config/`      | `contract/`, `file-system/`, the error files                                              |
+  | `loader/`           | `contract/`, `file-system/`, the error files                                              |
+  | `loader/remote/`    | as `loader/`, and of `loader/` only `plugin-address.ts` and `plugin-load-error.ts`        |
+  | `trust/`            | `contract/`, `file-system/`, `loader/`, the error files                                   |
+  | `compose/`          | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                       |
+  | `compose/template/` | as `compose/`, but not `compose/` itself                                                  |
+  | `questions/`        | `contract/`, `answers/`, `loader/`, `ui/`, `file-system/`, the error files                |
+  | `write/`            | `contract/`, `answers/`, `loader/`, `compose/`, `file-system/`, the error files           |
+  | `test-support/`     | `contract/`, `answers/`, `loader/`, `questions/`, `cli/`, `file-system/`, the error files |
+  | `cli/`              | every module, never the package entries                                                   |
+
+  The error files are `expected-error.ts` and `input-error.ts` at the root of `src/`.
+- **Plugins:** a built-in plugin is one directory under
+  `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` for an extra (a
+  plugin without a category), and changes no other file; a plugin that needs another file
+  changed is missing a composition point, which is a change to the core of its own. Built-in
+  plugins import only the public plugin contract (`create-next-suite/plugin`), like any external
+  plugin.
 - **Templates:** a plugin file whose source ends in `.hbs` is a Handlebars template; its target
-  path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript sources end in
-  `.hbs` even without placeholders, so the repository's own tools never check them as code; JSX
-  double braces in such a file are written `\{{`.
+  path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript
+  sources end in `.hbs` even without placeholders, so the repository's own tools never check them
+  as code; JSX double braces in such a file are written `\{{`.
 - **The core owns every side effect:** plugins compute, the core writes files, runs processes
   and fetches.
 
 ## Tests
 
 - A new test fails before the code that makes it pass, and the report says how it was seen red.
-- Tests sit next to the file they test: `x.test.ts` for runtime, `x.test-d.ts` for types. Tests of the built CLI live in
-  `packages/integration` and run it the way a user does.
+- Tests sit next to the file they test: `x.test.ts` for runtime, `x.test-d.ts` for types. Tests
+  of the built CLI live in `packages/integration` and run it the way a user does.
 - Snapshot changes are deliberate and land in the same commit as the output change that causes
   them.
 

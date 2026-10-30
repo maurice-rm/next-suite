@@ -1,15 +1,16 @@
-import { lstat, readFile, realpath } from 'node:fs/promises'
+import { lstat, realpath } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 
 import semver from 'semver'
-import * as z from 'zod'
 
 import {
   CONTRACT_VERSION,
   type ParsedPluginManifest,
   pluginManifestSchema,
 } from '../contract/plugin-manifest.ts'
-import { isInside } from './is-inside.ts'
+import { isMissingFileError } from '../file-system/error-code.ts'
+import { isInside } from '../file-system/is-inside.ts'
+import { readJsonFile } from '../file-system/read-json-file.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
 const MANIFEST_FILE = 'plugin.json'
@@ -19,86 +20,87 @@ export type PluginSource =
   | { kind: 'builtin' }
   | { kind: 'external'; address: string; resolved: string | undefined }
 
-const BUILTIN_SOURCE: PluginSource = { kind: 'builtin' }
-
 export type LoadedPlugin = {
   manifest: ParsedPluginManifest
-  folder: string
+  directory: string
   source: PluginSource
 }
 
-const MISSING_FILE_CODES = new Set(['ENOENT', 'ENOTDIR'])
+const BUILTIN_SOURCE: PluginSource = { kind: 'builtin' }
 
-const isMissingFile = (error: unknown): boolean =>
-  error instanceof Error && 'code' in error && MISSING_FILE_CODES.has(String(error.code))
+const outsidePluginError = (directory: string, source: string): PluginLoadError =>
+  new PluginLoadError(directory, `the file source ${source} lies outside the plugin`)
 
-const readManifestJson = async (folder: string): Promise<unknown> => {
-  let text: string
-  try {
-    if ((await lstat(join(folder, MANIFEST_FILE))).isSymbolicLink()) {
-      throw new PluginLoadError(folder, `${MANIFEST_FILE} is a link`)
-    }
-    text = await readFile(join(folder, MANIFEST_FILE), 'utf8')
-  } catch (error) {
-    if (isMissingFile(error)) {
-      throw new PluginLoadError(folder, `no ${MANIFEST_FILE}`, { cause: error })
+const assertManifestFile = async (directory: string, path: string): Promise<void> => {
+  const stats = await lstat(path).catch((error: unknown) => {
+    if (isMissingFileError(error)) {
+      throw new PluginLoadError(directory, `no ${MANIFEST_FILE}`, {
+        cause: error,
+      })
     }
     throw error
-  }
-  try {
-    return JSON.parse(text)
-  } catch (error) {
-    throw new PluginLoadError(folder, `${MANIFEST_FILE} is not valid JSON`, { cause: error })
+  })
+  if (stats.isSymbolicLink()) {
+    throw new PluginLoadError(directory, `${MANIFEST_FILE} is a link`)
   }
 }
 
-const parseManifest = (folder: string, json: unknown): ParsedPluginManifest => {
-  const result = pluginManifestSchema.safeParse(json)
-  if (!result.success) {
-    throw new PluginLoadError(folder, `invalid ${MANIFEST_FILE}\n${z.prettifyError(result.error)}`)
-  }
-  return result.data
+const readManifest = async (directory: string): Promise<ParsedPluginManifest> => {
+  const path = join(directory, MANIFEST_FILE)
+  await assertManifestFile(directory, path)
+  return readJsonFile(
+    path,
+    pluginManifestSchema,
+    (problem, options) => new PluginLoadError(directory, `${MANIFEST_FILE} ${problem}`, options),
+  )
 }
 
-const assertContract = (folder: string, manifest: ParsedPluginManifest): void => {
+const assertContract = (directory: string, manifest: ParsedPluginManifest): void => {
   if (semver.satisfies(CONTRACT_VERSION, manifest.contract)) {
     return
   }
   throw new PluginLoadError(
-    folder,
+    directory,
     `it needs plugin contract ${manifest.contract}, this create-next-suite implements ${CONTRACT_VERSION}`,
   )
 }
 
-const assertSourceFile = async (folder: string, source: string): Promise<void> => {
-  const path = resolve(folder, source)
-  if (isAbsolute(source) || !isInside(folder, path)) {
-    throw new PluginLoadError(folder, `the file source ${source} lies outside the plugin`)
-  }
-  const stats = await lstat(path).catch((error: unknown) => {
-    if (isMissingFile(error)) {
-      throw new PluginLoadError(folder, `the file source ${source} does not exist`, {
+const assertRegularFile = async (directory: string, source: string): Promise<void> => {
+  const stats = await lstat(resolve(directory, source)).catch((error: unknown) => {
+    if (isMissingFileError(error)) {
+      throw new PluginLoadError(directory, `the file source ${source} does not exist`, {
         cause: error,
       })
     }
     throw error
   })
   if (!stats.isFile()) {
-    throw new PluginLoadError(folder, `the file source ${source} is not a regular file`)
-  }
-  // A symbolic link to a folder earlier in the path is followed by lstat; compare real paths.
-  if (!isInside(await realpath(folder), await realpath(path))) {
-    throw new PluginLoadError(folder, `the file source ${source} lies outside the plugin`)
+    throw new PluginLoadError(directory, `the file source ${source} is not a regular file`)
   }
 }
 
-/** Reads and checks the plugin in a folder; the same path serves built-in and local plugins. */
+/**
+ * Fails for a source outside the plugin: by its path first, then by its real path, since lstat
+ * follows a symbolic link to a directory earlier in the path.
+ */
+const assertSourceFile = async (directory: string, source: string): Promise<void> => {
+  const path = resolve(directory, source)
+  if (isAbsolute(source) || !isInside(directory, path)) {
+    throw outsidePluginError(directory, source)
+  }
+  await assertRegularFile(directory, source)
+  if (!isInside(await realpath(directory), await realpath(path))) {
+    throw outsidePluginError(directory, source)
+  }
+}
+
+/** Reads and checks the plugin in a directory; the same path serves built-in and local plugins. */
 export const loadPlugin = async (
-  folder: string,
+  directory: string,
   source: PluginSource = BUILTIN_SOURCE,
 ): Promise<LoadedPlugin> => {
-  const root = resolve(folder)
-  const manifest = parseManifest(root, await readManifestJson(root))
+  const root = resolve(directory)
+  const manifest = await readManifest(root)
   assertContract(root, manifest)
   for (const file of manifest.files ?? []) {
     await assertSourceFile(root, file.source)
@@ -106,5 +108,5 @@ export const loadPlugin = async (
   if (manifest.logic !== undefined) {
     await assertSourceFile(root, manifest.logic)
   }
-  return { manifest, folder: root, source }
+  return { manifest, directory: root, source }
 }

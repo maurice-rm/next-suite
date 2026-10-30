@@ -1,36 +1,26 @@
-import type { Answers } from '../answers/answers.ts'
+import type { AnswerInput, Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import { renderFramed } from '../ui/theme.ts'
+import { InputError } from '../input-error.ts'
+import { renderFramed } from '../ui/frame.ts'
+import type { Streams } from '../ui/prompts.ts'
+import type { Question, SettingScope } from './build-questions.ts'
 import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
-import { InputError } from './input-error.ts'
-import type { Question } from './questions.ts'
-import { type AnswerInput, resolveAnswers } from './resolve-answers.ts'
-import { createAsk } from './wizard/ask-question.ts'
-import { runWizard } from './wizard/run-wizard.ts'
-import type { Streams } from './wizard/streams.ts'
+import { resolveAnswers } from './resolve-answers.ts'
+import { type AskContext, createAsk } from './wizard/create-ask.ts'
+import { runWizard, type TargetInput } from './wizard/run-wizard.ts'
 
 const INCOMPATIBLE_IN_WIZARD = 'The answers do not fit together; change one with b:'
 
-/** How open questions are answered: asked in the wizard, or from the input and maybe the defaults. */
+/**
+ * How open questions are answered: asked in the wizard, or from the input and maybe the defaults.
+ */
 type AnswerMode =
-  | {
-      kind: 'wizard'
-      streams: Streams
-      findDirectoryProblem: (directory: string) => string | undefined
-      canEmpty: (directory: string) => boolean
-      detectedPackageManager: string | undefined
-    }
+  | ({ kind: 'wizard'; streams: Streams } & AskContext)
   | { kind: 'input'; useDefaults: boolean }
 
 /** Where the answers of a run come from and how open questions are answered. */
-export type AnswerSources = {
-  /** The project directory from the command line, if it named one. */
-  directory: string | undefined
-  /** What to do with a target that has files, from the command line, if it said. */
-  action: TargetAction | undefined
-  /** Whether a project directory already has files that stand in the way. */
-  hasConflict: (directory: string) => boolean
+export type AnswerSources = TargetInput & {
   questions: readonly Question[]
   plugins: readonly ParsedPluginManifest[]
   input: AnswerInput
@@ -43,6 +33,22 @@ type CollectedAnswers = { answers: Answers; directory: string; action: TargetAct
 
 const listMissing = (questions: readonly Question[]): string =>
   questions.map((question) => `  ${question.key}`).join('\n')
+
+/**
+ * The defaults of the settings in the given scopes, answered without asking: base settings are
+ * never asked, only set by flag; run settings are asked in the wizard only.
+ */
+const settingDefaults = (
+  questions: readonly Question[],
+  scopes: readonly SettingScope[],
+): AnswerInput =>
+  Object.fromEntries(
+    questions.flatMap((question) =>
+      question.kind === 'setting' && scopes.includes(question.scope)
+        ? [[question.key, question.option.default]]
+        : [],
+    ),
+  )
 
 /**
  * Rejects input no question used: every flag, and every key of the answer file that names no
@@ -59,45 +65,32 @@ const assertNoUnused = (unused: readonly string[], sources: AnswerSources): void
   }
 }
 
+/** Fails before the first question when the input alone already selects conflicting plugins. */
+const assertInputHasNoConflicts = (sources: AnswerSources, input: AnswerInput): void => {
+  const { answers } = resolveAnswers({ questions: sources.questions, input, useDefaults: false })
+  assertCompatible(findConflicts(sources.plugins, answers))
+}
+
 const askInWizard = async (
   sources: AnswerSources,
-  mode: Extract<AnswerMode, { kind: 'wizard' }>,
+  { streams, ...context }: Extract<AnswerMode, { kind: 'wizard' }>,
 ): Promise<CollectedAnswers> => {
   const { questions, plugins } = sources
-  const input = { ...settingDefaults(questions, ['project']), ...sources.input }
-  assertCompatible(
-    findConflicts(plugins, resolveAnswers({ questions, input, useDefaults: false }).answers),
-  )
+  const input = { ...settingDefaults(questions, ['base']), ...sources.input }
+  assertInputHasNoConflicts(sources, input)
   const result = await runWizard({
     questions,
     input,
     directory: sources.directory,
     action: sources.action,
-    hasConflict: sources.hasConflict,
-    ask: createAsk(mode.streams, {
-      findDirectoryProblem: mode.findDirectoryProblem,
-      canEmpty: mode.canEmpty,
-      detectedPackageManager: mode.detectedPackageManager,
-    }),
+    hasExistingFiles: sources.hasExistingFiles,
+    ask: createAsk(streams, context),
     findProblems: (answers) => findIncompatibilities(plugins, answers),
     showProblems: (problems) =>
-      mode.streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
+      streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
   })
   assertNoUnused(result.unused, sources)
   return { answers: result.answers, directory: result.directory, action: result.action }
-}
-
-/** The action for the target without asking: what the flags say, or create when nothing is in the way. */
-const actionFromInput = (sources: AnswerSources, directory: string): TargetAction => {
-  if (sources.action !== undefined) {
-    return sources.action
-  }
-  if (sources.hasConflict(directory)) {
-    throw new InputError(
-      `"${directory}" already has conflicting files — pass --overwrite or --empty to proceed.`,
-    )
-  }
-  return 'create'
 }
 
 /** The directory from the command line; without a terminal it is required. */
@@ -107,28 +100,24 @@ const directoryFromInput = (directory: string | undefined, useDefaults: boolean)
   }
   throw new InputError(
     useDefaults
-      ? 'A project name is required in --yes mode — pass it as the argument.'
-      : 'A project name is required without a terminal — pass it as the argument, such as `create-next-suite my-app`.',
+      ? 'a project name is required in --yes mode — pass it as the argument'
+      : 'a project name is required without a terminal — pass it as the argument, such as `create-next-suite my-app`',
   )
 }
 
-type SettingScope = Extract<Question, { kind: 'setting' }>['scope']
-
 /**
- * The defaults of the settings in the given scopes, answered without asking: project settings are
- * never asked, only set by flag; run settings are asked in the wizard only.
+ * The action for the target without asking: what the flags say, or create when nothing is in the
+ * way.
  */
-const settingDefaults = (
-  questions: readonly Question[],
-  scopes: readonly SettingScope[],
-): AnswerInput =>
-  Object.fromEntries(
-    questions.flatMap((question) =>
-      question.kind === 'setting' && scopes.includes(question.scope)
-        ? [[question.key, question.option.default]]
-        : [],
-    ),
-  )
+const actionFromInput = (sources: AnswerSources, directory: string): TargetAction => {
+  if (sources.action !== undefined) {
+    return sources.action
+  }
+  if (sources.hasExistingFiles(directory)) {
+    throw new InputError(`"${directory}" is not empty — pass --overwrite or --empty to proceed`)
+  }
+  return 'create'
+}
 
 const resolveFromInput = (
   sources: AnswerSources,
@@ -139,7 +128,7 @@ const resolveFromInput = (
   const { questions, input, plugins } = sources
   const resolution = resolveAnswers({
     questions,
-    input: { ...settingDefaults(questions, ['project', 'run']), ...input },
+    input: { ...settingDefaults(questions, ['base', 'run']), ...input },
     useDefaults,
   })
   assertNoUnused(resolution.unused, sources)

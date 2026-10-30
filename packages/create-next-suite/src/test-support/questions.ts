@@ -1,17 +1,8 @@
 import { type Category, categoriesSchema } from '../contract/category.ts'
-import { type ParsedPluginManifest, pluginManifestSchema } from '../contract/plugin-manifest.ts'
+import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
-import { buildQuestions, type Question } from '../questions/questions.ts'
-
-const manifest = (name: string, extra: object = {}): ParsedPluginManifest =>
-  pluginManifestSchema.parse({
-    name,
-    version: '1.0.0',
-    contract: '^1.0.0',
-    title: name,
-    description: `The ${name} plugin.`,
-    ...extra,
-  })
+import { buildQuestions, type Question } from '../questions/build-questions.ts'
+import { parseTestManifest } from './test-manifest.ts'
 
 export const TEST_CATEGORIES: Category[] = categoriesSchema.parse([
   {
@@ -38,7 +29,7 @@ export const TEST_CATEGORIES: Category[] = categoriesSchema.parse([
 ])
 
 export const TEST_PLUGINS: ParsedPluginManifest[] = [
-  manifest('pnpm', {
+  parseTestManifest('pnpm', {
     category: 'package-manager',
     packageManager: {
       version: '12.16.1',
@@ -48,7 +39,7 @@ export const TEST_PLUGINS: ParsedPluginManifest[] = [
     },
     files: [{ source: 'files/pnpm-workspace.yaml.hbs', target: 'pnpm-workspace.yaml' }],
   }),
-  manifest('npm', {
+  parseTestManifest('npm', {
     category: 'package-manager',
     packageManager: {
       version: '12.2.1',
@@ -57,7 +48,7 @@ export const TEST_PLUGINS: ParsedPluginManifest[] = [
       allowedBuildsIn: 'package.json#allowScripts',
     },
   }),
-  manifest('drizzle', {
+  parseTestManifest('drizzle', {
     category: 'orm',
     options: {
       casing: {
@@ -71,10 +62,10 @@ export const TEST_PLUGINS: ParsedPluginManifest[] = [
       },
     },
   }),
-  manifest('prisma', { category: 'orm' }),
-  manifest('tailwind', { category: 'styling' }),
-  manifest('sass', { category: 'styling' }),
-  manifest('seo', {
+  parseTestManifest('prisma', { category: 'orm' }),
+  parseTestManifest('tailwind', { category: 'styling' }),
+  parseTestManifest('sass', { category: 'styling' }),
+  parseTestManifest('seo', {
     section: 'Integrations',
     selectedByDefault: true,
     options: {
@@ -87,13 +78,13 @@ export const TEST_PLUGINS: ParsedPluginManifest[] = [
       },
     },
   }),
-  manifest('better-auth', {
+  parseTestManifest('better-auth', {
     requires: [{ when: { category: 'orm' }, reason: 'Stores sessions in the database.' }],
     conflicts: [{ when: { plugin: 'prisma' }, reason: 'Not tested with Prisma.' }],
   }),
 ]
 
-/** Questions built from small test plugins: three categories, two addons, the base settings. */
+/** Questions built from small test plugins: three categories, two extras, the base settings. */
 export const TEST_QUESTIONS: Question[] = buildQuestions({
   categories: TEST_CATEGORIES,
   plugins: TEST_PLUGINS,

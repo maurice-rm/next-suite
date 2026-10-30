@@ -2,13 +2,11 @@ import { resolve } from 'node:path'
 import type { Writable } from 'node:stream'
 
 import { Command, Option } from 'commander'
-
+import type { AnswerInput } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
-
 import { answersFromFlags, type QuestionFlag } from '../questions/flags.ts'
-import { InputError } from '../questions/input-error.ts'
 import { readAnswerFile } from '../questions/read-answer-file.ts'
-import type { AnswerInput } from '../questions/resolve-answers.ts'
+import { CREATE_COMMAND } from './command-name.ts'
 
 type CoreFlags = {
   yes?: boolean
@@ -21,7 +19,6 @@ type CoreFlags = {
   trust?: string[]
 }
 
-/** A parsed command line: the directory argument and every flag value. */
 export type Invocation = {
   directory: string | undefined
   flags: CoreFlags & Record<string, unknown>
@@ -32,7 +29,7 @@ export type GivenAnswers = { input: AnswerInput; flagKeys: ReadonlySet<string> }
 
 type CommandLineSource = {
   argv: readonly string[]
-  version: string
+  cliVersion: string
   output: Writable
   error: Writable
 }
@@ -46,13 +43,13 @@ const CORE_OPTIONS = [
   ),
   new Option('--dry-run', 'show what would be created, write nothing'),
   new Option('--diff', 'with --dry-run, show the content of every file'),
-  new Option('--overwrite', 'write into a folder that has files, keeping the others').conflicts(
+  new Option('--overwrite', 'write into a directory that has files, keeping the others').conflicts(
     'empty',
   ),
-  new Option('--empty', 'empty a folder that has files first, keeping only .git'),
+  new Option('--empty', 'empty a directory that has files first, keeping only .git'),
   new Option(
     '--plugin <address>',
-    'add a plugin from a folder, npm, GitHub, GitLab, Git or a URL; repeatable',
+    'add a plugin from a directory, npm, GitHub, GitLab, Git or a URL; repeatable',
   ).argParser((address: string, previous: string[] = []) => [...previous, address]),
   new Option(
     '--trust <pattern>',
@@ -87,17 +84,17 @@ export const readPluginAddresses = (argv: readonly string[]): string[] =>
  * answers --help and --version itself and throws its `CommanderError` to end the run.
  */
 export const parseCommandLine = async (
-  { argv, version, output, error }: CommandLineSource,
+  { argv, cliVersion, output, error }: CommandLineSource,
   questionFlags: readonly QuestionFlag[],
 ): Promise<Invocation> => {
   let invocation: Invocation | undefined
   const program = new Command()
-    .name('create-next-suite')
+    .name(CREATE_COMMAND)
     .description('Create a Next.js app from plugins.')
-    .version(version)
+    .version(cliVersion)
     .argument(
       '[directory]',
-      'project name or path, "." for the current directory; the folder name is the package name',
+      'project name or path, "." for the current directory; the directory name is the package name',
     )
     .exitOverride()
     .configureOutput({
@@ -112,12 +109,11 @@ export const parseCommandLine = async (
   }
   await program.parseAsync([...argv], { from: 'user' })
   if (invocation === undefined) {
-    throw new InputError('the command line did not run the command')
+    throw new Error('the command line did not run the command')
   }
   return invocation
 }
 
-/** What to do with a target folder that has files, as the flags say, if they say anything. */
 export const targetActionOf = ({ flags }: Invocation): TargetAction | undefined => {
   if (flags.overwrite === true) {
     return 'overwrite'

@@ -14,7 +14,7 @@ describe('renderOutroSummary', () => {
             { command: 'cd my-app', packageManager: undefined },
             { command: 'pnpm run dev', packageManager: 'pnpm' },
           ],
-          docsLink: 'github.com/maurice-rm/next-suite',
+          repositoryLink: 'github.com/maurice-rm/next-suite',
         }),
       )
       .split('\n')

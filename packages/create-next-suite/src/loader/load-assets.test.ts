@@ -1,28 +1,21 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import type { PluginManifest } from '../contract/plugin-manifest.ts'
+import { ExpectedError } from '../expected-error.ts'
+import { testManifestJson } from '../test-support/test-manifest.ts'
+import { writeFiles } from '../test-support/write-files.ts'
 import { loadAssets } from './load-assets.ts'
 
 let root: string
 
-const writePlugin = async (path: string, extra: object = {}): Promise<void> => {
-  const file = join(root, path, 'plugin.json')
-  await mkdir(dirname(file), { recursive: true })
-  await writeFile(
-    file,
-    JSON.stringify({
-      name: path.split('/').at(-1),
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: 'x',
-      description: 'x',
-      ...extra,
-    }),
-  )
-}
+const writePlugin = (path: string, extra: Partial<PluginManifest> = {}): Promise<void> =>
+  writeFiles(root, {
+    [join(path, 'plugin.json')]: testManifestJson(basename(path), extra),
+  })
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'next-suite-assets-'))
@@ -33,7 +26,7 @@ afterEach(async () => {
 })
 
 describe('loadAssets', () => {
-  it('loads the plugins of every category folder and of extras/', async () => {
+  it('loads the plugins of every category directory and of extras/', async () => {
     await writePlugin('plugins/orm/drizzle', { category: 'orm' })
     await writePlugin('plugins/extras/seo')
 
@@ -43,7 +36,24 @@ describe('loadAssets', () => {
     expect(assets.base).toBeUndefined()
   })
 
-  it('rejects a plugin in the folder of another category', async () => {
+  it('loads the plugin directories of a category sorted by name, skipping files', async () => {
+    await writePlugin('plugins/extras/zod-env')
+    await writePlugin('plugins/extras/auth')
+    await writeFiles(root, { 'plugins/extras/notes.txt': 'not a plugin' })
+
+    const assets = await loadAssets(root)
+
+    expect(assets.plugins.map((plugin) => plugin.manifest.name)).toEqual(['auth', 'zod-env'])
+  })
+
+  it('rejects two plugins with one name in the same directory', async () => {
+    await writePlugin('plugins/extras/one', { name: 'auth' })
+    await writePlugin('plugins/extras/two', { name: 'auth' })
+
+    await expect(loadAssets(root)).rejects.toThrow('two plugins are named auth')
+  })
+
+  it('rejects a plugin in the directory of another category', async () => {
     await writePlugin('plugins/styling/drizzle', { category: 'orm' })
 
     await expect(loadAssets(root)).rejects.toThrow(`it belongs in ${join(root, 'plugins', 'orm')}`)
@@ -57,10 +67,17 @@ describe('loadAssets', () => {
     )
   })
 
-  it('rejects two plugins with one name in different folders', async () => {
+  it('rejects two plugins with one name in different directories', async () => {
     await writePlugin('plugins/orm/seo', { category: 'orm' })
     await writePlugin('plugins/extras/seo')
 
     await expect(loadAssets(root)).rejects.toThrow('two plugins are named seo')
+  })
+
+  it('names an invalid categories.json instead of failing with a raw schema error', async () => {
+    await writeFiles(root, { 'categories.json': JSON.stringify([{ section: 'Data' }]) })
+
+    await expect(loadAssets(root)).rejects.toThrow(ExpectedError)
+    await expect(loadAssets(root)).rejects.toThrow('categories.json is invalid')
   })
 })

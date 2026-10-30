@@ -1,5 +1,6 @@
+import type { ResolvedPostStep } from '../contract/post-step.ts'
+import { findUnsupportedVersion } from '../package-manager/supported-versions.ts'
 import type { CommandResult, CommandRunner } from './run-command.ts'
-import { findUnsupportedVersion } from './supported-versions.ts'
 
 const INITIAL_BRANCH = 'main'
 const INITIAL_COMMIT_MESSAGE = 'chore: initial commit'
@@ -12,7 +13,7 @@ const FALLBACK_IDENTITY = [
 ]
 
 /** What a step says while it runs, when it succeeds and when it fails. */
-type StepMessages = { start: string; done: string; failed: string }
+type StepMessages = { running: string; done: string; failed: string }
 
 /** Shows the steps of a run; a step answers whether it succeeded. */
 export type StepReporter = {
@@ -20,22 +21,19 @@ export type StepReporter = {
   note: (message: string) => void
 }
 
-/** A plugin script that runs after the install, with what the run says about it. */
-type PostStepScript = { script: string; running: string; done: string }
-
 /** What runs after the files are written, and where. */
 export type PostStepsInput = {
   directory: string
   packageManager: string | undefined
   installArgs: readonly string[]
-  scripts: readonly PostStepScript[]
+  scripts: readonly ResolvedPostStep[]
   shouldInstall: boolean
   shouldInitializeGit: boolean
   runCommand: CommandRunner
   reporter: StepReporter
 }
 
-const NOT_INSTALLED: CommandResult = { isSuccess: false, output: 'Git is not installed.' }
+const GIT_MISSING: CommandResult = { isSuccess: false, output: 'Git is not installed.' }
 
 const initializeGit = async ({ directory, runCommand, reporter }: PostStepsInput) => {
   const repository = await runCommand('git', ['rev-parse', '--is-inside-work-tree'], directory)
@@ -45,7 +43,7 @@ const initializeGit = async ({ directory, runCommand, reporter }: PostStepsInput
   }
   return reporter.step(
     {
-      start: 'Initializing git repository',
+      running: 'Initializing git repository',
       done: 'Initialized git repository',
       failed: 'Could not initialize git repository',
     },
@@ -53,7 +51,7 @@ const initializeGit = async ({ directory, runCommand, reporter }: PostStepsInput
       const git = await runCommand('git', ['--version'], directory)
       return git.isSuccess
         ? runCommand('git', ['init', '--initial-branch', INITIAL_BRANCH], directory)
-        : NOT_INSTALLED
+        : GIT_MISSING
     },
   )
 }
@@ -79,7 +77,7 @@ const install = async (packageManager: string, input: PostStepsInput) => {
   }
   return input.reporter.step(
     {
-      start: `Installing dependencies (${packageManager})`,
+      running: `Installing dependencies (${packageManager})`,
       done: 'Installed dependencies',
       failed: `Could not install — run \`${packageManager} install\` yourself`,
     },
@@ -91,7 +89,7 @@ const runScripts = async (packageManager: string, input: PostStepsInput) => {
   for (const { script, running, done } of input.scripts) {
     await input.reporter.step(
       {
-        start: running,
+        running,
         done,
         failed: `Could not run ${script} — run \`${packageManager} run ${script}\` yourself`,
       },
@@ -110,7 +108,7 @@ const commit = async (input: PostStepsInput) => {
   const { directory, runCommand, reporter } = input
   return reporter.step(
     {
-      start: 'Creating initial commit',
+      running: 'Creating initial commit',
       done: 'Created initial commit',
       failed: 'Could not create initial commit',
     },

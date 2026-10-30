@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { addFile, type ConflictStrategy, type VirtualFiles } from './virtual-files.ts'
+import type { ConflictStrategy } from '../contract/plugin-file.ts'
+import { addFile, type VirtualFiles } from './virtual-files.ts'
 
 type ContributionInput = {
   origin: string

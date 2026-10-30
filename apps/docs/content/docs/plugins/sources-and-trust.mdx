@@ -7,7 +7,7 @@ description: Where plugins come from, and which of them may run.
 
 | Form | Example |
 | --- | --- |
-| local folder | `./plugins/mail` |
+| local directory | `./plugins/mail` |
 | npm | `npm:next-suite-plugin-mail@^1` |
 | GitHub, GitLab | `github:acme/plugins/mail#v1`, `gitlab:group/repo` |
 | any Git repository | `git+https://host/repo.git#main` |
@@ -18,9 +18,13 @@ npm tarballs are checked against their integrity and never run install scripts. 
 refs resolve to a commit; next-suite.json records what each source resolved to. Tokens come from
 `GH_TOKEN`, `GITHUB_TOKEN`, the GitHub CLI or `GITLAB_TOKEN` and are sent to their own host only.
 
+Downloads follow redirects to https only. A download may hold at most 50 MiB and unpack to at most
+200 MiB. Git never asks for a password: an SSH source needs a key that works without a prompt, such
+as one held by an SSH agent.
+
 ## Trust
 
-A plugin from anywhere but a local folder can run code on your machine: through its logic module,
+A plugin from anywhere but a local directory can run code on your machine: through its logic module,
 but also through scripts, post-steps or package manager settings. So it needs your trust:
 
 - in a terminal, create-next-suite asks: allow a pinned version once, always trust the source, or
@@ -36,7 +40,7 @@ owner can therefore come from someone else's fork; pin tags or branches of repos
 
 ## Registries
 
-A registry is a folder, repository or tarball with a `registry.json`:
+A registry is a directory, repository or tarball with a `registry.json`:
 
 ```json title="registry.json"
 {

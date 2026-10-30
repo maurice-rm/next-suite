@@ -1,10 +1,18 @@
 import semver from 'semver'
 import * as z from 'zod'
 
-import { conditionSchema } from './condition.ts'
-import { contributionsSchema } from './contributions.ts'
-import { kebabCaseId, pluginName, scriptName } from './identifiers.ts'
-import { pluginOptionSchema } from './plugin-option.ts'
+import {
+  allowedBuildsLocationSchema,
+  PACKAGE_JSON_FIELD_PREFIX,
+} from './allowed-builds-location.ts'
+import { type Condition, conditionSchema } from './condition.ts'
+import { type Contributions, contributionsSchema } from './contributions.ts'
+import { type Dependencies, dependenciesSchema } from './dependencies.ts'
+import { kebabCaseId, pluginName } from './identifiers.ts'
+import { type PluginFile, pluginFileSchema } from './plugin-file.ts'
+import { type PluginOption, pluginOptionSchema } from './plugin-option.ts'
+import { type PostStep, postStepSchema } from './post-step.ts'
+import { exactVersionSpec } from './version-spec.ts'
 
 /**
  * The version of the plugin contract this release of create-next-suite implements. A plugin's
@@ -15,37 +23,174 @@ export const CONTRACT_VERSION = '1.0.0'
 /** The category of the package manager plugins; each of them fills the package manager adapter. */
 export const PACKAGE_MANAGER_CATEGORY = 'package-manager'
 
-const CATALOG_PREFIX = 'catalog:'
 const CLIENT_ENV_PREFIX = 'NEXT_PUBLIC_'
 const ENV_NAME = /^[A-Z][A-Z0-9_]*$/
 
-const ruleSchema = z.strictObject({
-  when: conditionSchema,
-  reason: z.string().min(1),
-})
+/** A condition for a plugin, with the reason the wizard shows. */
+export type PluginRule = {
+  /** The condition on the answers. */
+  when: Condition
+  /** Why the rule exists, shown when it rules the plugin out, such as "Needs a database". */
+  reason: string
+}
 
-const isCatalogSpec = (spec: string): boolean =>
-  spec.startsWith(CATALOG_PREFIX) &&
-  kebabCaseId.safeParse(spec.slice(CATALOG_PREFIX.length)).success
+/** An environment variable a plugin needs, listed in .env.example and the env schema. */
+export type EnvVariable = {
+  /** The name in upper case, such as `DATABASE_URL`; a client variable starts with `NEXT_PUBLIC_`. */
+  name: string
+  /** `server` for a variable only the server reads, `client` for one the browser reads too. */
+  scope: 'server' | 'client'
+  /** Whether the value is a secret, such as a password or an API key. */
+  secret: boolean
+  /** The value .env.example shows. */
+  example: string
+  /** What the variable is for, shown above it in .env.example. */
+  description: string
+  /** The value when the variable is not set; without one the variable is required. */
+  default?: string | undefined
+}
 
-const isVersionSpec = (spec: string): boolean =>
-  isCatalogSpec(spec) || semver.validRange(spec) !== null
+/**
+ * How the core uses a package manager; the plugin name is its command. Only for plugins in the
+ * package-manager category.
+ */
+export type PackageManagerAdapter = {
+  /** The version written to `packageManager` in package.json, exact or `catalog:<name>`. */
+  version: string
+  /** The arguments of a CI install that keeps the lockfile as it is, such as `["ci"]` for npm. */
+  ciInstallArgs: string[]
+  /**
+   * The arguments of the first install, such as `["install", "--no-immutable"]` for Yarn, which
+   * forbids creating a lockfile in CI otherwise; `["install"]` by default.
+   */
+  installArgs?: string[] | undefined
+  /**
+   * What a project asks for when it runs with another version, through
+   * `devEngines.packageManager`: `download` the version, `warn` or stop with an `error`.
+   */
+  whenVersionDiffers: 'download' | 'warn' | 'error'
+  /**
+   * Where the allowed dependency builds go: a package.json field such as
+   * `package.json#allowScripts`, or the target of a file of this plugin that lists them itself.
+   */
+  allowedBuildsIn: string
+}
 
-const isExactVersionSpec = (spec: string): boolean =>
-  isCatalogSpec(spec) || semver.valid(spec) !== null
+/** Dependencies a plugin adds only when a condition holds. */
+export type ConditionalDependencies = {
+  /** Adds the dependencies only when this condition holds. */
+  when: Condition
+  /** Dependencies of the project. */
+  dependencies?: Dependencies | undefined
+  /** Dev dependencies of the project. */
+  devDependencies?: Dependencies | undefined
+}
 
-const dependenciesSchema = z.record(
-  z.string().min(1),
-  z.string().refine(isVersionSpec, 'Use `catalog:<name>` or a semver range'),
-)
+/** Contributions a plugin adds only when a condition holds. */
+export type ConditionalContributions = {
+  /** Adds the contributions only when this condition holds. */
+  when: Condition
+  /** The contributions. */
+  contributes: Contributions
+}
+
+/**
+ * The manifest of a plugin as its author writes it in `plugin.json`: what the plugin is, asks and
+ * contributes.
+ */
+export type PluginManifest = {
+  /** The JSON schema of the manifest, for completion in an editor. */
+  // biome-ignore lint/style/useNamingConvention: JSON Schema fixes the name of this key
+  $schema?: string | undefined
+  /** The name, also the flag of a plugin without a category. */
+  name: string
+  /** The version of the plugin itself, recorded in next-suite.json. */
+  version: string
+  /** The versions of the plugin contract this plugin works with, as a semver range. */
+  contract: string
+  /** The name the wizard shows. */
+  title: string
+  /** What the plugin does, in one sentence. */
+  description: string
+  /** The category whose question offers this plugin, such as `orm`. */
+  category?: string | undefined
+  /** The section of the wizard the question belongs to; only for plugins without a category. */
+  section?: string | undefined
+  /** Whether `--yes` selects this plugin; only for plugins without a category. */
+  selectedByDefault?: boolean | undefined
+  /** Further questions by option name, each with a default and a flag `--<plugin>-<option>`. */
+  options?: Record<string, PluginOption> | undefined
+  /** Conditions that must hold for this plugin, each with a reason. */
+  requires?: PluginRule[] | undefined
+  /** Conditions under which this plugin cannot be used, each with a reason. */
+  conflicts?: PluginRule[] | undefined
+  /** Dependencies of the project. */
+  dependencies?: Dependencies | undefined
+  /** Dev dependencies of the project. */
+  devDependencies?: Dependencies | undefined
+  /**
+   * Dependencies added only when a condition holds, such as a Prettier plugin when Prettier is
+   * selected.
+   */
+  conditionalDependencies?: ConditionalDependencies[] | undefined
+  /** Environment variables the plugin needs, listed in .env.example and the env schema. */
+  env?: EnvVariable[] | undefined
+  /** Files from the plugin directory; a source ending in `.hbs` is a template. */
+  files?: PluginFile[] | undefined
+  /** Named conditions templates and logic modules ask through `has` as `fact:<name>`. */
+  facts?: Record<string, Condition> | undefined
+  /** Entries for the files several plugins share, the composition points. */
+  contributes?: Contributions | undefined
+  /**
+   * Contributions added only when a condition holds, such as an option for when no plugin of a
+   * category is selected.
+   */
+  conditionalContributions?: ConditionalContributions[] | undefined
+  /**
+   * The logic module in the plugin directory, such as `logic.ts`: computes files and contributions
+   * from the answers. TypeScript must run by stripping types.
+   */
+  logic?: string | undefined
+  /**
+   * How the core uses this package manager; the plugin name is its command. Only for plugins in
+   * the package-manager category.
+   */
+  packageManager?: PackageManagerAdapter | undefined
+  /** Scripts to run after the dependencies are installed, in this order. */
+  postSteps?: PostStep[] | undefined
+}
+
+const ruleSchema = z
+  .strictObject({
+    when: conditionSchema.meta({ description: 'The condition on the answers.' }),
+    reason: z.string().min(1).meta({
+      description:
+        'Why the rule exists, shown when it rules the plugin out, such as "Needs a database".',
+    }),
+  })
+  .meta({
+    id: 'PluginRule',
+    description: 'A condition for a plugin, with the reason the wizard shows.',
+  })
 
 const envVariableSchema = z
   .strictObject({
-    name: z.string().regex(ENV_NAME, 'Use upper case, such as `DATABASE_URL`'),
-    scope: z.enum(['server', 'client']),
-    secret: z.boolean(),
-    example: z.string(),
-    description: z.string().min(1),
+    name: z.string().regex(ENV_NAME, 'Use upper case, such as `DATABASE_URL`').meta({
+      description:
+        'The name in upper case, such as `DATABASE_URL`; a client variable starts with `NEXT_PUBLIC_`.',
+    }),
+    scope: z.enum(['server', 'client']).meta({
+      description:
+        '`server` for a variable only the server reads, `client` for one the browser reads too.',
+    }),
+    secret: z
+      .boolean()
+      .meta({ description: 'Whether the value is a secret, such as a password or an API key.' }),
+    example: z.string().meta({ description: 'The value .env.example shows.' }),
+    description: z
+      .string()
+      .min(1)
+      .meta({ description: 'What the variable is for, shown above it in .env.example.' }),
     default: z.string().optional().meta({
       description: 'The value when the variable is not set; without one the variable is required.',
     }),
@@ -57,95 +202,77 @@ const envVariableSchema = z
       path: ['name'],
     },
   )
-
-const pluginFileSchema = z.strictObject({
-  source: z.string().min(1).meta({
+  .meta({
+    id: 'EnvVariable',
     description:
-      'A path in the plugin folder; a source ending in `.hbs` is rendered as a template, any other is copied as it is.',
-  }),
-  target: z.string().min(1),
-  when: conditionSchema.optional(),
-  conflict: z.enum(['error', 'skip-if-exists', 'replace']).default('error'),
-  root: z.enum(['project', 'source']).default('project').meta({
-    description: '`source` places the target under src/ when the project uses a src folder.',
-  }),
-})
-
-/** Marks `allowedBuildsIn` values that name a field of package.json, such as `package.json#allowScripts`. */
-export const PACKAGE_JSON_FIELD_PREFIX = 'package.json#'
-
-const PACKAGE_JSON_BUILD_FIELDS: ReadonlySet<string> = new Set([
-  'allowScripts',
-  'dependenciesMeta',
-  'trustedDependencies',
-])
-
-const isPackageJsonBuildField = (place: string): boolean =>
-  !place.startsWith(PACKAGE_JSON_FIELD_PREFIX) ||
-  PACKAGE_JSON_BUILD_FIELDS.has(place.slice(PACKAGE_JSON_FIELD_PREFIX.length))
+      'An environment variable a plugin needs, listed in .env.example and the env schema.',
+  })
 
 const packageManagerSchema = z
   .strictObject({
-    version: z
-      .string()
-      .refine(isExactVersionSpec, 'Use `catalog:<name>` or an exact version')
-      .meta({ description: 'The version written to `packageManager` in package.json.' }),
+    version: exactVersionSpec.meta({
+      description:
+        'The version written to `packageManager` in package.json, exact or `catalog:<name>`.',
+    }),
     ciInstallArgs: z.array(z.string().min(1)).min(1).meta({
       description:
         'The arguments of a CI install that keeps the lockfile as it is, such as `["ci"]` for npm.',
     }),
     installArgs: z.array(z.string().min(1)).min(1).default(['install']).meta({
       description:
-        'The arguments of the first install, such as `["install", "--no-immutable"]` for Yarn, which forbids creating a lockfile in CI otherwise.',
+        'The arguments of the first install, such as `["install", "--no-immutable"]` for Yarn, which forbids creating a lockfile in CI otherwise; `["install"]` by default.',
     }),
     whenVersionDiffers: z.enum(['download', 'warn', 'error']).meta({
       description:
-        'What a project asks for when it runs with another version, through `devEngines.packageManager`.',
+        'What a project asks for when it runs with another version, through `devEngines.packageManager`: `download` the version, `warn` or stop with an `error`.',
     }),
-    allowedBuildsIn: z
-      .string()
-      .min(1)
-      .refine(
-        isPackageJsonBuildField,
-        'Use package.json#allowScripts, package.json#dependenciesMeta or package.json#trustedDependencies',
-      )
-      .meta({
-        description:
-          'Where the allowed dependency builds go: a package.json field such as `package.json#allowScripts`, or the target of a file of this plugin that lists them itself.',
-      }),
+    allowedBuildsIn: allowedBuildsLocationSchema.meta({
+      description:
+        'Where the allowed dependency builds go: a package.json field such as `package.json#allowScripts`, or the target of a file of this plugin that lists them itself.',
+    }),
   })
   .meta({
+    id: 'PackageManagerAdapter',
     description:
-      'How the core uses this package manager; the plugin name is its command. Only for plugins in the package-manager category.',
+      'How the core uses a package manager; the plugin name is its command. Only for plugins in the package-manager category.',
   })
 
-const conditionalDependenciesSchema = z.strictObject({
-  when: conditionSchema,
-  dependencies: dependenciesSchema.optional(),
-  devDependencies: dependenciesSchema.optional(),
-})
+const conditionalDependenciesSchema = z
+  .strictObject({
+    when: conditionSchema.meta({
+      description: 'Adds the dependencies only when this condition holds.',
+    }),
+    dependencies: dependenciesSchema
+      .optional()
+      .meta({ description: 'Dependencies of the project.' }),
+    devDependencies: dependenciesSchema
+      .optional()
+      .meta({ description: 'Dev dependencies of the project.' }),
+  })
+  .meta({
+    id: 'ConditionalDependencies',
+    description: 'Dependencies a plugin adds only when a condition holds.',
+  })
 
-const conditionalContributionsSchema = z.strictObject({
-  when: conditionSchema,
-  contributes: contributionsSchema,
-})
+const conditionalContributionsSchema = z
+  .strictObject({
+    when: conditionSchema.meta({
+      description: 'Adds the contributions only when this condition holds.',
+    }),
+    contributes: contributionsSchema.meta({ description: 'The contributions.' }),
+  })
+  .meta({
+    id: 'ConditionalContributions',
+    description: 'Contributions a plugin adds only when a condition holds.',
+  })
 
-const postStepSchema = z.strictObject({
-  script: scriptName,
-  when: conditionSchema.optional(),
-  running: z.string().min(1).optional().meta({
-    description: 'What the run shows while the script runs, such as "Fixing files".',
-  }),
-  done: z.string().min(1).optional().meta({
-    description: 'What the run shows when the script succeeded, such as "Fixed files".',
-  }),
-})
-
-/** The manifest of a plugin, read from its `plugin.json`. */
 export const pluginManifestSchema = z
   .strictObject({
     // biome-ignore lint/style/useNamingConvention: JSON Schema fixes the name of this key
-    $schema: z.string().optional(),
+    $schema: z
+      .string()
+      .optional()
+      .meta({ description: 'The JSON schema of the manifest, for completion in an editor.' }),
     name: pluginName.meta({
       description: 'The name, also the flag of a plugin without a category.',
     }),
@@ -156,7 +283,10 @@ export const pluginManifestSchema = z
     contract: z
       .string()
       .refine((value) => semver.validRange(value) !== null, 'Use a semver range')
-      .meta({ description: 'The versions of the plugin contract this plugin works with.' }),
+      .meta({
+        description:
+          'The versions of the plugin contract this plugin works with, as a semver range.',
+      }),
     title: z.string().min(1).meta({ description: 'The name the wizard shows.' }),
     description: z.string().min(1).meta({ description: 'What the plugin does, in one sentence.' }),
     category: kebabCaseId
@@ -170,7 +300,8 @@ export const pluginManifestSchema = z
       description: 'Whether `--yes` selects this plugin; only for plugins without a category.',
     }),
     options: z.record(kebabCaseId, pluginOptionSchema).optional().meta({
-      description: 'Further questions, each with a default and a flag `--<plugin>-<option>`.',
+      description:
+        'Further questions by option name, each with a default and a flag `--<plugin>-<option>`.',
     }),
     requires: z
       .array(ruleSchema)
@@ -181,10 +312,10 @@ export const pluginManifestSchema = z
     }),
     dependencies: dependenciesSchema
       .optional()
-      .meta({ description: 'Dependencies of the project: `catalog:<name>` or a semver range.' }),
-    devDependencies: dependenciesSchema.optional().meta({
-      description: 'Dev dependencies of the project: `catalog:<name>` or a semver range.',
-    }),
+      .meta({ description: 'Dependencies of the project.' }),
+    devDependencies: dependenciesSchema
+      .optional()
+      .meta({ description: 'Dev dependencies of the project.' }),
     conditionalDependencies: z.array(conditionalDependenciesSchema).optional().meta({
       description:
         'Dependencies added only when a condition holds, such as a Prettier plugin when Prettier is selected.',
@@ -194,14 +325,14 @@ export const pluginManifestSchema = z
         'Environment variables the plugin needs, listed in .env.example and the env schema.',
     }),
     files: z.array(pluginFileSchema).optional().meta({
-      description: 'Files from the plugin folder; a source ending in `.hbs` is a template.',
+      description: 'Files from the plugin directory; a source ending in `.hbs` is a template.',
     }),
-    facts: z
-      .record(kebabCaseId, conditionSchema)
-      .optional()
-      .meta({ description: 'Named conditions templates and logic modules ask through `has`.' }),
+    facts: z.record(kebabCaseId, conditionSchema).optional().meta({
+      description:
+        'Named conditions templates and logic modules ask through `has` as `fact:<name>`.',
+    }),
     contributes: contributionsSchema.optional().meta({
-      description: 'Entries for the files several plugins share; see the composition points.',
+      description: 'Entries for the files several plugins share, the composition points.',
     }),
     conditionalContributions: z.array(conditionalContributionsSchema).optional().meta({
       description:
@@ -209,9 +340,12 @@ export const pluginManifestSchema = z
     }),
     logic: z.string().min(1).optional().meta({
       description:
-        'The logic module in the plugin folder, such as `logic.ts`: computes files and contributions from the answers. TypeScript must run by stripping types.',
+        'The logic module in the plugin directory, such as `logic.ts`: computes files and contributions from the answers. TypeScript must run by stripping types.',
     }),
-    packageManager: packageManagerSchema.optional(),
+    packageManager: packageManagerSchema.optional().meta({
+      description:
+        'How the core uses this package manager; the plugin name is its command. Only for plugins in the package-manager category.',
+    }),
     postSteps: z.array(postStepSchema).optional().meta({
       description: 'Scripts to run after the dependencies are installed, in this order.',
     }),
@@ -251,10 +385,11 @@ export const pluginManifestSchema = z
       path: ['packageManager', 'allowedBuildsIn'],
     },
   )
-  .meta({ title: 'next-suite plugin manifest' })
-
-/** The manifest of a plugin as its author writes it in `plugin.json`. */
-export type PluginManifest = z.input<typeof pluginManifestSchema>
+  .meta({
+    title: 'next-suite plugin manifest',
+    description:
+      'The manifest of a plugin as its author writes it in `plugin.json`: what the plugin is, asks and contributes.',
+  })
 
 /** A validated manifest, with defaults such as a file's conflict strategy filled in. */
 export type ParsedPluginManifest = z.output<typeof pluginManifestSchema>

@@ -26,7 +26,7 @@ core merges the entries of all plugins by a fixed rule.
 | `instrumentationClient` | functions `instrumentation-client.ts` runs in the browser before the app starts | in plugin order, duplicates dropped |
 | `bodyEnd` | components rendered at the end of `<body>` in the root layout | in plugin order; an export name used by two modules fails |
 | `tsconfig` | `paths` and `include` of tsconfig.json | one target list per alias; two different lists or the project alias fail |
-| `generatedDirs` | folders of generated code | added to `.gitignore` and to the linter and Knip ignores |
+| `generatedDirs` | directories of generated code | added to `.gitignore` and to the linter and Knip ignores |
 | `lint` | `ignores` of the linter | in plugin order, duplicates dropped |
 | `knip` | `entry`, `ignore` and `ignoreDependencies` of the Knip configuration | in plugin order, duplicates dropped |
 | `container` | build arguments, environment and compose services | once per name; a service defined differently fails |

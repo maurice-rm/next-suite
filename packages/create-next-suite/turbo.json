@@ -1,5 +1,10 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["published"]
+  "tags": ["published"],
+  "tasks": {
+    "build": {
+      "outputs": ["$TURBO_EXTENDS$", "generated/**"]
+    }
+  }
 }

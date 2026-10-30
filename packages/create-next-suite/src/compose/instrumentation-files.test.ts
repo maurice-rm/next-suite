@@ -1,31 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  instrumentationClientFile,
-  instrumentationFile,
-  resolveModule,
-} from './instrumentation-files.ts'
-
-describe('resolveModule', () => {
-  it('replaces #src/ with the import prefix and leaves packages alone', () => {
-    expect(resolveModule('#src/env', '@/')).toBe('@/env')
-    expect(resolveModule('@sentry/nextjs', '@/')).toBe('@sentry/nextjs')
-  })
-})
+import { instrumentationClientFile, instrumentationFile } from './instrumentation-files.ts'
 
 describe('instrumentationFile', () => {
   it('writes nothing without contributions', () => {
-    expect(instrumentationFile({ register: [], onRequestError: [] }, '@/')).toBeUndefined()
+    expect(instrumentationFile({ register: [], onRequestError: [] })).toBeUndefined()
   })
 
   it('loads register modules and error handlers lazily in the Node.js runtime', () => {
-    const content = instrumentationFile(
-      {
-        register: [{ module: '#src/env' }],
-        onRequestError: [{ module: '#src/lib/logger', export: 'reportRequestError' }],
-      },
-      '@/',
-    )
+    const content = instrumentationFile({
+      register: [{ module: '@/env' }],
+      onRequestError: [{ module: '@/lib/logger', export: 'reportRequestError' }],
+    })
 
     expect(content).toMatchInlineSnapshot(`
       "import type { Instrumentation } from "next";
@@ -51,10 +37,10 @@ describe('instrumentationFile', () => {
 describe('instrumentationClientFile', () => {
   it('imports side-effect modules and calls named exports', () => {
     expect(
-      instrumentationClientFile(
-        [{ module: '#src/analytics' }, { module: '#src/vitals', export: 'reportVitals' }],
-        '~/',
-      ),
+      instrumentationClientFile([
+        { module: '~/analytics' },
+        { module: '~/vitals', export: 'reportVitals' },
+      ]),
     ).toBe('import "~/analytics";\nimport { reportVitals } from "~/vitals";\n\nreportVitals();\n')
   })
 })

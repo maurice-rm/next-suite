@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { TEST_PLUGINS, TEST_QUESTIONS } from '../../test-support/questions.ts'
+import { GO_BACK } from '../../ui/prompts.ts'
 import { findIncompatibilities } from '../find-incompatibilities.ts'
-import { GO_BACK } from './prompts.ts'
 import { type Ask, runWizard, type WizardStep } from './run-wizard.ts'
+
+const SETTINGS = {
+  'src-dir': false,
+  'import-alias': '@/*',
+  'react-compiler': false,
+  'cache-components': true,
+}
 
 /** Plays back replies in order and records which steps were asked. */
 const scripted = (replies: unknown[]) => {
@@ -17,13 +24,6 @@ const scripted = (replies: unknown[]) => {
   return { ask, asked }
 }
 
-const SETTINGS = {
-  'src-dir': false,
-  'import-alias': '@/*',
-  'react-compiler': false,
-  'cache-components': true,
-}
-
 const wizard = (ask: Ask, input: Record<string, unknown> = {}, shown: string[][] = []) =>
   runWizard({
     questions: TEST_QUESTIONS,
@@ -33,7 +33,7 @@ const wizard = (ask: Ask, input: Record<string, unknown> = {}, shown: string[][]
     showProblems: (problems) => shown.push(problems),
     directory: 'my-app',
     action: undefined,
-    hasConflict: () => false,
+    hasExistingFiles: () => false,
   })
 
 const pluginNames = (result: Awaited<ReturnType<typeof wizard>>): string[] =>
@@ -67,7 +67,7 @@ describe('runWizard', () => {
       showProblems: () => undefined,
       directory: undefined,
       action: undefined,
-      hasConflict: () => false,
+      hasExistingFiles: () => false,
     })
 
     expect(asked).toEqual([
@@ -140,7 +140,7 @@ describe('runWizard', () => {
       showProblems: () => undefined,
       directory: undefined,
       action: undefined,
-      hasConflict: () => false,
+      hasExistingFiles: () => false,
     })
 
     expect(sections).toEqual([
@@ -227,12 +227,12 @@ describe('runWizard', () => {
         showProblems: () => undefined,
         directory: undefined,
         action: undefined,
-        hasConflict: () => false,
+        hasExistingFiles: () => false,
       }),
     ).rejects.toThrow('better-auth: Stores sessions in the database.')
   })
 
-  it('asks what to do with a folder that has files, right after the name, and returns it', async () => {
+  it('asks what to do with a directory that has files, right after the name, and returns it', async () => {
     const { ask, asked } = scripted(['shop', 'overwrite', 'pnpm', true])
 
     const result = await runWizard({
@@ -240,13 +240,13 @@ describe('runWizard', () => {
       input: SETTINGS,
       directory: undefined,
       action: undefined,
-      hasConflict: (directory) => directory === 'shop',
+      hasExistingFiles: (directory) => directory === 'shop',
       ask,
       findProblems: () => [],
       showProblems: () => undefined,
     })
 
-    expect(asked.slice(0, 2)).toEqual(['project-name', 'conflict'])
+    expect(asked.slice(0, 2)).toEqual(['project-name', 'target-action'])
     expect(result.action).toBe('overwrite')
   })
 
@@ -256,7 +256,7 @@ describe('runWizard', () => {
       input: SETTINGS,
       directory: 'shop',
       action: 'empty',
-      hasConflict: () => true,
+      hasExistingFiles: () => true,
       ask: scripted(['pnpm', true]).ask,
       findProblems: () => [],
       showProblems: () => undefined,

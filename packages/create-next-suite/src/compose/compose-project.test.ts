@@ -1,11 +1,13 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import type { Answers } from '../answers/answers.ts'
-import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
+import type { PluginManifest } from '../contract/plugin-manifest.ts'
+import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { writeTestPlugin } from '../test-support/write-test-plugin.ts'
 import { composeProject } from './compose-project.ts'
 
 const CREATED_AT = new Date('2026-11-01T10:00:00Z')
@@ -13,32 +15,29 @@ const CATALOG = { next: '16.4.3', bun: '1.4.4' }
 
 let root: string
 
-const writePlugin = async (
+const DRIZZLE_MANIFEST = {
+  category: 'orm',
+  env: [
+    {
+      name: 'DATABASE_URL',
+      scope: 'server',
+      secret: true,
+      example: 'postgres://localhost/app',
+      description: 'Database.',
+    },
+  ],
+  contributes: { gitignore: ['drizzle/meta'] },
+  files: [{ source: 'files/db.ts.hbs', target: 'lib/db.ts', root: 'source' }],
+} satisfies Partial<PluginManifest>
+
+const writePlugin = (
   name: string,
-  manifest: object,
+  manifest: Partial<PluginManifest> = {},
   files: Record<string, string> = {},
-): Promise<LoadedPlugin> => {
-  const folder = join(root, name)
-  const entries = {
-    'plugin.json': JSON.stringify({
-      name,
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: name,
-      description: name,
-      ...manifest,
-    }),
-    ...files,
-  }
-  for (const [path, content] of Object.entries(entries)) {
-    await mkdir(dirname(join(folder, path)), { recursive: true })
-    await writeFile(join(folder, path), content)
-  }
-  return loadPlugin(folder)
-}
+): Promise<LoadedPlugin> => writeTestPlugin(join(root, name), { manifest, files })
 
 const writeBase = (
-  extraFiles: object[] = [],
+  extraFiles: NonNullable<PluginManifest['files']> = [],
   files: Record<string, string> = {},
 ): Promise<LoadedPlugin> =>
   writePlugin(
@@ -64,21 +63,6 @@ const writeBase = (
       ...files,
     },
   )
-
-const DRIZZLE_MANIFEST = {
-  category: 'orm',
-  env: [
-    {
-      name: 'DATABASE_URL',
-      scope: 'server',
-      secret: true,
-      example: 'postgres://localhost/app',
-      description: 'Database.',
-    },
-  ],
-  contributes: { gitignore: ['drizzle/meta'] },
-  files: [{ source: 'files/db.ts.hbs', target: 'lib/db.ts', root: 'source' }],
-}
 
 const answersWith = (
   plugins: Answers['plugins'],
@@ -241,6 +225,18 @@ describe('composeProject', () => {
     )
   })
 
+  it('leaves the package manager version out without a package manager plugin', async () => {
+    const ci = await writePlugin(
+      'ci',
+      { files: [{ source: 'ci.yml.hbs', target: 'ci.yml' }] },
+      { 'ci.yml.hbs': 'version: {{project.packageManagerVersion}}' },
+    )
+
+    await expect(compose(await writeBase(), [ci], answersWith([]))).rejects.toThrow(
+      'ci: ci.yml.hbs does not render',
+    )
+  })
+
   it('rejects a CI check whose script no plugin defines', async () => {
     const ci = await writePlugin('checks', { contributes: { ciChecks: ['lint'] } })
 
@@ -259,7 +255,7 @@ describe('composeProject', () => {
     )
   })
 
-  it('writes instrumentation.ts in the source folder once a plugin contributes a hook', async () => {
+  it('writes instrumentation.ts in the source directory once a plugin contributes a hook', async () => {
     const env = await writePlugin('env', {
       contributes: { instrumentation: { register: [{ module: '#src/env' }] } },
     })
@@ -302,7 +298,7 @@ describe('composeProject', () => {
     })
   })
 
-  it('places source files under src/ when the project uses a src folder', async () => {
+  it('places source files under src/ when the project uses a src directory', async () => {
     const plan = await compose(await writeBase(), [], answersWith([], { 'src-dir': true }))
 
     expect(plan.files.map((file) => file.path)).toContain('src/app/page.tsx')

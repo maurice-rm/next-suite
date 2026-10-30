@@ -12,6 +12,7 @@ const planOf = (files: Record<string, string>): ProjectPlan => ({
   dependencies: {},
   devDependencies: {},
   packageManager: undefined,
+  projectPackageManager: 'npm',
   installArgs: ['install'],
   postSteps: [],
   summary: { stack: [], nextSteps: [] },
@@ -52,6 +53,16 @@ describe('writeProject', () => {
     expect(await readdir(join(root, 'empty'))).toEqual(['a.txt'])
   })
 
+  it('replaces nothing below a harmless directory, such as .vscode/settings.json', async () => {
+    await mkdir(join(root, 'fresh/.vscode'), { recursive: true })
+    await writeFile(join(root, 'fresh/.vscode/settings.json'), 'mine')
+
+    await expect(write(planOf({ '.vscode/settings.json': 'generated' }), 'fresh')).rejects.toThrow(
+      'writing',
+    )
+    expect(await readFile(join(root, 'fresh/.vscode/settings.json'), 'utf8')).toBe('mine')
+  })
+
   it('refuses a directory that is not empty and leaves it untouched', async () => {
     await mkdir(join(root, 'used'))
     await writeFile(join(root, 'used/keep.txt'), 'mine')
@@ -78,7 +89,7 @@ describe('writeProject', () => {
     expect(await readdir(join(root, 'empty'), { recursive: true })).toEqual([])
   })
 
-  it('writes over harmless files such as .gitignore in a folder that counts as empty', async () => {
+  it('writes over harmless files such as .gitignore in a directory that counts as empty', async () => {
     await mkdir(join(root, 'repo/.git'), { recursive: true })
     await writeFile(join(root, 'repo/.gitignore'), 'old')
 
@@ -87,7 +98,7 @@ describe('writeProject', () => {
     expect(await readFile(join(root, 'repo/.gitignore'), 'utf8')).toBe('new')
   })
 
-  it('empties a folder but .git before writing', async () => {
+  it('empties a directory but .git before writing', async () => {
     await mkdir(join(root, 'used/.git'), { recursive: true })
     await writeFile(join(root, 'used/old.txt'), 'old')
 
@@ -101,7 +112,7 @@ describe('writeProject', () => {
 
     await expect(
       writeProject(planOf({ 'a.txt': 'a' }), { directory: root, action: 'empty', cwd: root }),
-    ).rejects.toThrow('Refusing to empty')
+    ).rejects.toThrow('refusing to empty')
     expect(await readdir(root)).toEqual(['old.txt'])
   })
 
@@ -122,7 +133,7 @@ describe('writeProject', () => {
     expect(await readFile(join(root, 'outside.txt'), 'utf8')).toBe('outside')
   })
 
-  it('never writes through a linked folder inside the target', async () => {
+  it('never writes through a linked directory inside the target', async () => {
     await mkdir(join(root, 'used'))
     await mkdir(join(root, 'outside'))
     await symlink(join(root, 'outside'), join(root, 'used/app'))

@@ -18,7 +18,7 @@ afterEach(async () => {
 })
 
 describe('inspectTarget', () => {
-  it('tells a missing path, an empty and a non-empty folder and a file apart', async () => {
+  it('tells a missing path, an empty and a non-empty directory and a file apart', async () => {
     await mkdir(join(root, 'empty'))
     await mkdir(join(root, 'full'))
     await writeFile(join(root, 'full/notes.txt'), '')
@@ -26,11 +26,11 @@ describe('inspectTarget', () => {
     expect(inspectTarget(join(root, 'new'))).toBe('missing')
     expect(inspectTarget(join(root, 'empty'))).toBe('empty')
     expect(inspectTarget(join(root, 'full'))).toBe('not-empty')
-    expect(inspectTarget(join(root, 'full/notes.txt'))).toBe('not-a-folder')
-    expect(inspectTarget(join(root, 'full/notes.txt/app'))).toBe('not-a-folder')
+    expect(inspectTarget(join(root, 'full/notes.txt'))).toBe('not-a-directory')
+    expect(inspectTarget(join(root, 'full/notes.txt/app'))).toBe('not-a-directory')
   })
 
-  it('counts a folder with only harmless entries such as .git and LICENSE as empty', async () => {
+  it('counts a directory with only harmless entries such as .git and LICENSE as empty', async () => {
     await mkdir(join(root, 'repo/.git'), { recursive: true })
     await writeFile(join(root, 'repo/LICENSE'), '')
     await writeFile(join(root, 'repo/app.iml'), '')
@@ -40,18 +40,18 @@ describe('inspectTarget', () => {
 })
 
 describe('findTargetProblem', () => {
-  it('names a file at the path, but not a folder with files, which is a conflict', async () => {
+  it('names a file at the path, but not a directory with files, which is a conflict', async () => {
     await mkdir(join(root, 'full'))
     await writeFile(join(root, 'full/notes.txt'), '')
 
     expect(findTargetProblem('new', join(root, 'new'))).toBeUndefined()
     expect(findTargetProblem('.', join(root, 'full'))).toBeUndefined()
     expect(findTargetProblem('notes.txt', join(root, 'full/notes.txt'))).toBe(
-      'A file already exists at that path — choose another name.',
+      'a file already exists at that path; choose another name',
     )
   })
 
-  it.skipIf(process.getuid?.() === 0)('reports a folder that cannot be read', async () => {
+  it.skipIf(process.getuid?.() === 0)('reports a directory that cannot be read', async () => {
     await mkdir(join(root, 'locked'))
     await chmod(join(root, 'locked'), 0o000)
 

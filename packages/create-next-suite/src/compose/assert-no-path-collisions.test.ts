@@ -7,7 +7,7 @@ describe('assertNoPathCollisions', () => {
   const filesAt = (...entries: [string, string][]): VirtualFiles =>
     new Map(entries.map(([path, origin]) => [path, { path, content: '', origin }]))
 
-  it('accepts paths that only share folders', () => {
+  it('accepts paths that only share directories', () => {
     expect(() =>
       assertNoPathCollisions(filesAt(['lib/db.ts', 'a'], ['lib/env.ts', 'b'])),
     ).not.toThrow()
@@ -21,9 +21,9 @@ describe('assertNoPathCollisions', () => {
     )
   })
 
-  it('rejects a file where another file needs a folder', () => {
+  it('rejects a file where another file needs a directory', () => {
     expect(() => assertNoPathCollisions(filesAt(['lib', 'a'], ['lib/db.ts', 'b']))).toThrow(
-      'a writes the file lib, which b needs as a folder for lib/db.ts',
+      'a writes the file lib, which b needs as a directory for lib/db.ts',
     )
   })
 })

@@ -3,6 +3,9 @@
   "extends": ["//"],
   "tags": ["internal"],
   "tasks": {
+    "check-types": {
+      "dependsOn": ["^build"]
+    },
     "test": {
       "dependsOn": ["^build"]
     }

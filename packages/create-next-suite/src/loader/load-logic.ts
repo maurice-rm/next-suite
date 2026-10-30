@@ -15,13 +15,13 @@ export const loadLogic = async (
   plugins: readonly LoadedPlugin[],
 ): Promise<ReadonlyMap<string, Logic>> => {
   const logic = new Map<string, Logic>()
-  for (const { manifest, folder } of plugins) {
+  for (const { manifest, directory } of plugins) {
     if (manifest.logic === undefined) {
       continue
     }
-    const module: unknown = await import(pathToFileURL(join(folder, manifest.logic)).href).catch(
+    const module: unknown = await import(pathToFileURL(join(directory, manifest.logic)).href).catch(
       (error: unknown) => {
-        throw new PluginLoadError(folder, `its logic module ${manifest.logic} does not load`, {
+        throw new PluginLoadError(directory, `its logic module ${manifest.logic} does not load`, {
           cause: error,
         })
       },
@@ -29,7 +29,7 @@ export const loadLogic = async (
     const run =
       typeof module === 'object' && module !== null ? Reflect.get(module, 'default') : undefined
     if (!isLogic(run)) {
-      throw new PluginLoadError(folder, `its logic module ${manifest.logic} exports no function`)
+      throw new PluginLoadError(directory, `its logic module ${manifest.logic} exports no function`)
     }
     logic.set(manifest.name, run)
   }
