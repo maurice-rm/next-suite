@@ -259,6 +259,9 @@ const RESERVED_PACKAGE_FIELDS: ReadonlySet<string> = new Set([
   ...PACKAGE_JSON_BUILD_FIELDS,
 ])
 
+const MODULE_DESCRIPTION =
+  "The module, such as `#src/lib/logger`; a module starting with `#src/` is imported through the project's alias."
+
 const nonEmpty = z.string().min(1)
 
 const jsonValueSchema: z.ZodType<JsonValue, JsonValue> = z
@@ -277,9 +280,6 @@ const jsonValueSchema: z.ZodType<JsonValue, JsonValue> = z
 
 const describedList = (description: string): z.ZodOptional<z.ZodArray<z.ZodString>> =>
   z.array(nonEmpty).optional().meta({ description })
-
-const MODULE_DESCRIPTION =
-  "The module, such as `#src/lib/logger`; a module starting with `#src/` is imported through the project's alias."
 
 const moduleExportSchema = z
   .strictObject({
