@@ -1,4 +1,3 @@
-import { findVariableValue } from '../code-edit/find-object.ts'
 import type { TypescriptModule } from '../code-edit/typescript-module.ts'
 
 /**
@@ -53,9 +52,6 @@ export const readFromValidatedEnv = (
   }
   module.addImport({ names: [validatedEnv.import.name], from: validatedEnv.import.from })
   for (const [variable, name] of Object.entries(variables)) {
-    module.editRaw(({ code, program }) => {
-      const value = findVariableValue(program, variable)
-      code.overwrite(value.start, value.end, validatedEnv.reference(name))
-    })
+    module.setVariable(variable, validatedEnv.reference(name))
   }
 }
