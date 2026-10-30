@@ -1005,8 +1005,6 @@
                       "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
-                      "**/contract",
-                      "**/contract/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
@@ -1033,7 +1031,7 @@
                       "**/plugin.ts",
                       "**/testing.ts"
                     ],
-                    "message": "create-next-suite: plugin-definition/ imports from code-edit/, project-model/, points/ and expected-error.ts only"
+                    "message": "create-next-suite: plugin-definition/ imports from contract/, code-edit/, project-model/, points/ and expected-error.ts only"
                   }
                 ]
               }

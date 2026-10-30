@@ -104,6 +104,9 @@ A registry is a directory, repository or tarball with a `registry.json`:
 }
 ```
 
+Like a plugin's metadata, a description holds no control or format characters, such as an escape
+sequence or a bidi override; a registry with one does not load.
+
 ```bash
 npx -p create-next-suite next-suite registry add @acme github:acme/next-suite-plugins --trust
 npx create-next-suite my-app --plugin @acme/mail

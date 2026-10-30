@@ -1,6 +1,7 @@
 import * as z from 'zod'
 
 import { registryName, registryPluginName } from './identifiers.ts'
+import { printableText } from './printable-text.ts'
 
 const registryPluginSchema = z
   .strictObject({
@@ -12,9 +13,9 @@ const registryPluginSchema = z
       description:
         'The directory of the plugin, relative to registry.json and inside the registry.',
     }),
-    description: z.string().min(1).meta({
+    description: printableText.meta({
       description:
-        'What the plugin does, in one sentence; listed by `next-suite registry list <registry>`.',
+        'What the plugin does, in one sentence, without control or format characters; listed by `next-suite registry list <registry>`.',
     }),
   })
   .meta({ id: 'RegistryPlugin', description: 'A plugin the registry lists.' })

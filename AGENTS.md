@@ -64,7 +64,7 @@ says what next-suite does; this file says how code is written here.
   | `code-edit/`         | `expected-error.ts`                                                                                             |
   | `points/`            | no other module                                                                                                 |
   | `project-model/`     | `code-edit/`, `file-system/`, `expected-error.ts`                                                               |
-  | `plugin-definition/` | `code-edit/`, `project-model/`, `points/`, `expected-error.ts`                                                  |
+  | `plugin-definition/` | `contract/`, `code-edit/`, `project-model/`, `points/`, `expected-error.ts`                                     |
   | `assembly/`          | `plugin-definition/`, `points/`, `project-model/`, `code-edit/`, `expected-error.ts`                            |
   | `answers/`           | `contract/`                                                                                                     |
   | `package-manager/`   | `contract/`, `plugin-definition/`, the error files                                                              |
