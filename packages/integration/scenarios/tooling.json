@@ -1,0 +1,14 @@
+{
+  "styling": [],
+  "linter": "eslint",
+  "formatter": "prettier",
+  "unused-code": "knip",
+  "git-hooks": "lint-staged",
+  "unit-tests": null,
+  "env-validation": null,
+  "logging": null,
+  "security-headers": null,
+  "seo": null,
+  "ci": null,
+  "agents": null
+}
