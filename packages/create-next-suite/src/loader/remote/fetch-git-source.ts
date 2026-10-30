@@ -106,10 +106,17 @@ const gitEnvironment = async (cwd: string): Promise<NodeJS.ProcessEnv> => {
   return { ...environment, GIT_SSH_COMMAND: `${sshCommand} ${SSH_BATCH_MODE}` }
 }
 
+/** How git runs: its environment, the options that switch commands off, and its directory. */
+type GitSettings = { env: NodeJS.ProcessEnv; switchedOff: readonly string[]; cwd: string }
+
+/**
+ * Runs git in a directory of the cache rather than the current one: Windows looks for a program
+ * in the current directory before PATH, and that may be a project someone else wrote.
+ */
 const gitWith =
-  (env: NodeJS.ProcessEnv, switchedOff: readonly string[]): Git =>
+  ({ env, switchedOff, cwd }: GitSettings): Git =>
   (args) =>
-    execFileAsync('git', [...GIT_HARDENING, ...switchedOff, ...args], { env })
+    execFileAsync('git', [...GIT_HARDENING, ...switchedOff, ...args], { env, cwd })
 
 /**
  * Clones the ref of a repository into a directory: a branch or tag directly, a commit by fetching
@@ -143,7 +150,11 @@ export const fetchGitSource = async (
   await mkdir(environment.cacheDir, { recursive: true })
   const scratch = await mkdtemp(join(environment.cacheDir, '.clone-'))
   try {
-    const git = gitWith(await gitEnvironment(scratch), await commandsSwitchedOff(scratch))
+    const git = gitWith({
+      env: await gitEnvironment(scratch),
+      switchedOff: await commandsSwitchedOff(scratch),
+      cwd: scratch,
+    })
     const clone = join(scratch, 'clone')
     await cloneInto(git, address, clone)
     const { stdout } = await git(['-C', clone, 'rev-parse', 'HEAD'])

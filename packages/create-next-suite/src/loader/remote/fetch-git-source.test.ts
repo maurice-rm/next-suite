@@ -27,11 +27,11 @@ const SSH_ADDRESS = {
   ref: undefined,
 } as const
 
-/** An ssh stand-in that records its arguments and fails like an unreachable host. */
+/** An ssh stand-in that records its directory and arguments and fails like an unreachable host. */
 const writeFakeSsh = async (): Promise<{ command: string; recorded: () => Promise<string> }> => {
   const recorded = join(root, 'ssh-arguments')
   const command = join(root, 'fake-ssh')
-  await writeFile(command, `#!/bin/sh\necho "$@" > "${recorded}"\nexit 1\n`)
+  await writeFile(command, `#!/bin/sh\necho "$PWD $@" > "${recorded}"\nexit 1\n`)
   await chmod(command, 0o755)
   return { command, recorded: () => readFile(recorded, 'utf8') }
 }
@@ -44,6 +44,15 @@ describe('fetchGitSource', () => {
 
     await expect(fetchGitSource(stubRemote(root), SSH_ADDRESS)).rejects.toThrow(PluginLoadError)
     expect(await ssh.recorded()).toContain('-o BatchMode=yes')
+  })
+
+  it('runs git in a directory of the cache, so Windows never finds a program in the current one', async () => {
+    const ssh = await writeFakeSsh()
+    vi.stubEnv('GIT_SSH', undefined)
+    vi.stubEnv('GIT_SSH_COMMAND', ssh.command)
+
+    await expect(fetchGitSource(stubRemote(root), SSH_ADDRESS)).rejects.toThrow(PluginLoadError)
+    expect((await ssh.recorded()).startsWith(join(root, 'cache', '.clone-'))).toBe(true)
   })
 
   it('keeps the ssh command of the git configuration, in batch mode', async () => {
