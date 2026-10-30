@@ -140,6 +140,12 @@ export const createPluginRun = (
       project.write(path, content, name)
       record(path, `${step}: write`, 'own')
     },
+    packageJson: {
+      setField: (field, value) => {
+        project.packageJson().setField(field, value, name)
+        record(PROJECT_FILES.packageJson, `${step}: field ${field}`, 'extend')
+      },
+    },
   })
 
   /** Applies each entry of a record field and records it as `<field> <key>` on `path`. */
@@ -166,6 +172,19 @@ export const createPluginRun = (
     applyEntries<string>({ label: 'scripts', value: plugin.scripts, path }, (key, value) =>
       project.packageJson().setScript(key, value, name),
     )
+  }
+
+  const applyPackageManager = (): void => {
+    const { packageManager } = plugin
+    if (packageManager === undefined) {
+      return
+    }
+    inStep(name, 'packageManager', () => {
+      project.packageJson().usePackageManager({ ...packageManager, name })
+      project.readme().setRunCommand(`${name} run`)
+    })
+    record(PROJECT_FILES.packageJson, `packageManager ${name}`, 'extend')
+    record(PROJECT_FILES.readme, `packageManager ${name}`, 'extend')
   }
 
   const applyTextFields = (): void => {
@@ -318,6 +337,7 @@ export const createPluginRun = (
     collect: () => {
       contextOf()
       provide()
+      applyPackageManager()
       applyPackageFields()
       applyTextFields()
       applyInstrumentation()

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { createBuiltDependencies } from '../plugin-definition/built-dependencies.ts'
 import { definePlugin } from '../plugin-definition/define-plugin.ts'
 import { optional } from '../plugin-definition/optional.ts'
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
@@ -65,7 +66,15 @@ const ORM_VALUE = {
   client: { name: 'db', from: '@/db' },
 } as const
 
-const CATEGORY_ORDER = ['orm', 'auth', 'security-headers', 'logging', 'analytics']
+const CATEGORY_ORDER = [
+  'package-manager',
+  'orm',
+  'auth',
+  'security-headers',
+  'logging',
+  'analytics',
+  'agents',
+]
 
 /** A plugin whose directory holds `files`. */
 const withFiles = (plugin: Plugin, files: Record<string, string> = {}) => ({
@@ -368,6 +377,73 @@ describe('assembleProject', () => {
       provider: 'headers',
       users: [],
       contributors: ['analytics'],
+    })
+  })
+
+  it('records the package manager in package.json and the README’s run command', () => {
+    const pnpm = definePlugin({
+      name: 'pnpm',
+      title: 'pnpm',
+      category: 'package-manager',
+      packageManager: {
+        version: '12.16.1',
+        ciInstallArgs: ['install', '--frozen-lockfile'],
+        whenVersionDiffers: 'download',
+      },
+    })
+    const base = {
+      ...BASE_FILES,
+      'README.md': source('# app', '', '```bash', 'npm run dev', '```'),
+    }
+
+    const { files } = assembleProject({
+      project: createProject({
+        files: new Map(Object.entries(base)),
+        settings: { alias: '@/*', isSrcDirectory: false },
+      }),
+      plugins: [withFiles(pnpm)],
+      categoryOrder: CATEGORY_ORDER,
+    })
+
+    expect(JSON.parse(fileOf(files, 'package.json'))).toMatchObject({
+      packageManager: 'pnpm@12.16.1',
+      devEngines: { packageManager: { name: 'pnpm', version: '^12.16.1', onFail: 'download' } },
+    })
+    expect(fileOf(files, 'README.md')).toContain('pnpm run dev')
+  })
+
+  it('lets the package manager finish the built dependencies into package.json', () => {
+    const bun = definePlugin({
+      name: 'bun',
+      title: 'Bun',
+      category: 'package-manager',
+      collects: {
+        builtDependencies: {
+          create: createBuiltDependencies,
+          finish: (builds, { packageJson }) =>
+            packageJson.setField('trustedDependencies', [...builds.allowed()]),
+        },
+      },
+    })
+    const sharp = definePlugin({
+      name: 'sharp',
+      title: 'Sharp',
+      category: 'orm',
+      extend: {
+        builtDependencies: (builds) => {
+          builds.allow('sharp')
+          builds.deny('esbuild')
+        },
+      },
+    })
+
+    const { files, provenance } = assemble([withFiles(sharp), withFiles(bun)])
+
+    expect(JSON.parse(fileOf(files, 'package.json')).trustedDependencies).toEqual(['sharp'])
+    expect(provenance.files['package.json']).toContainEqual({
+      plugin: 'bun',
+      operation: 'finish builtDependencies: field trustedDependencies',
+      kind: 'extend',
     })
   })
 

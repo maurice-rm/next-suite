@@ -8,7 +8,7 @@ const PACKAGE_MANAGER_FIELD = 'packageManager'
 const DEV_ENGINES_FIELD = 'devEngines'
 
 /** The package manager a project runs with; its name is its command. */
-type PackageManagerUse = {
+export type PackageManagerUse = {
   name: string
   /** The exact version, such as `12.16.1`. */
   version: string
