@@ -26,6 +26,8 @@ const loadManifests = (): Manifest[] => {
   )
 }
 
+const escapeCell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('\n', ' ')
+
 const slugOf = (title: string): string => title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
 const defaultsOf = (category: Category): string[] => {
@@ -43,7 +45,7 @@ const categoryPage = (category: Category, manifests: Manifest[]): string => {
   const defaults = defaultsOf(category)
   const rows = plugins.map(
     (plugin) =>
-      `| \`${plugin.name}\` | ${plugin.title} | ${plugin.description} | ${defaults.includes(plugin.name) ? 'yes' : ''} |`,
+      `| \`${plugin.name}\` | ${escapeCell(plugin.title)} | ${escapeCell(plugin.description)} | ${defaults.includes(plugin.name) ? 'yes' : ''} |`,
   )
   const none = category.cardinality === 'one' ? '' : ` Pass \`--no-${category.id}\` for none.`
   return [
@@ -104,15 +106,13 @@ type ObjectSchema = { properties: Record<string, SchemaProperty>; required?: str
 
 const typeOf = (property: SchemaProperty): string => {
   if (property.enum !== undefined) {
-    return property.enum.map((value) => `\`${JSON.stringify(value)}\``).join(' \\| ')
+    return property.enum.map((value) => `\`${JSON.stringify(value)}\``).join(' | ')
   }
   if (property.type === 'array') {
     return `${property.items === undefined ? 'unknown' : typeOf(property.items)}[]`
   }
   return property.type ?? 'object'
 }
-
-const escapeCell = (text: string): string => text.replaceAll('|', '\\|').replaceAll('\n', ' ')
 
 const propertyTable = ({ properties, required = [] }: ObjectSchema): string =>
   [
