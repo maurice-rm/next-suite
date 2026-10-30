@@ -39,30 +39,50 @@ const quoteForShell = (arg: string): string => {
 export const toShellCommand = (command: string, args: readonly string[]): string =>
   [command, ...args].map(quoteForShell).join(' ')
 
+const MS_PER_SECOND = 1000
+
+const timeoutNote = (timeoutMs: number): string =>
+  `stopped after ${timeoutMs / MS_PER_SECOND} seconds, the time a command may take`
+
 /**
- * Runs a command with stdin closed, so a prompt cannot hang the run, and captures its output, so
- * it never draws over the wizard.
+ * A command runner that stops a command after `timeoutMs`. It runs with stdin closed, so a prompt
+ * cannot hang the run, and captures the output, so it never draws over the wizard.
  */
-export const runCommand: CommandRunner = (command, args, cwd) =>
-  new Promise((resolve) => {
-    let output = ''
-    const options: SpawnOptionsWithoutStdio = { cwd, timeout: COMMAND_TIMEOUT_MS }
-    let child: ChildProcessWithoutNullStreams
-    try {
-      child = IS_WINDOWS
-        ? spawn(toShellCommand(command, args), { ...options, shell: true })
-        : spawn(command, args, options)
-    } catch (error) {
-      resolve({ isSuccess: false, output: error instanceof Error ? error.message : String(error) })
-      return
-    }
-    child.stdin.end()
-    child.stdout.on('data', (chunk: Buffer) => {
-      output += chunk.toString()
+export const createCommandRunner =
+  (timeoutMs: number): CommandRunner =>
+  (command, args, cwd) =>
+    new Promise((resolve) => {
+      let output = ''
+      const options: SpawnOptionsWithoutStdio = { cwd, timeout: timeoutMs }
+      let child: ChildProcessWithoutNullStreams
+      try {
+        child = IS_WINDOWS
+          ? spawn(toShellCommand(command, args), { ...options, shell: true })
+          : spawn(command, args, options)
+      } catch (error) {
+        resolve({
+          isSuccess: false,
+          output: error instanceof Error ? error.message : String(error),
+        })
+        return
+      }
+      child.stdin.end()
+      child.stdout.on('data', (chunk: Buffer) => {
+        output += chunk.toString()
+      })
+      child.stderr.on('data', (chunk: Buffer) => {
+        output += chunk.toString()
+      })
+      child.once('error', (error) => resolve({ isSuccess: false, output: error.message }))
+      child.once('close', (code, signal) => {
+        // Node kills a command that exceeds `timeout` itself; nothing else here kills one.
+        const isTimedOut = signal !== null && child.killed
+        resolve({
+          isSuccess: code === 0,
+          output: isTimedOut ? [output, timeoutNote(timeoutMs)].join('\n') : output,
+        })
+      })
     })
-    child.stderr.on('data', (chunk: Buffer) => {
-      output += chunk.toString()
-    })
-    child.once('error', (error) => resolve({ isSuccess: false, output: error.message }))
-    child.once('close', (code) => resolve({ isSuccess: code === 0, output }))
-  })
+
+/** Runs a command with the time limit of a slow install. */
+export const runCommand: CommandRunner = createCommandRunner(COMMAND_TIMEOUT_MS)

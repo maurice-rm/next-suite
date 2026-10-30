@@ -2,7 +2,9 @@ import { tmpdir } from 'node:os'
 
 import { describe, expect, it } from 'vitest'
 
-import { runCommand, toShellCommand } from './run-command.ts'
+import { createCommandRunner, runCommand, toShellCommand } from './run-command.ts'
+
+const SHORT_TIMEOUT_MS = 200
 
 describe('runCommand', () => {
   it('captures the output of stdout and stderr', async () => {
@@ -25,6 +27,19 @@ describe('runCommand', () => {
     const result = await runCommand('next-suite-no-such-command', [], tmpdir())
 
     expect(result).toMatchObject({ isSuccess: false, output: expect.stringContaining('ENOENT') })
+  })
+
+  it('stops a command that runs too long and says so', async () => {
+    const result = await createCommandRunner(SHORT_TIMEOUT_MS)(
+      process.execPath,
+      ['-e', "process.stdout.write('started'); setTimeout(() => {}, 10_000)"],
+      tmpdir(),
+    )
+
+    expect(result).toEqual({
+      isSuccess: false,
+      output: 'started\nstopped after 0.2 seconds, the time a command may take',
+    })
   })
 
   it('quotes arguments with spaces for the Windows shell', () => {
