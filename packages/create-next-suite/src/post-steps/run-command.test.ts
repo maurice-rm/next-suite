@@ -32,4 +32,18 @@ describe('runCommand', () => {
       'git commit --message "Initial commit"',
     )
   })
+
+  it('quotes arguments with metacharacters of the Windows shell, and empty ones', () => {
+    expect(toShellCommand('pnpm', ['run', 'lint&format', '', 'a|b', '<in>', 'x^y'])).toBe(
+      'pnpm run "lint&format" "" "a|b" "<in>" "x^y"',
+    )
+  })
+
+  it('refuses arguments the Windows shell would read differently even when quoted', () => {
+    for (const arg of ['say "hi"', '%PATH%', 'line\nbreak']) {
+      expect(() => toShellCommand('git', ['commit', '--message', arg])).toThrow(
+        'cannot pass the argument',
+      )
+    }
+  })
 })
