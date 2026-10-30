@@ -12,7 +12,7 @@ type QuestionPlace = {
   isEssential: boolean
 }
 
-/** One question of a run, with the key its answer has in answer files and next-suite.json. */
+/** One question of a run, with the key its answer has in answer files. */
 export type Question = QuestionPlace &
   (
     | { kind: 'category'; category: Category; choices: Plugin[] }
@@ -21,7 +21,7 @@ export type Question = QuestionPlace &
     | { kind: 'setting'; option: QuestionOption; scope: SettingScope }
   )
 
-/** Whether a setting is a base setting, recorded in next-suite.json, or a run setting. */
+/** Whether a setting is a base setting, recorded in the project's config, or a run setting. */
 export type SettingScope = 'base' | 'run'
 
 export type CategoryQuestion = Extract<Question, { kind: 'category' }>

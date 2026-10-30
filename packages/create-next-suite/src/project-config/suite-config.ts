@@ -71,11 +71,13 @@ export type PluginAnswers = {
 
 /** What `next-suite.config.ts` says about a project: its settings, its plugins and their answers. */
 export type SuiteConfig = {
+  /** The project's name and the settings of the base project. */
   readonly project: ProjectSettings
   /** The project's plugins, in any order. */
   readonly plugins: readonly PluginEntry[]
   /** Plugins that do not run, even when `plugins` names them. */
   readonly disable?: readonly PluginName[]
+  /** The answers to the options of the selected plugins. */
   readonly answers?: PluginAnswers
 }
 

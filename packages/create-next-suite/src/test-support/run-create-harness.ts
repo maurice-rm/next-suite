@@ -16,10 +16,10 @@ import { writeFiles } from './write-files.ts'
 
 const CLI_VERSION = '2.0.0'
 const COLUMNS = 80
-const NOW = new Date('2026-11-01T10:00:00Z')
 const OUTSIDE_REPOSITORY = 'git rev-parse --is-inside-work-tree'
 const PACKAGE_ROOT = fileURLToPath(new URL('../..', import.meta.url))
 const PLUGIN_ENTRY = fileURLToPath(new URL('../plugin.ts', import.meta.url))
+const CONFIG_ENTRY = fileURLToPath(new URL('../config.ts', import.meta.url))
 /** Every prompt shows this key under it while it waits for input. */
 const PROMPT_FOOTER = 'ctrl+c cancel'
 
@@ -64,14 +64,15 @@ const runIn = async (
     argv,
     loadAssets: async () => assets,
     pluginEntry: PLUGIN_ENTRY,
+    configEntry: CONFIG_ENTRY,
     remote: stubRemote(root, routes),
     userConfigPath: join(root, 'config.json'),
     cliVersion: CLI_VERSION,
+    cliSpecifier: CLI_VERSION,
     cwd: root,
     streams: { input, output: output.stream, error: error.stream },
     isInteractive,
     columns: COLUMNS,
-    now: () => NOW,
     userAgent,
     runCommand:
       runCommand ??

@@ -1,0 +1,166 @@
+---
+title: Your project after create
+description: The config, lock and registry types every project gets, and how to create it again or replace a file.
+---
+
+A generated project is yours. Besides the app, create-next-suite writes what describes it:
+
+| Path                     | Belongs to        | What it holds                                                                  |
+| ------------------------ | ----------------- | ------------------------------------------------------------------------------ |
+| `next-suite.config.ts`   | you               | the project's settings, its plugins, the plugins it disables, every answer     |
+| `.next-suite/lock.json`  | create-next-suite | what the last generation ran and wrote; commit it                              |
+| `.next-suite/types.d.ts` | create-next-suite | the plugins the config can name, with their options, for your editor           |
+| `next-suite/plugins/`    | you               | [project plugins](#project-plugins), each a directory with a `plugin.ts`       |
+| `next-suite/overrides/`  | you               | [overrides](#overrides): files that replace generated ones                     |
+
+`package.json` gets `create-next-suite` as a devDependency, pinned to the version that created the
+project, so the config is typed and `next-suite` runs from the project. `tsconfig.json` includes `.next-suite/types.d.ts`,
+which its `**/*.ts` pattern skips, since that leaves out directories starting with a dot. The
+linter and formatter plugins leave `.next-suite/` alone, and Knip takes `next-suite.config.ts` as
+an entry.
+
+## The config
+
+```ts title="next-suite.config.ts"
+import { defineSuiteConfig } from "create-next-suite/config";
+
+export default defineSuiteConfig({
+  project: {
+    name: "my-app",
+    srcDir: false,
+    importAlias: "@/*",
+    reactCompiler: false,
+    cacheComponents: true,
+  },
+  // Your own plugins join these: "./next-suite/plugins/<name>", an address such as
+  // "github:acme/plugins/mail#v1", or definePlugin({ … }) in place.
+  plugins: ["pnpm", "tailwind", "eslint", "prettier", "github:acme/plugins/mail#v1"],
+  disable: [],
+  answers: {
+    mail: { provider: "resend" },
+  },
+  // extends: a shared config to start from; not supported yet.
+});
+```
+
+| Field     | What it says                                                                                        |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `project` | the package name and the [base settings](./options/project); `srcDir` and `importAlias` stay as created |
+| `plugins` | built-in plugins by name, a plugin directory by its path, an external plugin by its [address](./plugins/sources-and-trust), or one defined in place |
+| `disable` | plugins that do not run, even when `plugins` names them                                             |
+| `answers` | the answer to each option, by plugin; an option without one takes its default                       |
+
+create-next-suite writes every plugin and every answer out, so the config alone describes the
+project. It writes the config once and only reads it afterwards.
+
+### Checked in your editor
+
+`.next-suite/types.d.ts` adds every plugin the project can use, the built-in ones and those it
+was created with, to the `PluginRegistry` of `create-next-suite/config`. TypeScript checks the
+config like any other file of the project, in your editor, in `typecheck` and in `next build`:
+
+```text
+next-suite.config.ts(16,5): error TS2820: Type '"eslnt"' is not assignable to type 'PluginEntry'. Did you mean '"eslint"'?
+next-suite.config.ts(24,21): error TS2322: Type '"ses"' is not assignable to type '"resend" | "smtp" | undefined'.
+next-suite.config.ts(24,5): error TS2353: Object literal may only specify known properties, and 'knip' does not exist in type 'PluginAnswers'.
+```
+
+When create-next-suite reads a config, it checks the same again: an unknown plugin, a disabled
+plugin it does not know, two plugins of a category that takes one, or answers for a plugin the
+config does not select stop the run with a message.
+
+## The lock
+
+```json title=".next-suite/lock.json (abridged)"
+{
+  "generator": { "name": "create-next-suite", "version": "2.0.0" },
+  "project": { "name": "my-app", "srcDir": false, "importAlias": "@/*", "reactCompiler": false, "cacheComponents": true },
+  "plugins": [
+    { "name": "pnpm", "source": "builtin", "version": "2.0.0" },
+    { "name": "mail", "source": "github:acme/plugins/mail#v1", "resolved": "3f2c…", "contentHash": "sha256-9a1e…" },
+    { "name": "tweaks", "source": "./next-suite/plugins/tweaks", "contentHash": "sha256-77b0…" },
+    { "name": "site-url", "source": "inline" }
+  ],
+  "disable": [],
+  "answers": { "mail": { "provider": "resend" } },
+  "files": { "app/layout.tsx": "sha256-4c0d…" },
+  "provenance": {
+    "order": ["pnpm", "mail", "tweaks", "site-url"],
+    "points": {},
+    "files": {
+      "app/layout.tsx": [
+        { "plugin": "base", "operation": "base", "kind": "own" },
+        { "plugin": "seo", "operation": "layout.metadata metadataBase", "kind": "extend" }
+      ]
+    }
+  }
+}
+```
+
+- `plugins`: where each plugin came from. A built-in plugin has the version of create-next-suite;
+  an external or project plugin the [content hash](./plugins/sources-and-trust#trust) of its files
+  and, for a remote one, the commit, version or archive its address resolved to; a plugin defined
+  in the config is `inline`.
+- `answers`: every answer, defaults included.
+- `files`: a hash of every file the generation wrote, as the run left it: after the project's own
+  post-steps such as its formatter, so a file you have not touched matches it. The config and
+  everything under `next-suite/` are yours and not listed.
+- `provenance`: which plugin did what to each file, in order, with the kind of each operation:
+  `own` on a file the plugin writes, `extend` through what the file's owner offers, `direct` for
+  an edit of someone else's file, `override` for an [override](#overrides).
+
+The lock records what ran; it trusts nothing. Which sources and contents you trust stays in your
+user configuration, so a project someone else wrote never runs a plugin you have not trusted.
+
+## Create the project again
+
+`--config` creates the project a config describes, with its plugins and overrides:
+
+```bash
+npx create-next-suite@2.0.0 --config my-app/next-suite.config.ts my-app-again
+```
+
+The result is the same project as the one the config came from, its lock included, minus your
+changes to generated files. Without a directory, the project is created in a directory named
+after `project.name`. The new project gets the config unchanged and a copy of everything under
+`next-suite/` beside it.
+
+The config is the only description: `--config` cannot be combined with `--answers` or `--plugin`,
+and of the question flags only those about the run itself, `--no-git` and `--no-install`, are
+taken. External plugins the config names still need your trust; a config is no trust declaration.
+
+## Project plugins
+
+A plugin of the project lives in a directory under `next-suite/plugins/` and is named in the
+config by its path, such as `"./next-suite/plugins/tweaks"`. It is a plugin like any other, with a
+`plugin.ts` and its files, and it may do everything an external plugin may. A plugin can also be
+defined in place:
+
+```ts title="next-suite.config.ts"
+import { definePlugin, defineSuiteConfig } from "create-next-suite/config";
+
+export default defineSuiteConfig({
+  project: { name: "my-app" },
+  plugins: [
+    "pnpm",
+    "./next-suite/plugins/tweaks",
+    definePlugin({ name: "site-url", title: "Site URL", scripts: { url: "echo $SITE_URL" } }),
+  ],
+});
+```
+
+A plugin defined in place reads the files it names relative to the config. Project plugins and
+plugins defined in place are the project's own code and run without asking for trust, as
+`npm run` runs a project's scripts.
+
+## Overrides
+
+A file under `next-suite/overrides/<path>` replaces the generated file at `<path>` completely,
+after every plugin ran: `next-suite/overrides/app/not-found.tsx` replaces `app/not-found.tsx`.
+The lock records it as an operation of kind `override`. An override of a path the project does not
+generate stops the run; put a file of your own straight into the project instead. Overrides hold
+text only.
+
+An override is a normal file of the project, type-checked and linted where it lies. Knip reports it
+as unused, as nothing imports it; add `"next-suite/**"` to `ignore` in `knip.config.ts` once the
+project has overrides or project plugins.

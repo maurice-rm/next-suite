@@ -3,6 +3,8 @@ import { definePlugin } from 'create-next-suite/plugin'
 const VERSIONS = { knip: '6.43.0' }
 const CONFIG_FILE = 'knip.config.ts'
 const CONFIG_OBJECT = 'config'
+/** The project's next-suite config, which nothing imports but which imports create-next-suite. */
+const SUITE_CONFIG_FILE = 'next-suite.config.ts'
 
 /** What Knip treats differently, as other plugins contribute it. */
 type KnipOptions = {
@@ -69,6 +71,7 @@ export default definePlugin({
     knip: {
       create: createKnipOptions,
       finish: (knip, { module, generatedDirectories }) => {
+        knip.entry(SUITE_CONFIG_FILE)
         knip.ignore(...generatedDirectories.map((directory) => `${directory}/**`))
         const config = module(CONFIG_FILE).object(CONFIG_OBJECT)
         for (const [key, values] of knip.options()) {

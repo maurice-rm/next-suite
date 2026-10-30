@@ -17,6 +17,7 @@ type CoreFlags = {
   empty?: boolean
   plugin?: string[]
   trust?: string[]
+  config?: string
 }
 
 export type Invocation = {
@@ -39,8 +40,12 @@ const CORE_OPTIONS = [
   new Option('-y, --yes', 'answer every open question with its default'),
   new Option(
     '--answers <file>',
-    'read answers from a JSON file in the format of `answers` in next-suite.json',
+    'read answers from a JSON file keyed by question, such as "linter"',
   ),
+  new Option(
+    '--config <file>',
+    'create the project a next-suite.config.ts describes, with its plugins and overrides',
+  ).conflicts(['answers', 'plugin']),
   new Option('--dry-run', 'show what would be created, write nothing'),
   new Option('--diff', 'with --dry-run, show the content of every file'),
   new Option('--overwrite', 'write into a directory that has files, keeping the others').conflicts(
@@ -65,19 +70,31 @@ export const RESERVED_NAMES: ReadonlySet<string> = new Set([
 ])
 
 const PLUGIN_FLAG = '--plugin'
+const CONFIG_FLAG = '--config'
+
+/** The values a flag takes on a command line, as `--flag value` or `--flag=value`. */
+const readFlagValues = (argv: readonly string[], flag: string): string[] =>
+  argv.flatMap((arg, index) => {
+    if (arg === flag) {
+      const value = argv[index + 1]
+      return value === undefined ? [] : [value]
+    }
+    return arg.startsWith(`${flag}=`) ? [arg.slice(flag.length + 1)] : []
+  })
 
 /**
  * The plugin addresses on a command line, read before it is parsed in full, so a run that names
  * one stops before its questions.
  */
 export const readPluginAddresses = (argv: readonly string[]): string[] =>
-  argv.flatMap((arg, index) => {
-    if (arg === PLUGIN_FLAG) {
-      const address = argv[index + 1]
-      return address === undefined ? [] : [address]
-    }
-    return arg.startsWith(`${PLUGIN_FLAG}=`) ? [arg.slice(PLUGIN_FLAG.length + 1)] : []
-  })
+  readFlagValues(argv, PLUGIN_FLAG)
+
+/**
+ * The config a command line creates the project from, read before it is parsed in full, since
+ * its plugins join the questions; the last one counts, as Commander takes it.
+ */
+export const readConfigPath = (argv: readonly string[]): string | undefined =>
+  readFlagValues(argv, CONFIG_FLAG).at(-1)
 
 /**
  * Parses the command line with the core options and the flags of the questions. Commander

@@ -17,6 +17,11 @@ not trusted runs only after you allow it.
 - **Not a vulnerability:** what a plugin's code does after you trusted its source or allowed it
   to run. Report that to the plugin's author.
 
+A project's `next-suite.config.ts`, the plugins under its `next-suite/plugins/` and the plugins
+its config defines in place are the project's own code: creating a project from its config with
+`--config` runs them without asking, as `npm run` runs a project's scripts. Only create projects
+from configs you would run the scripts of. External plugins a config names still need your trust.
+
 ## Reporting a vulnerability
 
 Please report a vulnerability privately through

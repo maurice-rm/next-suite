@@ -29,6 +29,9 @@ const run = async (input: Partial<PostStepsInput>, results: Results = {}) => {
     shouldInstall: true,
     shouldInitializeGit: true,
     reporter,
+    afterScripts: async () => {
+      commands.push('after scripts')
+    },
     runCommand: async (command, args) => {
       const line = [command, ...args].join(' ')
       commands.push(line)
@@ -55,6 +58,7 @@ describe('runPostSteps', () => {
       'pnpm --version',
       'pnpm install',
       'pnpm run format',
+      'after scripts',
       'git add --all',
       'git config user.email',
       COMMIT,

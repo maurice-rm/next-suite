@@ -4,7 +4,9 @@ Files:
   .github/workflows/ci.yml (38 lines, github-actions)
   .gitignore (13 lines, base)
   .husky/pre-commit (1 line, lint-staged)
-  .prettierignore (5 lines, prettier)
+  .next-suite/lock.json (614 lines, create-next-suite)
+  .next-suite/types.d.ts (25 lines, create-next-suite)
+  .prettierignore (6 lines, prettier)
   AGENTS.md (25 lines, agents-md)
   CLAUDE.md (1 line, agents-md)
   README.md (32 lines, base)
@@ -19,20 +21,20 @@ Files:
   app/robots.ts (10 lines, seo)
   app/sitemap.ts (7 lines, seo)
   env.ts (15 lines, t3-env)
-  eslint.config.mjs (16 lines, eslint)
+  eslint.config.mjs (17 lines, eslint)
   instrumentation.ts (15 lines, create-next-suite)
-  knip.config.ts (6 lines, knip)
+  knip.config.ts (9 lines, knip)
   lib/logger.ts (21 lines, pino)
   lib/site-url.ts (3 lines, seo)
   lint-staged.config.mjs (7 lines, lint-staged)
-  next-suite.json (93 lines, create-next-suite)
+  next-suite.config.ts (31 lines, create-next-suite)
   next.config.ts (10 lines, base)
-  package.json (56 lines, create-next-suite)
+  package.json (57 lines, create-next-suite)
   pnpm-workspace.yaml (3 lines, pnpm)
   postcss.config.mjs (7 lines, tailwind)
   prettier.config.mjs (6 lines, prettier)
   security-headers.ts (53 lines, static-csp)
-  tsconfig.json (30 lines, base)
+  tsconfig.json (31 lines, base)
   vitest.config.mts (12 lines, vitest)
 Dependencies:
   @t3-oss/env-nextjs 0.13.11
@@ -49,6 +51,7 @@ Dev dependencies:
   @types/react 19.3.0
   @types/react-dom 19.3.0
   @vitejs/plugin-react 6.1.2
+  create-next-suite 0.0.0
   eslint 9.39.5
   eslint-config-next 16.4.3
   husky 9.1.7
@@ -163,13 +166,663 @@ Dev dependencies:
 
 ===================================================================
 --- /dev/null
++++ .next-suite/lock.json
+@@ -0,0 +1,614 @@
++{
++  "generator": {
++    "name": "create-next-suite",
++    "version": "0.0.0"
++  },
++  "project": {
++    "name": "my-app",
++    "srcDir": false,
++    "importAlias": "@/*",
++    "reactCompiler": false,
++    "cacheComponents": true
++  },
++  "plugins": [
++    {
++      "name": "pnpm",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "tailwind",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "eslint",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "prettier",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "knip",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "lint-staged",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "vitest",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "t3-env",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "pino",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "static-csp",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "seo",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "github-actions",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "agents-md",
++      "source": "builtin",
++      "version": "0.0.0"
++    }
++  ],
++  "disable": [],
++  "answers": {},
++  "files": {
++    ".editorconfig": "sha256-6d6796f174b736bcd7a68999e30d2f19a3719ad92355dcc0cfdfce8a66864553",
++    ".env.example": "sha256-51079c20b3d7d2ea6fd465831e9d2d393525f078715af5ea6e46b59d7258c0c8",
++    ".github/workflows/ci.yml": "sha256-96947d275e13f19b45034f3be1143cfedb97bdc1618b083e3a54a8035fb84b63",
++    ".gitignore": "sha256-a9b4292e03678690248c5b16c217ceaa66886745fad2ad9a043a8eaa5c5b05e7",
++    ".husky/pre-commit": "sha256-ff36f3e1f21e52c7bc535117e13602107197ae3df2ea0b381f2575332b3bbe44",
++    ".prettierignore": "sha256-23c96a3b6d8cdf1160de4f0be2144f9bb659a81b01dd377be4c0e862ee7fa484",
++    "AGENTS.md": "sha256-9c86d231142a55d4bdce0ced4a859e7592b2d51193fc5e46c311b9fc0ff575f6",
++    "CLAUDE.md": "sha256-336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
++    "README.md": "sha256-b52e63a97b052ee9968e914aae2041f1bdbc9c7805a402a0d5d014b57fbaa214",
++    "__tests__/page.test.tsx": "sha256-0dc33d65e7f4993d700161547e5529f080a5762ed8c022b3e0d96647bc7751a9",
++    "app/error.tsx": "sha256-6a323cd2bc2c9a5195ea51833242a5150bcec0d11febdc7bf5fd5c8353d855ab",
++    "app/global-error.tsx": "sha256-e3d3db0aeb29c2791d9c9ceef8b46decc9d2956b939ecc635ee3bdefc276192d",
++    "app/globals.css": "sha256-cad1ac732ca7fb884aff69729806ff371e72212dd60d730701e26a06064df37e",
++    "app/icon.svg": "sha256-cf827ce37400d34fc68faff5d1e3fe9484d38f7837a99b610423808febbd8b2b",
++    "app/layout.tsx": "sha256-69fdfbc7044896fbe1a7664bed108cbb09aec61c383ec1756fdabd14e9fa5d5e",
++    "app/not-found.tsx": "sha256-c157bd59c798b324547146f928b98dd23f16fb6f20c4df4d41a58fce40c49590",
++    "app/page.tsx": "sha256-f008c5e87953f418248316b3daaaf10c01092e1cb66cf64cac9d6fa33bb88a71",
++    "app/robots.ts": "sha256-2a5976d6daf00d3be7f469b74e72562afb228591e2763dddf05512e6ed12d92a",
++    "app/sitemap.ts": "sha256-741c3311b04e5b07f3212938c76f564b91c49a288f9817418778fa382abfaceb",
++    "env.ts": "sha256-4ad26e0134c1499e8d2f018f5692e9e3cbd2bd2a2d4d5cc7421cad95b4cbe743",
++    "eslint.config.mjs": "sha256-41d55929911ccd0294fa972dde380d0486e37468af921bc4201443ef43c28919",
++    "instrumentation.ts": "sha256-19d8d4944337eecc3e9c8e15bb1a09137be1e86fb630a61f7af977f064db63b7",
++    "knip.config.ts": "sha256-4d5a9d23c0a689d0639ae26343e8e42a6d6675f3c3bfdd0f40042bb314d0beea",
++    "lib/logger.ts": "sha256-ab1e9bad0f797637e70cfaa8421ff17605ff5774651323d2826f743aeab4c349",
++    "lib/site-url.ts": "sha256-bea4b86c727a54bb37df0bd2e1eaddff8dd2998aab35ed5dc46e4944edda4ecb",
++    "lint-staged.config.mjs": "sha256-2ec3ca5cf5a5d6c67072a805865791d769e255cc4073767d43de30e27421a11a",
++    "next.config.ts": "sha256-d14ad952fb09583a4d7b82a6461d42a7aa302117cf2c80643109542b50743569",
++    "package.json": "sha256-d048fb1f85a128c51c11bcb7f68195c19bfd6f9a6ea59742efdb3ac75132c96c",
++    "pnpm-workspace.yaml": "sha256-e22233731ea3da79f6cb5e9c2c6ccc15cd7277b8d2665042c4d5384df3330c52",
++    "postcss.config.mjs": "sha256-dfac7ac2d86d326a0e5adb024e7943c181393ed17a5fcb8f0315b24c7da6ddde",
++    "prettier.config.mjs": "sha256-0334228a0601d9922e0d0a264de9f242897fe9346d4d4b812aace1c8c1a948ca",
++    "security-headers.ts": "sha256-c028e8c457ed9b6ef5977c1d5fe3e7f7925b3cc9f70d90b37093d34b0982d786",
++    "tsconfig.json": "sha256-524164b0a636e55c294a34d6ad79aaeaa01705e72d1357726bff2c5c832e2919",
++    "vitest.config.mts": "sha256-0381ce8e4b4bee5255854b4b5560f6a6b3544317ac9b2733c1a5017d087fcbdc"
++  },
++  "provenance": {
++    "order": [
++      "pnpm",
++      "tailwind",
++      "eslint",
++      "prettier",
++      "knip",
++      "lint-staged",
++      "vitest",
++      "t3-env",
++      "pino",
++      "static-csp",
++      "seo",
++      "github-actions",
++      "agents-md"
++    ],
++    "points": {
++      "builtDependencies": {
++        "provider": "pnpm",
++        "users": [],
++        "contributors": ["eslint"]
++      },
++      "lintIgnores": {
++        "provider": "eslint",
++        "users": [],
++        "contributors": []
++      },
++      "prettierPlugins": {
++        "provider": "prettier",
++        "users": [],
++        "contributors": ["tailwind"]
++      },
++      "knip": {
++        "provider": "knip",
++        "users": [],
++        "contributors": []
++      },
++      "lintStaged": {
++        "provider": "lint-staged",
++        "users": [],
++        "contributors": ["eslint", "prettier"]
++      },
++      "testSetup": {
++        "provider": "vitest",
++        "users": [],
++        "contributors": []
++      },
++      "logRedact": {
++        "provider": "pino",
++        "users": [],
++        "contributors": []
++      },
++      "csp": {
++        "provider": "static-csp",
++        "users": [],
++        "contributors": []
++      },
++      "ciChecks": {
++        "provider": "github-actions",
++        "users": [],
++        "contributors": ["eslint", "prettier", "knip", "vitest"]
++      },
++      "agents": {
++        "provider": "agents-md",
++        "users": [],
++        "contributors": []
++      }
++    },
++    "files": {
++      ".editorconfig": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      ".env.example": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "pino",
++          "operation": "env LOG_LEVEL",
++          "kind": "extend"
++        },
++        {
++          "plugin": "seo",
++          "operation": "env NEXT_PUBLIC_SITE_URL",
++          "kind": "extend"
++        }
++      ],
++      ".github/workflows/ci.yml": [
++        {
++          "plugin": "github-actions",
++          "operation": "finish ciChecks: write",
++          "kind": "own"
++        }
++      ],
++      ".gitignore": [{ "plugin": "base", "operation": "base", "kind": "own" }],
++      ".husky/pre-commit": [
++        {
++          "plugin": "lint-staged",
++          "operation": "copy files/husky/pre-commit",
++          "kind": "own"
++        }
++      ],
++      ".prettierignore": [
++        {
++          "plugin": "prettier",
++          "operation": "copy files/prettierignore",
++          "kind": "own"
++        }
++      ],
++      "AGENTS.md": [
++        {
++          "plugin": "agents-md",
++          "operation": "finish agents: write",
++          "kind": "own"
++        }
++      ],
++      "CLAUDE.md": [
++        {
++          "plugin": "agents-md",
++          "operation": "copy files/CLAUDE.md",
++          "kind": "own"
++        }
++      ],
++      "README.md": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "pnpm",
++          "operation": "packageManager pnpm",
++          "kind": "extend"
++        },
++        {
++          "plugin": "static-csp",
++          "operation": "readme Security headers",
++          "kind": "extend"
++        }
++      ],
++      "__tests__/page.test.tsx": [
++        {
++          "plugin": "vitest",
++          "operation": "setup: write",
++          "kind": "own"
++        }
++      ],
++      "app/error.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/global-error.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/globals.css": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "tailwind",
++          "operation": "css.imports tailwindcss",
++          "kind": "extend"
++        }
++      ],
++      "app/icon.svg": [{ "plugin": "base", "operation": "base", "kind": "own" }],
++      "app/layout.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "seo",
++          "operation": "layout.metadata metadataBase",
++          "kind": "extend"
++        }
++      ],
++      "app/not-found.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/page.tsx": [{ "plugin": "base", "operation": "base", "kind": "own" }],
++      "app/robots.ts": [
++        {
++          "plugin": "seo",
++          "operation": "copy files/app/robots.ts",
++          "kind": "own"
++        }
++      ],
++      "app/sitemap.ts": [
++        {
++          "plugin": "seo",
++          "operation": "copy files/app/sitemap.ts",
++          "kind": "own"
++        }
++      ],
++      "env.ts": [
++        {
++          "plugin": "t3-env",
++          "operation": "copy files/env.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "t3-env",
++          "operation": "edit",
++          "kind": "own"
++        }
++      ],
++      "eslint.config.mjs": [
++        {
++          "plugin": "eslint",
++          "operation": "finish lintIgnores: write",
++          "kind": "own"
++        }
++      ],
++      "instrumentation.ts": [
++        {
++          "plugin": "t3-env",
++          "operation": "instrumentation.register @/env",
++          "kind": "extend"
++        },
++        {
++          "plugin": "pino",
++          "operation": "instrumentation.onRequestError @/lib/logger",
++          "kind": "extend"
++        }
++      ],
++      "knip.config.ts": [
++        {
++          "plugin": "knip",
++          "operation": "copy files/knip.config.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "knip",
++          "operation": "finish knip: module",
++          "kind": "own"
++        }
++      ],
++      "lib/logger.ts": [
++        {
++          "plugin": "pino",
++          "operation": "copy files/lib/logger.t3-env.ts",
++          "kind": "own"
++        }
++      ],
++      "lib/site-url.ts": [
++        {
++          "plugin": "seo",
++          "operation": "copy files/lib/site-url.t3-env.ts",
++          "kind": "own"
++        }
++      ],
++      "lint-staged.config.mjs": [
++        {
++          "plugin": "lint-staged",
++          "operation": "copy files/lint-staged.config.mjs",
++          "kind": "own"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "finish lintStaged: module",
++          "kind": "own"
++        }
++      ],
++      "next.config.ts": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "static-csp",
++          "operation": "nextConfig.imports ./security-headers",
++          "kind": "extend"
++        },
++        {
++          "plugin": "static-csp",
++          "operation": "nextConfig.options headers",
++          "kind": "extend"
++        }
++      ],
++      "package.json": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "pnpm",
++          "operation": "packageManager pnpm",
++          "kind": "extend"
++        },
++        {
++          "plugin": "tailwind",
++          "operation": "devDependencies tailwindcss",
++          "kind": "extend"
++        },
++        {
++          "plugin": "tailwind",
++          "operation": "devDependencies @tailwindcss/postcss",
++          "kind": "extend"
++        },
++        {
++          "plugin": "tailwind",
++          "operation": "devDependencies prettier-plugin-tailwindcss",
++          "kind": "extend"
++        },
++        {
++          "plugin": "eslint",
++          "operation": "devDependencies eslint",
++          "kind": "extend"
++        },
++        {
++          "plugin": "eslint",
++          "operation": "devDependencies eslint-config-next",
++          "kind": "extend"
++        },
++        {
++          "plugin": "eslint",
++          "operation": "scripts lint",
++          "kind": "extend"
++        },
++        {
++          "plugin": "prettier",
++          "operation": "devDependencies prettier",
++          "kind": "extend"
++        },
++        {
++          "plugin": "prettier",
++          "operation": "scripts format",
++          "kind": "extend"
++        },
++        {
++          "plugin": "prettier",
++          "operation": "scripts format:check",
++          "kind": "extend"
++        },
++        {
++          "plugin": "knip",
++          "operation": "devDependencies knip",
++          "kind": "extend"
++        },
++        {
++          "plugin": "knip",
++          "operation": "scripts knip",
++          "kind": "extend"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "devDependencies husky",
++          "kind": "extend"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "devDependencies lint-staged",
++          "kind": "extend"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "scripts prepare",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "devDependencies vitest",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "devDependencies vite",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "devDependencies @vitejs/plugin-react",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "devDependencies vite-tsconfig-paths",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "devDependencies jsdom",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "devDependencies @testing-library/react",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "devDependencies @testing-library/dom",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "scripts test",
++          "kind": "extend"
++        },
++        {
++          "plugin": "vitest",
++          "operation": "scripts test:watch",
++          "kind": "extend"
++        },
++        {
++          "plugin": "t3-env",
++          "operation": "dependencies @t3-oss/env-nextjs",
++          "kind": "extend"
++        },
++        {
++          "plugin": "t3-env",
++          "operation": "dependencies zod",
++          "kind": "extend"
++        },
++        {
++          "plugin": "pino",
++          "operation": "dependencies pino",
++          "kind": "extend"
++        }
++      ],
++      "pnpm-workspace.yaml": [
++        {
++          "plugin": "pnpm",
++          "operation": "finish builtDependencies: write",
++          "kind": "own"
++        }
++      ],
++      "postcss.config.mjs": [
++        {
++          "plugin": "tailwind",
++          "operation": "copy files/postcss.config.mjs",
++          "kind": "own"
++        }
++      ],
++      "prettier.config.mjs": [
++        {
++          "plugin": "prettier",
++          "operation": "copy files/prettier.config.mjs",
++          "kind": "own"
++        },
++        {
++          "plugin": "prettier",
++          "operation": "finish prettierPlugins: module",
++          "kind": "own"
++        }
++      ],
++      "security-headers.ts": [
++        {
++          "plugin": "static-csp",
++          "operation": "copy files/security-headers.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "static-csp",
++          "operation": "finish csp: module",
++          "kind": "own"
++        }
++      ],
++      "tsconfig.json": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "vitest.config.mts": [
++        {
++          "plugin": "vitest",
++          "operation": "copy files/vitest.config.mts",
++          "kind": "own"
++        }
++      ]
++    }
++  }
++}
+
+===================================================================
+--- /dev/null
++++ .next-suite/types.d.ts
+@@ -0,0 +1,25 @@
++// Generated by create-next-suite: the plugins next-suite.config.ts can name. Do not edit;
++// it is written anew whenever the project is generated.
++export {};
++
++declare module "create-next-suite/config" {
++  interface PluginRegistry {
++    "agents-md": Record<never, never>;
++    biome: Record<never, never>;
++    bun: Record<never, never>;
++    eslint: Record<never, never>;
++    "github-actions": Record<never, never>;
++    knip: Record<never, never>;
++    "lint-staged": Record<never, never>;
++    npm: Record<never, never>;
++    pino: Record<never, never>;
++    pnpm: Record<never, never>;
++    prettier: Record<never, never>;
++    seo: Record<never, never>;
++    "static-csp": Record<never, never>;
++    "t3-env": Record<never, never>;
++    tailwind: Record<never, never>;
++    vitest: Record<never, never>;
++    yarn: Record<never, never>;
++  }
++}
+
+===================================================================
+--- /dev/null
 +++ .prettierignore
-@@ -0,0 +1,5 @@
+@@ -0,0 +1,6 @@
 +pnpm-lock.yaml
 +package-lock.json
 +yarn.lock
 +bun.lock
 +.yarn
++.next-suite
 
 ===================================================================
 --- /dev/null
@@ -432,7 +1085,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ eslint.config.mjs
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,17 @@
 +import { defineConfig, globalIgnores } from "eslint/config";
 +import nextVitals from "eslint-config-next/core-web-vitals";
 +import nextTs from "eslint-config-next/typescript";
@@ -445,6 +1098,7 @@ Dev dependencies:
 +    "out/**",
 +    "build/**",
 +    "next-env.d.ts",
++    ".next-suite/**",
 +  ]),
 +]);
 +
@@ -473,10 +1127,13 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ knip.config.ts
-@@ -0,0 +1,6 @@
+@@ -0,0 +1,9 @@
 +import type { KnipConfig } from "knip";
 +
 +const config: KnipConfig = {
++  entry: [
++    "next-suite.config.ts",
++  ],
 +};
 +
 +export default config;
@@ -529,101 +1186,39 @@ Dev dependencies:
 
 ===================================================================
 --- /dev/null
-+++ next-suite.json
-@@ -0,0 +1,93 @@
-+{
-+  "cli": "0.0.0",
-+  "contract": "1.0.0",
-+  "createdAt": "<now>",
-+  "plugins": [
-+    {
-+      "name": "pnpm",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "tailwind",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "eslint",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "prettier",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "knip",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "lint-staged",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "vitest",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "t3-env",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "pino",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "static-csp",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "seo",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "github-actions",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "agents-md",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    }
++++ next-suite.config.ts
+@@ -0,0 +1,31 @@
++import { defineSuiteConfig } from "create-next-suite/config";
++
++export default defineSuiteConfig({
++  project: {
++    name: "my-app",
++    srcDir: false,
++    importAlias: "@/*",
++    reactCompiler: false,
++    cacheComponents: true,
++  },
++  // Your own plugins join these: "./next-suite/plugins/<name>", an address such as
++  // "github:acme/plugins/mail#v1", or definePlugin({ … }) in place.
++  plugins: [
++    "pnpm",
++    "tailwind",
++    "eslint",
++    "prettier",
++    "knip",
++    "lint-staged",
++    "vitest",
++    "t3-env",
++    "pino",
++    "static-csp",
++    "seo",
++    "github-actions",
++    "agents-md",
 +  ],
-+  "answers": {
-+    "package-manager": "pnpm",
-+    "src-dir": false,
-+    "import-alias": "@/*",
-+    "react-compiler": false,
-+    "cache-components": true,
-+    "styling": [
-+      "tailwind"
-+    ],
-+    "linter": "eslint",
-+    "formatter": "prettier",
-+    "unused-code": "knip",
-+    "git-hooks": "lint-staged",
-+    "unit-tests": "vitest",
-+    "env-validation": "t3-env",
-+    "logging": "pino",
-+    "security-headers": "static-csp",
-+    "seo": "seo",
-+    "ci": "github-actions",
-+    "agents": "agents-md"
-+  }
-+}
++  disable: [],
++  answers: {},
++  // extends: a shared config to start from; not supported yet.
++});
 
 ===================================================================
 --- /dev/null
@@ -643,7 +1238,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ package.json
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,57 @@
 +{
 +  "name": "my-app",
 +  "private": true,
@@ -678,6 +1273,7 @@ Dev dependencies:
 +    "@types/react": "19.3.0",
 +    "@types/react-dom": "19.3.0",
 +    "@vitejs/plugin-react": "6.1.2",
++    "create-next-suite": "0.0.0",
 +    "eslint": "9.39.5",
 +    "eslint-config-next": "16.4.3",
 +    "husky": "9.1.7",
@@ -793,7 +1389,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ tsconfig.json
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +{
 +  "compilerOptions": {
 +    "target": "ES2022",
@@ -815,6 +1411,7 @@ Dev dependencies:
 +    }
 +  },
 +  "include": [
++    ".next-suite/types.d.ts",
 +    "next-env.d.ts",
 +    "**/*.ts",
 +    "**/*.tsx",

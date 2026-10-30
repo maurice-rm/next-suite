@@ -19,7 +19,7 @@ export type WorkingAnswers = {
  */
 export type Answers = { readonly [Key in keyof WorkingAnswers]: Readonly<WorkingAnswers[Key]> }
 
-/** Answers as answer files, flags and next-suite.json write them, keyed by question key. */
+/** Answers as answer files and flags give them, and a project's config yields them, keyed by question key. */
 export type AnswerInput = Readonly<Record<string, unknown>>
 
 export const isSelected = (answers: Pick<Answers, 'plugins'>, name: string): boolean =>

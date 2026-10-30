@@ -33,6 +33,8 @@ export type PostStepsInput = {
   shouldInitializeGit: boolean
   runCommand: CommandRunner
   reporter: StepReporter
+  /** Runs once the scripts ran, before the commit, such as to record what they changed. */
+  afterScripts: () => Promise<void>
 }
 
 const GIT_MISSING: CommandResult = { isSuccess: false, output: 'Git is not installed.' }
@@ -131,7 +133,8 @@ const commit = async (input: PostStepsInput) => {
 
 /**
  * Runs the steps after the files are written, each on a best-effort basis: initialize git on
- * `main`, install the dependencies, run the post-step scripts of the plugins, then commit. A step
+ * `main`, install the dependencies, run the post-step scripts of the plugins and `afterScripts`,
+ * then commit. A step
  * that fails is reported with the command to run instead; the steps that depend on it are
  * skipped, the project stays.
  */
@@ -142,6 +145,7 @@ export const runPostSteps = async (input: PostStepsInput): Promise<{ isInstalled
     input.shouldInstall && packageManager !== undefined && (await install(packageManager, input))
   if (isInstalled) {
     await runScripts(packageManager, input)
+    await input.afterScripts()
   }
   if (isGitInitialized) {
     await commit(input)

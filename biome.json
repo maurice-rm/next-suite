@@ -1172,8 +1172,6 @@
                       "**/ui/**",
                       "**/cli",
                       "**/cli/**",
-                      "**/test-support",
-                      "**/test-support/**",
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",

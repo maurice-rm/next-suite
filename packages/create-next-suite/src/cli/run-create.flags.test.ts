@@ -2,10 +2,13 @@ import { readFile } from 'node:fs/promises'
 
 import { describe, expect, it } from 'vitest'
 
+import { hashFileContent, parseLockFile } from '../project-config/lock-file.ts'
 import { readJson } from '../test-support/read-json.ts'
 import { setUpCreateRuns } from '../test-support/run-create-harness.ts'
 
 const { run, pathOf, write } = setUpCreateRuns()
+
+const readLock = async (path: string) => parseLockFile(await readFile(path, 'utf8'), path)
 
 /** Every category but the package manager left empty: the base project and a package manager. */
 const BARE_ANSWERS = {
@@ -35,7 +38,9 @@ describe('runCreate with flags and answer files', () => {
     expect(result).toMatchObject({ exitCode: 0, error: '', commands: [] })
     expect(result.output).toMatch(/^Files:\n/)
     expect(result.output).toContain('  package.json (')
-    expect(result.output).toContain('  next-suite.json (')
+    expect(result.output).toContain('  next-suite.config.ts (')
+    expect(result.output).toContain('  .next-suite/lock.json (')
+    expect(result.output).toContain('  .next-suite/types.d.ts (')
     expect(result.output).toContain('Dev dependencies:')
     await expect(readFile(pathOf('my-app/package.json'))).rejects.toThrow()
   })
@@ -51,8 +56,43 @@ describe('runCreate with flags and answer files', () => {
     expect((await run(['my-app', '--yes'])).exitCode).toBe(0)
 
     expect(await readFile(pathOf('my-app/app/page.tsx'), 'utf8')).toContain('my-app')
-    expect((await readJson(pathOf('my-app/next-suite.json'))).answers).toMatchObject({
-      'package-manager': 'pnpm',
+    expect(await readFile(pathOf('my-app/next-suite.config.ts'), 'utf8')).toContain('    "pnpm",\n')
+    expect((await readLock(pathOf('my-app/.next-suite/lock.json'))).plugins).toContainEqual({
+      name: 'pnpm',
+      source: 'builtin',
+      version: '2.0.0',
+    })
+  })
+
+  it('makes the project depend on this version of create-next-suite and load the registry types', async () => {
+    await runBare(['--yes', '--no-install', '--no-git'])
+
+    expect((await readJson(pathOf('my-app/package.json'))).devDependencies).toMatchObject({
+      'create-next-suite': '2.0.0',
+    })
+    expect((await readJson(pathOf('my-app/tsconfig.json'))).include).toContain(
+      '.next-suite/types.d.ts',
+    )
+    expect(await readFile(pathOf('my-app/.next-suite/types.d.ts'), 'utf8')).toContain(
+      'declare module "create-next-suite/config" {',
+    )
+  })
+
+  it('records every generated file with its hash and who wrote it in the lock', async () => {
+    await runBare(['--yes', '--no-install', '--no-git'])
+    const lock = await readLock(pathOf('my-app/.next-suite/lock.json'))
+    const page = await readFile(pathOf('my-app/app/page.tsx'), 'utf8')
+
+    expect(lock.files['app/page.tsx']).toBe(hashFileContent(page))
+    expect(lock.files).not.toHaveProperty('next-suite.config.ts')
+    expect(lock.files).not.toHaveProperty('.next-suite/types.d.ts')
+    expect(lock.provenance.files['app/page.tsx']?.[0]).toMatchObject({ plugin: 'base' })
+    expect(lock.project).toEqual({
+      name: 'my-app',
+      srcDir: false,
+      importAlias: '@/*',
+      reactCompiler: false,
+      cacheComponents: true,
     })
   })
 
@@ -85,11 +125,10 @@ describe('runCreate with flags and answer files', () => {
 
   it('skips the install and git with --no-install and --no-git, and records neither', async () => {
     const result = await runBare(['--yes', '--no-install', '--no-git'])
-    const recorded = await readJson(pathOf('my-app/next-suite.json'))
+    const config = await readFile(pathOf('my-app/next-suite.config.ts'), 'utf8')
 
     expect(result.commands).toEqual([])
-    expect(recorded.answers).not.toHaveProperty('install')
-    expect(recorded.answers).not.toHaveProperty('git')
+    expect(config).not.toMatch(/\binstall\b|\bgit\b/)
   })
 
   it('installs with the arguments of the package manager', async () => {
@@ -110,25 +149,6 @@ describe('runCreate with flags and answer files', () => {
 
     expect(result.commands).toEqual(['npm --version', 'npm install'])
     expect(packageJson.packageManager).toMatch(/^npm@/)
-  })
-
-  it('rebuilds the same project from the answers in next-suite.json', async () => {
-    await run(['first', '--yes', '--linter', 'biome', '--no-ci'])
-    const recorded = (await readJson(pathOf('first/next-suite.json'))).answers
-    await write({ 'answers.json': JSON.stringify(recorded) })
-
-    const again = await run(['first-again', '--answers', 'answers.json', '--dry-run'])
-    const original = await run([
-      'first-again',
-      '--yes',
-      '--linter',
-      'biome',
-      '--no-ci',
-      '--dry-run',
-    ])
-
-    expect(recorded).toMatchObject({ linter: 'biome', formatter: null, ci: null, 'src-dir': false })
-    expect(again).toEqual(original)
   })
 
   it('reads answers from a file, which flags override', async () => {

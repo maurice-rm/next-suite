@@ -84,7 +84,7 @@ describe('the tooling plugins', () => {
     const files = assembleWith(['pnpm', 'eslint', 'prettier', 'knip', 'lint-staged'])
 
     expect(fileOf(files, 'eslint.config.mjs')).toContain(
-      '    "next-env.d.ts",\n    "drizzle/**",\n    "src/generated/**",\n  ]),\n',
+      '    "next-env.d.ts",\n    ".next-suite/**",\n    "drizzle/**",\n    "src/generated/**",\n  ]),\n',
     )
     expect(fileOf(files, 'knip.config.ts')).toBe(
       [
@@ -94,6 +94,7 @@ describe('the tooling plugins', () => {
         '  entry: [',
         '    "drizzle.config.ts",',
         '    "vitest.setup.ts",',
+        '    "next-suite.config.ts",',
         '  ],',
         '  ignore: [',
         '    "src/generated/**",',

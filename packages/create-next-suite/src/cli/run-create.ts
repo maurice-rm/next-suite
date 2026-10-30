@@ -8,6 +8,7 @@ import { InputError } from '../input-error.ts'
 import { assertUniqueNames } from '../loader/assert-unique-names.ts'
 import { type FetchedPlugin, fetchExternalPlugin } from '../loader/fetch-external-plugin.ts'
 import { type LoadedExternalPlugin, loadExternalPlugin } from '../loader/load-external-plugin.ts'
+import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
 import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
 import {
   detectPackageManager,
@@ -18,13 +19,15 @@ import { CATEGORIES } from '../plugin-definition/categories.ts'
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
+import { type LoadedSuiteConfig, loadSuiteConfig } from '../project-config/load-suite-config.ts'
+import { readProjectInputs } from '../project-config/read-project-inputs.ts'
+import { rehashGeneratedFiles } from '../project-config/rehash-generated-files.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
 import { buildQuestions, type Question } from '../questions/build-questions.ts'
 import { collectAnswers } from '../questions/collect-answers.ts'
 import { assertCompatible, findIncompatibilities } from '../questions/find-incompatibilities.ts'
 import { createFlags } from '../questions/flags.ts'
 import { findProjectDirectoryProblem, projectNameOf } from '../questions/project-directory.ts'
-import { recordAnswers } from '../questions/record-answers.ts'
 import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
 import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
 import type { Streams } from '../ui/prompts.ts'
@@ -32,23 +35,27 @@ import { readUserConfig } from '../user-config/user-config.ts'
 import { findEmptyingProblem } from '../write/empty-target.ts'
 import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
 import { writeProject } from '../write/write-project.ts'
+import { answersFromConfig } from './answers-from-config.ts'
 import type { BuiltInAssets } from './built-in-assets.ts'
 import {
   type GivenAnswers,
   type Invocation,
   parseCommandLine,
   RESERVED_NAMES,
+  readConfigPath,
   readGivenAnswers,
   readPluginAddresses,
   targetActionOf,
 } from './command-line.ts'
 import { CREATE_COMMAND } from './command-name.ts'
+import { type ConfigAddress, configAddresses } from './config-addresses.ts'
+import { configEntryOf } from './config-entry-of.ts'
 import { confirmTrust } from './confirm-trust.ts'
 import { describeError } from './describe-error.ts'
 import { describePlan, diffPlan } from './describe-plan.ts'
 import { EXIT_CANCELLED, EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import { listNextSteps } from './list-next-steps.ts'
-import { planProject } from './plan-project.ts'
+import { type ConfigSource, type ExternalRunPlugin, planProject } from './plan-project.ts'
 import {
   openFrame,
   type Presenter,
@@ -61,9 +68,9 @@ import type { ProjectPlan } from './project-plan.ts'
 import { createStepReporter } from './step-reporter.ts'
 
 /**
- * Everything a run reads from outside: arguments, terminal, working directory, clock, the user
- * agent of the package manager that started it, the network and user configuration external
- * plugins come with, and the commands it runs after writing.
+ * Everything a run reads from outside: arguments, terminal, working directory, the user agent of
+ * the package manager that started it, the network and user configuration external plugins come
+ * with, and the commands it runs after writing.
  */
 export type CreateEnvironment = {
   argv: readonly string[]
@@ -71,16 +78,19 @@ export type CreateEnvironment = {
   loadAssets: () => Promise<BuiltInAssets>
   /** The entry external plugins import `create-next-suite/plugin` from. */
   pluginEntry: string
+  /** The entry a project's config imports `create-next-suite/config` from. */
+  configEntry: string
   /** How external plugins are fetched: the network, the cache directory and access tokens. */
   remote: RemoteEnvironment
   /** Where the user configuration with trusted sources and registries lives. */
   userConfigPath: string
   cliVersion: string
+  /** What a new project's devDependency on create-next-suite names: the running version. */
+  cliSpecifier: string
   cwd: string
   streams: Streams & { error: Writable }
   isInteractive: boolean
   columns: number
-  now: () => Date
   userAgent: string | undefined
   runCommand: CommandRunner
   /** The latest published version for the banner; answers nothing when unknown. */
@@ -91,9 +101,18 @@ export type CreateEnvironment = {
 type Run = {
   environment: CreateEnvironment
   assets: BuiltInAssets
-  /** The external plugins the command line names, fetched and read but not run. */
+  /** The config the project is created from, given with `--config`. */
+  suiteConfig: LoadedSuiteConfig | undefined
+  /** The plugins the config defines in place. */
+  inlinePlugins: readonly LoadedPluginModule[]
+  /** The external plugins the command line or the config names, fetched and read but not run. */
   external: FetchedPlugin[]
-  /** The plugins the questions offer: the built-in ones, and the metadata of the external ones. */
+  /** The entries of the config that name external plugins, with their addresses. */
+  configAddresses: ConfigAddress[]
+  /**
+   * The plugins the questions offer: the built-in ones, those the config defines in place, and the
+   * metadata of the external ones.
+   */
   plugins: Plugin[]
   invocation: Invocation
   given: GivenAnswers
@@ -158,6 +177,7 @@ const assertUsableDirectory = (directory: string, check: DirectoryCheck): void =
 /** The project directory and the answers, in the wizard or from flags and the file. */
 const askQuestions = ({
   environment,
+  suiteConfig,
   plugins,
   invocation,
   given,
@@ -167,26 +187,31 @@ const askQuestions = ({
 }: Run) => {
   const { cwd } = environment
   const check: DirectoryCheck = { cwd, action: targetActionOf(invocation) }
-  if (invocation.directory !== undefined) {
-    assertUsableDirectory(invocation.directory, check)
+  const directory = invocation.directory ?? suiteConfig?.config.project.name
+  if (directory !== undefined) {
+    assertUsableDirectory(directory, check)
   }
   return collectAnswers({
-    directory: invocation.directory,
+    directory,
     action: check.action,
     hasExistingFiles: (directory) => inspectTarget(resolve(cwd, directory)) === 'not-empty',
     questions,
     plugins,
     ...given,
-    mode: presenter.isFramed
-      ? {
-          kind: 'wizard',
-          streams: environment.streams,
-          findDirectoryProblem: (directory: string) => findDirectoryProblem(directory, check),
-          canEmpty: (directory: string) =>
-            findEmptyingProblem(resolve(cwd, directory), cwd) === undefined,
-          detectedPackageManager,
-        }
-      : { kind: 'input', useDefaults: invocation.flags.yes === true },
+    mode:
+      presenter.isFramed && suiteConfig === undefined
+        ? {
+            kind: 'wizard',
+            streams: environment.streams,
+            findDirectoryProblem: (directory: string) => findDirectoryProblem(directory, check),
+            canEmpty: (directory: string) =>
+              findEmptyingProblem(resolve(cwd, directory), cwd) === undefined,
+            detectedPackageManager,
+          }
+        : {
+            kind: 'input',
+            useDefaults: invocation.flags.yes === true || suiteConfig !== undefined,
+          },
   })
 }
 
@@ -195,7 +220,7 @@ const askQuestions = ({
  * against the answers.
  */
 const loadSelectedExternal = async (
-  { environment, external, invocation, presenter, assets }: Run,
+  { environment, external, invocation, presenter, assets, inlinePlugins }: Run,
   answers: Answers,
 ): Promise<LoadedExternalPlugin[]> => {
   const selected = external.filter((plugin) => isSelected(answers, plugin.summary.metadata.name))
@@ -217,28 +242,54 @@ const loadSelectedExternal = async (
   }
   assertCompatible(
     findIncompatibilities(
-      [...assets.plugins, ...loaded.map(({ module }) => module)].map(({ plugin }) => plugin),
+      [...assets.plugins, ...inlinePlugins, ...loaded.map(({ module }) => module)].map(
+        ({ plugin }) => plugin,
+      ),
       answers,
     ),
   )
   return loaded
 }
 
+/** The config the project is created from, with its inputs read from beside it. */
+const configSourceOf = async (
+  suiteConfig: LoadedSuiteConfig | undefined,
+): Promise<ConfigSource | undefined> =>
+  suiteConfig === undefined
+    ? undefined
+    : {
+        text: suiteConfig.text,
+        inputs: await readProjectInputs(suiteConfig.directory),
+        disable: suiteConfig.config.disable ?? [],
+      }
+
 /** Assembles the project in memory. */
-const planRun = (
-  { environment, assets, questions }: Run,
-  { projectName, answers }: Project,
+const planRun = async (
+  run: Run,
+  { directory, projectName, answers }: Project,
   externalPlugins: readonly LoadedExternalPlugin[],
-): ProjectPlan =>
-  planProject({
+): Promise<ProjectPlan> => {
+  const { environment, assets, inlinePlugins, suiteConfig } = run
+  const projectDirectory = resolve(environment.cwd, directory)
+  const external = externalPlugins.map(
+    (plugin): ExternalRunPlugin => ({
+      ...plugin,
+      entry:
+        run.configAddresses.find(({ address }) => address === plugin.address)?.entry ??
+        configEntryOf(plugin, { cwd: environment.cwd, projectDirectory }),
+    }),
+  )
+  return planProject({
     assets,
-    externalPlugins,
+    externalPlugins: external,
+    inlinePlugins,
     projectName,
     answers,
-    recordedAnswers: recordAnswers(questions, answers),
     cliVersion: environment.cliVersion,
-    createdAt: environment.now(),
+    cliSpecifier: environment.cliSpecifier,
+    configSource: await configSourceOf(suiteConfig),
   })
+}
 
 /** Writes the project, runs the steps after writing, and shows what to do next. */
 const writeAndFinish = async (
@@ -258,6 +309,7 @@ const writeAndFinish = async (
     shouldInitializeGit: answers.settings[GIT_SETTING] === true,
     runCommand: environment.runCommand,
     reporter: createStepReporter({ presenter, canAnimate: environment.isInteractive }),
+    afterScripts: () => rehashGeneratedFiles(target),
   })
   presentCreated(presenter, {
     projectName,
@@ -290,11 +342,11 @@ const create = async (run: Run): Promise<void> => {
   assertUsableDirectory(directory, { cwd, action })
   const project: Project = {
     directory,
-    projectName: projectNameOf(directory, cwd),
+    projectName: run.suiteConfig?.config.project.name ?? projectNameOf(directory, cwd),
     action,
     answers,
   }
-  const plan = planRun(run, project, await loadSelectedExternal(run, answers))
+  const plan = await planRun(run, project, await loadSelectedExternal(run, answers))
   if (invocation.flags.dryRun) {
     const report = describePlan(plan)
     presentDryRun(presenter, invocation.flags.diff ? `${report}\n\n${diffPlan(plan)}` : report)
@@ -304,33 +356,69 @@ const create = async (run: Run): Promise<void> => {
 }
 
 /**
- * Fetches the external plugins the command line names and reads their metadata, without running
- * any of their code; every plugin name stays unique.
+ * Fetches the external plugins at the addresses the command line or the config names and reads
+ * their metadata, without running any of their code; every plugin name stays unique, among them,
+ * the built-in plugins and those the config defines in place.
  */
 const fetchExternalPlugins = async (
   environment: CreateEnvironment,
-  assets: BuiltInAssets,
+  { addresses, known }: { addresses: readonly string[]; known: readonly LoadedPluginModule[] },
 ): Promise<FetchedPlugin[]> => {
-  const addresses = readPluginAddresses(environment.argv)
-  if (addresses.length === 0) {
-    return []
-  }
-  const { registries } = await readUserConfig(environment.userConfigPath)
   const external: FetchedPlugin[] = []
-  for (const address of addresses) {
-    external.push(
-      await fetchExternalPlugin(address, {
-        cwd: environment.cwd,
-        remote: environment.remote,
-        registries,
-      }),
-    )
+  if (addresses.length > 0) {
+    const { registries } = await readUserConfig(environment.userConfigPath)
+    for (const address of addresses) {
+      external.push(
+        await fetchExternalPlugin(address, {
+          cwd: environment.cwd,
+          remote: environment.remote,
+          registries,
+        }),
+      )
+    }
   }
   assertUniqueNames([
-    ...assets.plugins.map(({ plugin, directory }) => ({ name: plugin.name, location: directory })),
+    ...known.map(({ plugin, directory }) => ({ name: plugin.name, location: directory })),
     ...external.map(({ summary, address }) => ({ name: summary.metadata.name, location: address })),
   ])
   return external
+}
+
+/** The answers given before any question: from the config with `--config`, else from the input. */
+const readRunAnswers = async (
+  invocation: Invocation,
+  context: {
+    environment: CreateEnvironment
+    questionFlags: ReturnType<typeof createFlags>
+    config:
+      | {
+          loaded: LoadedSuiteConfig
+          plugins: Plugin[]
+          external: FetchedPlugin[]
+          addresses: ConfigAddress[]
+        }
+      | undefined
+  },
+): Promise<GivenAnswers> => {
+  const given = await readGivenAnswers(invocation, {
+    cwd: context.environment.cwd,
+    questionFlags: context.questionFlags,
+  })
+  const { config } = context
+  if (config === undefined) {
+    return given
+  }
+  const fetched = config.addresses.flatMap(({ entry, address }) => {
+    const plugin = config.external.find((candidate) => candidate.address === address)
+    return plugin === undefined ? [] : [{ entry, address, name: plugin.summary.metadata.name }]
+  })
+  const fromConfig = answersFromConfig({
+    loaded: config.loaded,
+    plugins: config.plugins,
+    fetched,
+    flagKeys: given.flagKeys,
+  })
+  return { input: { ...fromConfig, ...given.input }, flagKeys: given.flagKeys }
 }
 
 /**
@@ -344,9 +432,23 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
   let presenter = plain
   try {
     const assets = await environment.loadAssets()
-    const external = await fetchExternalPlugins(environment, assets)
+    const configPath = readConfigPath(environment.argv)
+    const suiteConfig =
+      configPath === undefined
+        ? undefined
+        : await loadSuiteConfig(resolve(environment.cwd, configPath), environment)
+    const inlinePlugins = suiteConfig?.inlinePlugins ?? []
+    const addresses = suiteConfig === undefined ? [] : configAddresses(suiteConfig)
+    const external = await fetchExternalPlugins(environment, {
+      addresses: [
+        ...readPluginAddresses(environment.argv),
+        ...addresses.map(({ address }) => address),
+      ],
+      known: [...assets.plugins, ...inlinePlugins],
+    })
     const plugins = [
       ...assets.plugins.map(({ plugin }) => plugin),
+      ...inlinePlugins.map(({ plugin }) => plugin),
       ...external.map(({ summary }) => summary.metadata),
     ]
     const { questions, detectedPackageManager } = prepareQuestions(plugins, environment.userAgent)
@@ -355,12 +457,22 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
       { argv: environment.argv, cliVersion: environment.cliVersion, ...streams },
       questionFlags,
     )
-    const given = await readGivenAnswers(invocation, { cwd: environment.cwd, questionFlags })
+    const given = await readRunAnswers(invocation, {
+      environment,
+      questionFlags,
+      config:
+        suiteConfig === undefined
+          ? undefined
+          : { loaded: suiteConfig, plugins, external, addresses },
+    })
     presenter = { ...plain, isFramed: environment.isInteractive && invocation.flags.yes !== true }
     await create({
       environment,
       assets,
+      suiteConfig,
+      inlinePlugins,
       external,
+      configAddresses: addresses,
       plugins,
       invocation,
       given,
