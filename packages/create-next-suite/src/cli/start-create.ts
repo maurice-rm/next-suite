@@ -10,7 +10,7 @@ const DEFAULT_COLUMNS = 80
  * Runs create-next-suite in this process, with its terminal and environment, and the built-in
  * plugins from the package root.
  */
-export const startCreate = async ({
+export const startCreate = ({
   cliVersion,
   packageRoot,
 }: {
@@ -19,7 +19,7 @@ export const startCreate = async ({
 }): Promise<number> =>
   runCreate({
     argv: process.argv.slice(2),
-    assets: await loadAssets(packageRoot),
+    loadAssets: () => loadAssets(packageRoot),
     cliVersion,
     cwd: process.cwd(),
     streams: { input: process.stdin, output: process.stdout, error: process.stderr },

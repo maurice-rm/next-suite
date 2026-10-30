@@ -80,7 +80,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
       ...(options.install === true ? [] : ['--no-install']),
       ...options.plugins.flatMap((address) => ['--plugin', address, '--trust', sourceOf(address)]),
     ],
-    assets: await loadAssets(join(import.meta.dirname, '..')),
+    loadAssets: () => loadAssets(join(import.meta.dirname, '..')),
     cliVersion: packageJson.version,
     cwd: parent,
     streams: { input: Readable.from([]), output: output.stream, error: output.stream },

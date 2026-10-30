@@ -2,7 +2,7 @@ import { Command, CommanderError } from 'commander'
 
 import { failure } from '../ui/theme.ts'
 import { NEXT_SUITE_COMMAND } from './command-name.ts'
-import { describeExpectedError } from './describe-expected-error.ts'
+import { describeError } from './describe-error.ts'
 import { EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
 import { addPluginCommand } from './plugin-command.ts'
@@ -25,7 +25,7 @@ const createProgram = (environment: NextSuiteEnvironment, report: Report): Comma
   return program
 }
 
-/** Runs `next-suite` and answers its exit code; expected failures print one message. */
+/** Runs `next-suite` and answers its exit code; a failure prints one message. */
 export const runNextSuite = async (environment: NextSuiteEnvironment): Promise<number> => {
   const program = createProgram(environment, (text) => environment.output.write(`${text}\n`))
   try {
@@ -35,7 +35,7 @@ export const runNextSuite = async (environment: NextSuiteEnvironment): Promise<n
     if (error instanceof CommanderError) {
       return error.exitCode
     }
-    environment.error.write(`${failure(describeExpectedError(error, NEXT_SUITE_COMMAND))}\n`)
+    environment.error.write(`${failure(describeError(error, NEXT_SUITE_COMMAND))}\n`)
     return EXIT_FAILURE
   }
 }

@@ -7,7 +7,7 @@ import ansis from 'ansis'
 import * as tar from 'tar'
 import { afterEach, beforeEach } from 'vitest'
 
-import { runCreate } from '../cli/run-create.ts'
+import { type CreateEnvironment, runCreate } from '../cli/run-create.ts'
 import { loadAssets } from '../loader/load-assets.ts'
 import { collectOutput } from './collect-output.ts'
 import { COMMIT_SHA, type Routes, stubRemote } from './stub-remote.ts'
@@ -85,6 +85,8 @@ type RunOptions = {
   keys?: string[]
   userAgent?: string
   routes?: Routes
+  /** Replaces the fake runner, which succeeds for every command but the git repository check. */
+  runCommand?: CreateEnvironment['runCommand']
 }
 
 /** What a run printed, answered and ran, with colours stripped. */
@@ -107,7 +109,7 @@ const createKeyFeeder = (input: PassThrough, keys: readonly string[]) => {
 const runIn = async (
   root: string,
   argv: string[],
-  { isInteractive = false, keys = [], userAgent, routes = {} }: RunOptions,
+  { isInteractive = false, keys = [], userAgent, routes = {}, runCommand }: RunOptions,
 ): Promise<CreateRun> => {
   const commands: string[] = []
   const input = new PassThrough()
@@ -115,7 +117,7 @@ const runIn = async (
   const error = collectOutput()
   const exitCode = await runCreate({
     argv,
-    assets: await loadAssets(join(root, 'assets')),
+    loadAssets: () => loadAssets(join(root, 'assets')),
     cliVersion: CLI_VERSION,
     cwd: root,
     streams: { input, output: output.stream, error: error.stream },
@@ -123,11 +125,13 @@ const runIn = async (
     columns: COLUMNS,
     now: () => NOW,
     userAgent,
-    runCommand: async (command, args) => {
-      const line = [command, ...args].join(' ')
-      commands.push(line)
-      return { isSuccess: line !== OUTSIDE_REPOSITORY, output: '' }
-    },
+    runCommand:
+      runCommand ??
+      (async (command, args) => {
+        const line = [command, ...args].join(' ')
+        commands.push(line)
+        return { isSuccess: line !== OUTSIDE_REPOSITORY, output: '' }
+      }),
     remote: stubRemote(root, routes),
     userConfigPath: join(root, 'config.json'),
     fetchLatestVersion: async () => undefined,

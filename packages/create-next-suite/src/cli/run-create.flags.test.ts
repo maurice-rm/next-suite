@@ -271,4 +271,25 @@ describe('runCreate with flags and answer files', () => {
     expect(result.output).toBe('')
     expect(result.error).toMatch(/^create-next-suite: cannot read the answer file/)
   })
+
+  it('reports invalid package assets like any expected failure', async () => {
+    await write({ 'assets/catalog.json': '{' })
+
+    const result = await run(['my-app', '--yes', '--dry-run'])
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toMatch(/^create-next-suite: .*catalog\.json is not valid JSON/)
+  })
+
+  it('asks to report an unexpected error instead of crashing', async () => {
+    const result = await run(['my-app', '--yes'], {
+      runCommand: async () => {
+        throw new Error('the runner broke')
+      },
+    })
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain('create-next-suite: unexpected error, please report it at')
+    expect(result.error).toContain('Error: the runner broke')
+  })
 })
