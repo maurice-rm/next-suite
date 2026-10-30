@@ -207,7 +207,13 @@ const loadSelectedExternal = async (
   })
   const loaded: LoadedExternalPlugin[] = []
   for (const plugin of selected) {
-    loaded.push(await loadExternalPlugin(plugin, environment.pluginEntry))
+    loaded.push(
+      await loadExternalPlugin(plugin, {
+        pluginEntry: environment.pluginEntry,
+        cacheDir: environment.remote.cacheDir,
+        runCommand: environment.runCommand,
+      }),
+    )
   }
   assertCompatible(
     findIncompatibilities(

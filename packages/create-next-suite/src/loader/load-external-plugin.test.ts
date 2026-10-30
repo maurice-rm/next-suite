@@ -24,6 +24,15 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
+/** The plugins here have no dependencies, so no command runs. */
+const runCommand = async () => ({ isSuccess: false, output: 'no command runs here' })
+
+const LOAD_CONTEXT = () => ({
+  pluginEntry: PLUGIN_ENTRY,
+  cacheDir: join(root, 'cache'),
+  runCommand,
+})
+
 const fetch = (address: string, cwd = root) =>
   fetchExternalPlugin(address, { cwd, remote: stubRemote(root), registries: {} })
 
@@ -51,7 +60,7 @@ describe('loadExternalPlugin', () => {
     })
     const fetched = await fetch('./mail')
 
-    const loaded = await loadExternalPlugin(fetched, PLUGIN_ENTRY)
+    const loaded = await loadExternalPlugin(fetched, LOAD_CONTEXT())
 
     expect(loaded.module.plugin.readme).toEqual({ Mail: 'Hello' })
     expect(loaded.module.readFile('files/mail.txt')).toBe('mail\n')
@@ -72,7 +81,7 @@ describe('loadExternalPlugin', () => {
       summary: { ...fetched.summary, metadata: { name: 'mail', title: 'Post' } },
     }
 
-    await expect(loadExternalPlugin(shown, PLUGIN_ENTRY)).rejects.toThrow(
+    await expect(loadExternalPlugin(shown, LOAD_CONTEXT())).rejects.toThrow(
       'the metadata its plugin.ts exports differs from the fixed values written in it',
     )
   })
@@ -87,7 +96,7 @@ describe('loadExternalPlugin', () => {
       ].join('\n'),
     })
 
-    const loading = loadExternalPlugin(await fetch('./mail'), PLUGIN_ENTRY)
+    const loading = loadExternalPlugin(await fetch('./mail'), LOAD_CONTEXT())
 
     await expect(loading).rejects.toThrow(
       'cannot load the plugin ./mail: its plugin.ts does not run',
@@ -100,7 +109,7 @@ describe('loadExternalPlugin', () => {
 
     for (const directory of directories) {
       const fetched = await fetch(directory)
-      const loaded = await loadExternalPlugin(fetched, PLUGIN_ENTRY)
+      const loaded = await loadExternalPlugin(fetched, LOAD_CONTEXT())
       const source = await readFile(join(directory, 'plugin.ts'), 'utf8')
 
       expect(loaded.module.plugin.name, directory).toBe(fetched.summary.metadata.name)

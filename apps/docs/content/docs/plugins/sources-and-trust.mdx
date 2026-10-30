@@ -62,6 +62,26 @@ the run stops; `--trust` runs the changed plugin for that run without recording 
 GitHub serves commits of forks through the original repository too. A commit pinned under a trusted
 owner can therefore come from someone else's fork; pin tags or branches of repositories you trust.
 
+## npm packages of a plugin
+
+A plugin may import npm packages while it runs, such as a library that builds a config. It names
+them under `dependencies` in a `package.json` beside its `plugin.ts`. Once the plugin is trusted,
+create-next-suite installs them with npm into a copy of the plugin in its cache, one per content
+hash, and the plugin imports them from there:
+
+- with `npm ci` when the plugin ships a `package-lock.json`, so the versions are fixed and npm
+  checks each package against the integrity the lockfile records; with `npm install` from the
+  ranges otherwise;
+- only `dependencies` and `optionalDependencies`: list `create-next-suite`, TypeScript and test
+  tools under `devDependencies` or `peerDependencies`, which are never installed;
+- with `--ignore-scripts`, so no install script of any package runs, and without the plugin's own
+  `.npmrc`;
+- with `--prefer-offline`, so packages your npm cache holds are not downloaded again.
+
+npm runs with your npm configuration, such as your registry and its token. A failed install stops
+the run with npm's output. Imports of `create-next-suite/plugin` always go to the running
+create-next-suite.
+
 ## Registries
 
 A registry is a directory, repository or tarball with a `registry.json`:
