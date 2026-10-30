@@ -9,9 +9,9 @@ import { ExpectedError } from '../expected-error.ts'
 import { isMissingFileError } from '../file-system/error-code.ts'
 import { listDirectories } from '../file-system/list-directories.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
+import { assertInGroup } from './assert-in-group.ts'
 import { assertUniqueNames } from './assert-unique-names.ts'
 import { type LoadedPlugin, loadPlugin, namedPlugin } from './load-plugin.ts'
-import { PluginLoadError } from './plugin-load-error.ts'
 
 /**
  * What ships with create-next-suite: the base project, the built-in plugins, their categories
@@ -28,10 +28,6 @@ const BASE_DIRECTORY = 'base'
 const PLUGINS_DIRECTORY = 'plugins'
 const CATEGORIES_FILE = 'categories.json'
 const CATALOG_FILE = 'catalog.json'
-/**
- * The directory of the plugins without a category; every other directory is named after a category.
- */
-const EXTRAS_DIRECTORY = 'extras'
 
 const exists = async (path: string): Promise<boolean> =>
   stat(path).then(
@@ -63,21 +59,6 @@ const readJson = async <Schema extends z.ZodType>(
 const loadPluginsIn = async (directory: string): Promise<LoadedPlugin[]> => {
   const names = await listDirectories(directory)
   return Promise.all(names.map((name) => loadPlugin(join(directory, name))))
-}
-
-/**
- * Fails for a plugin outside the directory of its category, or of the extras without one.
- *
- * @throws PluginLoadError naming the directory the plugin belongs in.
- */
-export const assertInGroup = (
-  plugin: { category: string | undefined; location: string },
-  { directory, group }: { directory: string; group: string },
-): void => {
-  const expected = plugin.category ?? EXTRAS_DIRECTORY
-  if (expected !== group) {
-    throw new PluginLoadError(plugin.location, `it belongs in ${join(directory, expected)}`)
-  }
 }
 
 /**

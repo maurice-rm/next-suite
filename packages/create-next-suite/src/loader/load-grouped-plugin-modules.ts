@@ -1,8 +1,8 @@
 import { join } from 'node:path'
 
 import { listDirectories } from '../file-system/list-directories.ts'
+import { assertInGroup } from './assert-in-group.ts'
 import { assertUniqueNames } from './assert-unique-names.ts'
-import { assertInGroup } from './load-assets.ts'
 import { type LoadedPluginModule, loadPluginModule } from './load-plugin-module.ts'
 
 /**
