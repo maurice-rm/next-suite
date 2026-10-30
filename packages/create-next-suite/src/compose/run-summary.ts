@@ -1,15 +1,18 @@
 import type { Answers } from '../answers/answers.ts'
 import { holdsFor } from '../answers/evaluate-condition.ts'
+import type { NextStep } from '../contract/contributions.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { ResolvedPostStep } from '../contract/post-step.ts'
 import { assertScript } from './assert-script.ts'
 import { unique, uniqueBy } from './merge-entries.ts'
 
-/** A command the end of a run suggests: plain, or a script run with the package manager. */
-export type NextStep = { command: string } | { script: string }
+type WithoutCondition<Step> = Step extends unknown ? Omit<Step, 'when'> : never
+
+/** A next step whose condition held, as the end of the run suggests it. */
+export type ResolvedNextStep = WithoutCondition<NextStep>
 
 /** What the end of the run shows: the stack line and the suggested next commands. */
-export type RunSummary = { stack: string[]; nextSteps: NextStep[] }
+export type RunSummary = { stack: string[]; nextSteps: ResolvedNextStep[] }
 
 type Scripts = Readonly<Record<string, string>>
 
@@ -43,10 +46,10 @@ const nextStepsOf = (
   manifest: ParsedPluginManifest,
   answers: Answers,
   scripts: Scripts,
-): NextStep[] =>
+): ResolvedNextStep[] =>
   (manifest.contributes?.nextSteps ?? [])
     .filter((step) => holdsFor(step.when, answers))
-    .map((step): NextStep => {
+    .map((step): ResolvedNextStep => {
       if ('command' in step) {
         return { command: step.command }
       }

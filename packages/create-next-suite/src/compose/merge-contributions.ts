@@ -1,4 +1,4 @@
-import type { ModuleExport, NamedModuleExport } from '../contract/contributions.ts'
+import type { ModuleExport, NamedModuleExport, SectionText } from '../contract/contributions.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import { compareNames } from './compare-names.ts'
@@ -20,7 +20,6 @@ type Manifests = readonly ParsedPluginManifest[]
 type Contributions = NonNullable<ParsedPluginManifest['contributes']>
 type FieldValue = NonNullable<NonNullable<Contributions['package']>['fields']>[string]
 type Service = NonNullable<NonNullable<Contributions['container']>['services']>[number]
-type SectionText = { section: string; text: string }
 type RootProvider = { import: string; component: string }
 
 export type CompositionValues = {

@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 
-import type { NextStep } from '../compose/run-summary.ts'
+import type { ResolvedNextStep } from '../compose/run-summary.ts'
 import type { SuggestedCommand } from '../ui/outro.ts'
 
 const WHITESPACE = /\s/
@@ -10,7 +10,7 @@ type NextStepsInput = {
   cwd: string
   packageManager: string
   isInstalled: boolean
-  nextSteps: readonly NextStep[]
+  nextSteps: readonly ResolvedNextStep[]
 }
 
 const quoted = (path: string): string => (WHITESPACE.test(path) ? `"${path}"` : path)
