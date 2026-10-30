@@ -22,6 +22,9 @@ describe('assertSafeTarget', () => {
     ['an encoded parent segment', '%2e%2e/outside.ts', 'segment ".."'],
     ['a double-encoded parent segment', '%252e%252e/outside.ts', 'segment ".."'],
     ['an encoded backslash', '..%5coutside.ts', 'backslash'],
+    ['a path into .git', '.git/hooks/pre-commit', 'segment ".git"'],
+    ['a nested .git', 'vendor/.git/config', 'segment ".git"'],
+    ['.git in another case', '.GIT/config', 'segment ".GIT"'],
   ])('rejects %s', (_case, target, problem) => {
     expect(() => assertSafeTarget(target, 'acme')).toThrow(problem)
   })

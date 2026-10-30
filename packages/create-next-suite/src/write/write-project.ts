@@ -32,9 +32,12 @@ const createDirectory = async (path: string, created: CreatedPaths): Promise<voi
   }
 }
 
-/** Whether a generated file may replace a file at its path: always with overwrite, otherwise only harmless ones. */
+/**
+ * Whether a generated file may replace a file at its path: always with overwrite, otherwise only a
+ * harmless entry at the top of the target, never a file inside a harmless directory.
+ */
 const mayReplace = (relativePath: string, action: TargetAction): boolean =>
-  action === 'overwrite' || isHarmlessEntry(relativePath.split('/')[0] ?? '')
+  action === 'overwrite' || (!relativePath.includes('/') && isHarmlessEntry(relativePath))
 
 const existingEntry = (path: string) =>
   lstat(path).catch((error: unknown) => {

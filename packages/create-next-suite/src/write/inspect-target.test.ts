@@ -47,7 +47,7 @@ describe('findTargetProblem', () => {
     expect(findTargetProblem('new', join(root, 'new'))).toBeUndefined()
     expect(findTargetProblem('.', join(root, 'full'))).toBeUndefined()
     expect(findTargetProblem('notes.txt', join(root, 'full/notes.txt'))).toBe(
-      'A file already exists at that path — choose another name.',
+      'a file already exists at that path; choose another name',
     )
   })
 

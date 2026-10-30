@@ -225,6 +225,18 @@ describe('composeProject', () => {
     )
   })
 
+  it('leaves the package manager version out without a package manager plugin', async () => {
+    const ci = await writePlugin(
+      'ci',
+      { files: [{ source: 'ci.yml.hbs', target: 'ci.yml' }] },
+      { 'ci.yml.hbs': 'version: {{project.packageManagerVersion}}' },
+    )
+
+    await expect(compose(await writeBase(), [ci], answersWith([]))).rejects.toThrow(
+      'ci: ci.yml.hbs does not render',
+    )
+  })
+
   it('rejects a CI check whose script no plugin defines', async () => {
     const ci = await writePlugin('checks', { contributes: { ciChecks: ['lint'] } })
 

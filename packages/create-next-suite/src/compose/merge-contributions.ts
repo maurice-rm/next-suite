@@ -134,24 +134,12 @@ const mergeRootProviders = (manifests: Manifests): CompositionValues['rootProvid
   }
 }
 
-const mergePaths = (manifests: Manifests): CompositionValues['tsconfig']['paths'] => {
-  const paths = new Map<string, { targets: string[]; origin: string }>()
-  for (const manifest of manifests) {
-    for (const [alias, targets] of Object.entries(manifest.contributes?.tsconfig?.paths ?? {})) {
-      const existing = paths.get(alias)
-      if (existing !== undefined && JSON.stringify(existing.targets) !== JSON.stringify(targets)) {
-        throw new ComposeError(
-          `${existing.origin} and ${manifest.name} point the tsconfig path "${alias}" to different targets`,
-        )
-      }
-      paths.set(alias, { targets, origin: manifest.name })
-    }
-  }
-  return [...paths.entries()].map(([alias, { targets }]) => ({
-    alias,
-    targets: JSON.stringify(targets),
-  }))
-}
+const mergePaths = (manifests: Manifests): CompositionValues['tsconfig']['paths'] =>
+  [
+    ...define(manifests, 'the tsconfig path', ({ contributes }) =>
+      Object.entries(contributes?.tsconfig?.paths ?? {}),
+    ),
+  ].map(([alias, targets]) => ({ alias, targets: JSON.stringify(targets) }))
 
 const mergeCsp = (manifests: Manifests): CompositionValues['csp'] => {
   const directives = collect(manifests, ({ contributes }) => Object.entries(contributes?.csp ?? {}))

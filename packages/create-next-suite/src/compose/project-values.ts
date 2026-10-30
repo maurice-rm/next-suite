@@ -22,8 +22,8 @@ export type ProjectValues = {
   /** What an import through the alias starts with, such as `@/`. */
   importPrefix: string
   packageManager: string
-  /** The exact version of the package manager, such as `12.16.1`. */
-  packageManagerVersion: string
+  /** The exact version of the package manager, such as `12.16.1`; only with a package manager plugin. */
+  packageManagerVersion?: string
   /** How a script runs with the package manager, such as `pnpm run`. */
   run: string
   /** The install command for CI that keeps the lockfile, such as `npm ci`. */
@@ -68,10 +68,15 @@ export const projectValues = ({
     importAliasTarget: `${sourceRoot}*`,
     importPrefix: importAlias.slice(0, -1),
     packageManager: command,
-    packageManagerVersion:
-      packageManager === undefined
-        ? ''
-        : resolveVersion(packageManager.packageManager.version, catalog, packageManager.name),
+    ...(packageManager === undefined
+      ? {}
+      : {
+          packageManagerVersion: resolveVersion(
+            packageManager.packageManager.version,
+            catalog,
+            packageManager.name,
+          ),
+        }),
     run: `${command} run`,
     ciInstall: [
       command,

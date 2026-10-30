@@ -52,6 +52,16 @@ describe('writeProject', () => {
     expect(await readdir(join(root, 'empty'))).toEqual(['a.txt'])
   })
 
+  it('replaces nothing below a harmless directory, such as .vscode/settings.json', async () => {
+    await mkdir(join(root, 'fresh/.vscode'), { recursive: true })
+    await writeFile(join(root, 'fresh/.vscode/settings.json'), 'mine')
+
+    await expect(write(planOf({ '.vscode/settings.json': 'generated' }), 'fresh')).rejects.toThrow(
+      'writing',
+    )
+    expect(await readFile(join(root, 'fresh/.vscode/settings.json'), 'utf8')).toBe('mine')
+  })
+
   it('refuses a directory that is not empty and leaves it untouched', async () => {
     await mkdir(join(root, 'used'))
     await writeFile(join(root, 'used/keep.txt'), 'mine')
@@ -101,7 +111,7 @@ describe('writeProject', () => {
 
     await expect(
       writeProject(planOf({ 'a.txt': 'a' }), { directory: root, action: 'empty', cwd: root }),
-    ).rejects.toThrow('Refusing to empty')
+    ).rejects.toThrow('refusing to empty')
     expect(await readdir(root)).toEqual(['old.txt'])
   })
 

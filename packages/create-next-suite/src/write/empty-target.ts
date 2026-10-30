@@ -3,17 +3,22 @@ import { readdir, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, parse, resolve } from 'node:path'
 
+import { errorCodeOf } from '../file-system/error-code.ts'
 import { isInsideOrSame } from '../file-system/is-inside.ts'
 import { WriteError } from './write-error.ts'
 
 const KEPT_ENTRY = '.git'
+const NOTHING_THERE = 'ENOENT'
 
 /** The real path with links resolved, or the plain absolute path when nothing is there yet. */
 const realPathOf = (path: string): string => {
   try {
     return realpathSync(path)
-  } catch {
-    return resolve(path)
+  } catch (error) {
+    if (errorCodeOf(error) === NOTHING_THERE) {
+      return resolve(path)
+    }
+    throw error
   }
 }
 
@@ -25,7 +30,7 @@ export const findEmptyingProblem = (directory: string, cwd: string): string | un
     path === realPathOf(homedir()) ||
     isInsideOrSame(path, realPathOf(cwd))
   return isRefused
-    ? `Refusing to empty ${path}: it is a filesystem root, your home directory, or the current directory or one of its parents.`
+    ? `refusing to empty ${path}: it is a filesystem root, your home directory, or the current directory or one of its parents`
     : undefined
 }
 

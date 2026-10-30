@@ -55,7 +55,7 @@ describe('collectFacts', () => {
     const fact = { facts: { shared: { plugin: 'drizzle' } } }
 
     expect(() => collectFacts([plugin('one', fact), plugin('two', fact)], ANSWERS)).toThrow(
-      'two plugins define the fact "shared"',
+      'one and two both define the fact "shared"',
     )
   })
 })

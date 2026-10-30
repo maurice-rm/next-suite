@@ -314,7 +314,7 @@ describe('mergeContributions', () => {
         ],
         CATALOG,
       ),
-    ).toThrow('a and b point the tsconfig path "~/x" to different targets')
+    ).toThrow('a and b define the tsconfig path "~/x" differently')
   })
 
   it('rejects one compose service defined differently', () => {

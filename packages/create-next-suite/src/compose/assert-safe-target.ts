@@ -4,7 +4,8 @@ const FIRST_PRINTABLE = 0x20
 const DELETE = 0x7f
 const WINDOWS_DRIVE = /^[a-zA-Z]:/
 const MAX_DECODING_ROUNDS = 3
-const FORBIDDEN_SEGMENTS: ReadonlySet<string> = new Set(['', '.', '..'])
+/** Segments compared in lower case, as case-insensitive file systems do. */
+const FORBIDDEN_SEGMENTS: ReadonlySet<string> = new Set(['', '.', '..', '.git'])
 
 const isControlCharacter = (character: string): boolean => {
   const code = character.codePointAt(0) ?? 0
@@ -44,7 +45,7 @@ const describeProblem = (form: string): string | undefined => {
   if (form.startsWith('/') || WINDOWS_DRIVE.test(form)) {
     return 'is absolute'
   }
-  const segment = form.split('/').find((part) => FORBIDDEN_SEGMENTS.has(part))
+  const segment = form.split('/').find((part) => FORBIDDEN_SEGMENTS.has(part.toLowerCase()))
   if (segment !== undefined) {
     return segment === '' ? 'contains an empty segment' : `contains the segment "${segment}"`
   }
@@ -52,8 +53,8 @@ const describeProblem = (form: string): string | undefined => {
 }
 
 /**
- * Rejects a target path that could leave the project: absolute paths, `..` and `.` segments,
- * backslashes, control characters, also after repeated URL decoding. Rejected means the run stops;
+ * Rejects a target path that could leave the project or reach into its git repository: absolute
+ * paths, `..`, `.` and `.git` segments, backslashes, control characters, also after repeated URL decoding. Rejected means the run stops;
  * the path is never cleaned up into something else.
  */
 export const assertSafeTarget = (target: string, origin: string): void => {

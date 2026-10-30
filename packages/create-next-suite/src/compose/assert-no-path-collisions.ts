@@ -8,7 +8,7 @@ const parentPaths = (path: string): string[] => {
 
 /**
  * Rejects paths that would collide on disk: two paths that differ only in case, which are one file
- * on macOS and Windows, and a file at a path another file needs as a folder.
+ * on macOS and Windows, and a file at a path another file needs as a directory.
  */
 export const assertNoPathCollisions = (files: VirtualFiles): void => {
   const byFoldedPath = new Map<string, VirtualFile>()
@@ -27,7 +27,7 @@ export const assertNoPathCollisions = (files: VirtualFiles): void => {
       const blocking = byFoldedPath.get(parent.toLowerCase())
       if (blocking !== undefined) {
         throw new ComposeError(
-          `${blocking.origin} writes the file ${blocking.path}, which ${file.origin} needs as a folder for ${file.path}`,
+          `${blocking.origin} writes the file ${blocking.path}, which ${file.origin} needs as a directory for ${file.path}`,
         )
       }
     }

@@ -60,7 +60,7 @@ export const inspectTarget = (path: string): TargetState => {
 export const findTargetProblem = (directory: string, path: string): string | undefined => {
   try {
     return inspectTarget(path) === 'not-a-folder'
-      ? 'A file already exists at that path — choose another name.'
+      ? 'a file already exists at that path; choose another name'
       : undefined
   } catch (error) {
     const code = errorCodeOf(error)

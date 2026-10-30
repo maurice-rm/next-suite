@@ -2,7 +2,6 @@ import type { Answers } from '../answers/answers.ts'
 import { evaluateCondition } from '../answers/evaluate-condition.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
 import { ComposeError } from './compose-error.ts'
-import { TemplateError } from './template/template-error.ts'
 
 /** Every named fact templates and logic modules may ask through `has`, with whether it holds. */
 export type Facts = ReadonlyMap<string, boolean>
@@ -22,16 +21,21 @@ export const collectFacts = (plugins: readonly LoadedPlugin[], answers: Answers)
       )
     }
   }
-  for (const { manifest } of plugins) {
-    for (const [name, condition] of Object.entries(manifest.facts ?? {})) {
-      const key = `fact:${name}`
-      if (facts.has(key)) {
-        throw new TemplateError(
-          `two plugins define the fact "${name}"; ${manifest.name} is one of them`,
-        )
-      }
-      facts.set(key, evaluateCondition(condition, answers))
+  const definers = new Map<string, string>()
+  const definitions = plugins.flatMap(({ manifest }) =>
+    Object.entries(manifest.facts ?? {}).map(([name, condition]) => ({
+      name,
+      condition,
+      origin: manifest.name,
+    })),
+  )
+  for (const { name, condition, origin } of definitions) {
+    const definer = definers.get(name)
+    if (definer !== undefined) {
+      throw new ComposeError(`${definer} and ${origin} both define the fact "${name}"`)
     }
+    definers.set(name, origin)
+    facts.set(`fact:${name}`, evaluateCondition(condition, answers))
   }
   return facts
 }
