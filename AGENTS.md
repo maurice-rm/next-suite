@@ -56,25 +56,28 @@ says what next-suite does; this file says how code is written here.
   are enforced with `noRestrictedImports` overrides per directory, added in `biome.json` together
   with the directories they guard. In `packages/create-next-suite/src`:
 
-  | Directory           | Imports from                                                                              |
-  | ------------------- | ----------------------------------------------------------------------------------------- |
-  | `contract/`         | no other module                                                                           |
-  | `file-system/`      | no other module                                                                           |
-  | `ui/`               | `expected-error.ts`                                                                       |
-  | `code-edit/`        | `expected-error.ts`                                                                       |
-  | `answers/`          | `contract/`                                                                               |
-  | `package-manager/`  | `contract/`, the error files                                                              |
-  | `post-steps/`       | `contract/`, `package-manager/`, the error files                                          |
-  | `user-config/`      | `contract/`, `file-system/`, the error files                                              |
-  | `loader/`           | `contract/`, `file-system/`, the error files                                              |
-  | `loader/remote/`    | as `loader/`, and of `loader/` only `plugin-address.ts` and `plugin-load-error.ts`        |
-  | `trust/`            | `contract/`, `file-system/`, `loader/`, the error files                                   |
-  | `compose/`          | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                       |
-  | `compose/template/` | as `compose/`, but not `compose/` itself                                                  |
-  | `questions/`        | `contract/`, `answers/`, `loader/`, `ui/`, `file-system/`, the error files                |
-  | `write/`            | `contract/`, `answers/`, `loader/`, `compose/`, `file-system/`, the error files           |
-  | `test-support/`     | `contract/`, `answers/`, `loader/`, `questions/`, `cli/`, `file-system/`, the error files |
-  | `cli/`              | every module, never the package entries                                                   |
+  | Directory            | Imports from                                                                                                    |
+  | -------------------- | --------------------------------------------------------------------------------------------------------------- |
+  | `contract/`          | no other module                                                                                                 |
+  | `file-system/`       | no other module                                                                                                 |
+  | `ui/`                | `expected-error.ts`                                                                                             |
+  | `code-edit/`         | `expected-error.ts`                                                                                             |
+  | `project-model/`     | `code-edit/`, `expected-error.ts`                                                                               |
+  | `plugin-definition/` | `code-edit/`, `project-model/`, `expected-error.ts`                                                             |
+  | `assembly/`          | `plugin-definition/`, `project-model/`, `code-edit/`, `expected-error.ts`                                       |
+  | `answers/`           | `contract/`                                                                                                     |
+  | `package-manager/`   | `contract/`, the error files                                                                                    |
+  | `post-steps/`        | `contract/`, `package-manager/`, the error files                                                                |
+  | `user-config/`       | `contract/`, `file-system/`, the error files                                                                    |
+  | `loader/`            | `contract/`, `file-system/`, the error files                                                                    |
+  | `loader/remote/`     | as `loader/`, and of `loader/` only `plugin-address.ts` and `plugin-load-error.ts`                              |
+  | `trust/`             | `contract/`, `file-system/`, `loader/`, the error files                                                         |
+  | `compose/`           | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                                             |
+  | `compose/template/`  | as `compose/`, but not `compose/` itself                                                                        |
+  | `questions/`         | `contract/`, `answers/`, `loader/`, `ui/`, `file-system/`, the error files                                      |
+  | `write/`             | `contract/`, `answers/`, `loader/`, `compose/`, `file-system/`, the error files                                 |
+  | `test-support/`      | `contract/`, `answers/`, `loader/`, `questions/`, `cli/`, `file-system/`, `plugin-definition/`, the error files |
+  | `cli/`               | every module, never the package entries                                                                         |
 
   The error files are `expected-error.ts` and `input-error.ts` at the root of `src/`.
 - **Plugins:** a built-in plugin is one directory under
