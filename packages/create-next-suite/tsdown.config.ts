@@ -6,9 +6,9 @@ const config: UserConfig = defineConfig({
   platform: 'node',
   hash: false,
   treeshake: {
-    // zod has no import side effects; without this rule dist/plugin.d.mts keeps a bare
-    // `import 'zod'` left over from the schemas next to the public types.
-    moduleSideEffects: [{ test: /^zod$/, external: true, sideEffects: false }],
+    // External modules count as side-effectful, so dist/plugin.d.mts would keep a bare
+    // `import 'zod'`: https://rolldown.rs/in-depth/external-modules
+    moduleSideEffects: 'no-external',
   },
   copy: { from: 'generated/schemas/*.json', to: 'dist/schemas' },
   dts: {
