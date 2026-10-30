@@ -3,18 +3,18 @@
 next-suite creates Next.js apps from plugins. Every choice, from the package manager to the
 database, is a plugin, and plugins of your own, public or private, plug in the same way.
 
-> next-suite is under construction. `create-next-suite` generates a Next.js base project with a
-> package manager of your choice; more plugins follow. The first release of this code base will be
-> 2.0.0.
+> next-suite is under construction. `create-next-suite` generates the Next.js base project with
+> the plugins of the quick start, from the package manager to CI; more plugins follow. The first
+> release of this code base will be 2.0.0.
 
 ## Repository
 
-| Path                         | What it is                                                         |
-| ---------------------------- | ------------------------------------------------------------------ |
-| `packages/create-next-suite` | the CLI, published to npm, with the `create-next-suite` and `next-suite` commands |
-| `packages/integration`       | tests that run the built CLI the way a user does                   |
-| `packages/tsconfig`          | the shared TypeScript configuration                                |
-| `apps/docs`                  | the documentation, a Fumadocs app exported as a static site         |
+| Path                         | What it is                                                                |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `packages/create-next-suite` | the CLI, published to npm, with its built-in plugins and the base project |
+| `packages/integration`       | tests that run the built CLI the way a user does                          |
+| `packages/tsconfig`          | the shared TypeScript configuration                                       |
+| `apps/docs`                  | the documentation, a Fumadocs app exported as a static site               |
 
 ## Prerequisites
 
@@ -46,6 +46,14 @@ Try the CLI after a build:
 
 ```bash
 node packages/create-next-suite/dist/create-next-suite.mjs --help
+```
+
+Generate a scenario of `packages/integration/scenarios` with a package manager, install it and run
+the generated project's checks, as CI does:
+
+```bash
+pnpm turbo build --filter=create-next-suite
+pnpm --filter @next-suite/integration matrix base pnpm
 ```
 
 ## Contributing
