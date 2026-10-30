@@ -100,6 +100,7 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | `trust add <pattern>`, `list`, `remove`          | manages the sources whose plugins may run code            |
 | `plugin validate <directory>`                    | checks a plugin and runs its `plugin.ts` on its own       |
 | `explain <file>`                                 | shows who wrote a file of the project and what each did   |
+| `eject [--force]`                                | removes next-suite from the project                       |
 
 ## Imports
 

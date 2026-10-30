@@ -1,4 +1,5 @@
-import { writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -76,5 +77,35 @@ describe('next-suite explain', () => {
 
     expect(result.exitCode).toBe(1)
     expect(result.error).toContain('lies in no next-suite project')
+  })
+})
+
+describe('next-suite eject', () => {
+  it('turns the project into a plain Next.js project', async () => {
+    await createProject()
+
+    const result = await nextSuite(['eject'], pathOf('my-app'))
+
+    expect(result.exitCode).toBe(0)
+    expect(result.output).toContain('Removed next-suite.config.ts')
+    expect(result.output).toContain('the devDependency create-next-suite in package.json')
+    expect(existsSync(pathOf('my-app/.next-suite'))).toBe(false)
+    expect(existsSync(pathOf('my-app/app/page.tsx'))).toBe(true)
+  })
+
+  it('refuses while next-suite/ holds your files, unless forced', async () => {
+    await createProject()
+    await rm(pathOf('my-app/knip.config.ts'))
+    const overrides = pathOf('my-app/next-suite/overrides')
+    await mkdir(overrides, { recursive: true })
+    await writeFile(join(overrides, 'page.tsx'), 'mine\n')
+
+    const refused = await nextSuite(['eject'], pathOf('my-app'))
+    const forced = await nextSuite(['eject', '--force'], pathOf('my-app'))
+
+    expect(refused.exitCode).toBe(1)
+    expect(refused.error).toContain('next-suite/overrides/page.tsx')
+    expect(forced.exitCode).toBe(0)
+    expect(existsSync(pathOf('my-app/next-suite'))).toBe(false)
   })
 })

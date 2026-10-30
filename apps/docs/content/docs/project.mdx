@@ -1,6 +1,6 @@
 ---
 title: Your project after create
-description: The config, lock and registry types every project gets, and how to create it again, replace a file or explain a file.
+description: The config, lock and registry types every project gets, and how to create it again, replace a file, explain a file or leave next-suite.
 ---
 
 A generated project is yours. Besides the app, create-next-suite writes what describes it:
@@ -183,3 +183,15 @@ next.config.ts: written by base, unchanged since it was generated
 A direct edit names where its plugin came from and warns that it may break when the file's writer
 changes. For a file next-suite never wrote, explain says it is entirely yours. It works from any
 directory of the project.
+
+## Eject
+
+`next-suite eject` turns the project into a plain Next.js project: it removes
+`next-suite.config.ts`, `.next-suite/` and `next-suite/`, the devDependency on create-next-suite
+and the registry types in the include of `tsconfig.json`. Overrides are the project's files
+already, so nothing else changes. Run your package manager's install afterwards to update the
+lockfile.
+
+While `next-suite/` holds plugins or overrides, eject lists them and stops; move them out first,
+or pass `--force` to delete them too. A `tsconfig.json` with comments is left to you, and so is
+the entry for `next-suite.config.ts` in `knip.config.ts`; eject says what to remove.
