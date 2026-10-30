@@ -4,9 +4,10 @@
  * project, each field a value or a function of the plugin's context. Points connect plugins
  * without naming each other: a value point carries one value from its provider to every user, a
  * collector point gathers what other plugins contribute until its provider finishes it into
- * files. This entry also holds the collectors of the shared points: the built dependencies a
- * package manager plugin provides, the lint ignores a linter plugin provides and the CI checks a
- * CI plugin provides.
+ * files. This entry also holds the collectors of the points of the core: the built dependencies
+ * a package manager plugin provides, the lint ignores a linter plugin provides and the CI checks a
+ * CI plugin provides; the points several plugins may provide, such as `orm`, come with
+ * `create-next-suite/points`.
  *
  * @example
  * ```ts

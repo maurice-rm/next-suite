@@ -26,6 +26,7 @@ Code, messages and these pages use each word below for one concept only.
 | point | a typed interface between plugins, a name plus the type of what flows through it; a value point or a collector point |
 | value point | a point whose one provider states a value every user reads, such as `orm` |
 | collector point | a point whose provider creates a collector the other plugins contribute to and finishes it into files, such as `logRedact` |
+| shared point | a point that several plugins may provide, defined by create-next-suite in `create-next-suite/points` so its users depend on it instead of a plugin, such as `orm` or `databaseSchema` |
 | provider | the selected plugin that provides a point, under `provides` for a value point or `collects` for a collector point |
 | uses | the points a plugin reads, by the name its functions get them under; a used point's provider runs first |
 | extend | a plugin's contributions to collector points; one without a selected provider is dropped |
