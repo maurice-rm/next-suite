@@ -26,7 +26,11 @@ export type TypescriptModule = {
   addImport: (moduleImport: ModuleImport) => void
   /** The object literal the top-level variable holds, directly, through `satisfies`/`as` or as a call's argument. */
   object: (variableName: string) => ObjectLiteral
-  /** Sets the value of the top-level variable `variableName` to `code`, exported or not. */
+  /**
+   * Sets the value of the top-level variable `variableName` to `code`, exported or not.
+   *
+   * @throws CodeEditError when the module has no such top-level variable with a value.
+   */
   setVariable: (variableName: string, code: string) => void
   /** The object literal behind `export default`, through variables and wrapper calls. */
   defaultExportObject: () => ObjectLiteral
