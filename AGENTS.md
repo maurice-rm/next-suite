@@ -66,7 +66,7 @@ says what next-suite does; this file says how code is written here.
   | `post-steps/`       | `contract/`, `package-manager/`, the error files                                          |
   | `user-config/`      | `contract/`, `file-system/`, the error files                                              |
   | `loader/`           | `contract/`, `file-system/`, the error files                                              |
-  | `loader/remote/`    | as `loader/`, but not the loader modules around it                                        |
+  | `loader/remote/`    | as `loader/`, and of `loader/` only `plugin-address.ts` and `plugin-load-error.ts`        |
   | `trust/`            | `contract/`, `file-system/`, `loader/`, the error files                                   |
   | `compose/`          | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                       |
   | `compose/template/` | as `compose/`, but not `compose/` itself                                                  |

@@ -152,7 +152,8 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: contract/ is the innermost module and imports no other"
                   }
@@ -204,7 +205,8 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: file-system/ wraps Node.js and imports no other module"
                   }
@@ -254,7 +256,8 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: answers/ imports only from contract/"
                   }
@@ -298,7 +301,8 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: loader/ imports from contract/, file-system/ and the error classes only"
                   }
@@ -343,11 +347,12 @@
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts",
+                      "**/testing.ts",
                       "../load-*.ts",
                       "../registry.ts",
                       "../assert-unique-names.ts"
                     ],
-                    "message": "create-next-suite: loader/remote/ fetches sources and imports from contract/, file-system/, the error classes and the plugin address only"
+                    "message": "create-next-suite: loader/remote/ fetches sources and imports from contract/, file-system/, the error classes, the plugin address and the plugin load error only"
                   }
                 ]
               }
@@ -385,7 +390,8 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: compose/ imports from contract/, answers/, loader/, file-system/ and the error classes only"
                   }
@@ -426,7 +432,8 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: compose/template/ imports from contract/, answers/, loader/, file-system/ and the error classes only, never from compose/"
                   }
@@ -464,9 +471,10 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
-                    "message": "create-next-suite: write/ imports from compose/ and inner modules only"
+                    "message": "create-next-suite: write/ imports from contract/, answers/, loader/, compose/, file-system/ and the error classes only"
                   }
                 ]
               }
@@ -501,6 +509,7 @@
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts",
+                      "**/testing.ts",
                       "**/package-manager",
                       "**/package-manager/**"
                     ],
@@ -548,9 +557,10 @@
                       "**/file-system/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
-                    "message": "create-next-suite: package-manager/ imports only from contract/"
+                    "message": "create-next-suite: package-manager/ imports from contract/ and the error classes only"
                   }
                 ]
               }
@@ -592,9 +602,10 @@
                       "**/file-system/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
-                    "message": "create-next-suite: post-steps/ imports only from contract/ and package-manager/"
+                    "message": "create-next-suite: post-steps/ imports from contract/, package-manager/ and the error classes only"
                   }
                 ]
               }
@@ -642,6 +653,7 @@
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts",
+                      "**/testing.ts",
                       "**/package-manager",
                       "**/package-manager/**"
                     ],
@@ -685,7 +697,8 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: trust/ imports from contract/, loader/, file-system/ and the error classes only"
                   }
@@ -731,7 +744,8 @@
                       "**/test-support/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
                     "message": "create-next-suite: user-config/ imports from contract/, file-system/ and the error classes only"
                   }
@@ -752,7 +766,12 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["**/create-next-suite.ts", "**/next-suite.ts", "**/plugin.ts"],
+                    "group": [
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts",
+                      "**/testing.ts"
+                    ],
                     "message": "create-next-suite: cli/ never imports the package entries"
                   }
                 ]
@@ -789,9 +808,10 @@
                       "**/ui/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/testing.ts"
                     ],
-                    "message": "create-next-suite: test-support/ builds fixtures and runs from contract/, loader/, questions/ and cli/ only"
+                    "message": "create-next-suite: test-support/ builds fixtures and runs from contract/, answers/, loader/, questions/, cli/, file-system/ and the error classes only"
                   }
                 ]
               }
