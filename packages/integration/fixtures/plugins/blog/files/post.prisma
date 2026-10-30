@@ -1,0 +1,7 @@
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("post")
+}

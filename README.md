@@ -57,6 +57,15 @@ pnpm turbo build --filter=create-next-suite
 pnpm --filter @next-suite/integration matrix base pnpm
 ```
 
+Generate a combination of the test plugins in `packages/integration/fixtures/plugins` (databases,
+ORMs, auth, a blog, a container and a health route, which exist only for these tests) with pnpm,
+install it, run its checks and Better Auth's schema check; the container combination needs
+Docker:
+
+```bash
+pnpm --filter @next-suite/integration combinations drizzle-postgres
+```
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Vulnerabilities are reported

@@ -14,7 +14,8 @@
       "!packages/create-next-suite/plugins/*/*/files",
       "!packages/create-next-suite/base/files",
       "!packages/create-next-suite/base",
-      "!packages/create-next-suite/plugins/*/*/files"
+      "!packages/create-next-suite/plugins/*/*/files",
+      "!packages/integration/fixtures/plugins/*/files"
     ]
   },
   "formatter": {
