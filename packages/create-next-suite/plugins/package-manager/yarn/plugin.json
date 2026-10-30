@@ -13,12 +13,6 @@
     "whenVersionDiffers": "warn",
     "allowedBuildsIn": "package.json#dependenciesMeta"
   },
-  "files": [
-    {
-      "source": "files/yarnrc.yml",
-      "target": ".yarnrc.yml"
-    }
-  ],
   "contributes": {
     "gitignore": [
       ".yarn/*",
@@ -28,5 +22,6 @@
       "!.yarn/sdks",
       "!.yarn/versions"
     ]
-  }
+  },
+  "files": [{ "source": "files/yarnrc.yml", "target": ".yarnrc.yml" }]
 }
