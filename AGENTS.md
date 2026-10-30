@@ -93,6 +93,11 @@ says what next-suite does; this file says how code is written here.
   path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript
   sources end in `.hbs` even without placeholders, so the repository's own tools never check them
   as code; JSX double braces in such a file are written `\{{`.
+- **Versions:** a built-in plugin written as `plugin.ts` names the exact version of each package
+  it installs once, in a constant `VERSIONS` at the top of `plugin.ts` keyed by npm package
+  (`{ eslint: '9.39.5' }`); Renovate and `use-newest-catalog` find them there. Until
+  `catalog.json` goes, a version a manifest plugin shares lives in both, and the equality tests
+  of `NEXT_SUITE_ENGINE=v2` fail when they drift apart.
 - **The core owns every side effect:** plugins compute, the core writes files, runs processes
   and fetches.
 

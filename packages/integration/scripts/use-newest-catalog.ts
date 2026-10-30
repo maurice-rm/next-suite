@@ -7,10 +7,12 @@ import packageJson from 'create-next-suite/package.json' with { type: 'json' }
 import type { PluginManifest } from 'create-next-suite/plugin'
 
 /**
- * Rewrites the version catalog of the built-in plugins to the newest release of every dependency,
- * so a generated project shows whether it still works with them. The package managers keep their
- * versions: the runner installs exactly those. @types/node stays on the Node.js major of the
- * engines of create-next-suite, which generated projects run on.
+ * Rewrites the versions of the built-in plugins to the newest release of every dependency, so a
+ * generated project shows whether it still works with them: the version catalog, the `VERSIONS`
+ * of each plugin written as plugin.ts and the dependencies of the base project, all to the same
+ * release. The package managers keep their versions: the runner installs exactly those.
+ * @types/node stays on the Node.js major of the engines of create-next-suite, which generated
+ * projects run on.
  */
 
 type Dependencies = PluginManifest['dependencies']
@@ -21,6 +23,13 @@ const PACKAGE_ROOT = fileURLToPath(
 const CATALOG_PATH = join(PACKAGE_ROOT, 'catalog.json')
 const BASE_MANIFEST_PATH = join(PACKAGE_ROOT, 'base', 'plugin.json')
 const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins')
+const PLUGIN_MODULES_PATH = join(PACKAGE_ROOT, 'plugins-v2')
+const BASE_PACKAGE_PATH = join(PACKAGE_ROOT, 'base-project', 'package.json')
+const PACKAGE_MANAGER_CATEGORY = 'package-manager'
+/** The versions of a plugin written as plugin.ts, one `'<package>': '<version>'` entry each. */
+const VERSIONS_CONSTANT = /const VERSIONS = \{[^}]*\}/
+const VERSION_ENTRY = /('?[@a-z0-9][\w@./-]*'?): '([^']+)'/g
+const QUOTE = "'"
 const CATALOG_PREFIX = 'catalog:'
 const STABLE_VERSION = /^\d+\.\d+\.\d+$/
 /** Generated projects install only releases older than a day; a newer one fails the install. */
@@ -106,19 +115,77 @@ const findNewestVersion = (packageName: string, publishedBefore: number): string
   return newest
 }
 
-const manifests = readManifests()
-const packageNames = packageNamesByEntry(manifests)
-const packageManagerEntries = packageManagerEntriesOf(manifests)
 const publishedBefore = Date.now() - MINIMUM_RELEASE_AGE_MS
-const catalog = readJson(CATALOG_PATH) as Record<string, string>
-const newestCatalog = Object.fromEntries(
-  Object.entries(catalog).map(([entry, version]) => {
-    if (packageManagerEntries.has(entry)) {
-      return [entry, version]
+const newestVersions = new Map<string, string>()
+
+/** The newest allowed release of a package, looked up once for every place that names it. */
+const newestVersionOf = (packageName: string, version: string): string => {
+  const known = newestVersions.get(packageName)
+  if (known !== undefined) {
+    return known
+  }
+  const newestVersion = findNewestVersion(packageName, publishedBefore)
+  newestVersions.set(packageName, newestVersion)
+  process.stdout.write(`${packageName}: ${version} -> ${newestVersion}\n`)
+  return newestVersion
+}
+
+const updateCatalog = (): void => {
+  const manifests = readManifests()
+  const packageNames = packageNamesByEntry(manifests)
+  const packageManagerEntries = packageManagerEntriesOf(manifests)
+  const catalog = readJson(CATALOG_PATH) as Record<string, string>
+  const newestCatalog = Object.fromEntries(
+    Object.entries(catalog).map(([entry, version]) =>
+      packageManagerEntries.has(entry)
+        ? [entry, version]
+        : [entry, newestVersionOf(packageNames.get(entry) ?? entry, version)],
+    ),
+  )
+  writeFileSync(CATALOG_PATH, `${JSON.stringify(newestCatalog, null, 2)}\n`)
+}
+
+const updatePluginModules = (): void => {
+  const categories = readdirSync(PLUGIN_MODULES_PATH).filter(
+    (category) => category !== PACKAGE_MANAGER_CATEGORY,
+  )
+  for (const category of categories) {
+    for (const plugin of readdirSync(join(PLUGIN_MODULES_PATH, category))) {
+      const path = join(PLUGIN_MODULES_PATH, category, plugin, 'plugin.ts')
+      const source = readFileSync(path, 'utf8')
+      const updated = source.replace(VERSIONS_CONSTANT, (constant) =>
+        constant.replaceAll(
+          VERSION_ENTRY,
+          (_entry, key: string, version: string) =>
+            `${key}: '${newestVersionOf(key.replaceAll(QUOTE, ''), version)}'`,
+        ),
+      )
+      writeFileSync(path, updated)
     }
-    const newestVersion = findNewestVersion(packageNames.get(entry) ?? entry, publishedBefore)
-    process.stdout.write(`${entry}: ${version} -> ${newestVersion}\n`)
-    return [entry, newestVersion]
-  }),
-)
-writeFileSync(CATALOG_PATH, `${JSON.stringify(newestCatalog, null, 2)}\n`)
+  }
+}
+
+const newestDependencies = (dependencies: Record<string, string> = {}): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(dependencies).map(([packageName, version]) => [
+      packageName,
+      newestVersionOf(packageName, version),
+    ]),
+  )
+
+const updateBasePackage = (): void => {
+  const basePackage = readJson(BASE_PACKAGE_PATH) as Record<string, unknown> & {
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+  }
+  const updated = {
+    ...basePackage,
+    dependencies: newestDependencies(basePackage.dependencies),
+    devDependencies: newestDependencies(basePackage.devDependencies),
+  }
+  writeFileSync(BASE_PACKAGE_PATH, `${JSON.stringify(updated, null, 2)}\n`)
+}
+
+updateCatalog()
+updatePluginModules()
+updateBasePackage()
