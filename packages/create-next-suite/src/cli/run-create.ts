@@ -363,7 +363,7 @@ const loadEngineV2 = async (
   }
   if (readPluginAddresses(environment.argv).length > 0) {
     throw new InputError(
-      `--plugin needs the default engine; unset ${ENGINE_VARIABLE} to load other plugins`,
+      `--plugin loads no plugins while ${ENGINE_VARIABLE} is v2; unset it to load other plugins`,
     )
   }
   return environment.loadEngineV2Assets()

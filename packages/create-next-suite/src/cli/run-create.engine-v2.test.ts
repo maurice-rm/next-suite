@@ -53,7 +53,7 @@ describe('runCreate with NEXT_SUITE_ENGINE=v2', () => {
     const v1 = await dryRun('v1', flags)
 
     if (settings.includes('agents-md')) {
-      expect((await dryRun('v2', flags)).error).toContain('agents-md does not run on the engine')
+      expect((await dryRun('v2', flags)).error).toContain('agents-md has no plugin.ts form yet')
       return
     }
     expect(await dryRun('v2', flags)).toEqual(v1)
@@ -64,7 +64,7 @@ describe('runCreate with NEXT_SUITE_ENGINE=v2', () => {
 
     expect(result.exitCode).toBe(1)
     expect(result.error).toContain(
-      'does not run on the engine NEXT_SUITE_ENGINE=v2 selects yet; unset NEXT_SUITE_ENGINE to use it',
+      'has no plugin.ts form yet, so it does not run with NEXT_SUITE_ENGINE=v2; unset NEXT_SUITE_ENGINE to use it',
     )
   })
 
@@ -75,7 +75,7 @@ describe('runCreate with NEXT_SUITE_ENGINE=v2', () => {
     })
 
     expect(unknown.error).toContain('NEXT_SUITE_ENGINE is "v3"; use v1 or v2')
-    expect(external.error).toContain('--plugin needs the default engine')
+    expect(external.error).toContain('--plugin loads no plugins while NEXT_SUITE_ENGINE is v2')
   })
 
   it('writes the project and installs it with the arguments of its package manager', async () => {

@@ -51,7 +51,7 @@ const selectPlugins = ({
     const loaded = assets.plugins.find(({ plugin }) => plugin.name === name)
     if (loaded === undefined) {
       throw new InputError(
-        `${name} does not run on the engine ${ENGINE_VARIABLE}=v2 selects yet; unset ${ENGINE_VARIABLE} to use it`,
+        `${name} has no plugin.ts form yet, so it does not run with ${ENGINE_VARIABLE}=v2; unset ${ENGINE_VARIABLE} to use it`,
       )
     }
     return loaded
