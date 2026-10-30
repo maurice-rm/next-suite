@@ -62,6 +62,7 @@ says what next-suite does; this file says how code is written here.
   | `file-system/`      | no other module                                                                           |
   | `ui/`               | `expected-error.ts`                                                                       |
   | `code-edit/`        | `expected-error.ts`                                                                       |
+  | `project-model/`    | `code-edit/`, `expected-error.ts`                                                         |
   | `answers/`          | `contract/`                                                                               |
   | `package-manager/`  | `contract/`, the error files                                                              |
   | `post-steps/`       | `contract/`, `package-manager/`, the error files                                          |
