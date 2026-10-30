@@ -4,12 +4,12 @@ import type { PluginManifest } from '../contract/plugin-manifest.ts'
 import { parseTestManifest } from '../test-support/test-manifest.ts'
 import { mergeContributions } from './merge-contributions.ts'
 
-const contributing = (name: string, contributes: PluginManifest['contributes']) =>
-  parseTestManifest(name, { contributes })
-
 const CATALOG = { next: '16.4.3', react: '19.3.1' }
 
 type EnvVariable = NonNullable<PluginManifest['env']>[number]
+
+const contributing = (name: string, contributes: PluginManifest['contributes']) =>
+  parseTestManifest(name, { contributes })
 
 const variable = (name: string, description = 'A value.'): EnvVariable => ({
   name,

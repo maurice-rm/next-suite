@@ -4,6 +4,13 @@ import { GO_BACK } from '../../ui/prompts.ts'
 import { findIncompatibilities } from '../find-incompatibilities.ts'
 import { type Ask, runWizard, type WizardStep } from './run-wizard.ts'
 
+const SETTINGS = {
+  'src-dir': false,
+  'import-alias': '@/*',
+  'react-compiler': false,
+  'cache-components': true,
+}
+
 /** Plays back replies in order and records which steps were asked. */
 const scripted = (replies: unknown[]) => {
   const asked: string[] = []
@@ -15,13 +22,6 @@ const scripted = (replies: unknown[]) => {
     return replies.shift()
   }
   return { ask, asked }
-}
-
-const SETTINGS = {
-  'src-dir': false,
-  'import-alias': '@/*',
-  'react-compiler': false,
-  'cache-components': true,
 }
 
 const wizard = (ask: Ask, input: Record<string, unknown> = {}, shown: string[][] = []) =>

@@ -23,6 +23,8 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
+const PLUGIN = '{"name":"mail"}'
+
 /** A gzipped tarball of files under one top directory, as npm and GitHub serve them. */
 const tarball = async (top: string, files: Record<string, string>): Promise<Buffer> => {
   const source = join(root, 'source', top)
@@ -35,8 +37,6 @@ const tarball = async (top: string, files: Record<string, string>): Promise<Buff
 
 const respond = (body: Buffer | string, status = 200) =>
   new Response(typeof body === 'string' ? body : new Uint8Array(body), { status })
-
-const PLUGIN = '{"name":"mail"}'
 
 describe('fetchRemoteSource', () => {
   it('fetches an npm package, picks the version of the range and checks its integrity', async () => {

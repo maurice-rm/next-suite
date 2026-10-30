@@ -57,14 +57,6 @@ const CONFIRM_KEYS: PromptKey[] = [
 ]
 const TEXT_KEYS: PromptKey[] = [['enter', 'confirm']]
 
-/** The default shown in an empty text field, with the cursor on its first character. */
-const renderPlaceholder = (placeholder: string): string =>
-  placeholder === ''
-    ? ansis.inverse(' ')
-    : ansis.inverse(placeholder.slice(0, 1)) + ansis.dim(placeholder.slice(1))
-
-const isDone = (state: string): boolean => state === 'submit' || state === 'cancel'
-
 type OpenPrompt = {
   state: State
   options: PromptBase
@@ -72,6 +64,23 @@ type OpenPrompt = {
   keys: PromptKey[]
   backKey: string
 }
+
+type TextOptions = PromptBase & {
+  /** The answer when the field is left empty; shown as the placeholder unless one is given. */
+  defaultValue?: string
+  placeholder?: string
+  /** Text already in the field, such as the answer given before going back. */
+  initialValue?: string | undefined
+  validate?: (value: string) => string | undefined
+}
+
+/** The default shown in an empty text field, with the cursor on its first character. */
+const renderPlaceholder = (placeholder: string): string =>
+  placeholder === ''
+    ? ansis.inverse(' ')
+    : ansis.inverse(placeholder.slice(0, 1)) + ansis.dim(placeholder.slice(1))
+
+const isDone = (state: string): boolean => state === 'submit' || state === 'cancel'
 
 /** A prompt waiting for input: its title, its body and the keys it takes under it. */
 const renderOpenPrompt = ({ state, options, body, keys, backKey }: OpenPrompt): string => {
@@ -218,15 +227,6 @@ export const confirm = async (
     },
   })
   return run(prompt, { isTyping: false, canGoBack: options.canGoBack })
-}
-
-type TextOptions = PromptBase & {
-  /** The answer when the field is left empty; shown as the placeholder unless one is given. */
-  defaultValue?: string
-  placeholder?: string
-  /** Text already in the field, such as the answer given before going back. */
-  initialValue?: string | undefined
-  validate?: (value: string) => string | undefined
 }
 
 export const text = async (options: TextOptions): Promise<string | typeof GO_BACK> => {

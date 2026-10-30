@@ -10,6 +10,11 @@ const ESCAPE = '\u001b'
 const CTRL_C = '\u0003'
 const KEY_DELAY_MS = 20
 
+const CHOICES = [
+  { value: 'drizzle', label: 'Drizzle' },
+  { value: 'prisma', label: 'Prisma' },
+]
+
 const streams = () => {
   const input = new PassThrough()
   const output = new Writable({ write: (_chunk, _encoding, done) => done() })
@@ -22,11 +27,6 @@ const press = async (input: PassThrough, keys: string[]): Promise<void> => {
     input.write(key)
   }
 }
-
-const CHOICES = [
-  { value: 'drizzle', label: 'Drizzle' },
-  { value: 'prisma', label: 'Prisma' },
-]
 
 describe('prompts', () => {
   it('selects the choice under the cursor', async () => {

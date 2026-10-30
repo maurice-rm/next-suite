@@ -15,6 +15,21 @@ const CATALOG = { next: '16.4.3', bun: '1.4.4' }
 
 let root: string
 
+const DRIZZLE_MANIFEST = {
+  category: 'orm',
+  env: [
+    {
+      name: 'DATABASE_URL',
+      scope: 'server',
+      secret: true,
+      example: 'postgres://localhost/app',
+      description: 'Database.',
+    },
+  ],
+  contributes: { gitignore: ['drizzle/meta'] },
+  files: [{ source: 'files/db.ts.hbs', target: 'lib/db.ts', root: 'source' }],
+} satisfies Partial<PluginManifest>
+
 const writePlugin = (
   name: string,
   manifest: Partial<PluginManifest> = {},
@@ -48,21 +63,6 @@ const writeBase = (
       ...files,
     },
   )
-
-const DRIZZLE_MANIFEST = {
-  category: 'orm',
-  env: [
-    {
-      name: 'DATABASE_URL',
-      scope: 'server',
-      secret: true,
-      example: 'postgres://localhost/app',
-      description: 'Database.',
-    },
-  ],
-  contributes: { gitignore: ['drizzle/meta'] },
-  files: [{ source: 'files/db.ts.hbs', target: 'lib/db.ts', root: 'source' }],
-} satisfies Partial<PluginManifest>
 
 const answersWith = (
   plugins: Answers['plugins'],

@@ -14,6 +14,11 @@ export type SelectedPackageManager = { name: string; packageManager: PackageMana
 /** The dependencies whose install scripts may run, and those known to need none. */
 type Builds = { allowed: readonly string[]; denied: readonly string[] }
 
+type PackageManagerFieldsInput = SelectedPackageManager & {
+  builds: Builds
+  catalog: VersionCatalog
+}
+
 const decisions = <Value>({ allowed, denied }: Builds, allow: Value, deny: Value) =>
   Object.fromEntries([
     ...allowed.map((name) => [name, allow] as const),
@@ -34,11 +39,6 @@ const allowedBuildsFields = (place: string, builds: Builds): Record<string, unkn
     default:
       return {}
   }
-}
-
-type PackageManagerFieldsInput = SelectedPackageManager & {
-  builds: Builds
-  catalog: VersionCatalog
 }
 
 /** The first selected plugin that describes a package manager, if any. */

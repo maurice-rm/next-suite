@@ -44,6 +44,12 @@ type FileToRender = {
   allowedBlocks: readonly BlockHelper[]
 }
 
+type LogicFilesInput = {
+  logicFiles: readonly LogicFile[]
+  plugins: readonly LoadedPlugin[]
+  answers: Answers
+}
+
 const requiredPlugins = (manifest: ParsedPluginManifest): ReadonlySet<string> =>
   new Set(
     (manifest.requires ?? []).flatMap((rule) => ('plugin' in rule.when ? [rule.when.plugin] : [])),
@@ -119,12 +125,6 @@ export const addPluginFiles = async (
       replaceable: requiredPlugins(plugin.manifest),
     })
   }
-}
-
-type LogicFilesInput = {
-  logicFiles: readonly LogicFile[]
-  plugins: readonly LoadedPlugin[]
-  answers: Answers
 }
 
 export const addLogicFiles = (

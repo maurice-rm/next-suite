@@ -89,6 +89,15 @@ type WizardResult = Pick<Resolution, 'answers' | 'unused'> & {
   action: TargetAction
 }
 
+/** Every step is answered; the wizard only checks the answers before it ends. */
+type Done = { kind: 'done'; directory: string; action: TargetAction }
+
+type NextStepInput = {
+  state: WizardState
+  next: Question | undefined
+  hasExistingFiles: (directory: string) => boolean
+}
+
 const isQuestionStep = (step: WizardStep): step is Question =>
   step.kind !== 'project-name' && step.kind !== 'target-action' && step.kind !== 'quick-start'
 
@@ -173,15 +182,6 @@ const applyReply = (state: WizardState, step: WizardStep, reply: unknown): void 
   }
   recordReply(state, step, reply)
   state.asked.push(step)
-}
-
-/** Every step is answered; the wizard only checks the answers before it ends. */
-type Done = { kind: 'done'; directory: string; action: TargetAction }
-
-type NextStepInput = {
-  state: WizardState
-  next: Question | undefined
-  hasExistingFiles: (directory: string) => boolean
 }
 
 const nextStep = ({ state, next, hasExistingFiles }: NextStepInput): WizardStep | Done => {

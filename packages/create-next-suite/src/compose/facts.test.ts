@@ -4,6 +4,12 @@ import type { Answers } from '../answers/answers.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
 import { askFact, collectFacts } from './facts.ts'
 
+const ANSWERS: Answers = {
+  plugins: [{ name: 'drizzle', category: 'orm' }],
+  settings: {},
+  options: {},
+}
+
 const plugin = (name: string, extra: Partial<LoadedPlugin['manifest']> = {}): LoadedPlugin => ({
   directory: `/plugins/${name}`,
   source: { kind: 'builtin' },
@@ -16,12 +22,6 @@ const plugin = (name: string, extra: Partial<LoadedPlugin['manifest']> = {}): Lo
     ...extra,
   },
 })
-
-const ANSWERS: Answers = {
-  plugins: [{ name: 'drizzle', category: 'orm' }],
-  settings: {},
-  options: {},
-}
 
 describe('collectFacts', () => {
   it('knows every available plugin and category, selected or not', () => {

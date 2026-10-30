@@ -93,6 +93,16 @@ type Run = {
   presenter: Presenter
 }
 
+type DirectoryCheck = { cwd: string; action: TargetAction | undefined }
+
+type Project = {
+  directory: string
+  projectName: string
+  action: TargetAction
+  answers: Answers
+  selected: LoadedPlugin[]
+}
+
 /**
  * The questions this run can ask: those of the loaded plugins, and the settings only when a base
  * project exists to apply them to. The package manager that started the run becomes the default.
@@ -109,8 +119,6 @@ const prepareQuestions = (assets: Assets, userAgent: string | undefined) => {
   })
   return { questions, detectedPackageManager }
 }
-
-type DirectoryCheck = { cwd: string; action: TargetAction | undefined }
 
 /**
  * What is wrong with a project directory: as typed, what is already on disk at its path, and,
@@ -174,14 +182,6 @@ const askQuestions = ({
         }
       : { kind: 'input', useDefaults: invocation.flags.yes === true },
   })
-}
-
-type Project = {
-  directory: string
-  projectName: string
-  action: TargetAction
-  answers: Answers
-  selected: LoadedPlugin[]
 }
 
 /** Composes the project in memory, once its plugins are trusted. */

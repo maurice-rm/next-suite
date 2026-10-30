@@ -52,6 +52,12 @@ export type AskContext = {
 }
 
 /**
+ * A step to ask, with the answers so far, the answer given before going back over it, and what
+ * the wizard knows about the run.
+ */
+type StepAsk = { base: PromptOptions; answers: Answers; previous: unknown; context: AskContext }
+
+/**
  * The hint beside a plugin: a package manager shows only whether it started the run, any other
  * plugin its description.
  */
@@ -139,12 +145,6 @@ const askOption = async (
       })
   }
 }
-
-/**
- * A step to ask, with the answers so far, the answer given before going back over it, and what
- * the wizard knows about the run.
- */
-type StepAsk = { base: PromptOptions; answers: Answers; previous: unknown; context: AskContext }
 
 const askCategory = async (
   question: CategoryQuestion,

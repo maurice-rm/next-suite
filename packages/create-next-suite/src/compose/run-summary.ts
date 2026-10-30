@@ -13,6 +13,13 @@ export type RunSummary = { stack: string[]; nextSteps: NextStep[] }
 
 type Scripts = Readonly<Record<string, string>>
 
+type SummaryInput = {
+  manifests: readonly ParsedPluginManifest[]
+  baseName: string
+  answers: Answers
+  scripts: Scripts
+}
+
 /** The post steps whose condition holds, in plugin order, with default messages filled in. */
 export const collectPostSteps = (
   manifests: readonly ParsedPluginManifest[],
@@ -31,13 +38,6 @@ export const collectPostSteps = (
         }
       }),
   )
-
-type SummaryInput = {
-  manifests: readonly ParsedPluginManifest[]
-  baseName: string
-  answers: Answers
-  scripts: Scripts
-}
 
 const nextStepsOf = (
   manifest: ParsedPluginManifest,

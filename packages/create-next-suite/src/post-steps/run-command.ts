@@ -31,6 +31,8 @@ const PLAIN_ARGUMENT = /^[\w@+=:,./\\-]+$/
 /** Read by cmd.exe even inside double quotes, which have no escape there. */
 const UNQUOTABLE_CHARACTER = /["%!\r\n]/
 
+const MS_PER_SECOND = 1000
+
 const quoteForShell = (arg: string): string => {
   if (UNQUOTABLE_CHARACTER.test(arg)) {
     throw new Error(`cannot pass the argument ${JSON.stringify(arg)} through the Windows shell`)
@@ -46,8 +48,6 @@ const quoteForShell = (arg: string): string => {
  */
 export const toShellCommand = (command: string, args: readonly string[]): string =>
   [command, ...args].map(quoteForShell).join(' ')
-
-const MS_PER_SECOND = 1000
 
 const timeoutNote = (timeoutMs: number): string =>
   `stopped after ${timeoutMs / MS_PER_SECOND} seconds, the time a command may take`

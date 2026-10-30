@@ -15,6 +15,8 @@ type CreatedPaths = { files: string[]; directories: string[] }
 /** Where a project goes and what happens to files already there. */
 export type WriteTarget = { directory: string; action: TargetAction; cwd: string }
 
+type ProjectFile = { path: string; content: string; canReplace: boolean }
+
 /** Fails when what is at the target does not fit the action. */
 const assertTargetFits = (state: TargetState, { directory, action }: WriteTarget): void => {
   if (state === 'not-a-directory') {
@@ -46,8 +48,6 @@ const existingEntry = (path: string) =>
     }
     throw error
   })
-
-type ProjectFile = { path: string; content: string; canReplace: boolean }
 
 /** Writes one file, recording it as created when nothing was at its path. */
 const writeProjectFile = async (
