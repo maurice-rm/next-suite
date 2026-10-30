@@ -64,6 +64,8 @@
     "commander": "15.0.0",
     "diff": "9.0.0",
     "handlebars": "4.7.10",
+    "magic-string": "1.4.5",
+    "oxc-parser": "0.156.0",
     "semver": "7.8.5",
     "tar": "7.5.22",
     "validate-npm-package-name": "8.0.0",
