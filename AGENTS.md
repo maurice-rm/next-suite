@@ -34,12 +34,15 @@ says what next-suite does; this file says how code is written here.
 - **Public exports carry complete TSDoc:** a summary; `@typeParam` for every type parameter;
   `@param name -` and `@returns` where they say more than the type; `@throws` for every error
   raised on purpose; at least one `@example` per entry point. No types inside `@param`. Public
-  means the `create-next-suite/plugin` subpath; the bins are no API.
+  means the `create-next-suite/plugin` and `create-next-suite/testing` subpaths; the field
+  descriptions of the JSON schemas under `create-next-suite/schemas/` are read by users too. The
+  bins are no API.
 - **Internal code** gets a doc comment only where name and signature do not say enough. An inline
   comment is reserved for a workaround (with a link), a non-obvious constraint, or a dense
   algorithm. Design history and rationale stay out of TSDoc — TSDoc ships in `dist`.
-- **One word per concept,** as the glossary of the documentation defines it — in code, error
-  messages and documentation alike.
+- **One word per concept,** as the [glossary](apps/docs/content/docs/glossary.mdx) defines it —
+  in code, error messages and documentation alike. A new term enters the glossary in the change
+  that introduces it.
 - **A rule exists once.** Before writing something that resembles existing code, find the
   existing code. Similar code is named and compared the second time and merged the third time;
   a domain rule never gets a second copy.
@@ -50,9 +53,23 @@ says what next-suite does; this file says how code is written here.
   (`useMaxParams`, `noExcessiveCognitiveComplexity`, `useNamingConvention`, `noImportCycles`).
 - **Imports inside a package are relative and name the file with its extension** (`./x.ts`), the
   way Node.js loads TypeScript. No path aliases in packages. Module boundaries inside a package
-  are enforced with `noRestrictedImports` overrides per folder, added in `biome.json` together
-  with the folders they guard.
-- **Plugins:** a built-in plugin is one folder under
+  are enforced with `noRestrictedImports` overrides per directory, added in `biome.json` together
+  with the directories they guard. In `packages/create-next-suite/src`:
+
+  | Directory           | Imports from                                       |
+  | ------------------- | -------------------------------------------------- |
+  | `contract/`         | no other module                                    |
+  | `ui/`               | no other module                                    |
+  | `answers/`          | `contract/`                                        |
+  | `loader/`           | `contract/`                                        |
+  | `post-steps/`       | `contract/`                                        |
+  | `trust/`            | `contract/`, `loader/`                             |
+  | `compose/`          | `contract/`, `answers/`, `loader/`                 |
+  | `compose/template/` | `contract/`, `answers/`, `loader/`, not `compose/` |
+  | `questions/`        | `contract/`, `answers/`, `loader/`, `ui/`          |
+  | `write/`            | `contract/`, `answers/`, `loader/`, `compose/`     |
+  | `cli/`              | every module, never the package entries            |
+- **Plugins:** a built-in plugin is one directory under
   `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` without a
   category, and changes no other file; a plugin that needs another file changed is missing a
   composition point, which is a change to the core of its own. Built-in plugins import only the public plugin

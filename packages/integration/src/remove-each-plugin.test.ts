@@ -2,26 +2,33 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import type { Category } from 'create-next-suite/plugin'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { PROJECT_NAME } from './project-name.ts'
 import { runCli } from './run-cli.ts'
 
-type Category = { id: string; cardinality: 'one' | 'at-most-one' | 'many'; default: unknown }
+/** A category as categories.json lists it, inside its section. */
+type ListedCategory = Omit<Category, 'section'>
+type CategoriesFile = { section: string; categories: ListedCategory[] }[]
 
 const CATEGORIES_URL = new URL(
   'categories.json',
   import.meta.resolve('create-next-suite/package.json'),
 )
+/** Starts the CLI once per category; generous for a slow CI runner. */
+const TIMEOUT_MS = 120_000
 
 let cwd: string
-let removable: Category[]
+let removableCategories: ListedCategory[]
+
+const emptyAnswerOf = (category: ListedCategory): [] | null =>
+  category.cardinality === 'many' ? [] : null
 
 beforeAll(async () => {
   cwd = await mkdtemp(join(tmpdir(), 'next-suite-remove-'))
-  const sections = JSON.parse(await readFile(CATEGORIES_URL, 'utf8')) as {
-    categories: Category[]
-  }[]
-  removable = sections
+  const sections = JSON.parse(await readFile(CATEGORIES_URL, 'utf8')) as CategoriesFile
+  removableCategories = sections
     .flatMap((section) => section.categories)
     .filter((category) => category.cardinality !== 'one')
 })
@@ -30,22 +37,17 @@ afterAll(async () => {
   await rm(cwd, { recursive: true, force: true })
 })
 
-/** Every plugin of the quick start can go on its own, and the rest still composes. */
-/** Starts the CLI once per category; generous for a slow CI runner. */
-const TIMEOUT_MS = 120_000
-
 describe('the quick start without one plugin', () => {
-  it('composes for every category left empty', { timeout: TIMEOUT_MS }, async () => {
-    for (const category of removable) {
+  it('composes for every category left empty', {
+    timeout: TIMEOUT_MS,
+  }, async () => {
+    for (const category of removableCategories) {
       const answers = join(cwd, `${category.id}.json`)
-      await writeFile(
-        answers,
-        JSON.stringify({ [category.id]: category.cardinality === 'many' ? [] : null }),
-      )
+      await writeFile(answers, JSON.stringify({ [category.id]: emptyAnswerOf(category) }))
 
       const result = await runCli(
         'create-next-suite',
-        ['my-app', '--answers', answers, '--yes', '--dry-run'],
+        [PROJECT_NAME, '--answers', answers, '--yes', '--dry-run'],
         { cwd },
       )
 

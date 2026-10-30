@@ -1,0 +1,31 @@
+---
+title: Glossary
+description: The words next-suite uses, each for one concept.
+---
+
+Code, messages and these pages use each word below for one concept only.
+
+| Term | Meaning |
+| --- | --- |
+| plugin | a directory with a `plugin.json`; every choice in create-next-suite is one, the built-in ones included |
+| manifest | the `plugin.json` of a plugin: what it is, asks and contributes |
+| plugin contract | the format of the manifest and the types of `create-next-suite/plugin`, versioned; a plugin names the range it works with in `contract` |
+| base project | the files every app gets, which plugins add to |
+| category | a group of plugins answering one question, such as `linter`; it takes exactly one, at most one or any number of plugins |
+| section | a part of the wizard that asks its questions together, such as "Project" |
+| option | a further question of one plugin, with a flag `--<plugin>-<option>` |
+| base setting | a value the core and the base project read, such as `src-dir`; set by flag or answer file, never asked |
+| quick start | the wizard's offer to take the default for every question left |
+| answers | what a run was told, by wizard, flags or an answer file (`--answers`); next-suite.json records them |
+| composition point | a file several plugins share, such as `package.json` or `.gitignore`, and the rule that merges what they contribute |
+| contribution | an entry a plugin adds to a composition point, under `contributes` |
+| template | a plugin file whose source ends in `.hbs`, rendered with the answers |
+| fact | a named condition over the answers that templates and logic modules ask through `has` |
+| logic module | code a plugin names in `logic` to compute files and contributions; it computes, the core writes |
+| post-step | a script that runs after the install, such as a format run |
+| version catalog | the versions `catalog:<name>` resolves to |
+| core | the part of create-next-suite that writes files, runs processes and fetches |
+| address | where `--plugin` loads a plugin from, such as `./mail`, `npm:mail@^1` or `@acme/mail` |
+| source | an address without its ref or version; trust patterns match it |
+| registry | a directory, repository or tarball whose `registry.json` lists plugins, loaded by short name such as `@acme/mail` |
+| trust | the permission for a plugin from a source other than a local directory to run code |

@@ -4,6 +4,7 @@
   "compilerOptions": {
     "types": ["node"],
     "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
     "exactOptionalPropertyTypes": true
   }
 }

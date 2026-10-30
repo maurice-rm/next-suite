@@ -1,4 +1,4 @@
-import manifest from 'create-next-suite/package.json' with { type: 'json' }
+import packageJson from 'create-next-suite/package.json' with { type: 'json' }
 import { describe, expect, it } from 'vitest'
 
 import { runCli } from './run-cli.ts'
@@ -7,7 +7,7 @@ describe.each(['create-next-suite', 'next-suite'] as const)('the built %s bin', 
   it('prints the published version', async () => {
     const result = await runCli(bin, ['--version'])
 
-    expect(result).toEqual({ stdout: `${manifest.version}\n`, stderr: '', exitCode: 0 })
+    expect(result).toEqual({ stdout: `${packageJson.version}\n`, stderr: '', exitCode: 0 })
   })
 
   it('prints its usage for --help', async () => {

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { PROJECT_NAME } from './project-name.ts'
 import { runCli } from './run-cli.ts'
 import { listScenarios } from './scenarios.ts'
 
@@ -25,7 +26,7 @@ describe.each(listScenarios())('the scenario $name', ({ name, answers }) => {
     const result = await runCli(
       'create-next-suite',
       [
-        'my-app',
+        PROJECT_NAME,
         '--answers',
         answers,
         '--package-manager',
