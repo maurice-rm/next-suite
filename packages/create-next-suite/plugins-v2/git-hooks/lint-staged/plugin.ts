@@ -60,9 +60,13 @@ export default definePlugin({
   collects: {
     lintStaged: {
       create: createLintStagedCommands,
-      finish: (lintStaged, { module }) => {
+      finish: (lintStaged, { module, fail }) => {
+        const commands = lintStaged.commands()
+        if (commands.size === 0) {
+          fail('it needs a linter or a formatter to run on the staged files')
+        }
         const config = module(CONFIG_FILE).object(CONFIG_OBJECT)
-        for (const [glob, globCommands] of lintStaged.commands()) {
+        for (const [glob, globCommands] of commands) {
           config.set(glob, commandList(globCommands))
         }
       },

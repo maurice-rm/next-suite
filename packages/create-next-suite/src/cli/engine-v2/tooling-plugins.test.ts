@@ -130,6 +130,29 @@ describe('the tooling plugins written as plugin.ts', () => {
     )
   })
 
+  it('refuses lint-staged without a linter or a formatter to run', () => {
+    const plugins = ['pnpm', 'knip', 'lint-staged'].map((name) => {
+      const found = builtIn.find(({ plugin }) => plugin.name === name)
+      if (found === undefined) {
+        throw new Error(`no built-in plugin ${name}`)
+      }
+      return found
+    })
+
+    expect(() =>
+      assembleProject({
+        project: createProject({
+          files: baseFiles,
+          settings: { alias: '@/*', isSrcDirectory: false },
+        }),
+        plugins,
+        categoryOrder: CATEGORIES.map(({ id }) => id),
+      }),
+    ).toThrow(
+      'lint-staged (finish lintStaged): it needs a linter or a formatter to run on the staged files',
+    )
+  })
+
   it('refuses Prettier together with Biome', () => {
     expect(() => assembleWith(['pnpm', 'biome', 'prettier'])).toThrow(
       'prettier conflicts with biome: Biome formats the code already.',
