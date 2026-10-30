@@ -110,3 +110,9 @@ export const loadPlugin = async (
   }
   return { manifest, directory: root, source }
 }
+
+/** A loaded plugin by its name and directory, to check that names are unique. */
+export const namedPlugin = ({ manifest, directory }: LoadedPlugin) => ({
+  name: manifest.name,
+  location: directory,
+})

@@ -10,7 +10,7 @@ import { isMissingFileError } from '../file-system/error-code.ts'
 import { listDirectories } from '../file-system/list-directories.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
 import { assertUniqueNames } from './assert-unique-names.ts'
-import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
+import { type LoadedPlugin, loadPlugin, namedPlugin } from './load-plugin.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
 /**
@@ -86,7 +86,7 @@ const loadGroupedPlugins = async (directory: string): Promise<LoadedPlugin[]> =>
     assertInGroup(directory, group, inGroup)
     plugins.push(...inGroup)
   }
-  assertUniqueNames(plugins)
+  assertUniqueNames(plugins.map(namedPlugin))
   return plugins
 }
 

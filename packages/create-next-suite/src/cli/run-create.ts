@@ -10,7 +10,7 @@ import { assertUniqueNames } from '../loader/assert-unique-names.ts'
 import type { Assets } from '../loader/load-assets.ts'
 import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
 import { loadLogic } from '../loader/load-logic.ts'
-import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { type LoadedPlugin, namedPlugin } from '../loader/load-plugin.ts'
 import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
 import {
   detectPackageManager,
@@ -291,7 +291,9 @@ const loadRunAssets = async (environment: CreateEnvironment): Promise<Assets> =>
     registries,
   })
   const plugins = [...assets.plugins, ...external]
-  assertUniqueNames([...(assets.base === undefined ? [] : [assets.base]), ...plugins])
+  assertUniqueNames(
+    [...(assets.base === undefined ? [] : [assets.base]), ...plugins].map(namedPlugin),
+  )
   return { ...assets, plugins }
 }
 
