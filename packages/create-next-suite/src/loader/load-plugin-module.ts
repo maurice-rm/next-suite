@@ -45,6 +45,16 @@ export const assertPluginFile = async (location: string, path: string): Promise<
   }
 }
 
+/** A plugin already loaded, reading the files its sources name from `directory`. */
+export const createPluginModule = (plugin: Plugin, directory: string): LoadedPluginModule => ({
+  plugin,
+  directory,
+  readFile: (source) => {
+    assertSourceFile(directory, source)
+    return readFileSync(resolve(directory, source), 'utf8')
+  },
+})
+
 /**
  * Loads the plugin in a directory from its `plugin.ts`, run through jiti. Its imports of
  * `create-next-suite/plugin` go to `pluginEntry`, the entry of the running create-next-suite.
@@ -69,12 +79,5 @@ export const loadPluginModule = async (
       `${PLUGIN_FILE} exports no plugin with a name and a title by default`,
     )
   }
-  return {
-    plugin,
-    directory: root,
-    readFile: (source) => {
-      assertSourceFile(root, source)
-      return readFileSync(resolve(root, source), 'utf8')
-    },
-  }
+  return createPluginModule(plugin, root)
 }
