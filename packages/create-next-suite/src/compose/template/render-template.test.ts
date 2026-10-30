@@ -72,7 +72,7 @@ describe('renderTemplate', () => {
     ['block parameters', '{{#each items as |item|}}{{item}}{{/each}}'],
     ['an else on each', '{{#each items}}x{{else}}empty{{/each}}'],
   ])('rejects %s', (_name, source) => {
-    expect(() => render(source)).toThrow(/create-next-suite: .*\(line 1, column \d+\)/)
+    expect(() => render(source)).toThrow(/\(line 1, column \d+\)/)
   })
 
   it('rejects any condition in a file of the base project, and allows each', () => {

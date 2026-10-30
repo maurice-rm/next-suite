@@ -7,6 +7,8 @@ import { join } from 'node:path'
 import * as tar from 'tar'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { stubRemote } from '../test-support/stub-remote.ts'
+import { writeFiles } from '../test-support/write-files.ts'
 import { fetchRemotePlugin, type RemoteEnvironment } from './fetch-remote-plugin.ts'
 
 let root: string
@@ -22,10 +24,7 @@ afterEach(async () => {
 /** A gzipped tarball of files under one top folder, as npm and GitHub serve them. */
 const tarball = async (top: string, files: Record<string, string>): Promise<Buffer> => {
   const source = join(root, 'source', top)
-  for (const [path, content] of Object.entries(files)) {
-    await mkdir(join(source, path, '..'), { recursive: true })
-    await writeFile(join(source, path), content)
-  }
+  await writeFiles(source, files)
   const file = join(root, `${top}.tgz`)
   await tar.c({ gzip: true, file, cwd: join(root, 'source') }, [top])
   await rm(join(root, 'source'), { recursive: true, force: true })
@@ -35,23 +34,13 @@ const tarball = async (top: string, files: Record<string, string>): Promise<Buff
 const respond = (body: Buffer | string, status = 200) =>
   new Response(typeof body === 'string' ? body : new Uint8Array(body), { status })
 
-const environmentWith = (routes: Record<string, () => Response>): RemoteEnvironment => ({
-  fetch: async (input) => {
-    const route = routes[String(input)]
-    return route === undefined ? respond('not found', 404) : route()
-  },
-  cacheDir: join(root, 'cache'),
-  tokenFor: () => undefined,
-  npmRegistry: undefined,
-})
-
 const PLUGIN = '{"name":"mail"}'
 
 describe('fetchRemotePlugin', () => {
   it('fetches an npm package, picks the version of the range and checks its integrity', async () => {
     const archive = await tarball('package', { 'plugin.json': PLUGIN })
     const integrity = `sha512-${createHash('sha512').update(archive).digest('base64')}`
-    const environment = environmentWith({
+    const environment = stubRemote(root, {
       'https://registry.npmjs.org/@acme%2fmail': () =>
         respond(
           JSON.stringify({
@@ -76,7 +65,7 @@ describe('fetchRemotePlugin', () => {
   })
 
   it('rejects an npm tarball that does not match its integrity', async () => {
-    const environment = environmentWith({
+    const environment = stubRemote(root, {
       'https://registry.npmjs.org/mail': () =>
         respond(
           JSON.stringify({
@@ -96,7 +85,7 @@ describe('fetchRemotePlugin', () => {
 
   it('fetches a folder of a GitHub repository at the commit its ref resolves to', async () => {
     const archive = await tarball('acme-plugins-top', { 'mail/plugin.json': PLUGIN })
-    const environment = environmentWith({
+    const environment = stubRemote(root, {
       'https://api.github.com/repos/acme/plugins/commits/v2': () =>
         respond('0123456789abcdef0123456789abcdef01234567\n'),
       'https://api.github.com/repos/acme/plugins/tarball/0123456789abcdef0123456789abcdef01234567':
@@ -117,7 +106,7 @@ describe('fetchRemotePlugin', () => {
 
   it('fetches a tarball URL and names it by its digest', async () => {
     const archive = await tarball('mail', { 'plugin.json': PLUGIN })
-    const environment = environmentWith({ 'https://host/mail.tgz': () => respond(archive) })
+    const environment = stubRemote(root, { 'https://host/mail.tgz': () => respond(archive) })
 
     const fetched = await fetchRemotePlugin(environment, {
       kind: 'url',
@@ -138,7 +127,7 @@ describe('fetchRemotePlugin', () => {
     git('add', '.')
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'init')
 
-    const fetched = await fetchRemotePlugin(environmentWith({}), {
+    const fetched = await fetchRemotePlugin(stubRemote(root), {
       kind: 'git',
       url: `file://${repository}`,
       ref: 'main',
@@ -153,7 +142,7 @@ describe('fetchRemotePlugin', () => {
     const sha = '0123456789abcdef0123456789abcdef01234567'
     const seen: Record<string, string | null> = {}
     const environment: RemoteEnvironment = {
-      ...environmentWith({}),
+      ...stubRemote(root),
       tokenFor: () => 'secret',
       fetch: async (input, init) => {
         const url = String(input)
@@ -195,7 +184,7 @@ describe('fetchRemotePlugin', () => {
     git('config', 'uploadpack.allowReachableSHA1InWant', 'true')
     const sha = git('rev-parse', 'HEAD')
 
-    const fetched = await fetchRemotePlugin(environmentWith({}), {
+    const fetched = await fetchRemotePlugin(stubRemote(root), {
       kind: 'git',
       url: `file://${repository}`,
       ref: sha,

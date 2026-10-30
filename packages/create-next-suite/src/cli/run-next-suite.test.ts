@@ -1,69 +1,43 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { Writable } from 'node:stream'
+import { join } from 'node:path'
 
 import ansis from 'ansis'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { collectOutput } from '../test-support/collect-output.ts'
+import { stubRemote } from '../test-support/stub-remote.ts'
+import { testManifestJson } from '../test-support/test-manifest.ts'
+import { writeFiles } from '../test-support/write-files.ts'
 import { runNextSuite } from './run-next-suite.ts'
 
 let root: string
 
-const write = async (files: Record<string, string>): Promise<void> => {
-  for (const [path, content] of Object.entries(files)) {
-    await mkdir(dirname(join(root, path)), { recursive: true })
-    await writeFile(join(root, path), content)
-  }
-}
-
-const plugin = (name: string, extra: object = {}) =>
-  JSON.stringify({
-    name,
-    version: '1.0.0',
-    contract: '^1.0.0',
-    title: name,
-    description: name,
-    ...extra,
-  })
-
 const run = async (argv: string[]) => {
-  const output: string[] = []
-  const error: string[] = []
-  const sink = (lines: string[]) =>
-    new Writable({
-      write: (chunk, _encoding, done) => {
-        lines.push(String(chunk))
-        done()
-      },
-    })
+  const output = collectOutput()
+  const error = collectOutput()
   const exitCode = await runNextSuite({
     argv,
-    version: '2.0.0',
+    cliVersion: '2.0.0',
     cwd: root,
-    output: sink(output),
-    error: sink(error),
-    remote: {
-      fetch: async () => new Response('offline', { status: 503 }),
-      cacheDir: join(root, 'cache'),
-      tokenFor: () => undefined,
-      npmRegistry: undefined,
-    },
+    output: output.stream,
+    error: error.stream,
+    remote: stubRemote(root),
     userConfigPath: join(root, 'config.json'),
   })
-  return { exitCode, output: output.join(''), error: ansis.strip(error.join('')) }
+  return { exitCode, output: output.text(), error: ansis.strip(error.text()) }
 }
 
 const config = async () => JSON.parse(await readFile(join(root, 'config.json'), 'utf8'))
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'next-suite-command-'))
-  await write({
+  await writeFiles(root, {
     'registry/registry.json': JSON.stringify({
       name: '@acme',
       plugins: [{ name: 'mail', path: 'mail', description: 'Sends mail.' }],
     }),
-    'registry/mail/plugin.json': plugin('mail'),
+    'registry/mail/plugin.json': testManifestJson('mail'),
   })
 })
 
@@ -109,10 +83,14 @@ describe('next-suite trust', () => {
 
 describe('next-suite plugin validate', () => {
   it('accepts a valid plugin and names the problem of an invalid template', async () => {
-    await write({
-      'good/plugin.json': plugin('good', { files: [{ source: 'a.ts.hbs', target: 'a.ts' }] }),
+    await writeFiles(root, {
+      'good/plugin.json': testManifestJson('good', {
+        files: [{ source: 'a.ts.hbs', target: 'a.ts' }],
+      }),
       'good/a.ts.hbs': 'export const name = "{{project.name}}"\n',
-      'bad/plugin.json': plugin('bad', { files: [{ source: 'a.ts.hbs', target: 'a.ts' }] }),
+      'bad/plugin.json': testManifestJson('bad', {
+        files: [{ source: 'a.ts.hbs', target: 'a.ts' }],
+      }),
       'bad/a.ts.hbs': '{{#with project}}{{name}}{{/with}}\n',
     })
 

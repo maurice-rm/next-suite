@@ -1,4 +1,4 @@
-import type { Answers } from '../answers/answers.ts'
+import { type Answers, isSelected } from '../answers/answers.ts'
 import type { Question } from './questions.ts'
 
 const selectedIn = (answers: Answers, category: string): string[] =>
@@ -14,7 +14,7 @@ const recordOne = (question: Question, answers: Answers): unknown => {
       return names[0] ?? null
     }
     case 'addon':
-      return answers.plugins.some((plugin) => plugin.name === question.key)
+      return isSelected(answers, question.key)
     case 'option':
       return answers.options[question.key]
     case 'setting':

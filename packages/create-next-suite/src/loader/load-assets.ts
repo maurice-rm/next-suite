@@ -1,10 +1,12 @@
-import { readdir, readFile, stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import type * as z from 'zod'
 
 import { type Category, categoriesSchema } from '../contract/category.ts'
 import { type VersionCatalog, versionCatalogSchema } from '../contract/version-catalog.ts'
+import { isMissingFileError } from '../file-system/error-code.ts'
+import { listFolders } from '../file-system/list-folders.ts'
 import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
 import { assertUniqueNames, loadPlugins } from './load-plugins.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
@@ -27,7 +29,7 @@ const exists = async (path: string): Promise<boolean> =>
   stat(path).then(
     () => true,
     (error: unknown) => {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      if (isMissingFileError(error)) {
         return false
       }
       throw error
@@ -59,11 +61,7 @@ const assertInGroup = (directory: string, group: string, plugins: LoadedPlugin[]
  * `extras/`. A plugin in the folder of another category fails.
  */
 const loadGroupedPlugins = async (directory: string): Promise<LoadedPlugin[]> => {
-  const entries = await readdir(directory, { withFileTypes: true })
-  const groups = entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
+  const groups = await listFolders(directory)
   const plugins: LoadedPlugin[] = []
   for (const group of groups) {
     const inGroup = await loadPlugins(join(directory, group))

@@ -6,19 +6,21 @@ import { Command, CommanderError } from 'commander'
 
 import { checkTemplate, PLUGIN_TEMPLATE_BLOCKS } from '../compose/template/check-template.ts'
 import { registryName } from '../contract/identifiers.ts'
+import { InputError } from '../input-error.ts'
 import type { RemoteEnvironment } from '../loader/fetch-remote-plugin.ts'
 import { loadPlugin } from '../loader/load-plugin.ts'
 import { parsePluginAddress } from '../loader/plugin-address.ts'
 import { fetchRegistry } from '../loader/registry.ts'
-import { InputError } from '../questions/input-error.ts'
 import { readUserConfig, type UserConfig, writeUserConfig } from '../trust/user-config.ts'
 import { failure } from '../ui/theme.ts'
+import { CREATE_COMMAND, NEXT_SUITE_COMMAND } from './command-name.ts'
+import { EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import { describeExpectedError } from './report-error.ts'
 
 /** Everything `next-suite` reads from outside: arguments, output, folder, network and config. */
 export type NextSuiteEnvironment = {
   argv: readonly string[]
-  version: string
+  cliVersion: string
   cwd: string
   output: Writable
   error: Writable
@@ -26,8 +28,6 @@ export type NextSuiteEnvironment = {
   userConfigPath: string
 }
 
-const EXIT_SUCCESS = 0
-const EXIT_FAILURE = 1
 const TEMPLATE_EXTENSION = '.hbs'
 
 const updateConfig = async (path: string, change: (config: UserConfig) => void): Promise<void> => {
@@ -138,9 +138,9 @@ const validatePlugin = async (environment: NextSuiteEnvironment, folder: string)
 
 const createProgram = (environment: NextSuiteEnvironment, report: (text: string) => void) => {
   const program = new Command()
-    .name('next-suite')
+    .name(NEXT_SUITE_COMMAND)
     .description('Manage plugin registries and trust for create-next-suite.')
-    .version(environment.version)
+    .version(environment.cliVersion)
     .exitOverride()
     .configureOutput({
       writeOut: (text) => environment.output.write(text),
@@ -204,7 +204,7 @@ export const runNextSuite = async (environment: NextSuiteEnvironment): Promise<n
     if (error instanceof CommanderError) {
       return error.exitCode
     }
-    environment.error.write(`${failure(describeExpectedError(error))}\n`)
+    environment.error.write(`${failure(describeExpectedError(error, CREATE_COMMAND))}\n`)
     return EXIT_FAILURE
   }
 }

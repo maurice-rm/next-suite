@@ -1,6 +1,6 @@
-import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { listFolders } from '../file-system/list-folders.ts'
 import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
@@ -17,11 +17,7 @@ export const assertUniqueNames = (plugins: readonly LoadedPlugin[]): void => {
 
 /** Loads every plugin folder directly inside a directory, sorted by folder name. */
 export const loadPlugins = async (directory: string): Promise<LoadedPlugin[]> => {
-  const entries = await readdir(directory, { withFileTypes: true })
-  const folders = entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort()
+  const folders = await listFolders(directory)
   const plugins = await Promise.all(folders.map((folder) => loadPlugin(join(directory, folder))))
   assertUniqueNames(plugins)
   return plugins

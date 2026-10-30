@@ -1,13 +1,17 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { PassThrough, Writable } from 'node:stream'
+import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
 
 import ansis from 'ansis'
 import * as tar from 'tar'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { loadAssets } from '../loader/load-assets.ts'
+import { collectOutput } from '../test-support/collect-output.ts'
+import { type Routes, stubRemote } from '../test-support/stub-remote.ts'
+import { testManifestJson } from '../test-support/test-manifest.ts'
+import { writeFiles } from '../test-support/write-files.ts'
 import { runCreate } from './run-create.ts'
 
 let root: string
@@ -15,10 +19,7 @@ let root: string
 /** A GitHub tarball of a plugin folder, served for `github:acme/plugins/<name>` at commit 0123456789abcdef0123456789abcdef01234567. */
 const githubRoutes = async (name: string, files: Record<string, string>) => {
   const top = join(root, 'github-source')
-  for (const [path, content] of Object.entries(files)) {
-    await mkdir(dirname(join(top, 'repo', name, path)), { recursive: true })
-    await writeFile(join(top, 'repo', name, path), content)
-  }
+  await writeFiles(join(top, 'repo', name), files)
   const file = join(root, 'github.tgz')
   await tar.c({ gzip: true, file, cwd: top }, ['repo'])
   const archive = new Uint8Array(await readFile(file))
@@ -30,23 +31,6 @@ const githubRoutes = async (name: string, files: Record<string, string>) => {
       () => new Response(archive),
   }
 }
-
-const write = async (files: Record<string, string>): Promise<void> => {
-  for (const [path, content] of Object.entries(files)) {
-    await mkdir(dirname(join(root, path)), { recursive: true })
-    await writeFile(join(root, path), content)
-  }
-}
-
-const manifest = (name: string, extra: object = {}): string =>
-  JSON.stringify({
-    name,
-    version: '1.0.0',
-    contract: '^1.0.0',
-    title: name,
-    description: `The ${name} plugin.`,
-    ...extra,
-  })
 
 const ASSETS = {
   'assets/categories.json': JSON.stringify([
@@ -69,14 +53,14 @@ const ASSETS = {
     },
   ]),
   'assets/catalog.json': JSON.stringify({ next: '16.4.3' }),
-  'assets/base/plugin.json': manifest('base', {
+  'assets/base/plugin.json': testManifestJson('base', {
     dependencies: { next: 'catalog:next' },
     contributes: { package: { scripts: { dev: 'next dev' } } },
     files: [{ source: 'files/page.tsx.hbs', target: 'app/page.tsx', root: 'source' }],
   }),
   'assets/base/files/page.tsx.hbs':
     'export default function Page() { return <h1>{{project.name}}</h1> }\n',
-  'assets/plugins/package-manager/pnpm/plugin.json': manifest('pnpm', {
+  'assets/plugins/package-manager/pnpm/plugin.json': testManifestJson('pnpm', {
     category: 'package-manager',
     packageManager: {
       version: '12.16.1',
@@ -85,7 +69,7 @@ const ASSETS = {
       allowedBuildsIn: 'package.json#allowScripts',
     },
   }),
-  'assets/plugins/package-manager/npm/plugin.json': manifest('npm', {
+  'assets/plugins/package-manager/npm/plugin.json': testManifestJson('npm', {
     category: 'package-manager',
     packageManager: {
       version: '12.2.1',
@@ -94,13 +78,13 @@ const ASSETS = {
       allowedBuildsIn: 'package.json#allowScripts',
     },
   }),
-  'assets/plugins/orm/drizzle/plugin.json': manifest('drizzle', {
+  'assets/plugins/orm/drizzle/plugin.json': testManifestJson('drizzle', {
     category: 'orm',
     dependencies: { 'drizzle-orm': '^1.0.0' },
     files: [{ source: 'db.ts', target: 'lib/db.ts', root: 'source' }],
   }),
   'assets/plugins/orm/drizzle/db.ts': 'export const db = {}\n',
-  'assets/plugins/extras/better-auth/plugin.json': manifest('better-auth', {
+  'assets/plugins/extras/better-auth/plugin.json': testManifestJson('better-auth', {
     requires: [{ when: { category: 'orm' }, reason: 'Stores sessions in the database.' }],
   }),
 }
@@ -109,7 +93,7 @@ type RunOptions = {
   isInteractive?: boolean
   keys?: string[]
   userAgent?: string
-  routes?: Record<string, () => Response>
+  routes?: Routes
 }
 
 const OUTSIDE_REPOSITORY = 'git rev-parse --is-inside-work-tree'
@@ -121,15 +105,8 @@ const run = async (
   { isInteractive = false, keys = [], userAgent, routes = {} }: RunOptions = {},
 ) => {
   const commands: string[] = []
-  const output: string[] = []
-  const error: string[] = []
-  const sink = (lines: string[]) =>
-    new Writable({
-      write: (chunk, _encoding, done) => {
-        lines.push(String(chunk))
-        done()
-      },
-    })
+  const output = collectOutput()
+  const error = collectOutput()
   const input = new PassThrough()
   const pressing = (async () => {
     for (const key of keys) {
@@ -142,7 +119,7 @@ const run = async (
     assets: await loadAssets(join(root, 'assets')),
     cliVersion: '2.0.0',
     cwd: root,
-    streams: { input, output: sink(output), error: sink(error) },
+    streams: { input, output: output.stream, error: error.stream },
     isInteractive,
     columns: 80,
     now: () => new Date('2026-11-01T10:00:00Z'),
@@ -152,27 +129,22 @@ const run = async (
       commands.push(line)
       return { isSuccess: line !== OUTSIDE_REPOSITORY, output: '' }
     },
-    remote: {
-      fetch: async (url) => routes[String(url)]?.() ?? new Response('not found', { status: 404 }),
-      cacheDir: join(root, 'cache'),
-      tokenFor: () => undefined,
-      npmRegistry: undefined,
-    },
+    remote: stubRemote(root, routes),
     userConfigPath: join(root, 'config.json'),
     fetchLatestVersion: async () => undefined,
   })
   await pressing
   return {
     exitCode,
-    output: ansis.strip(output.join('')),
-    error: ansis.strip(error.join('')),
+    output: ansis.strip(output.text()),
+    error: ansis.strip(error.text()),
     commands,
   }
 }
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'next-suite-create-'))
-  await write(ASSETS)
+  await writeFiles(root, ASSETS)
 })
 
 afterEach(async () => {
@@ -281,7 +253,7 @@ describe('runCreate', () => {
   it('rebuilds the same project from the answers in next-suite.json', async () => {
     await run(['first', '--yes', '--orm', 'drizzle', '--no-better-auth'])
     const recorded = JSON.parse(await readFile(join(root, 'first/next-suite.json'), 'utf8')).answers
-    await write({ 'answers.json': JSON.stringify(recorded) })
+    await writeFiles(root, { 'answers.json': JSON.stringify(recorded) })
 
     const again = await run(['second', '--answers', 'answers.json', '--dry-run'])
     const original = await run([
@@ -306,9 +278,11 @@ describe('runCreate', () => {
   })
 
   it('drops an answer of the file whose question a flag made obsolete', async () => {
-    await write({ 'answers.json': JSON.stringify({ orm: 'drizzle', 'drizzle.casing': 'snake' }) })
-    await write({
-      'assets/plugins/orm/drizzle/plugin.json': manifest('drizzle', {
+    await writeFiles(root, {
+      'answers.json': JSON.stringify({ orm: 'drizzle', 'drizzle.casing': 'snake' }),
+    })
+    await writeFiles(root, {
+      'assets/plugins/orm/drizzle/plugin.json': testManifestJson('drizzle', {
         category: 'orm',
         options: {
           casing: {
@@ -334,7 +308,7 @@ describe('runCreate', () => {
   })
 
   it('reads answers from a file, which flags override', async () => {
-    await write({
+    await writeFiles(root, {
       'answers.json': JSON.stringify({
         'package-manager': 'npm',
         orm: 'drizzle',
@@ -376,7 +350,7 @@ describe('runCreate', () => {
   })
 
   it('asks for --overwrite or --empty for a folder with files without a terminal', async () => {
-    await write({ 'shop/notes.txt': 'mine' })
+    await writeFiles(root, { 'shop/notes.txt': 'mine' })
 
     const result = await run(['shop', '--yes'])
 
@@ -388,7 +362,7 @@ describe('runCreate', () => {
   })
 
   it('keeps the other files with --overwrite and deletes them with --empty', async () => {
-    await write({ 'kept/notes.txt': 'mine', 'emptied/notes.txt': 'mine' })
+    await writeFiles(root, { 'kept/notes.txt': 'mine', 'emptied/notes.txt': 'mine' })
 
     await run(['kept', '--yes', '--overwrite', '--no-git', '--no-install'])
     await run(['emptied', '--yes', '--empty', '--no-git', '--no-install'])
@@ -405,7 +379,7 @@ describe('runCreate', () => {
   })
 
   it('asks in the wizard what to do with a folder that has files', async () => {
-    await write({ 'shop/notes.txt': 'mine' })
+    await writeFiles(root, { 'shop/notes.txt': 'mine' })
 
     const result = await run(['shop', '--dry-run'], { isInteractive: true, keys: ['\u0003'] })
 
@@ -433,8 +407,8 @@ describe('runCreate', () => {
   })
 
   it('adds a plugin from a local folder, with its flag, its files and its source', async () => {
-    await write({
-      'mail/plugin.json': manifest('mail', {
+    await writeFiles(root, {
+      'mail/plugin.json': testManifestJson('mail', {
         section: 'Integrations',
         files: [{ source: 'mail.ts', target: 'lib/mail.ts' }],
       }),
@@ -455,7 +429,7 @@ describe('runCreate', () => {
   })
 
   it('rejects an external plugin with the name of a built-in one, and an unknown address', async () => {
-    await write({ 'npm/plugin.json': manifest('npm') })
+    await writeFiles(root, { 'npm/plugin.json': testManifestJson('npm') })
 
     expect((await run(['my-app', '--yes', '--plugin', './npm'])).error).toContain(
       'two plugins are named npm',
@@ -466,8 +440,11 @@ describe('runCreate', () => {
   })
 
   it('runs the logic module of a plugin: computed files, contributions and dependencies', async () => {
-    await write({
-      'hello/plugin.json': manifest('hello', { logic: 'logic.ts', selectedByDefault: true }),
+    await writeFiles(root, {
+      'hello/plugin.json': testManifestJson('hello', {
+        logic: 'logic.ts',
+        selectedByDefault: true,
+      }),
       'hello/logic.ts': [
         'export default (context) => ({',
         '  files: [{ target: "lib/hello.ts", content: "export const name = " + JSON.stringify(context.project.name) + "\\n" }],',
@@ -487,8 +464,11 @@ describe('runCreate', () => {
   })
 
   it('rejects a logic module that answers something invalid', async () => {
-    await write({
-      'broken/plugin.json': manifest('broken', { logic: 'logic.ts', selectedByDefault: true }),
+    await writeFiles(root, {
+      'broken/plugin.json': testManifestJson('broken', {
+        logic: 'logic.ts',
+        selectedByDefault: true,
+      }),
       'broken/logic.ts': 'export default () => ({ files: "nope" })\n',
     })
 
@@ -500,7 +480,7 @@ describe('runCreate', () => {
 
   it('needs trust for a plugin from GitHub even without a logic module, since it writes and runs', async () => {
     const routes = await githubRoutes('mail', {
-      'plugin.json': manifest('mail', { selectedByDefault: true }),
+      'plugin.json': testManifestJson('mail', { selectedByDefault: true }),
     })
 
     const argv = ['my-app', '--yes', '--no-git', '--plugin', 'github:acme/plugins/mail']
@@ -520,14 +500,14 @@ describe('runCreate', () => {
 
   it('runs code from an untrusted source only with --trust or a trusted pattern', async () => {
     const routes = await githubRoutes('hello', {
-      'plugin.json': manifest('hello', { logic: 'logic.ts', selectedByDefault: true }),
+      'plugin.json': testManifestJson('hello', { logic: 'logic.ts', selectedByDefault: true }),
       'logic.ts': 'export default () => ({ files: [{ target: "hello.txt", content: "hi\\n" }] })\n',
     })
     const argv = ['my-app', '--yes', '--dry-run', '--plugin', 'github:acme/plugins/hello']
 
     const refused = await run(argv, { routes })
     const flagged = await run([...argv, '--trust', 'github:acme/*'], { routes })
-    await write({ 'config.json': JSON.stringify({ trust: ['github:acme/plugins/*'] }) })
+    await writeFiles(root, { 'config.json': JSON.stringify({ trust: ['github:acme/plugins/*'] }) })
     const configured = await run(argv, { routes })
 
     expect(refused.exitCode).toBe(1)
@@ -538,7 +518,7 @@ describe('runCreate', () => {
 
   it('asks in the terminal and remembers a source the user always trusts', async () => {
     const routes = await githubRoutes('hello', {
-      'plugin.json': manifest('hello', { logic: 'logic.ts', selectedByDefault: true }),
+      'plugin.json': testManifestJson('hello', { logic: 'logic.ts', selectedByDefault: true }),
       'logic.ts': 'export default () => ({})\n',
     })
     const up = '\u001b[A'
@@ -557,12 +537,12 @@ describe('runCreate', () => {
   })
 
   it('loads a plugin of a registry by its short name', async () => {
-    await write({
+    await writeFiles(root, {
       'registry/registry.json': JSON.stringify({
         name: '@acme',
         plugins: [{ name: 'mail', path: 'plugins/mail', description: 'Mail.' }],
       }),
-      'registry/plugins/mail/plugin.json': manifest('mail', { selectedByDefault: true }),
+      'registry/plugins/mail/plugin.json': testManifestJson('mail', { selectedByDefault: true }),
       'config.json': JSON.stringify({ trust: ['@acme/*'], registries: { '@acme': './registry' } }),
     })
 
@@ -578,7 +558,7 @@ describe('runCreate', () => {
   })
 
   it('rejects an answer that no question asks', async () => {
-    await write({ 'answers.json': JSON.stringify({ colour: 'blue' }) })
+    await writeFiles(root, { 'answers.json': JSON.stringify({ colour: 'blue' }) })
 
     const result = await run(['my-app', '--yes', '--answers', 'answers.json', '--dry-run'])
 

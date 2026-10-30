@@ -5,14 +5,13 @@ import {
   type ParsedPluginManifest,
 } from '../../contract/plugin-manifest.ts'
 import type { PluginOption } from '../../contract/plugin-option.ts'
+import { PromptCancelledError } from '../../ui/prompt-cancelled-error.ts'
+import { type Choice, confirm, multiselect, type Streams, select, text } from '../../ui/prompts.ts'
 import { renderSectionBadge } from '../../ui/theme.ts'
 import { DEFAULT_PROJECT_DIRECTORY } from '../project-name.ts'
 import type { CategoryQuestion } from '../questions.ts'
 import { defaultAnswer } from '../resolve-answers.ts'
-import { type Choice, confirm, multiselect, select, text } from './prompts.ts'
 import type { Ask, WizardStep } from './run-wizard.ts'
-import type { Streams } from './streams.ts'
-import { WizardCancelled } from './wizard-cancelled.ts'
 
 const NONE_LABEL = 'None'
 const DETECTED_HINT = 'detected'
@@ -187,7 +186,7 @@ const askConflict = async (directory: string, { base, previous, context }: StepA
     initialValue: previousOr(previous, choices[0]?.value ?? CANCEL, isString),
   })
   if (reply === CANCEL) {
-    throw new WizardCancelled()
+    throw new PromptCancelledError()
   }
   return reply
 }

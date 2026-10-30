@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Category } from '../contract/category.ts'
-import { type ParsedPluginManifest, pluginManifestSchema } from '../contract/plugin-manifest.ts'
+import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import { parseTestManifest } from '../test-support/test-manifest.ts'
 import {
   detectPackageManager,
   findUsablePackageManager,
@@ -9,12 +10,7 @@ import {
 } from './detect-package-manager.ts'
 
 const packageManager = (name: string): ParsedPluginManifest =>
-  pluginManifestSchema.parse({
-    name,
-    version: '1.0.0',
-    contract: '^1.0.0',
-    title: name,
-    description: name,
+  parseTestManifest(name, {
     category: 'package-manager',
     packageManager: {
       version: '1.0.0',

@@ -1,7 +1,7 @@
 import { InvalidArgumentError, Option } from 'commander'
 
 import type { PluginOption } from '../contract/plugin-option.ts'
-import { InputError } from './input-error.ts'
+import { InputError } from '../input-error.ts'
 import type { CategoryQuestion, Question } from './questions.ts'
 import type { AnswerInput } from './resolve-answers.ts'
 

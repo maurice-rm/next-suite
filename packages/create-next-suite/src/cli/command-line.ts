@@ -4,11 +4,11 @@ import type { Writable } from 'node:stream'
 import { Command, Option } from 'commander'
 
 import type { TargetAction } from '../answers/target-action.ts'
-
+import { InputError } from '../input-error.ts'
 import { answersFromFlags, type QuestionFlag } from '../questions/flags.ts'
-import { InputError } from '../questions/input-error.ts'
 import { readAnswerFile } from '../questions/read-answer-file.ts'
 import type { AnswerInput } from '../questions/resolve-answers.ts'
+import { CREATE_COMMAND } from './command-name.ts'
 
 type CoreFlags = {
   yes?: boolean
@@ -32,7 +32,7 @@ export type GivenAnswers = { input: AnswerInput; flagKeys: ReadonlySet<string> }
 
 type CommandLineSource = {
   argv: readonly string[]
-  version: string
+  cliVersion: string
   output: Writable
   error: Writable
 }
@@ -87,14 +87,14 @@ export const readPluginAddresses = (argv: readonly string[]): string[] =>
  * answers --help and --version itself and throws its `CommanderError` to end the run.
  */
 export const parseCommandLine = async (
-  { argv, version, output, error }: CommandLineSource,
+  { argv, cliVersion, output, error }: CommandLineSource,
   questionFlags: readonly QuestionFlag[],
 ): Promise<Invocation> => {
   let invocation: Invocation | undefined
   const program = new Command()
-    .name('create-next-suite')
+    .name(CREATE_COMMAND)
     .description('Create a Next.js app from plugins.')
-    .version(version)
+    .version(cliVersion)
     .argument(
       '[directory]',
       'project name or path, "." for the current directory; the folder name is the package name',

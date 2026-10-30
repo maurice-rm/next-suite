@@ -1,16 +1,12 @@
 import { realpathSync } from 'node:fs'
 import { readdir, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join, parse, relative, resolve, sep } from 'node:path'
+import { join, parse, resolve } from 'node:path'
 
+import { isInsideOrSame } from '../file-system/is-inside.ts'
 import { WriteError } from './write-error.ts'
 
 const KEPT_ENTRY = '.git'
-
-const contains = (folder: string, path: string): boolean => {
-  const fromFolder = relative(folder, path)
-  return fromFolder === '' || (!fromFolder.startsWith(`..${sep}`) && fromFolder !== '..')
-}
 
 /** The real path with links resolved, or the plain absolute path when nothing is there yet. */
 const realPathOf = (path: string): string => {
@@ -25,7 +21,9 @@ const realPathOf = (path: string): string => {
 export const findEmptyingProblem = (directory: string, cwd: string): string | undefined => {
   const path = realPathOf(directory)
   const isRefused =
-    path === parse(path).root || path === realPathOf(homedir()) || contains(path, realPathOf(cwd))
+    path === parse(path).root ||
+    path === realPathOf(homedir()) ||
+    isInsideOrSame(path, realPathOf(cwd))
   return isRefused
     ? `Refusing to empty ${path}: it is a filesystem root, your home directory, or the current directory or one of its parents.`
     : undefined

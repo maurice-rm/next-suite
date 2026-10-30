@@ -1,15 +1,16 @@
-import { lstat, readFile, realpath } from 'node:fs/promises'
+import { lstat, realpath } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 
 import semver from 'semver'
-import * as z from 'zod'
 
 import {
   CONTRACT_VERSION,
   type ParsedPluginManifest,
   pluginManifestSchema,
 } from '../contract/plugin-manifest.ts'
-import { isInside } from './is-inside.ts'
+import { isMissingFileError } from '../file-system/error-code.ts'
+import { isInside } from '../file-system/is-inside.ts'
+import { type JsonErrorFactory, readJsonFile } from '../file-system/read-json-file.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
 const MANIFEST_FILE = 'plugin.json'
@@ -27,37 +28,21 @@ export type LoadedPlugin = {
   source: PluginSource
 }
 
-const MISSING_FILE_CODES = new Set(['ENOENT', 'ENOTDIR'])
-
-const isMissingFile = (error: unknown): boolean =>
-  error instanceof Error && 'code' in error && MISSING_FILE_CODES.has(String(error.code))
-
-const readManifestJson = async (folder: string): Promise<unknown> => {
-  let text: string
+const readManifest = async (folder: string): Promise<ParsedPluginManifest> => {
+  const path = join(folder, MANIFEST_FILE)
+  const toError: JsonErrorFactory = (problem, options) =>
+    new PluginLoadError(folder, `${MANIFEST_FILE} ${problem}`, options)
   try {
-    if ((await lstat(join(folder, MANIFEST_FILE))).isSymbolicLink()) {
+    if ((await lstat(path)).isSymbolicLink()) {
       throw new PluginLoadError(folder, `${MANIFEST_FILE} is a link`)
     }
-    text = await readFile(join(folder, MANIFEST_FILE), 'utf8')
+    return await readJsonFile(path, pluginManifestSchema, toError)
   } catch (error) {
-    if (isMissingFile(error)) {
+    if (isMissingFileError(error)) {
       throw new PluginLoadError(folder, `no ${MANIFEST_FILE}`, { cause: error })
     }
     throw error
   }
-  try {
-    return JSON.parse(text)
-  } catch (error) {
-    throw new PluginLoadError(folder, `${MANIFEST_FILE} is not valid JSON`, { cause: error })
-  }
-}
-
-const parseManifest = (folder: string, json: unknown): ParsedPluginManifest => {
-  const result = pluginManifestSchema.safeParse(json)
-  if (!result.success) {
-    throw new PluginLoadError(folder, `invalid ${MANIFEST_FILE}\n${z.prettifyError(result.error)}`)
-  }
-  return result.data
 }
 
 const assertContract = (folder: string, manifest: ParsedPluginManifest): void => {
@@ -76,7 +61,7 @@ const assertSourceFile = async (folder: string, source: string): Promise<void> =
     throw new PluginLoadError(folder, `the file source ${source} lies outside the plugin`)
   }
   const stats = await lstat(path).catch((error: unknown) => {
-    if (isMissingFile(error)) {
+    if (isMissingFileError(error)) {
       throw new PluginLoadError(folder, `the file source ${source} does not exist`, {
         cause: error,
       })
@@ -98,7 +83,7 @@ export const loadPlugin = async (
   source: PluginSource = BUILTIN_SOURCE,
 ): Promise<LoadedPlugin> => {
   const root = resolve(folder)
-  const manifest = parseManifest(root, await readManifestJson(root))
+  const manifest = await readManifest(root)
   assertContract(root, manifest)
   for (const file of manifest.files ?? []) {
     await assertSourceFile(root, file.source)

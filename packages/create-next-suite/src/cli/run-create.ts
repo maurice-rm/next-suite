@@ -4,6 +4,7 @@ import type { Writable } from 'node:stream'
 import { CommanderError } from 'commander'
 import type { TargetAction } from '../answers/target-action.ts'
 import { composeProject } from '../compose/compose-project.ts'
+import { InputError } from '../input-error.ts'
 import type { RemoteEnvironment } from '../loader/fetch-remote-plugin.ts'
 import type { Assets } from '../loader/load-assets.ts'
 import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
@@ -14,14 +15,13 @@ import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
 import { collectAnswers } from '../questions/collect-answers.ts'
 import { createFlags } from '../questions/flags.ts'
-import { InputError } from '../questions/input-error.ts'
 import { findProjectDirectoryProblem, projectNameOf } from '../questions/project-name.ts'
 import { buildQuestions, type Question } from '../questions/questions.ts'
 import { recordAnswers } from '../questions/record-answers.ts'
 import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
-import type { Streams } from '../questions/wizard/streams.ts'
-import { WizardCancelled } from '../questions/wizard/wizard-cancelled.ts'
 import { readUserConfig } from '../trust/user-config.ts'
+import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
+import type { Streams } from '../ui/prompts.ts'
 import { describePlan, diffPlan } from '../write/describe-plan.ts'
 import { findEmptyingProblem } from '../write/empty-target.ts'
 import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
@@ -35,12 +35,14 @@ import {
   readPluginAddresses,
   targetActionOf,
 } from './command-line.ts'
+import { CREATE_COMMAND } from './command-name.ts'
 import { confirmTrust } from './confirm-trust.ts'
 import {
   detectPackageManager,
   findUsablePackageManager,
   preferPackageManager,
 } from './detect-package-manager.ts'
+import { EXIT_CANCELLED, EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import { listNextSteps } from './next-steps.ts'
 import {
   openFrame,
@@ -76,10 +78,6 @@ export type CreateEnvironment = {
   /** The latest published version for the banner; answers nothing when unknown. */
   fetchLatestVersion: () => Promise<string | undefined>
 }
-
-const EXIT_SUCCESS = 0
-const EXIT_FAILURE = 1
-const EXIT_CANCELLED = 130
 
 /** Everything one run knows once the command line is read. */
 type Run = {
@@ -263,7 +261,7 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
     const { questions, detectedPackageManager } = prepareQuestions(withExternal)
     const questionFlags = createFlags(questions, RESERVED_NAMES)
     const invocation = await parseCommandLine(
-      { argv: environment.argv, version: environment.cliVersion, ...streams },
+      { argv: environment.argv, cliVersion: environment.cliVersion, ...streams },
       questionFlags,
     )
     const given = await readGivenAnswers(invocation, { cwd: environment.cwd, questionFlags })
@@ -281,11 +279,11 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
     if (error instanceof CommanderError) {
       return error.exitCode
     }
-    if (error instanceof WizardCancelled) {
+    if (error instanceof PromptCancelledError) {
       presentCancelled(presenter)
       return EXIT_CANCELLED
     }
-    presentFailure(presenter, describeExpectedError(error))
+    presentFailure(presenter, describeExpectedError(error, CREATE_COMMAND))
     return EXIT_FAILURE
   }
 }

@@ -1,9 +1,8 @@
 import { PassThrough, Writable } from 'node:stream'
 
 import { describe, expect, it } from 'vitest'
-
+import { PromptCancelledError } from './prompt-cancelled-error.ts'
 import { confirm, GO_BACK, multiselect, select, text } from './prompts.ts'
-import { WizardCancelled } from './wizard-cancelled.ts'
 
 const DOWN = '\u001b[B'
 const ENTER = '\r'
@@ -71,7 +70,7 @@ describe('prompts', () => {
     const answer = text({ ...io, message: 'Name?', canGoBack: false, defaultValue: 'my-app' })
     await press(io.input, ['x', ESCAPE])
 
-    await expect(answer).rejects.toBeInstanceOf(WizardCancelled)
+    await expect(answer).rejects.toBeInstanceOf(PromptCancelledError)
   })
 
   it('cancels the wizard with Ctrl+C', async () => {
@@ -79,7 +78,7 @@ describe('prompts', () => {
     const answer = confirm({ ...io, message: 'SEO?', canGoBack: true, initialValue: true })
     await press(io.input, [CTRL_C])
 
-    await expect(answer).rejects.toBeInstanceOf(WizardCancelled)
+    await expect(answer).rejects.toBeInstanceOf(PromptCancelledError)
   })
 
   it('toggles choices of a multiselect with space', async () => {

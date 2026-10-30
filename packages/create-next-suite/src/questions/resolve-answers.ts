@@ -1,7 +1,7 @@
-import type { Answers, AnswerValue } from '../answers/answers.ts'
-import { evaluateCondition } from '../answers/evaluate-condition.ts'
+import { type Answers, type AnswerValue, isSelected } from '../answers/answers.ts'
+import { evaluateCondition, holdsFor } from '../answers/evaluate-condition.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
-import { InputError } from './input-error.ts'
+import { InputError } from '../input-error.ts'
 import type { CategoryQuestion, Question } from './questions.ts'
 
 /** Answers as answer files, flags and next-suite.json write them, keyed by question key. */
@@ -150,11 +150,7 @@ const isAsked = (question: Question, answers: WorkingAnswers): boolean => {
   if (question.kind !== 'option') {
     return true
   }
-  const isSelected = answers.plugins.some((plugin) => plugin.name === question.plugin.name)
-  return (
-    isSelected &&
-    (question.option.when === undefined || evaluateCondition(question.option.when, answers))
-  )
+  return isSelected(answers, question.plugin.name) && holdsFor(question.option.when, answers)
 }
 
 /** Whether a plugin cannot join the answers so far: one of its conflicts holds or a requirement does not. */

@@ -19,13 +19,14 @@
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { Readable, Writable } from 'node:stream'
+import { Readable } from 'node:stream'
 
 import packageJson from '../package.json' with { type: 'json' }
 import { processRemoteEnvironment, processUserConfigPath } from './cli/process-environment.ts'
 import { runCreate } from './cli/run-create.ts'
 import { loadAssets } from './loader/load-assets.ts'
 import { runCommand } from './post-steps/run-command.ts'
+import { collectOutput } from './test-support/collect-output.ts'
 import { sourcePattern } from './trust/trust-level.ts'
 
 const PROJECT_NAME = 'test-app'
@@ -55,14 +56,6 @@ export type TestProject = {
   run: (script: string) => Promise<{ isSuccess: boolean; output: string }>
 }
 
-const collect = (lines: string[]) =>
-  new Writable({
-    write: (chunk, _encoding, done) => {
-      lines.push(String(chunk))
-      done()
-    },
-  })
-
 /**
  * Generates a project with the plugins under test, without a terminal: every question takes the
  * answer given or its default, git stays off.
@@ -74,7 +67,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
   const answersFile = join(parent, 'answers.json')
   await writeFile(answersFile, JSON.stringify(options.answers ?? {}))
   const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER
-  const output: string[] = []
+  const output = collectOutput()
   const exitCode = await runCreate({
     argv: [
       PROJECT_NAME,
@@ -95,7 +88,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
     assets: await loadAssets(join(import.meta.dirname, '..')),
     cliVersion: packageJson.version,
     cwd: parent,
-    streams: { input: Readable.from([]), output: collect(output), error: collect(output) },
+    streams: { input: Readable.from([]), output: output.stream, error: output.stream },
     isInteractive: false,
     columns: 80,
     now: () => new Date(),
@@ -106,12 +99,12 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
     fetchLatestVersion: async () => undefined,
   })
   if (exitCode !== 0) {
-    throw new Error(`create-next-suite could not generate the test project:\n${output.join('')}`)
+    throw new Error(`create-next-suite could not generate the test project:\n${output.text()}`)
   }
   const directory = join(parent, PROJECT_NAME)
   return {
     directory,
-    output: output.join(''),
+    output: output.text(),
     run: (script) => runCommand(packageManager, ['run', script], directory),
   }
 }

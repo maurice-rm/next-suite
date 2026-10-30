@@ -1,27 +1,13 @@
-import { ComposeError } from '../compose/compose-error.ts'
-import { TemplateError } from '../compose/template/template-error.ts'
-import { PluginLoadError } from '../loader/plugin-load-error.ts'
-import { InputError } from '../questions/input-error.ts'
-import { TrustError } from '../trust/trust-error.ts'
-import { WriteError } from '../write/write-error.ts'
-
-const EXPECTED_ERRORS = [
-  InputError,
-  ComposeError,
-  WriteError,
-  PluginLoadError,
-  TemplateError,
-  TrustError,
-]
+import { ExpectedError } from '../expected-error.ts'
 
 /**
- * Answers the message of an expected failure, with its cause on the next line, and rethrows
- * anything else, which is a bug.
+ * Answers the message of an expected failure, named after the command that ran, with its cause on
+ * the next line, and rethrows anything else, which is a bug.
  */
-export const describeExpectedError = (error: unknown): string => {
-  if (!(error instanceof Error) || !EXPECTED_ERRORS.some((expected) => error instanceof expected)) {
+export const describeExpectedError = (error: unknown, command: string): string => {
+  if (!(error instanceof ExpectedError)) {
     throw error
   }
   const cause = error.cause instanceof Error ? `\n  ${error.cause.message}` : ''
-  return `${error.message}${cause}`
+  return `${command}: ${error.message}${cause}`
 }

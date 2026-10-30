@@ -1,13 +1,14 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { composeProject } from '../compose/compose-project.ts'
 import { categoriesSchema } from '../contract/category.ts'
 import { loadAssets } from '../loader/load-assets.ts'
-import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
+import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { writeTestPlugin } from '../test-support/write-test-plugin.ts'
+import { composeProject } from './compose-project.ts'
 
 const PACKAGE_ROOT = join(import.meta.dirname, '../..')
 
@@ -16,26 +17,6 @@ let base: LoadedPlugin
 let images: LoadedPlugin
 let builtIn: LoadedPlugin[]
 let catalog: Record<string, string>
-
-const writeTestPlugin = async (name: string, manifest: object, files: Record<string, string>) => {
-  const folder = join(root, name)
-  await mkdir(join(folder, 'files'), { recursive: true })
-  await writeFile(
-    join(folder, 'plugin.json'),
-    JSON.stringify({
-      name,
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: name,
-      description: name,
-      ...manifest,
-    }),
-  )
-  for (const [path, content] of Object.entries(files)) {
-    await writeFile(join(folder, path), content)
-  }
-  return loadPlugin(folder)
-}
 
 const compose = (packageManager: string, allowsSharp: boolean) => {
   const selected = [
@@ -71,12 +52,13 @@ const packageJsonOf = async (packageManager: string, allowsSharp = false) =>
 
 beforeAll(async () => {
   root = await mkdtemp(join(tmpdir(), 'next-suite-package-managers-'))
-  base = await writeTestPlugin(
-    'base',
-    { files: [{ source: 'files/gitignore.hbs', target: '.gitignore' }] },
-    { 'files/gitignore.hbs': 'node_modules\n{{#each gitignore}}{{this}}\n{{/each}}' },
-  )
-  images = await writeTestPlugin('images', { contributes: { allowedBuilds: ['sharp'] } }, {})
+  base = await writeTestPlugin(join(root, 'base'), {
+    manifest: { files: [{ source: 'files/gitignore.hbs', target: '.gitignore' }] },
+    files: { 'files/gitignore.hbs': 'node_modules\n{{#each gitignore}}{{this}}\n{{/each}}' },
+  })
+  images = await writeTestPlugin(join(root, 'images'), {
+    manifest: { contributes: { allowedBuilds: ['sharp'] } },
+  })
   builtIn = (await loadAssets(PACKAGE_ROOT)).plugins
   catalog = JSON.parse(await readFile(join(PACKAGE_ROOT, 'catalog.json'), 'utf8'))
 })

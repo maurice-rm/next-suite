@@ -1,10 +1,9 @@
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
-import { select } from '../questions/wizard/prompts.ts'
-import type { Streams } from '../questions/wizard/streams.ts'
-import { WizardCancelled } from '../questions/wizard/wizard-cancelled.ts'
 import { TrustError } from '../trust/trust-error.ts'
 import { isPinned, matchesPattern, sourcePattern, trustLevelOf } from '../trust/trust-level.ts'
 import { readUserConfig, writeUserConfig } from '../trust/user-config.ts'
+import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
+import { type Streams, select } from '../ui/prompts.ts'
 
 type TrustCheck = {
   plugins: readonly LoadedPlugin[]
@@ -43,7 +42,7 @@ const ask = async (plugin: LoadedPlugin, address: string, streams: Streams): Pro
     initialValue: CANCEL,
   })
   if (reply === CANCEL || typeof reply !== 'string') {
-    throw new WizardCancelled()
+    throw new PromptCancelledError()
   }
   return reply
 }

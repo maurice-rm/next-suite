@@ -1,11 +1,12 @@
-import { lstat, readFile } from 'node:fs/promises'
+import { lstat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 import * as z from 'zod'
 
 import { registryName } from '../contract/identifiers.ts'
+import { isInside } from '../file-system/is-inside.ts'
+import { readJsonFile } from '../file-system/read-json-file.ts'
 import { fetchRemotePlugin, type RemoteEnvironment } from './fetch-remote-plugin.ts'
-import { isInside } from './is-inside.ts'
 import { parsePluginAddress } from './plugin-address.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
@@ -42,17 +43,11 @@ const readIndex = async (folder: string, source: string): Promise<RegistryIndex>
   if (stats === undefined || !stats.isFile()) {
     throw new PluginLoadError(source, `the registry has no ${REGISTRY_FILE}`)
   }
-  let json: unknown
-  try {
-    json = JSON.parse(await readFile(path, 'utf8'))
-  } catch (error) {
-    throw new PluginLoadError(source, `${REGISTRY_FILE} is no valid JSON`, { cause: error })
-  }
-  const parsed = registryIndexSchema.safeParse(json)
-  if (!parsed.success) {
-    throw new PluginLoadError(source, `invalid ${REGISTRY_FILE}\n${z.prettifyError(parsed.error)}`)
-  }
-  return parsed.data
+  return readJsonFile(
+    path,
+    registryIndexSchema,
+    (problem, options) => new PluginLoadError(source, `${REGISTRY_FILE} ${problem}`, options),
+  )
 }
 
 /** Fetches a registry from a local folder or a remote source and reads its index. */

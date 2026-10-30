@@ -14,3 +14,7 @@ export type Answers = {
   settings: Readonly<Record<string, AnswerValue>>
   options: Readonly<Record<string, AnswerValue>>
 }
+
+/** Whether the answers select the plugin of this name. */
+export const isSelected = (answers: Pick<Answers, 'plugins'>, name: string): boolean =>
+  answers.plugins.some((plugin) => plugin.name === name)

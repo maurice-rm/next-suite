@@ -1,8 +1,10 @@
 import { lstat, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, join, relative, sep } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import type { TargetAction } from '../answers/target-action.ts'
 import type { ProjectPlan } from '../compose/compose-project.ts'
+import { isMissingFileError } from '../file-system/error-code.ts'
+import { isInsideOrSame } from '../file-system/is-inside.ts'
 import { emptyTarget } from './empty-target.ts'
 import { inspectTarget, isHarmlessEntry } from './inspect-target.ts'
 import { WriteError } from './write-error.ts'
@@ -12,9 +14,6 @@ type Created = { files: string[]; folders: string[] }
 
 /** Where a project goes and what happens to files already there. */
 export type WriteTarget = { directory: string; action: TargetAction; cwd: string }
-
-const hasCode = (error: unknown, code: string): boolean =>
-  error instanceof Error && 'code' in error && error.code === code
 
 /** Answers whether the directory has to be created, and checks it fits the action. */
 const prepareTarget = async ({ directory, action, cwd }: WriteTarget): Promise<boolean> => {
@@ -44,7 +43,7 @@ const mayReplace = (relativePath: string, action: TargetAction): boolean =>
 
 const writeOne = async (path: string, content: string, canReplace: boolean): Promise<boolean> => {
   const existing = await lstat(path).catch((error: unknown) => {
-    if (hasCode(error, 'ENOENT')) {
+    if (isMissingFileError(error)) {
       return undefined
     }
     throw error
@@ -62,8 +61,7 @@ const writeOne = async (path: string, content: string, canReplace: boolean): Pro
 
 /** Fails when a folder on the way to a file leads out of the target, such as through a link. */
 const assertInsideTarget = async (realTarget: string, folder: string): Promise<void> => {
-  const fromTarget = relative(realTarget, await realpath(folder))
-  if (fromTarget === '..' || fromTarget.startsWith(`..${sep}`) || isAbsolute(fromTarget)) {
+  if (!isInsideOrSame(realTarget, await realpath(folder))) {
     throw new WriteError(`${folder} leads out of the project, such as through a link`)
   }
 }

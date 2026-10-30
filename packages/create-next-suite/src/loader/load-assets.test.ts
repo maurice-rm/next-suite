@@ -1,28 +1,20 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import type { PluginManifest } from '../contract/plugin-manifest.ts'
+import { testManifestJson } from '../test-support/test-manifest.ts'
+import { writeFiles } from '../test-support/write-files.ts'
 import { loadAssets } from './load-assets.ts'
 
 let root: string
 
-const writePlugin = async (path: string, extra: object = {}): Promise<void> => {
-  const file = join(root, path, 'plugin.json')
-  await mkdir(dirname(file), { recursive: true })
-  await writeFile(
-    file,
-    JSON.stringify({
-      name: path.split('/').at(-1),
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: 'x',
-      description: 'x',
-      ...extra,
-    }),
-  )
-}
+const writePlugin = (path: string, extra: Partial<PluginManifest> = {}): Promise<void> =>
+  writeFiles(root, {
+    [join(path, 'plugin.json')]: testManifestJson(basename(path), extra),
+  })
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'next-suite-assets-'))

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TEST_PLUGINS, TEST_QUESTIONS } from '../../test-support/questions.ts'
+import { GO_BACK } from '../../ui/prompts.ts'
 import { findIncompatibilities } from '../find-incompatibilities.ts'
-import { GO_BACK } from './prompts.ts'
 import { type Ask, runWizard, type WizardStep } from './run-wizard.ts'
 
 /** Plays back replies in order and records which steps were asked. */

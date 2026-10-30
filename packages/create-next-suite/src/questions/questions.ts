@@ -1,8 +1,8 @@
 import type { Category } from '../contract/category.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
+import { InputError } from '../input-error.ts'
 import { BASE_SETTINGS_SECTION, type BaseSetting } from './base-settings.ts'
-import { InputError } from './input-error.ts'
 import { RUN_SETTINGS_SECTION } from './run-settings.ts'
 
 type QuestionPlace = {

@@ -1,3 +1,5 @@
+import type { Readable, Writable } from 'node:stream'
+
 import {
   ConfirmPrompt,
   isCancel,
@@ -8,6 +10,7 @@ import {
 } from '@clack/core'
 import ansis from 'ansis'
 
+import { PromptCancelledError } from './prompt-cancelled-error.ts'
 import {
   pick,
   renderEnd,
@@ -16,9 +19,10 @@ import {
   renderPromptTitle,
   renderResolved,
   SYMBOLS,
-} from '../../ui/theme.ts'
-import type { Streams } from './streams.ts'
-import { WizardCancelled } from './wizard-cancelled.ts'
+} from './theme.ts'
+
+/** Where prompts read keys and render to; the terminal in the CLI, streams in tests. */
+export type Streams = { input: Readable; output: Writable }
 
 /** Returned when the user goes back one question with `b` or Esc. */
 export const GO_BACK: unique symbol = Symbol('go-back')
@@ -76,7 +80,7 @@ const run = async <Value>(
     return GO_BACK
   }
   if (isCancel(result) || result === undefined) {
-    throw new WizardCancelled()
+    throw new PromptCancelledError()
   }
   return result
 }

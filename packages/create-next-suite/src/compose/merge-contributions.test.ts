@@ -1,21 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { type ParsedPluginManifest, pluginManifestSchema } from '../contract/plugin-manifest.ts'
+import type { PluginManifest } from '../contract/plugin-manifest.ts'
+import { parseTestManifest } from '../test-support/test-manifest.ts'
 import { mergeContributions } from './merge-contributions.ts'
-
-const manifest = (name: string, extra: object = {}): ParsedPluginManifest =>
-  pluginManifestSchema.parse({
-    name,
-    version: '1.0.0',
-    contract: '^1.0.0',
-    title: name,
-    description: name,
-    ...extra,
-  })
 
 const CATALOG = { next: '16.4.3', react: '19.3.1' }
 
-const variable = (name: string, description = 'A value.') => ({
+type EnvVariable = NonNullable<PluginManifest['env']>[number]
+
+const variable = (name: string, description = 'A value.'): EnvVariable => ({
   name,
   scope: 'server',
   secret: false,
@@ -27,8 +20,10 @@ describe('mergeContributions', () => {
   it('resolves catalog versions and sorts the dependencies', () => {
     const values = mergeContributions(
       [
-        manifest('base', { dependencies: { react: 'catalog:react', next: 'catalog:next' } }),
-        manifest('zod', { dependencies: { zod: '^4.6.0' } }),
+        parseTestManifest('base', {
+          dependencies: { react: 'catalog:react', next: 'catalog:next' },
+        }),
+        parseTestManifest('zod', { dependencies: { zod: '^4.6.0' } }),
       ],
       CATALOG,
     )
@@ -38,7 +33,7 @@ describe('mergeContributions', () => {
 
   it('rejects a catalog name the catalog does not list', () => {
     expect(() =>
-      mergeContributions([manifest('a', { dependencies: { x: 'catalog:x' } })], CATALOG),
+      mergeContributions([parseTestManifest('a', { dependencies: { x: 'catalog:x' } })], CATALOG),
     ).toThrow('a asks for catalog:x, which the version catalog does not list')
   })
 
@@ -47,13 +42,13 @@ describe('mergeContributions', () => {
 
     expect(
       mergeContributions(
-        [manifest('a', scripts('next dev')), manifest('b', scripts('next dev'))],
+        [parseTestManifest('a', scripts('next dev')), parseTestManifest('b', scripts('next dev'))],
         CATALOG,
       ).scripts,
     ).toEqual({ dev: 'next dev' })
     expect(() =>
       mergeContributions(
-        [manifest('a', scripts('next dev')), manifest('b', scripts('vite'))],
+        [parseTestManifest('a', scripts('next dev')), parseTestManifest('b', scripts('vite'))],
         CATALOG,
       ),
     ).toThrow('a and b define the script "dev" differently')
@@ -63,8 +58,8 @@ describe('mergeContributions', () => {
     expect(() =>
       mergeContributions(
         [
-          manifest('a', { dependencies: { zod: '^4.0.0' } }),
-          manifest('b', { devDependencies: { zod: '^4.0.0' } }),
+          parseTestManifest('a', { dependencies: { zod: '^4.0.0' } }),
+          parseTestManifest('b', { devDependencies: { zod: '^4.0.0' } }),
         ],
         CATALOG,
       ),
@@ -73,7 +68,7 @@ describe('mergeContributions', () => {
 
   it('groups environment variables by plugin and rejects a name defined differently', () => {
     const values = mergeContributions(
-      [manifest('db', { title: 'Database', env: [variable('DATABASE_URL')] })],
+      [parseTestManifest('db', { title: 'Database', env: [variable('DATABASE_URL')] })],
       CATALOG,
     )
 
@@ -83,8 +78,8 @@ describe('mergeContributions', () => {
     expect(() =>
       mergeContributions(
         [
-          manifest('a', { env: [variable('URL', 'One.')] }),
-          manifest('b', { env: [variable('URL', 'Two.')] }),
+          parseTestManifest('a', { env: [variable('URL', 'One.')] }),
+          parseTestManifest('b', { env: [variable('URL', 'Two.')] }),
         ],
         CATALOG,
       ),
@@ -94,8 +89,8 @@ describe('mergeContributions', () => {
   it('lists an environment variable two plugins define identically once', () => {
     const values = mergeContributions(
       [
-        manifest('a', { env: [variable('URL')] }),
-        manifest('b', { env: [variable('URL'), variable('KEY')] }),
+        parseTestManifest('a', { env: [variable('URL')] }),
+        parseTestManifest('b', { env: [variable('URL'), variable('KEY')] }),
       ],
       CATALOG,
     )
@@ -108,7 +103,7 @@ describe('mergeContributions', () => {
 
   it('lists an environment variable a plugin repeats once', () => {
     const values = mergeContributions(
-      [manifest('a', { env: [variable('URL'), variable('URL')] })],
+      [parseTestManifest('a', { env: [variable('URL'), variable('URL')] })],
       CATALOG,
     )
 
@@ -117,7 +112,7 @@ describe('mergeContributions', () => {
 
   it('sorts dependencies by code unit, whatever the locale', () => {
     const values = mergeContributions(
-      [manifest('a', { dependencies: { zod: '1', chalk: '1', aaa: '1', debug: '1' } })],
+      [parseTestManifest('a', { dependencies: { zod: '1', chalk: '1', aaa: '1', debug: '1' } })],
       CATALOG,
     )
 
@@ -127,13 +122,13 @@ describe('mergeContributions', () => {
   it('collects gitignore patterns and readme sections in plugin order, without duplicate patterns', () => {
     const values = mergeContributions(
       [
-        manifest('a', {
+        parseTestManifest('a', {
           contributes: {
             gitignore: ['.next', 'out'],
             readme: [{ section: 'Setup', text: 'Run it.' }],
           },
         }),
-        manifest('b', {
+        parseTestManifest('b', {
           contributes: {
             gitignore: ['out', 'coverage'],
             readme: [{ section: 'Tests', text: 'Test it.' }],
@@ -150,8 +145,8 @@ describe('mergeContributions', () => {
   it('collects the allowed builds of all plugins once, sorted by name', () => {
     const values = mergeContributions(
       [
-        manifest('a', { contributes: { allowedBuilds: ['sharp', 'esbuild'] } }),
-        manifest('b', { contributes: { allowedBuilds: ['@prisma/engines', 'sharp'] } }),
+        parseTestManifest('a', { contributes: { allowedBuilds: ['sharp', 'esbuild'] } }),
+        parseTestManifest('b', { contributes: { allowedBuilds: ['@prisma/engines', 'sharp'] } }),
       ],
       CATALOG,
     )
@@ -162,10 +157,10 @@ describe('mergeContributions', () => {
   it('groups the lint-staged commands by glob, in plugin order and without duplicates', () => {
     const values = mergeContributions(
       [
-        manifest('eslint', {
+        parseTestManifest('eslint', {
           contributes: { lintStaged: [{ glob: '*.ts', command: 'eslint --fix' }] },
         }),
-        manifest('prettier', {
+        parseTestManifest('prettier', {
           contributes: {
             lintStaged: [
               { glob: '*', command: 'prettier --write' },
@@ -186,10 +181,10 @@ describe('mergeContributions', () => {
   it('lists the variables by scope with their schema, and the layout metadata', () => {
     const values = mergeContributions(
       [
-        manifest('logging', {
+        parseTestManifest('logging', {
           env: [{ ...variable('LOG_LEVEL'), default: 'info' }, variable('LOG_TOKEN')],
         }),
-        manifest('seo', {
+        parseTestManifest('seo', {
           env: [{ ...variable('NEXT_PUBLIC_SITE_URL'), scope: 'client' }],
           contributes: { layoutMetadata: [{ key: 'metadataBase', value: 'new URL("x")' }] },
         }),
@@ -208,14 +203,14 @@ describe('mergeContributions', () => {
   it('wraps the next.config export in plugin order and imports every wrapper', () => {
     const values = mergeContributions(
       [
-        manifest('mdx', {
+        parseTestManifest('mdx', {
           contributes: {
             nextConfig: {
               wrappers: [{ import: "import createMDX from '@next/mdx'", call: 'withMDX' }],
             },
           },
         }),
-        manifest('intl', {
+        parseTestManifest('intl', {
           contributes: {
             nextConfig: {
               wrappers: [
@@ -249,8 +244,8 @@ describe('mergeContributions', () => {
     })
     const values = mergeContributions(
       [
-        manifest('a', { contributes: { rootProviders: [provider('Theme')] } }),
-        manifest('b', { contributes: { rootProviders: [provider('Query')] } }),
+        parseTestManifest('a', { contributes: { rootProviders: [provider('Theme')] } }),
+        parseTestManifest('b', { contributes: { rootProviders: [provider('Query')] } }),
       ],
       CATALOG,
     )

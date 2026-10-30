@@ -1,13 +1,12 @@
-import type { Answers } from '../answers/answers.ts'
+import { type Answers, isSelected } from '../answers/answers.ts'
 import { evaluateCondition } from '../answers/evaluate-condition.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import { InputError } from './input-error.ts'
+import { InputError } from '../input-error.ts'
 
 const selectedOf = (
   plugins: readonly ParsedPluginManifest[],
   answers: Answers,
-): ParsedPluginManifest[] =>
-  plugins.filter((plugin) => answers.plugins.some((answer) => answer.name === plugin.name))
+): ParsedPluginManifest[] => plugins.filter((plugin) => isSelected(answers, plugin.name))
 
 /** Lists every conflict of a selected plugin that holds, as "<plugin title>: <reason>". */
 export const findConflicts = (

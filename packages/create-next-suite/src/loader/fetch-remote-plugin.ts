@@ -10,7 +10,8 @@ import semver from 'semver'
 import * as tar from 'tar'
 import * as z from 'zod'
 
-import { isInside } from './is-inside.ts'
+import { isInsideOrSame } from '../file-system/is-inside.ts'
+import { type JsonErrorFactory, parseJsonWith, parseWith } from '../file-system/read-json-file.ts'
 import type { PluginAddress } from './plugin-address.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
@@ -80,28 +81,18 @@ const download = async (
   throw new PluginLoadError(url, 'the download redirected too often')
 }
 
+const answerError =
+  (url: string): JsonErrorFactory =>
+  (problem, options) =>
+    new PluginLoadError(url, `the answer ${problem}`, options)
+
 const getJson = async (
   environment: RemoteEnvironment,
   url: string,
   headers: Record<string, string> = {},
 ): Promise<unknown> => {
   const text = (await download(environment, url, headers)).toString('utf8')
-  try {
-    return JSON.parse(text)
-  } catch (error) {
-    throw new PluginLoadError(url, 'the answer is no valid JSON', { cause: error })
-  }
-}
-
-const parseWith = <Schema extends z.ZodType>(schema: Schema, value: unknown, url: string) => {
-  const parsed = schema.safeParse(value)
-  if (!parsed.success) {
-    throw new PluginLoadError(
-      url,
-      `the answer has an unexpected form\n${z.prettifyError(parsed.error)}`,
-    )
-  }
-  return parsed.data
+  return parseJsonWith(text, z.unknown(), answerError(url))
 }
 
 /** Extracts a tarball into a folder, regular files and folders only, nothing outside it. */
@@ -169,7 +160,7 @@ const cached = async (
 /** Fails when a folder in a repository lies outside it. */
 const insideRepository = (root: string, path: string, address: string): string => {
   const folder = resolve(root, path)
-  if (folder !== root && !isInside(root, folder)) {
+  if (!isInsideOrSame(root, folder)) {
     throw new PluginLoadError(address, 'the folder lies outside the repository')
   }
   return folder
@@ -187,13 +178,13 @@ const fetchNpm = async (
 ): Promise<FetchedPlugin> => {
   const registry = (environment.npmRegistry ?? DEFAULT_NPM_REGISTRY).replace(/\/$/, '')
   const url = `${registry}/${name.replace('/', '%2f')}`
-  const packument = parseWith(packumentSchema, await getJson(environment, url), url)
+  const packument = parseWith(await getJson(environment, url), packumentSchema, answerError(url))
   const version =
     packument['dist-tags'][range] ?? semver.maxSatisfying(Object.keys(packument.versions), range)
   if (version === null || version === undefined) {
     throw new PluginLoadError(`npm:${name}`, `no version matches ${range}`)
   }
-  const { dist } = parseWith(versionSchema, packument.versions[version], url)
+  const { dist } = parseWith(packument.versions[version], versionSchema, answerError(url))
   const [algorithm, expected] = dist.integrity.split('-', 2)
   if (algorithm !== 'sha512' || expected === undefined) {
     throw new PluginLoadError(`npm:${name}@${version}`, 'the package has no sha512 integrity')

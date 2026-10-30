@@ -1,14 +1,14 @@
 import type { Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import { InputError } from '../input-error.ts'
+import type { Streams } from '../ui/prompts.ts'
 import { renderFramed } from '../ui/theme.ts'
 import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
-import { InputError } from './input-error.ts'
 import type { Question } from './questions.ts'
 import { type AnswerInput, resolveAnswers } from './resolve-answers.ts'
 import { createAsk } from './wizard/ask-question.ts'
 import { runWizard } from './wizard/run-wizard.ts'
-import type { Streams } from './wizard/streams.ts'
 
 const INCOMPATIBLE_IN_WIZARD = 'The answers do not fit together; change one with b:'
 

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import type { Answers, AnswerValue } from '../answers/answers.ts'
-import { evaluateCondition } from '../answers/evaluate-condition.ts'
+import { holdsFor } from '../answers/evaluate-condition.ts'
 import type { Logic } from '../contract/logic.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
@@ -176,7 +176,7 @@ const addPluginFiles = async (
   const [base] = plugins
   const contributions = plugins.flatMap((plugin) =>
     (plugin.manifest.files ?? [])
-      .filter((file) => file.when === undefined || evaluateCondition(file.when, context.answers))
+      .filter((file) => holdsFor(file.when, context.answers))
       .map((file) => ({ plugin, file })),
   )
   const ordered = [
@@ -259,7 +259,7 @@ const collectPostSteps = (
 ): PostStepScript[] =>
   plugins.flatMap(({ manifest }) =>
     (manifest.postSteps ?? [])
-      .filter((step) => step.when === undefined || evaluateCondition(step.when, answers))
+      .filter((step) => holdsFor(step.when, answers))
       .map((step) => {
         assertScript(scripts, step.script, `${manifest.name} runs the script after the install:`)
         return {
@@ -301,7 +301,7 @@ const collectSummary = ({
       ...manifests.filter((manifest) => manifest.name === baseName),
     ].flatMap((manifest) =>
       (manifest.contributes?.nextSteps ?? [])
-        .filter((step) => step.when === undefined || evaluateCondition(step.when, answers))
+        .filter((step) => holdsFor(step.when, answers))
         .map((step): NextStep => {
           if ('command' in step) {
             return { command: step.command }

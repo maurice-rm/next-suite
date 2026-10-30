@@ -1,11 +1,13 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import type { Answers } from '../answers/answers.ts'
-import { type LoadedPlugin, loadPlugin } from '../loader/load-plugin.ts'
+import type { PluginManifest } from '../contract/plugin-manifest.ts'
+import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { writeTestPlugin } from '../test-support/write-test-plugin.ts'
 import { composeProject } from './compose-project.ts'
 
 const CREATED_AT = new Date('2026-11-01T10:00:00Z')
@@ -13,32 +15,14 @@ const CATALOG = { next: '16.4.3', bun: '1.4.4' }
 
 let root: string
 
-const writePlugin = async (
+const writePlugin = (
   name: string,
-  manifest: object,
+  manifest: Partial<PluginManifest> = {},
   files: Record<string, string> = {},
-): Promise<LoadedPlugin> => {
-  const folder = join(root, name)
-  const entries = {
-    'plugin.json': JSON.stringify({
-      name,
-      version: '1.0.0',
-      contract: '^1.0.0',
-      title: name,
-      description: name,
-      ...manifest,
-    }),
-    ...files,
-  }
-  for (const [path, content] of Object.entries(entries)) {
-    await mkdir(dirname(join(folder, path)), { recursive: true })
-    await writeFile(join(folder, path), content)
-  }
-  return loadPlugin(folder)
-}
+): Promise<LoadedPlugin> => writeTestPlugin(join(root, name), { manifest, files })
 
 const writeBase = (
-  extraFiles: object[] = [],
+  extraFiles: NonNullable<PluginManifest['files']> = [],
   files: Record<string, string> = {},
 ): Promise<LoadedPlugin> =>
   writePlugin(
@@ -78,7 +62,7 @@ const DRIZZLE_MANIFEST = {
   ],
   contributes: { gitignore: ['drizzle/meta'] },
   files: [{ source: 'files/db.ts.hbs', target: 'lib/db.ts', root: 'source' }],
-}
+} satisfies Partial<PluginManifest>
 
 const answersWith = (
   plugins: Answers['plugins'],

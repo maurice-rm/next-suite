@@ -1,6 +1,8 @@
-import { basename, isAbsolute, relative, resolve, sep } from 'node:path'
+import { basename, isAbsolute, resolve } from 'node:path'
 
 import validate from 'validate-npm-package-name'
+
+import { isInsideOrSame } from '../file-system/is-inside.ts'
 
 export const DEFAULT_PROJECT_DIRECTORY = 'my-app'
 
@@ -16,11 +18,6 @@ const findNameProblem = (name: string): string | undefined => {
   return [...(result.errors ?? []), ...(result.warnings ?? [])].join('; ')
 }
 
-const isInside = (cwd: string, path: string): boolean => {
-  const fromCwd = relative(cwd, path)
-  return fromCwd !== '..' && !fromCwd.startsWith(`..${sep}`) && !isAbsolute(fromCwd)
-}
-
 /**
  * Answers what is wrong with a project directory as typed, a name or a path such as `.`: it is
  * required, stays inside `cwd`, and its folder name is a valid name for a new npm package. What is
@@ -30,7 +27,7 @@ export const findProjectDirectoryProblem = (directory: string, cwd: string): str
   if (directory.trim() === '') {
     return 'Name or path is required.'
   }
-  if (isAbsolute(directory) || !isInside(cwd, resolve(cwd, directory))) {
+  if (isAbsolute(directory) || !isInsideOrSame(cwd, resolve(cwd, directory))) {
     return "Target must be inside the current directory — no '..' or absolute paths."
   }
   const name = projectNameOf(directory, cwd)

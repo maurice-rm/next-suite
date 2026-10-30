@@ -1,10 +1,10 @@
 import type { Answers } from '../../answers/answers.ts'
 import { isTargetAction, type TargetAction } from '../../answers/target-action.ts'
+import { GO_BACK } from '../../ui/prompts.ts'
 import { BASE_SETTINGS_SECTION } from '../base-settings.ts'
 import { assertCompatible } from '../find-incompatibilities.ts'
 import type { Question } from '../questions.ts'
 import { type AnswerInput, type Resolution, resolveAnswers } from '../resolve-answers.ts'
-import { GO_BACK } from './prompts.ts'
 
 /** The question for the project directory, whose name is the package name. */
 type ProjectNameStep = { kind: 'project-name'; key: string; section: string }
