@@ -15,6 +15,12 @@
       "groupName": "version catalog"
     },
     {
+      "description": "@types/node of generated projects stays on the Node.js major their CI runs, the one create-next-suite's engines name",
+      "matchFileNames": ["packages/create-next-suite/catalog.json"],
+      "matchDepNames": ["types-node"],
+      "allowedVersions": "24.x"
+    },
+    {
       "description": "The Bun version CI installs follows the one generated projects pin",
       "matchDepNames": ["bun"],
       "groupName": "bun"

@@ -3,12 +3,14 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import packageJson from 'create-next-suite/package.json' with { type: 'json' }
 import type { PluginManifest } from 'create-next-suite/plugin'
 
 /**
  * Rewrites the version catalog of the built-in plugins to the newest release of every dependency,
  * so a generated project shows whether it still works with them. The package managers keep their
- * versions: the runner installs exactly those.
+ * versions: the runner installs exactly those. @types/node stays on the Node.js major of the
+ * engines of create-next-suite, which generated projects run on.
  */
 
 type Dependencies = PluginManifest['dependencies']
@@ -23,6 +25,18 @@ const CATALOG_PREFIX = 'catalog:'
 const STABLE_VERSION = /^\d+\.\d+\.\d+$/
 /** Generated projects install only releases older than a day; a newer one fails the install. */
 const MINIMUM_RELEASE_AGE_MS = 24 * 60 * 60 * 1000
+const NODE_TYPES_PACKAGE = '@types/node'
+const LOWEST_MAJOR = /^>=\s*(\d+)/
+
+const nodeMajorOf = (engines: string): string => {
+  const major = LOWEST_MAJOR.exec(engines)?.[1]
+  if (major === undefined) {
+    throw new Error(`cannot read the Node.js major of the engines range ${engines}`)
+  }
+  return major
+}
+
+const NODE_MAJOR = nodeMajorOf(packageJson.engines.node)
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'))
 
@@ -72,15 +86,22 @@ const compareVersions = (left: string, right: string): number => {
   return index === -1 ? 0 : (leftParts[index] ?? 0) - (rightParts[index] ?? 0)
 }
 
+const isAllowedVersion = (packageName: string, version: string): boolean =>
+  STABLE_VERSION.test(version) &&
+  (packageName !== NODE_TYPES_PACKAGE || version.startsWith(`${NODE_MAJOR}.`))
+
 const findNewestVersion = (packageName: string, publishedBefore: number): string => {
   const output = execFileSync('npm', ['view', packageName, 'time', '--json'], { encoding: 'utf8' })
   const publishTimes = JSON.parse(output) as Record<string, string>
   const [newest] = Object.entries(publishTimes)
-    .filter(([version, time]) => STABLE_VERSION.test(version) && Date.parse(time) < publishedBefore)
+    .filter(
+      ([version, time]) =>
+        isAllowedVersion(packageName, version) && Date.parse(time) < publishedBefore,
+    )
     .map(([version]) => version)
     .sort((left, right) => compareVersions(right, left))
   if (newest === undefined) {
-    throw new Error(`npm lists no stable release of ${packageName} older than a day`)
+    throw new Error(`npm lists no allowed stable release of ${packageName} older than a day`)
   }
   return newest
 }
