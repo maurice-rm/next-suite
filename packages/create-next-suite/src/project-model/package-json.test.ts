@@ -99,9 +99,14 @@ describe('openPackageJson', () => {
     const packageJson = openPackageJson(BASE)
     packageJson.setField('trustedDependencies', ['esbuild', 'sharp'], 'bun')
 
-    expect(packageJson.print()).toBe(
-      `${JSON.stringify({ ...JSON.parse(BASE), trustedDependencies: ['esbuild', 'sharp'] }, null, 2)}\n`,
-    )
+    const { name, private: isPrivate, ...rest } = JSON.parse(BASE)
+    const expected = {
+      name,
+      private: isPrivate,
+      trustedDependencies: ['esbuild', 'sharp'],
+      ...rest,
+    }
+    expect(packageJson.print()).toBe(`${JSON.stringify(expected, null, 2)}\n`)
   })
 
   it('renames the project in its place', () => {
@@ -134,6 +139,28 @@ describe('openPackageJson', () => {
     expect(printed.devEngines).toEqual({
       packageManager: { name: 'pnpm', version: '^12.16.1', onFail: 'download' },
     })
+  })
+
+  it('puts the fields of plugins before the package manager and its own fields last, as v1', () => {
+    const packageJson = openPackageJson(BASE)
+    packageJson.setField('engines', { node: '>=24' }, 'node-engines')
+    packageJson.usePackageManager({ name: 'npm', version: '12.2.1', whenVersionDiffers: 'warn' })
+    packageJson.addDevDependency('typescript', '5.9.3', 'base')
+    packageJson.setField('lint-staged', { '*': 'prettier' }, 'lint-staged')
+    packageJson.setField('allowScripts', { 'unrs-resolver': false }, 'npm')
+
+    expect(Object.keys(JSON.parse(packageJson.print()))).toEqual([
+      'name',
+      'private',
+      'engines',
+      'lint-staged',
+      'packageManager',
+      'scripts',
+      'dependencies',
+      'devDependencies',
+      'devEngines',
+      'allowScripts',
+    ])
   })
 
   it('refuses a second package manager', () => {

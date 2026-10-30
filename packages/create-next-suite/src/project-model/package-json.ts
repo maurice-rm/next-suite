@@ -27,13 +27,16 @@ export type PackageJson = {
   addDevDependency: (name: string, version: string, origin: string) => void
   /** Sets a script; scripts keep the order they were set in. */
   setScript: (name: string, command: string, origin: string) => void
-  /** Sets a top-level field such as `engines`. */
+  /**
+   * Sets a top-level field such as `engines`: before the package manager and the scripts, or after
+   * `devEngines` when the package manager plugin sets it.
+   */
   setField: (name: string, value: JsonValue, origin: string) => void
   /** Replaces the base's project name. */
   setName: (name: string) => void
   /**
    * Records the package manager: `packageManager` with the exact version before the scripts, and
-   * `devEngines.packageManager` with the same major after the other fields.
+   * `devEngines.packageManager` with the same major after the dependencies.
    */
   usePackageManager: (packageManager: PackageManagerUse) => void
   /**
@@ -61,27 +64,21 @@ const DEV_DEPENDENCIES: EntryGroup = {
 }
 const SCRIPTS: EntryGroup = { field: 'scripts', entry: 'script', difference: 'commands' }
 
+/** The fields in the middle of the file, in this order, as the manifest engine writes them. */
+const MIDDLE_FIELDS = [
+  PACKAGE_MANAGER_FIELD,
+  SCRIPTS.field,
+  DEPENDENCIES.field,
+  DEV_DEPENDENCIES.field,
+  DEV_ENGINES_FIELD,
+]
+
 const stringEntries = (value: JsonValue | undefined): Record<string, string> =>
   Object.fromEntries(
     Object.entries(isJsonObject(value) ? value : {}).filter(
       (entry): entry is [string, string] => typeof entry[1] === 'string',
     ),
   )
-
-/** Moves the field `name` of `data` before the field `next`; without `next` it stays where it is. */
-const moveBefore = (data: Record<string, JsonValue>, name: string, next: string): void => {
-  const value = data[name]
-  if (value === undefined || !(next in data)) {
-    return
-  }
-  const entries = Object.entries(data).filter(([key]) => key !== name)
-  const index = entries.findIndex(([key]) => key === next)
-  entries.splice(index, 0, [name, value])
-  for (const key of Object.keys(data)) {
-    delete data[key]
-  }
-  Object.assign(data, Object.fromEntries(entries))
-}
 
 const sortedByName = (entries: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(entries).sort(([left], [right]) => (left < right ? -1 : 1)))
@@ -102,6 +99,23 @@ const baseOrigins = (data: JsonObject): Map<string, string> => {
 export const openPackageJson = (text: string): PackageJson => {
   const data: Record<string, JsonValue> = { ...parseJsonObject(text, PATH) }
   const origins = baseOrigins(data)
+  let packageManagerName: string | undefined
+
+  /**
+   * The fields in print order: the base's and other plugins' first, then the package manager, the
+   * scripts and dependencies, then the fields of the package manager plugin, such as its builds.
+   */
+  const orderedFields = (): Record<string, JsonValue> => {
+    const others = Object.keys(data).filter((key) => !MIDDLE_FIELDS.includes(key))
+    const isPackageManagers = (key: string): boolean =>
+      packageManagerName !== undefined && origins.get(key) === packageManagerName
+    const keys = [
+      ...others.filter((key) => !isPackageManagers(key)),
+      ...MIDDLE_FIELDS.filter((key) => key in data),
+      ...others.filter(isPackageManagers),
+    ]
+    return Object.fromEntries(keys.map((key) => [key, data[key] as JsonValue]))
+  }
 
   const setEntry = (group: EntryGroup, entry: { name: string; value: string; origin: string }) => {
     const { field, difference } = group
@@ -148,7 +162,7 @@ export const openPackageJson = (text: string): PackageJson => {
 
     usePackageManager: ({ name, version, whenVersionDiffers }) => {
       setField(PACKAGE_MANAGER_FIELD, `${name}@${version}`, name)
-      moveBefore(data, PACKAGE_MANAGER_FIELD, SCRIPTS.field)
+      packageManagerName = name
       setField(
         DEV_ENGINES_FIELD,
         { packageManager: { name, version: `^${version}`, onFail: whenVersionDiffers } },
@@ -168,6 +182,6 @@ export const openPackageJson = (text: string): PackageJson => {
 
     scripts: () => stringEntries(data[SCRIPTS.field]),
 
-    print: () => `${JSON.stringify(data, null, JSON_INDENT)}\n`,
+    print: () => `${JSON.stringify(orderedFields(), null, JSON_INDENT)}\n`,
   }
 }
