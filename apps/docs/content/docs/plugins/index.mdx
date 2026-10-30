@@ -1,59 +1,86 @@
 ---
 title: Writing plugins
-description: How a plugin is built, loaded and shared.
+description: What a plugin is and how it adds to a project.
 ---
 
-Every choice in create-next-suite is a plugin: the package manager, the linter, the styling. Your
-own plugins work the same way. A plugin is a directory:
+Every choice in create-next-suite is a plugin: the package manager, the linter, the styling. A
+plugin is a directory with a `plugin.ts` and the real files it adds:
 
 ```text
-my-plugin/
-├─ plugin.json        the manifest: what the plugin is, asks and contributes
-├─ files/             files it adds; sources ending in .hbs are templates
-└─ logic.ts           optional: computes what data cannot express
+next-themes/
+├─ plugin.ts                      what the plugin is, asks, uses and adds
+└─ files/
+   └─ theme-provider.tsx          a file of the generated project, as it is
 ```
 
-The smallest plugin is a manifest:
+`plugin.ts` exports `definePlugin({…})` from `create-next-suite/plugin` by default:
 
-```json title="plugin.json"
-{
-  "$schema": "https://unpkg.com/create-next-suite/dist/schemas/plugin.json",
-  "name": "hello",
-  "version": "1.0.0",
-  "contract": "^1.0.0",
-  "title": "Hello",
-  "description": "Adds a greeting.",
-  "files": [{ "source": "files/hello.ts.hbs", "target": "lib/hello.ts", "root": "source" }]
-}
+```ts title="plugin.ts"
+import { definePlugin } from 'create-next-suite/plugin'
+
+const VERSIONS = { 'next-themes': '0.4.6' }
+
+export default definePlugin({
+  name: 'next-themes',
+  title: 'next-themes',
+  description: 'Switches between a light and a dark theme.',
+  options: {
+    defaultTheme: {
+      question: 'Which theme does a first visit get?',
+      choices: ['system', 'light', 'dark'],
+      default: 'system',
+    },
+  },
+  dependencies: VERSIONS,
+  files: { '@/components/theme-provider.tsx': 'files/theme-provider.tsx' },
+  layout: ({ options }) => ({
+    imports: [{ names: ['ThemeProvider'], from: '@/components/theme-provider' }],
+    wrapChildren: {
+      component: 'ThemeProvider',
+      props: { attribute: 'class', defaultTheme: options.defaultTheme },
+    },
+    htmlAttributes: { suppressHydrationWarning: true },
+  }),
+})
 ```
 
-Use it with `--plugin`:
+Each field is a value or a function of the plugin's [context](./definition#context). TypeScript
+checks the definition in your editor: a misspelled field, a default that is none of the choices or
+a comparison with an answer the option cannot have fails before anything is generated.
 
-```bash
-npx create-next-suite my-app --plugin ./hello
-```
+## How a project comes together
 
-A plugin without a `category` becomes a yes/no question, with a flag of its name (`--hello`,
-`--no-hello`). A plugin with a `category` is one of the choices of that category's question.
-Options in `options` become further questions and flags (`--hello-<option>`); an option's
-`description` says in `--help` what its flag sets. The choices of a `select` or `multiselect`
-option show their `description` as the hint beside the label, the way a category's choices show
-their plugin's description; a choice without one shows no hint. `--help` lists the flags under the
-section of the wizard that asks them.
+The core starts from the [base project](../glossary), a Next.js app of real files, and lets every
+selected plugin add to it:
 
-## What a plugin can do
+- **Fields the core owns.** `package.json`, `.gitignore`, `.env.example`, `README.md`, the global
+  stylesheet, the root layout, `next.config.ts` and the instrumentation files belong to the core;
+  plugins add to them through fields such as `dependencies`, `gitignore`, `env`, `readme`, `css`,
+  `layout`, `nextConfig` and `instrumentation`.
+- **Files of its own.** `files` copies real files from the plugin's directory into the project,
+  optionally with an [edit](./files-and-edits) once every plugin has contributed.
+- **Points.** Plugins work together through [points](./points) instead of naming each other: the
+  ORM tells the auth plugin how to import its client, the linter hands lint-staged the commands
+  for staged files.
+- **Direct edits.** `edit` changes a file another plugin or the base project writes, by code
+  operations, as the escape hatch when no field or point covers it.
 
-- **Add files** from `files/`, as they are or rendered as [templates](./templates).
-- **Contribute** to the files several plugins share, such as `package.json` scripts, `.gitignore`,
-  `next.config.ts` or the root layout, through [composition points](./composition).
-- **Add dependencies**, from the version catalog (`catalog:<name>`) or as a semver range, and
-  conditionally with `conditionalDependencies`.
-- **Declare rules**: `requires` and `conflicts`, each with a reason the wizard shows.
-- **Run scripts after the install** with `postSteps`, such as a format run.
-- **Compute** files and contributions in a [logic module](./logic).
+The plugin computes; the core writes the files, runs the processes and fetches. A plugin names
+the exact version of each package it installs once, in a constant `VERSIONS` at the top of
+`plugin.ts`.
 
-## The contract
+## Questions and flags
 
-`contract` is the range of the plugin contract the plugin works with. create-next-suite checks it
-before loading a plugin and refuses one it does not fit. The [manifest reference](./manifest) lists
-every field.
+A plugin with a `category` is one of the choices of that category's question; without one it is an
+extra, asked with yes or no and selected with `--<name>`. Each option becomes a further question
+with a flag `--<plugin>-<option>`; its `description` says in `--help` what the flag sets, and the
+`description` of a choice shows as the hint beside its label. A plugin may also state a
+[precondition](./definition#precondition) and `conflicts` with other plugins, each with the reason
+the wizard and the error show.
+
+## Plugins of your own
+
+Plugins from outside create-next-suite move to the `plugin.ts` form. In this version only the
+built-in plugins run: `--plugin` and `next-suite plugin validate` stop with a message. The pages
+on [sources and trust](./sources-and-trust) and [testing](./testing) say what returns once plugins
+of your own load again.
