@@ -1,10 +1,11 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { categoriesSchema } from '../contract/category.ts'
+import type { Category } from '../contract/category.ts'
+import type { VersionCatalog } from '../contract/version-catalog.ts'
 import { loadAssets } from '../loader/load-assets.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
 import { writeTestPlugin } from '../test-support/write-test-plugin.ts'
@@ -16,7 +17,8 @@ let root: string
 let base: LoadedPlugin
 let images: LoadedPlugin
 let builtIn: LoadedPlugin[]
-let catalog: Record<string, string>
+let catalog: VersionCatalog
+let categories: Category[]
 
 const compose = (packageManager: string, allowsSharp: boolean) => {
   const selected = [
@@ -59,8 +61,10 @@ beforeAll(async () => {
   images = await writeTestPlugin(join(root, 'images'), {
     manifest: { contributes: { allowedBuilds: ['sharp'] } },
   })
-  builtIn = (await loadAssets(PACKAGE_ROOT)).plugins
-  catalog = JSON.parse(await readFile(join(PACKAGE_ROOT, 'catalog.json'), 'utf8'))
+  const assets = await loadAssets(PACKAGE_ROOT)
+  builtIn = assets.plugins
+  catalog = assets.catalog
+  categories = assets.categories
 })
 
 afterAll(async () => {
@@ -69,10 +73,6 @@ afterAll(async () => {
 
 describe('the built-in package managers', () => {
   it('fill the package-manager category, with pnpm as its default', async () => {
-    const categories = categoriesSchema.parse(
-      JSON.parse(await readFile(join(PACKAGE_ROOT, 'categories.json'), 'utf8')),
-    )
-
     expect(categories).toContainEqual(
       expect.objectContaining({ id: 'package-manager', cardinality: 'one', default: 'pnpm' }),
     )
