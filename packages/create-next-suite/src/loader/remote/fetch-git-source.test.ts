@@ -74,7 +74,11 @@ describe('fetchGitSource', () => {
     const marker = (name: string) => join(root, `${name}-ran`)
     const repository = join(root, 'repo')
     await mkdir(repository)
-    await writeFile(join(repository, '.gitattributes'), '*.txt filter=custom\n*.bin filter=lfs\n')
+    await writeFile(
+      join(repository, '.gitattributes'),
+      '*.txt filter=custom\n*.bin filter=lfs\n*.md filter=included\n',
+    )
+    await writeFile(join(repository, 'read.md'), 'read\n')
     await writeFile(join(repository, 'note.txt'), 'note\n')
     await writeFile(join(repository, 'data.bin'), 'data\n')
     const git = (...args: string[]) =>
@@ -95,12 +99,18 @@ describe('fetchGitSource', () => {
         '[filter "custom"]',
         `\tsmudge = touch "${marker('custom')}" && cat`,
         '\trequired = true',
+        `[includeIf "gitdir:${root}/"]`,
+        `\tpath = ${join(root, 'included-gitconfig')}`,
         '[filter "lfs"]',
         `\tprocess = touch "${marker('lfs')}"`,
         `\tsmudge = touch "${marker('lfs')}" && cat`,
         '\trequired = true',
         '',
       ].join('\n'),
+    )
+    await writeFile(
+      join(root, 'included-gitconfig'),
+      `[filter "included"]\n\tsmudge = touch "${marker('included')}" && cat\n\trequired = true\n`,
     )
     vi.stubEnv('GIT_CONFIG_GLOBAL', globalConfig)
 
@@ -111,6 +121,20 @@ describe('fetchGitSource', () => {
     })
 
     expect(await readFile(join(fetched.directory, 'note.txt'), 'utf8')).toBe('note\n')
-    expect(['hook', 'custom', 'lfs'].filter((name) => existsSync(marker(name)))).toEqual([])
+    expect(
+      ['hook', 'custom', 'lfs', 'included'].filter((name) => existsSync(marker(name))),
+    ).toEqual([])
+  })
+
+  it('reads no git configuration of a repository around the cache', async () => {
+    const planted = join(root, 'planted-ssh-ran')
+    execFileSync('git', ['init', '--quiet', root])
+    execFileSync('git', ['-C', root, 'config', 'core.sshCommand', `touch "${planted}"; false`])
+    vi.stubEnv('GIT_SSH', undefined)
+    vi.stubEnv('GIT_SSH_COMMAND', undefined)
+    vi.stubEnv('GIT_CONFIG_GLOBAL', join(root, 'no-gitconfig'))
+
+    await expect(fetchGitSource(stubRemote(root), SSH_ADDRESS)).rejects.toThrow(PluginLoadError)
+    expect(existsSync(planted)).toBe(false)
   })
 })
