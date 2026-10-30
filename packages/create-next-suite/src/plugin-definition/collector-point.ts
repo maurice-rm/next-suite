@@ -1,3 +1,5 @@
+import type { BuiltDependencies } from './built-dependencies.ts'
+
 /**
  * The collector points by name, each with the type of what its provider collects. A point module
  * adds its entry by module augmentation.
@@ -11,8 +13,13 @@
  * }
  * ```
  */
-// biome-ignore lint/suspicious/noEmptyInterface: point modules fill it by module augmentation
-export interface CollectorPoints {}
+export interface CollectorPoints {
+  /**
+   * The dependencies whose install scripts may run; the selected package manager plugin provides
+   * it, and every plugin with such a dependency contributes.
+   */
+  builtDependencies: BuiltDependencies
+}
 
 export type CollectorPointName = keyof CollectorPoints
 

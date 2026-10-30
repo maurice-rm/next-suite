@@ -40,7 +40,7 @@ type ProjectValuesInput = {
   catalog: VersionCatalog
 }
 
-const importAliasOf = (answers: Answers): string => {
+export const importAliasOf = (answers: Answers): string => {
   const alias = answers.settings[IMPORT_ALIAS_SETTING]
   const importAlias = typeof alias === 'string' ? alias : DEFAULT_IMPORT_ALIAS
   if (!IMPORT_ALIAS.test(importAlias)) {

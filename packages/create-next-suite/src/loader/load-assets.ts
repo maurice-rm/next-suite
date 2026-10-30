@@ -9,9 +9,9 @@ import { ExpectedError } from '../expected-error.ts'
 import { isMissingFileError } from '../file-system/error-code.ts'
 import { listDirectories } from '../file-system/list-directories.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
+import { assertInGroup } from './assert-in-group.ts'
 import { assertUniqueNames } from './assert-unique-names.ts'
-import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
-import { PluginLoadError } from './plugin-load-error.ts'
+import { type LoadedPlugin, loadPlugin, namedPlugin } from './load-plugin.ts'
 
 /**
  * What ships with create-next-suite: the base project, the built-in plugins, their categories
@@ -28,10 +28,6 @@ const BASE_DIRECTORY = 'base'
 const PLUGINS_DIRECTORY = 'plugins'
 const CATEGORIES_FILE = 'categories.json'
 const CATALOG_FILE = 'catalog.json'
-/**
- * The directory of the plugins without a category; every other directory is named after a category.
- */
-const EXTRAS_DIRECTORY = 'extras'
 
 const exists = async (path: string): Promise<boolean> =>
   stat(path).then(
@@ -65,15 +61,6 @@ const loadPluginsIn = async (directory: string): Promise<LoadedPlugin[]> => {
   return Promise.all(names.map((name) => loadPlugin(join(directory, name))))
 }
 
-const assertInGroup = (directory: string, group: string, plugins: LoadedPlugin[]): void => {
-  for (const plugin of plugins) {
-    const expected = plugin.manifest.category ?? EXTRAS_DIRECTORY
-    if (expected !== group) {
-      throw new PluginLoadError(plugin.directory, `it belongs in ${join(directory, expected)}`)
-    }
-  }
-}
-
 /**
  * Loads the plugins grouped in one directory per category, and those without a category from
  * `extras/`. A plugin in the directory of another category fails.
@@ -83,10 +70,15 @@ const loadGroupedPlugins = async (directory: string): Promise<LoadedPlugin[]> =>
   const plugins: LoadedPlugin[] = []
   for (const group of groups) {
     const inGroup = await loadPluginsIn(join(directory, group))
-    assertInGroup(directory, group, inGroup)
+    for (const plugin of inGroup) {
+      assertInGroup(
+        { category: plugin.manifest.category, location: plugin.directory },
+        { directory, group },
+      )
+    }
     plugins.push(...inGroup)
   }
-  assertUniqueNames(plugins)
+  assertUniqueNames(plugins.map(namedPlugin))
   return plugins
 }
 

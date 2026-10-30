@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { createBuiltDependencies } from '../plugin-definition/built-dependencies.ts'
 import { definePlugin } from '../plugin-definition/define-plugin.ts'
 import { optional } from '../plugin-definition/optional.ts'
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
@@ -65,7 +66,15 @@ const ORM_VALUE = {
   client: { name: 'db', from: '@/db' },
 } as const
 
-const CATEGORY_ORDER = ['orm', 'auth', 'security-headers', 'logging', 'analytics']
+const CATEGORY_ORDER = [
+  'package-manager',
+  'orm',
+  'auth',
+  'security-headers',
+  'logging',
+  'analytics',
+  'agents',
+]
 
 /** A plugin whose directory holds `files`. */
 const withFiles = (plugin: Plugin, files: Record<string, string> = {}) => ({
@@ -369,6 +378,138 @@ describe('assembleProject', () => {
       users: [],
       contributors: ['analytics'],
     })
+  })
+
+  it('records the package manager in package.json and the README’s run command', () => {
+    const pnpm = definePlugin({
+      name: 'pnpm',
+      title: 'pnpm',
+      category: 'package-manager',
+      packageManager: {
+        version: '12.16.1',
+        ciInstallArgs: ['install', '--frozen-lockfile'],
+        whenVersionDiffers: 'download',
+      },
+    })
+    const base = {
+      ...BASE_FILES,
+      'README.md': source('# app', '', '```bash', 'npm run dev', '```'),
+    }
+
+    const { files } = assembleProject({
+      project: createProject({
+        files: new Map(Object.entries(base)),
+        settings: { alias: '@/*', isSrcDirectory: false },
+      }),
+      plugins: [withFiles(pnpm)],
+      categoryOrder: CATEGORY_ORDER,
+    })
+
+    expect(JSON.parse(fileOf(files, 'package.json'))).toMatchObject({
+      packageManager: 'pnpm@12.16.1',
+      devEngines: { packageManager: { name: 'pnpm', version: '^12.16.1', onFail: 'download' } },
+    })
+    expect(fileOf(files, 'README.md')).toContain('pnpm run dev')
+  })
+
+  it('lets the package manager finish the built dependencies into package.json', () => {
+    const bun = definePlugin({
+      name: 'bun',
+      title: 'Bun',
+      category: 'package-manager',
+      collects: {
+        builtDependencies: {
+          create: createBuiltDependencies,
+          finish: (builds, { packageJson }) =>
+            packageJson.setField('trustedDependencies', [...builds.allowed()]),
+        },
+      },
+    })
+    const sharp = definePlugin({
+      name: 'sharp',
+      title: 'Sharp',
+      category: 'orm',
+      extend: {
+        builtDependencies: (builds) => {
+          builds.allow('sharp')
+          builds.deny('esbuild')
+        },
+      },
+    })
+
+    const { files, provenance } = assemble([withFiles(sharp), withFiles(bun)])
+
+    expect(JSON.parse(fileOf(files, 'package.json')).trustedDependencies).toEqual(['sharp'])
+    expect(provenance.files['package.json']).toContainEqual({
+      plugin: 'bun',
+      operation: 'finish builtDependencies: field trustedDependencies',
+      kind: 'extend',
+    })
+  })
+
+  it('answers who owns each file', () => {
+    const auth = definePlugin({
+      name: 'auth',
+      title: 'Auth',
+      category: 'auth',
+      files: { '@/lib/auth.ts': 'files/auth.ts' },
+    })
+
+    const { owners } = assemble([withFiles(auth, { 'files/auth.ts': 'export {};\n' })])
+
+    expect(owners.get('lib/auth.ts')).toBe('auth')
+    expect(owners.get('package.json')).toBe('base')
+  })
+
+  it('applies the base settings before the plugins, agent rules off without an agents plugin', () => {
+    const headers = definePlugin({
+      name: 'headers',
+      title: 'Headers',
+      category: 'security-headers',
+      nextConfig: { options: { headers: 'async () => []' } },
+    })
+    const settings = {
+      projectName: 'app',
+      importAlias: '@/*',
+      isSrcDirectory: false,
+      usesReactCompiler: false,
+      usesCacheComponents: true,
+    }
+    const agents = definePlugin({ name: 'agents-md', title: 'AGENTS.md', category: 'agents' })
+
+    const base = {
+      ...BASE_FILES,
+      '@/app/layout.tsx': fileOf(new Map(Object.entries(BASE_FILES)), '@/app/layout.tsx').replace(
+        'title: "app"',
+        'title: { default: "next-suite-app", template: "%s" }',
+      ),
+      '@/app/page.tsx': 'export default () => <h1>next-suite-app</h1>;\n',
+    }
+    const assembleWith = (plugins: AssemblyInput['plugins']) =>
+      assembleProject({
+        project: createProject({
+          files: new Map(Object.entries(base)),
+          settings: { alias: '@/*', isSrcDirectory: false },
+        }),
+        plugins,
+        categoryOrder: CATEGORY_ORDER,
+        baseSettings: settings,
+      })
+
+    const without = assembleWith([withFiles(headers)])
+    const withAgents = assembleWith([withFiles(headers), withFiles(agents)])
+
+    expect(fileOf(without.files, 'next.config.ts')).toContain(
+      source(
+        'const nextConfig: NextConfig = {',
+        '  agentRules: false,',
+        '  cacheComponents: true,',
+        '  partialPrefetching: true,',
+        '  headers: async () => [],',
+        '};',
+      ),
+    )
+    expect(fileOf(withAgents.files, 'next.config.ts')).not.toContain('agentRules')
   })
 
   it('drops contributions to a collector point nobody provides', () => {

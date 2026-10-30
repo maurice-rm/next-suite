@@ -1,5 +1,6 @@
-import type { Project } from '../project-model/project.ts'
+import { CORE_OWNER, type Project } from '../project-model/project.ts'
 import type { ProvenanceLog } from '../project-model/provenance.ts'
+import { applyBaseSettings, type BaseSettings } from './apply-base-settings.ts'
 import type { LoadedPlugin } from './loaded-plugin.ts'
 import { createPluginRun, type PluginRun, type PointState } from './plugin-run.ts'
 import type { PluginAnswers } from './resolve-answers.ts'
@@ -14,18 +15,22 @@ export type AssemblyInput = {
   categoryOrder: readonly string[]
   /** The answers by plugin name; an option without an answer takes its default. */
   answers?: Readonly<Record<string, PluginAnswers>>
+  /** The settings the core applies to the base files before the plugins run. */
+  baseSettings?: BaseSettings
 }
 
 export type AssembledProject = {
   /** Every file by its path on disk, sorted by path. */
   files: Map<string, string>
+  /** Who wrote each file: `base`, a plugin, or `core` for a file only the core writes. */
+  owners: Map<string, string>
   /** Which plugin did what to which file and point. */
   provenance: ProvenanceLog
 }
 
 /**
  * Assembles the project from the selected plugins. The plugins are resolved first (replacements,
- * conflicts, providers, order); then every phase runs for all plugins in order before the next
+ * conflicts, providers, order) and the base settings applied; then every phase runs for all plugins in order before the next
  * one: collect, extend, own file edits, finishing the collector points, direct edits. The project
  * is printed last.
  *
@@ -37,6 +42,7 @@ export const assembleProject = ({
   plugins,
   categoryOrder,
   answers = {},
+  baseSettings,
 }: AssemblyInput): AssembledProject => {
   const resolved = resolvePlugins({ plugins, categoryOrder })
   const running = new Set(resolved.plugins.map(({ plugin }) => plugin.name))
@@ -48,6 +54,10 @@ export const assembleProject = ({
   project.provenance.recordOrder([...running])
   for (const [point, provider] of resolved.providers) {
     project.provenance.recordProvider(point, provider)
+  }
+  if (baseSettings !== undefined) {
+    const categories = resolved.plugins.flatMap(({ plugin }) => plugin.category ?? [])
+    applyBaseSettings(project, baseSettings, new Set(categories))
   }
   const runs = resolved.plugins.map((loaded) =>
     createPluginRun(loaded, { project, points, running, answers: answers[loaded.plugin.name] }),
@@ -68,5 +78,9 @@ export const assembleProject = ({
   runPhase((run) => run.finishCollectors())
   runPhase((run) => run.editOtherFiles())
 
-  return { files: project.print(), provenance: project.provenance.toJson() }
+  const files = project.print()
+  const owners = new Map(
+    [...files.keys()].map((path) => [path, project.ownerOf(path) ?? CORE_OWNER]),
+  )
+  return { files, owners, provenance: project.provenance.toJson() }
 }

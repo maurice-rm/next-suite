@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { assertSafeTarget } from './assert-safe-target.ts'
+import { findUnsafePathProblem } from './find-unsafe-path-problem.ts'
 
-describe('assertSafeTarget', () => {
+describe('findUnsafePathProblem', () => {
   it.each(['app/page.tsx', '.env.example', 'src/lib/db.ts', '.github/workflows/ci.yml'])(
     'accepts %s',
     (target) => {
-      expect(() => assertSafeTarget(target, 'acme')).not.toThrow()
+      expect(findUnsafePathProblem(target)).toBeUndefined()
     },
   )
 
@@ -26,10 +26,6 @@ describe('assertSafeTarget', () => {
     ['a nested .git', 'vendor/.git/config', 'segment ".git"'],
     ['.git in another case', '.GIT/config', 'segment ".GIT"'],
   ])('rejects %s', (_case, target, problem) => {
-    expect(() => assertSafeTarget(target, 'acme')).toThrow(problem)
-  })
-
-  it('names the plugin and the target', () => {
-    expect(() => assertSafeTarget('../x', 'acme')).toThrow('acme writes to "../x"')
+    expect(findUnsafePathProblem(target)).toContain(problem)
   })
 })

@@ -12,7 +12,9 @@
       "!pnpm-lock.yaml",
       "!**/*.md",
       "!packages/create-next-suite/plugins/*/*/files",
-      "!packages/create-next-suite/base/files"
+      "!packages/create-next-suite/base/files",
+      "!packages/create-next-suite/base-project",
+      "!packages/create-next-suite/plugins-v2/*/*/files"
     ]
   },
   "formatter": {
@@ -323,12 +325,10 @@
                       "**/testing.ts",
                       "**/project-model",
                       "**/project-model/**",
-                      "**/plugin-definition",
-                      "**/plugin-definition/**",
                       "**/assembly",
                       "**/assembly/**"
                     ],
-                    "message": "create-next-suite: loader/ imports from contract/, file-system/ and the error classes only"
+                    "message": "create-next-suite: loader/ imports from contract/, file-system/, plugin-definition/ and the error classes only"
                   }
                 ]
               }
@@ -1003,8 +1003,6 @@
                       "**/ui/**",
                       "**/cli",
                       "**/cli/**",
-                      "**/file-system",
-                      "**/file-system/**",
                       "**/test-support",
                       "**/test-support/**",
                       "**/plugin-definition",
@@ -1017,7 +1015,7 @@
                       "**/plugin.ts",
                       "**/testing.ts"
                     ],
-                    "message": "create-next-suite: project-model/ imports from code-edit/ and expected-error.ts only"
+                    "message": "create-next-suite: project-model/ imports from code-edit/, file-system/ and expected-error.ts only"
                   }
                 ]
               }

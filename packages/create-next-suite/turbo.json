@@ -3,6 +3,12 @@
   "extends": ["//"],
   "tags": ["published"],
   "tasks": {
+    "check-types": {
+      "dependsOn": ["transit", "build"]
+    },
+    "test:types": {
+      "dependsOn": ["transit", "build"]
+    },
     "build": {
       "outputs": ["$TURBO_EXTENDS$", "generated/**"]
     }

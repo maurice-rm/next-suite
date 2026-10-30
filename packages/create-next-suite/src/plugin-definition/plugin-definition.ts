@@ -4,6 +4,7 @@ import type { ChildrenWrapper } from '../code-edit/order-wrappers.ts'
 import type { TypescriptModule } from '../code-edit/typescript-module.ts'
 import type { EnvVariable } from '../project-model/environment.ts'
 import type { ModuleExport, NamedModuleExport } from '../project-model/instrumentation.ts'
+import type { PackageManagerUse } from '../project-model/package-json.ts'
 import type { CollectorPointName, CollectorPoints } from './collector-point.ts'
 import type {
   CoreContext,
@@ -80,6 +81,20 @@ export type InstrumentationContribution = {
   readonly client?: readonly ModuleExport[]
 }
 
+/**
+ * The package manager a project runs with, stated by a plugin of the `package-manager` category;
+ * the plugin's name is the command.
+ */
+type PackageManagerSection = Omit<PackageManagerUse, 'name'> & {
+  /**
+   * The arguments of the first install, such as `['install', '--no-immutable']` for Yarn, which
+   * refuses to create a lockfile in CI otherwise; `['install']` by default.
+   */
+  readonly installArgs?: readonly string[]
+  /** The arguments of a CI install that keeps the lockfile as it is, such as `['ci']` for npm. */
+  readonly ciInstallArgs: readonly string[]
+}
+
 /** How the provider of a collector point creates the collector and finishes it into files. */
 type CollectorProvision<Collector, Finish> = {
   /** Creates what the users of the point contribute to. */
@@ -129,6 +144,8 @@ type PluginFields<Uses, Options, Context, Finish> = {
   readonly uses?: Uses
   /** Further questions, by option name. */
   readonly options?: Options
+  /** The package manager the project runs with; only for a plugin of the `package-manager` category. */
+  readonly packageManager?: PackageManagerSection
   readonly dependencies?: ValueOrFunction<Readonly<Record<string, string>>, Context>
   readonly devDependencies?: ValueOrFunction<Readonly<Record<string, string>>, Context>
   readonly scripts?: ValueOrFunction<Readonly<Record<string, string>>, Context>

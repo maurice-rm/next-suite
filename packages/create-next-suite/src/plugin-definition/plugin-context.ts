@@ -1,5 +1,6 @@
 import type { TypescriptModule } from '../code-edit/typescript-module.ts'
 import type { EnvVariable } from '../project-model/environment.ts'
+import type { JsonValue } from '../project-model/json-value.ts'
 import type { Answers } from './plugin-option.ts'
 import type { UsedPoint, UsedValue } from './used-point.ts'
 
@@ -35,6 +36,10 @@ export type FinishHelpers = {
   module: (path: string) => TypescriptModule
   /** Adds a file the plugin owns, such as one built from what a collector point collected. */
   write: (path: string, content: string) => void
+  packageJson: {
+    /** Sets a top-level field of `package.json`, such as the allowed builds of a package manager. */
+    setField: (name: string, value: JsonValue) => void
+  }
 }
 
 /**

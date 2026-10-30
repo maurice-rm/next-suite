@@ -20,7 +20,7 @@ import {
   addLogicFiles,
   addPluginFiles,
 } from './project-files.ts'
-import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
+import { createProjectManifest, PROJECT_MANIFEST_FILE, recordPlugin } from './project-manifest.ts'
 import { type ProjectValues, projectValues } from './project-values.ts'
 import { resolveModules } from './resolve-modules.ts'
 import { runLogic } from './run-logic.ts'
@@ -132,7 +132,7 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     createProjectManifest({
       cliVersion: input.cliVersion,
       createdAt: input.createdAt,
-      plugins: input.selected,
+      plugins: input.selected.map(recordPlugin),
       answers: input.recordedAnswers,
     }),
   )

@@ -1,5 +1,7 @@
 import { openRootLayout, type RootLayout } from '../code-edit/root-layout.ts'
 import { openTypescriptModule, type TypescriptModule } from '../code-edit/typescript-module.ts'
+import { findPathCollision } from '../file-system/find-path-collision.ts'
+import { findUnsafePathProblem } from '../file-system/find-unsafe-path-problem.ts'
 import { createEnvironment, type Environment } from './environment.ts'
 import { createInstrumentation, type Instrumentation } from './instrumentation.ts'
 import { type LineList, openLineList } from './line-list.ts'
@@ -27,7 +29,8 @@ export const PROJECT_FILES = {
 } as const
 
 const BASE_OWNER = 'base'
-const CORE_OWNER = 'core'
+/** The owner of a file the core writes without a base file, such as `instrumentation.ts`. */
+export const CORE_OWNER = 'core'
 
 type ProjectSettings = {
   /** The import alias, such as `@/*` or `~/*`; imports of `@/…` go through it when printed. */
@@ -68,13 +71,19 @@ export type Project = {
   /**
    * Adds a file owned by `owner`.
    *
-   * @throws ProjectError when the path is taken on disk, naming both owners.
+   * @throws ProjectError when the path could leave the project or is taken on disk, naming both
+   * owners.
    */
   write: (path: string, content: string, owner: string) => void
   ownerOf: (path: string) => string | undefined
   /** Where a project path lies on disk, such as `src/db/schema` for `@/db/schema`. */
   diskPath: (path: string) => string
-  /** Every file by its path on disk, sorted, with the models and modules printed into it. */
+  /**
+   * Every file by its path on disk, sorted, with the models and modules printed into it.
+   *
+   * @throws ProjectError when two paths are one file on a case-insensitive system, or a file lies
+   * where another needs a directory.
+   */
   print: () => Map<string, string>
 }
 
@@ -214,6 +223,10 @@ export const createProject = ({ files: baseFiles, settings }: ProjectInput): Pro
 
     write: (path, content, owner) => {
       const disk = diskPath(path)
+      const problem = findUnsafePathProblem(disk)
+      if (problem !== undefined) {
+        throw new ProjectError(`${owner} writes to "${path}", which ${problem}`)
+      }
       const existing = owners.get(disk)
       if (existing !== undefined) {
         throw new ProjectError(`${existing} and ${owner} both write ${disk}`)
@@ -243,6 +256,12 @@ export const createProject = ({ files: baseFiles, settings }: ProjectInput): Pro
       ]) {
         printed.set(path, content)
         owners.set(path, owners.get(path) ?? CORE_OWNER)
+      }
+      const collision = findPathCollision(
+        [...printed.keys()].map((path) => ({ path, origin: owners.get(path) ?? CORE_OWNER })),
+      )
+      if (collision !== undefined) {
+        throw new ProjectError(collision)
       }
       return new Map(
         [...printed]

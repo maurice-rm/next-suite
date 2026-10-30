@@ -10,8 +10,8 @@ type NoOptions = Readonly<Record<never, never>>
  * project. Every field but the metadata is written as its value or as a function of the context;
  * the context holds the value of each used point and the answers, each narrowed to its option.
  * The metadata (`name`, `title`, `description`, `category`, `section`, `options`, `uses`,
- * `provides` and `collects` by name, `replaces`, `conflicts`) are fixed values, so the core can
- * read them without running the plugin.
+ * `provides` and `collects` by name, `replaces`, `conflicts`, `packageManager`) are fixed values,
+ * so the core can read them without running the plugin.
  *
  * @typeParam Uses - The points the plugin uses, inferred from `uses`.
  * @typeParam Options - The plugin's options, inferred from `options`.
