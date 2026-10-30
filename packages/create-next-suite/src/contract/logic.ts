@@ -1,6 +1,7 @@
 import * as z from 'zod'
 
 import { contributionsSchema } from './contributions.ts'
+import { dependenciesSchema } from './dependencies.ts'
 import { conflictStrategySchema, fileRootSchema } from './plugin-file.ts'
 
 type Value = string | number | boolean | readonly string[]
@@ -36,8 +37,8 @@ const fileSchema = z.strictObject({
 export const logicResultSchema = z.strictObject({
   files: z.array(fileSchema).optional(),
   contributes: contributionsSchema.optional(),
-  dependencies: z.record(z.string().min(1), z.string().min(1)).optional(),
-  devDependencies: z.record(z.string().min(1), z.string().min(1)).optional(),
+  dependencies: dependenciesSchema.optional(),
+  devDependencies: dependenciesSchema.optional(),
 })
 
 /** What a logic module answers, as its author writes it. */

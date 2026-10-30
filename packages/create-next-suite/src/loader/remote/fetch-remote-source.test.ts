@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { stubRemote } from '../../test-support/stub-remote.ts'
 import { writeFiles } from '../../test-support/write-files.ts'
+import { PluginLoadError } from '../plugin-load-error.ts'
 import { fetchRemoteSource } from './fetch-remote-source.ts'
 import type { RemoteEnvironment } from './remote-source.ts'
 
@@ -65,6 +66,30 @@ describe('fetchRemoteSource', () => {
     expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
   })
 
+  it('accepts an integrity with several hashes when the sha512 one matches', async () => {
+    const archive = await tarball('package', { 'plugin.json': PLUGIN })
+    const sha512 = createHash('sha512').update(archive).digest('base64')
+    const integrity = `sha512-${sha512} sha1-AAAA`
+    const environment = stubRemote(root, {
+      'https://registry.npmjs.org/mail': () =>
+        respond(
+          JSON.stringify({
+            'dist-tags': { latest: '1.0.0' },
+            versions: { '1.0.0': { dist: { tarball: 'https://t/1.0.0.tgz', integrity } } },
+          }),
+        ),
+      'https://t/1.0.0.tgz': () => respond(archive),
+    })
+
+    const fetched = await fetchRemoteSource(environment, {
+      kind: 'npm',
+      name: 'mail',
+      range: 'latest',
+    })
+
+    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+  })
+
   it('rejects an npm tarball that does not match its integrity', async () => {
     const environment = stubRemote(root, {
       'https://registry.npmjs.org/mail': () =>
@@ -103,6 +128,41 @@ describe('fetchRemoteSource', () => {
 
     expect(fetched.resolved).toBe('0123456789abcdef0123456789abcdef01234567')
     expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+  })
+
+  it('rejects a GitLab answer that names no commit', async () => {
+    const project = 'https://gitlab.com/api/v4/projects/acme%2Fplugins'
+    const environment = stubRemote(root, {
+      [`${project}/repository/commits/main`]: () => respond(JSON.stringify({ id: '../../x' })),
+    })
+
+    const fetching = fetchRemoteSource(environment, {
+      kind: 'gitlab',
+      owner: 'acme',
+      repo: 'plugins',
+      path: '',
+      ref: 'main',
+    })
+
+    await expect(fetching).rejects.toThrow(PluginLoadError)
+    await expect(fetching).rejects.toThrow('GitLab answered no commit')
+  })
+
+  it('names an invalid GitLab answer instead of failing with a raw schema error', async () => {
+    const environment = stubRemote(root, {
+      'https://gitlab.com/api/v4/projects/acme%2Fplugins': () => respond('{}'),
+    })
+
+    const fetching = fetchRemoteSource(environment, {
+      kind: 'gitlab',
+      owner: 'acme',
+      repo: 'plugins',
+      path: '',
+      ref: undefined,
+    })
+
+    await expect(fetching).rejects.toThrow(PluginLoadError)
+    await expect(fetching).rejects.toThrow('the answer is invalid')
   })
 
   it('fetches a tarball URL and names it by its digest', async () => {

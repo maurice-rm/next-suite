@@ -19,7 +19,9 @@ const DEFAULT_NPM_REGISTRY = 'https://registry.npmjs.org'
 const GITHUB_API = 'https://api.github.com'
 const GITLAB_API = 'https://gitlab.com/api/v4'
 const DEFAULT_REF = 'HEAD'
-const REQUIRED_INTEGRITY_ALGORITHM = 'sha512'
+const INTEGRITY_ALGORITHM = 'sha512'
+const INTEGRITY_SEPARATOR = /\s+/
+const INTEGRITY_OPTIONS = /\?.*$/
 /** npm, GitHub and GitLab wrap the files of a tarball in one top directory. */
 const WRAPPED = 1
 const UNWRAPPED = 0
@@ -36,6 +38,18 @@ const gitlabProjectSchema = z.object({ default_branch: z.string() })
 const gitlabCommitSchema = z.object({ id: z.string() })
 
 type AddressOf<Kind extends RemoteAddress['kind']> = Extract<RemoteAddress, { kind: Kind }>
+
+/**
+ * The digests of the integrity algorithm in a Subresource Integrity string, which may list several
+ * hashes such as `sha512-… sha1-…`, each with options after a `?`.
+ */
+const integrityDigestsOf = (integrity: string): string[] =>
+  integrity.split(INTEGRITY_SEPARATOR).flatMap((hash) => {
+    const [algorithm, digest] = hash.split('-', 2)
+    return algorithm === INTEGRITY_ALGORITHM && digest !== undefined
+      ? [digest.replace(INTEGRITY_OPTIONS, '')]
+      : []
+  })
 
 /** The single top directory of an extracted archive, or the directory itself when it has more. */
 const unwrapSingleDirectory = async (directory: string): Promise<string> => {
@@ -72,11 +86,11 @@ const fetchNpm = async (
     packageVersionSchema,
     invalidAnswerError(url),
   )
-  const [algorithm, expected] = dist.integrity.split('-', 2)
-  if (algorithm !== REQUIRED_INTEGRITY_ALGORITHM || expected === undefined) {
+  const expected = integrityDigestsOf(dist.integrity)
+  if (expected.length === 0) {
     throw new PluginLoadError(
       `npm:${name}@${version}`,
-      `the package has no ${REQUIRED_INTEGRITY_ALGORITHM} integrity`,
+      `the package has no ${INTEGRITY_ALGORITHM} integrity`,
     )
   }
   const directory = await fillCacheOnce(
@@ -84,14 +98,14 @@ const fetchNpm = async (
     ['npm', name, version, dist.integrity],
     async (target) => {
       const archive = await download(environment, { url: dist.tarball })
-      const actual = createHash(algorithm).update(archive).digest('base64')
-      if (actual !== expected) {
+      const actual = createHash(INTEGRITY_ALGORITHM).update(archive).digest('base64')
+      if (!expected.includes(actual)) {
         throw new PluginLoadError(
           `npm:${name}@${version}`,
           'the tarball does not match its integrity',
         )
       }
-      await extractTarball(archive, target, WRAPPED)
+      await extractTarball(archive, { source: dist.tarball, target, strip: WRAPPED })
     },
   )
   return { directory, resolved: `${version} ${dist.integrity}` }
@@ -129,11 +143,9 @@ const fetchGithub = async (
     environment.cacheDir,
     ['github', owner, repo, commit],
     async (target) => {
-      const archive = await download(environment, {
-        url: `${repository}/tarball/${commit}`,
-        headers,
-      })
-      await extractTarball(archive, target, WRAPPED)
+      const url = `${repository}/tarball/${commit}`
+      const archive = await download(environment, { url, headers })
+      await extractTarball(archive, { source: url, target, strip: WRAPPED })
     },
   )
   return {
@@ -150,30 +162,28 @@ const fetchGitlab = async (
   const project = `${GITLAB_API}/projects/${encodeURIComponent(`${owner}/${repo}`)}`
   const branch =
     ref ??
-    gitlabProjectSchema.parse(
-      await downloadJson(environment, { url: project, headers }, z.unknown()),
-    ).default_branch
-  const { id } = gitlabCommitSchema.parse(
-    await downloadJson(
-      environment,
-      { url: `${project}/repository/commits/${encodeURIComponent(branch)}`, headers },
-      z.unknown(),
-    ),
+    (await downloadJson(environment, { url: project, headers }, gitlabProjectSchema)).default_branch
+  const commits = `${project}/repository/commits/${encodeURIComponent(branch)}`
+  const { id: commit } = await downloadJson(
+    environment,
+    { url: commits, headers },
+    gitlabCommitSchema,
   )
+  if (!COMMIT_ID.test(commit)) {
+    throw new PluginLoadError(commits, 'GitLab answered no commit')
+  }
   const root = await fillCacheOnce(
     environment.cacheDir,
-    ['gitlab', owner, repo, id],
+    ['gitlab', owner, repo, commit],
     async (target) => {
-      const archive = await download(environment, {
-        url: `${project}/repository/archive.tar.gz?sha=${id}`,
-        headers,
-      })
-      await extractTarball(archive, target, WRAPPED)
+      const url = `${project}/repository/archive.tar.gz?sha=${encodeURIComponent(commit)}`
+      const archive = await download(environment, { url, headers })
+      await extractTarball(archive, { source: url, target, strip: WRAPPED })
     },
   )
   return {
     directory: resolveRepositoryDirectory(root, path, `gitlab:${owner}/${repo}`),
-    resolved: id,
+    resolved: commit,
   }
 }
 
@@ -184,7 +194,7 @@ const fetchUrl = async (
   const archive = await download(environment, { url })
   const digest = createHash('sha256').update(archive).digest('hex')
   const directory = await fillCacheOnce(environment.cacheDir, ['url', digest], (target) =>
-    extractTarball(archive, target, UNWRAPPED),
+    extractTarball(archive, { source: url, target, strip: UNWRAPPED }),
   )
   return { directory: await unwrapSingleDirectory(directory), resolved: `sha256-${digest}` }
 }

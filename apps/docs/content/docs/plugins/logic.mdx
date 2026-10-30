@@ -26,7 +26,8 @@ export default logic
 The context holds the project (`name`, `packageManager`, `importPrefix`), the answers to the
 plugin's own options, the base settings, the selected plugins and `has(fact)`. The answer may hold
 `files`, `contributes`, `dependencies` and `devDependencies`; it is validated, and its files get the
-same path checks and conflict rules as the plugin's files.
+same path checks and conflict rules as the plugin's files. Dependency versions are
+`catalog:<name>` or a semver range, as in the manifest.
 
 A logic module must not write files, start processes or use the network; the core does all of that.
 Node.js runs TypeScript by removing its types, so use TypeScript that runs that way: no `enum`, no
