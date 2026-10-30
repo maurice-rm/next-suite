@@ -134,7 +134,7 @@ const gitWith =
 
 /**
  * Fetches the ref of a repository, or its default branch, into a fresh repository and checks it
- * out with the commands switched off that the configuration names for that repository.
+ * out, both with the commands switched off that the configuration names for that repository.
  */
 const cloneInto = async (scratch: string, { url, ref }: GitAddress, place: GitPlace) => {
   const hooks = join(scratch, NO_HOOKS)
@@ -142,8 +142,8 @@ const cloneInto = async (scratch: string, { url, ref }: GitAddress, place: GitPl
   await mkdir(hooks)
   const git = gitWith(await commandsSwitchedOff(hooks, place), place)
   await git(['init', '--quiet', clone])
-  await git(['-C', clone, 'fetch', '--quiet', '--depth', '1', '--', url, ref ?? DEFAULT_REF])
   const inClone = gitWith(await commandsSwitchedOff(hooks, { ...place, cwd: clone }), place)
+  await inClone(['-C', clone, 'fetch', '--quiet', '--depth', '1', '--', url, ref ?? DEFAULT_REF])
   await inClone(['-C', clone, 'checkout', '--quiet', 'FETCH_HEAD'])
   const { stdout } = await inClone(['-C', clone, 'rev-parse', 'HEAD'])
   return { clone, commit: stdout.trim() }
