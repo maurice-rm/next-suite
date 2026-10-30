@@ -26,7 +26,7 @@ plugin.
 Metadata are written as literals: strings, booleans, arrays and object literals, and the points
 under `uses`, `provides`, `collects` and `extend` by written-out keys, whatever their values. A
 plugin from outside create-next-suite whose metadata holds a variable, a call, a template with a
-value or a spread does not load, since create-next-suite reads its metadata before it
+value, a spread or a control character, such as an escape sequence, does not load, since create-next-suite reads its metadata before it
 [trusts](./sources-and-trust#trust) the plugin.
 
 The categories are fixed in create-next-suite, in the order the wizard asks them; the
