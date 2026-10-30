@@ -4,7 +4,7 @@ Files:
   .github/workflows/ci.yml (37 lines, github-actions)
   .gitignore (13 lines, base)
   .husky/pre-commit (1 line, lint-staged)
-  .next-suite/lock.json (567 lines, create-next-suite)
+  .next-suite/lock.json (582 lines, create-next-suite)
   .next-suite/types.d.ts (25 lines, create-next-suite)
   AGENTS.md (25 lines, agents-md)
   CLAUDE.md (1 line, agents-md)
@@ -161,7 +161,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ .next-suite/lock.json
-@@ -0,0 +1,567 @@
+@@ -0,0 +1,582 @@
 +{
 +  "generator": {
 +    "name": "create-next-suite",
@@ -311,6 +311,11 @@ Dev dependencies:
 +      "testSetup": {
 +        "provider": "vitest",
 +        "users": [],
++        "contributors": []
++      },
++      "validatedEnv": {
++        "provider": "t3-env",
++        "users": ["pino", "seo"],
 +        "contributors": []
 +      },
 +      "logRedact": {
@@ -519,14 +524,24 @@ Dev dependencies:
 +      "lib/logger.ts": [
 +        {
 +          "plugin": "pino",
-+          "operation": "copy files/lib/logger.t3-env.ts",
++          "operation": "copy files/lib/logger.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "pino",
++          "operation": "edit",
 +          "kind": "own"
 +        }
 +      ],
 +      "lib/site-url.ts": [
 +        {
 +          "plugin": "seo",
-+          "operation": "copy files/lib/site-url.t3-env.ts",
++          "operation": "copy files/lib/site-url.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "seo",
++          "operation": "edit",
 +          "kind": "own"
 +        }
 +      ],

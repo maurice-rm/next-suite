@@ -1,10 +1,10 @@
-import { definePlugin } from 'create-next-suite/plugin'
+import { definePlugin, optional } from 'create-next-suite/plugin'
+import { readFromValidatedEnv, validatedEnv } from 'create-next-suite/points'
 
 const VERSIONS = { pino: '10.4.0' }
 const LOGGER_FILE = '@/lib/logger.ts'
 const LOGGER_OBJECT = 'logger'
-/** The plugin whose `env` the logger reads its level from, when it is selected. */
-const ENV_VALIDATION = 't3-env'
+const LEVEL_VARIABLE = 'LOG_LEVEL'
 
 /** The paths the logger hides from its output, as other plugins contribute them. */
 type LogRedact = {
@@ -38,9 +38,10 @@ export default definePlugin({
   title: 'Logging with pino',
   description: 'Logs with pino and reports server errors through instrumentation.ts.',
   category: 'logging',
+  uses: { validatedEnv: optional(validatedEnv) },
   dependencies: VERSIONS,
   env: {
-    LOG_LEVEL: {
+    [LEVEL_VARIABLE]: {
       scope: 'server',
       example: 'info',
       default: 'info',
@@ -51,9 +52,13 @@ export default definePlugin({
     onRequestError: [{ module: '@/lib/logger', export: 'reportRequestError' }],
   },
   stack: ['pino'],
-  files: ({ has }) => ({
-    [LOGGER_FILE]: has(ENV_VALIDATION) ? 'files/lib/logger.t3-env.ts' : 'files/lib/logger.ts',
-  }),
+  files: {
+    [LOGGER_FILE]: {
+      source: 'files/lib/logger.ts',
+      edit: (logger, { validatedEnv }) =>
+        readFromValidatedEnv(logger, validatedEnv, { level: LEVEL_VARIABLE }),
+    },
+  },
   collects: {
     logRedact: {
       create: createLogRedact,
