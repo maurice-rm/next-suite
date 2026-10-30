@@ -4,7 +4,7 @@ import {
   PACKAGE_MANAGER_CATEGORY,
   type ParsedPluginManifest,
 } from '../../contract/plugin-manifest.ts'
-import type { PluginOption } from '../../contract/plugin-option.ts'
+import type { OptionChoice, PluginOption } from '../../contract/plugin-option.ts'
 import { renderSectionBadge } from '../../ui/frame.ts'
 import { PromptCancelledError } from '../../ui/prompt-cancelled-error.ts'
 import {
@@ -86,6 +86,10 @@ const pluginChoice = (
     : { value: plugin.name, label: plugin.title, hint }
 }
 
+/** An option choice, with its description as the hint beside it. */
+const optionChoice = ({ value, label, description }: OptionChoice): Choice<string> =>
+  description === undefined ? { value, label } : { value, label, hint: description }
+
 const isString = (value: unknown): value is string => typeof value === 'string'
 const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
 const isNumber = (value: unknown): value is number => typeof value === 'number'
@@ -133,14 +137,14 @@ const askOption = async (
       return select({
         ...base,
         message,
-        choices: option.choices,
+        choices: option.choices.map(optionChoice),
         initialValue: previousOr(previous, option.default, isString),
       })
     case 'multiselect':
       return multiselect({
         ...base,
         message,
-        choices: option.choices,
+        choices: option.choices.map(optionChoice),
         initialValues: previousOr(previous, option.default, isStringList),
       })
   }
