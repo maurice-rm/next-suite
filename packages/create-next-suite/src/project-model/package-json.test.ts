@@ -95,6 +95,60 @@ describe('openPackageJson', () => {
     expect(() => packageJson.versionOf('pino')).toThrow('package.json has no dependency pino')
   })
 
+  it('prints like JSON.stringify, one array element per line', () => {
+    const packageJson = openPackageJson(BASE)
+    packageJson.setField('trustedDependencies', ['esbuild', 'sharp'], 'bun')
+
+    expect(packageJson.print()).toBe(
+      `${JSON.stringify({ ...JSON.parse(BASE), trustedDependencies: ['esbuild', 'sharp'] }, null, 2)}\n`,
+    )
+  })
+
+  it('renames the project in its place', () => {
+    const packageJson = openPackageJson(BASE)
+    packageJson.setName('my-app')
+
+    const printed = JSON.parse(packageJson.print())
+    expect(printed.name).toBe('my-app')
+    expect(Object.keys(printed)[0]).toBe('name')
+  })
+
+  it('records the package manager before the scripts and its devEngines entry after the rest', () => {
+    const packageJson = openPackageJson(BASE)
+    packageJson.usePackageManager({
+      name: 'pnpm',
+      version: '12.16.1',
+      whenVersionDiffers: 'download',
+    })
+
+    const printed = JSON.parse(packageJson.print())
+    expect(Object.keys(printed)).toEqual([
+      'name',
+      'private',
+      'packageManager',
+      'scripts',
+      'dependencies',
+      'devEngines',
+    ])
+    expect(printed.packageManager).toBe('pnpm@12.16.1')
+    expect(printed.devEngines).toEqual({
+      packageManager: { name: 'pnpm', version: '^12.16.1', onFail: 'download' },
+    })
+  })
+
+  it('refuses a second package manager', () => {
+    const packageJson = openPackageJson(BASE)
+    packageJson.usePackageManager({
+      name: 'pnpm',
+      version: '12.16.1',
+      whenVersionDiffers: 'download',
+    })
+
+    expect(() =>
+      packageJson.usePackageManager({ name: 'npm', version: '12.2.1', whenVersionDiffers: 'warn' }),
+    ).toThrow('pnpm and npm set the field packageManager to different values')
+  })
+
   it('refuses a file that is no JSON object', () => {
     expect(() => openPackageJson('[]')).toThrow('package.json holds no JSON object')
     expect(() => openPackageJson('{')).toThrow('package.json is no valid JSON')

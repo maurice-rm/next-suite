@@ -1,9 +1,23 @@
-import { formatJson } from './format-json.ts'
 import { isJsonObject, type JsonObject, type JsonValue, parseJsonObject } from './json-value.ts'
 import { ProjectError } from './project-error.ts'
 
 const PATH = 'package.json'
 const BASE_ORIGIN = 'base'
+const JSON_INDENT = 2
+const PACKAGE_MANAGER_FIELD = 'packageManager'
+const DEV_ENGINES_FIELD = 'devEngines'
+
+/** The package manager a project runs with; its name is its command. */
+type PackageManagerUse = {
+  name: string
+  /** The exact version, such as `12.16.1`. */
+  version: string
+  /**
+   * What the project asks for when it runs with another version, through
+   * `devEngines.packageManager`: `download` the version, `warn` or stop with an `error`.
+   */
+  whenVersionDiffers: 'download' | 'warn' | 'error'
+}
 
 /** The `package.json` of the project; every entry remembers who set it, to name both in a clash. */
 export type PackageJson = {
@@ -15,6 +29,13 @@ export type PackageJson = {
   setScript: (name: string, command: string, origin: string) => void
   /** Sets a top-level field such as `engines`. */
   setField: (name: string, value: JsonValue, origin: string) => void
+  /** Replaces the base's project name. */
+  setName: (name: string) => void
+  /**
+   * Records the package manager: `packageManager` with the exact version before the scripts, and
+   * `devEngines.packageManager` with the same major after the other fields.
+   */
+  usePackageManager: (packageManager: PackageManagerUse) => void
   /**
    * The version a dependency or devDependency is pinned to.
    *
@@ -46,6 +67,21 @@ const stringEntries = (value: JsonValue | undefined): Record<string, string> =>
       (entry): entry is [string, string] => typeof entry[1] === 'string',
     ),
   )
+
+/** Moves the field `name` of `data` before the field `next`; without `next` it stays where it is. */
+const moveBefore = (data: Record<string, JsonValue>, name: string, next: string): void => {
+  const value = data[name]
+  if (value === undefined || !(next in data)) {
+    return
+  }
+  const entries = Object.entries(data).filter(([key]) => key !== name)
+  const index = entries.findIndex(([key]) => key === next)
+  entries.splice(index, 0, [name, value])
+  for (const key of Object.keys(data)) {
+    delete data[key]
+  }
+  Object.assign(data, Object.fromEntries(entries))
+}
 
 const sortedByName = (entries: Record<string, string>): Record<string, string> =>
   Object.fromEntries(Object.entries(entries).sort(([left], [right]) => (left < right ? -1 : 1)))
@@ -87,21 +123,37 @@ export const openPackageJson = (text: string): PackageJson => {
     data[field] = field === SCRIPTS.field ? updated : sortedByName(updated)
   }
 
+  const setField = (name: string, value: JsonValue, origin: string): void => {
+    const earlier = origins.get(name)
+    if (earlier === undefined) {
+      origins.set(name, origin)
+      data[name] = value
+      return
+    }
+    if (JSON.stringify(data[name]) !== JSON.stringify(value)) {
+      throw new ProjectError(`${earlier} and ${origin} set the field ${name} to different values`)
+    }
+  }
+
   return {
     addDependency: (name, value, origin) => setEntry(DEPENDENCIES, { name, value, origin }),
     addDevDependency: (name, value, origin) => setEntry(DEV_DEPENDENCIES, { name, value, origin }),
     setScript: (name, value, origin) => setEntry(SCRIPTS, { name, value, origin }),
 
-    setField: (name, value, origin) => {
-      const earlier = origins.get(name)
-      if (earlier === undefined) {
-        origins.set(name, origin)
-        data[name] = value
-        return
-      }
-      if (JSON.stringify(data[name]) !== JSON.stringify(value)) {
-        throw new ProjectError(`${earlier} and ${origin} set the field ${name} to different values`)
-      }
+    setField,
+
+    setName: (name) => {
+      data.name = name
+    },
+
+    usePackageManager: ({ name, version, whenVersionDiffers }) => {
+      setField(PACKAGE_MANAGER_FIELD, `${name}@${version}`, name)
+      moveBefore(data, PACKAGE_MANAGER_FIELD, SCRIPTS.field)
+      setField(
+        DEV_ENGINES_FIELD,
+        { packageManager: { name, version: `^${version}`, onFail: whenVersionDiffers } },
+        name,
+      )
     },
 
     versionOf: (name) => {
@@ -116,6 +168,6 @@ export const openPackageJson = (text: string): PackageJson => {
 
     scripts: () => stringEntries(data[SCRIPTS.field]),
 
-    print: () => formatJson(data),
+    print: () => `${JSON.stringify(data, null, JSON_INDENT)}\n`,
   }
 }
