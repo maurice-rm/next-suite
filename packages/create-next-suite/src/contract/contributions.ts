@@ -17,6 +17,14 @@ const RESERVED_PACKAGE_FIELDS: ReadonlySet<string> = new Set([
 
 const nonEmpty = z.string().min(1)
 
+/** A module and one of its exports; a module starting with `#src/` is imported through the project's alias. */
+const moduleExport = z.strictObject({
+  module: nonEmpty.meta({
+    description: 'Such as `#src/lib/logger`, imported through the project alias.',
+  }),
+  export: nonEmpty.optional(),
+})
+
 /**
  * What a plugin adds to the files several plugins share. The core merges the entries of all
  * plugins by a fixed rule per composition point; plugins never write these files themselves.
@@ -101,6 +109,85 @@ export const contributionsSchema = z.strictObject({
       description:
         'Fields of the `metadata` the root layout exports, such as `metadataBase`, with their value as code.',
     }),
+  instrumentation: z
+    .strictObject({
+      register: z.array(moduleExport).optional(),
+      onRequestError: z.array(moduleExport.required({ export: true })).optional(),
+    })
+    .optional()
+    .meta({
+      description:
+        'Functions instrumentation.ts runs: at startup (`register`, the export is called without arguments, or the module is just loaded) and for every server error (`onRequestError`). Node.js runtime only.',
+    }),
+  instrumentationClient: z.array(moduleExport).optional().meta({
+    description: 'Functions instrumentation-client.ts calls in the browser before the app starts.',
+  }),
+  bodyEnd: z
+    .array(z.strictObject({ module: nonEmpty, export: nonEmpty }))
+    .optional()
+    .meta({
+      description: 'Components the root layout renders at the end of `body`, such as analytics.',
+    }),
+  tsconfig: z
+    .strictObject({
+      paths: z.record(nonEmpty, z.array(nonEmpty)).optional(),
+      include: z.array(nonEmpty).optional(),
+    })
+    .optional()
+    .meta({ description: 'Paths and includes of tsconfig.json; one target list per path.' }),
+  generatedDirs: z.array(nonEmpty).optional().meta({
+    description:
+      'Folders of generated code, such as `src/generated`: ignored by git, the linter and Knip.',
+  }),
+  lint: z
+    .strictObject({ ignores: z.array(nonEmpty).optional() })
+    .optional()
+    .meta({ description: 'Globs the linter ignores.' }),
+  knip: z
+    .strictObject({
+      entry: z.array(nonEmpty).optional(),
+      ignore: z.array(nonEmpty).optional(),
+      ignoreDependencies: z.array(nonEmpty).optional(),
+    })
+    .optional()
+    .meta({ description: 'Entry files, ignored files and dependencies Knip should not report.' }),
+  container: z
+    .strictObject({
+      buildArgs: z.array(z.strictObject({ name: nonEmpty, description: nonEmpty })).optional(),
+      env: z.array(z.strictObject({ name: nonEmpty, value: z.string() })).optional(),
+      services: z
+        .array(
+          z.strictObject({
+            name: nonEmpty,
+            image: nonEmpty,
+            ports: z.array(nonEmpty).optional(),
+            environment: z.record(nonEmpty, z.string()).optional(),
+            volumes: z.array(nonEmpty).optional(),
+          }),
+        )
+        .optional(),
+    })
+    .optional()
+    .meta({
+      description:
+        'Build arguments and runtime env of the Dockerfile, and services of compose.yaml; one service per name.',
+    }),
+  csp: z.record(nonEmpty, z.array(nonEmpty)).optional().meta({
+    description:
+      'Sources per Content Security Policy directive, such as `{ "img-src": ["https:"] }`.',
+  }),
+  health: z
+    .array(z.strictObject({ name: nonEmpty, module: nonEmpty, export: nonEmpty }))
+    .optional()
+    .meta({
+      description: 'Checks the health route runs; each export answers whether its service is up.',
+    }),
+  testSetup: z.array(nonEmpty).optional().meta({
+    description: 'Setup files the test runner loads before the tests, such as `test/setup.ts`.',
+  }),
+  logRedact: z.array(nonEmpty).optional().meta({
+    description: 'Paths the logger hides from its output, such as `req.headers.authorization`.',
+  }),
   rootProviders: z
     .array(z.strictObject({ import: nonEmpty, component: nonEmpty }))
     .optional()

@@ -25,5 +25,5 @@
     "stack": ["Biome"]
   },
   "postSteps": [{ "script": "format", "running": "Formatting files", "done": "Formatted files" }],
-  "files": [{ "source": "files/biome.json", "target": "biome.json" }]
+  "files": [{ "source": "files/biome.json.hbs", "target": "biome.json" }]
 }

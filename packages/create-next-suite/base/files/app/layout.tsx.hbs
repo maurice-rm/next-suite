@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 {{#each rootProviders.opening}}
 {{import}}
 {{/each}}
+{{#each bodyEnd}}
+import { {{export}} } from "{{module}}";
+{{/each}}
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,6 +28,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
 {{#each rootProviders.closing}}
         </{{this}}>
+{{/each}}
+{{#each bodyEnd}}
+        <{{export}} />
 {{/each}}
       </body>
     </html>

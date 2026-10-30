@@ -19,9 +19,9 @@ Files:
   app/sitemap.ts (7 lines, seo)
   biome.json (34 lines, biome)
   env.ts (15 lines, t3-env)
-  instrumentation.ts (16 lines, pino)
-  knip.json (4 lines, knip)
-  lib/logger.ts (5 lines, pino)
+  instrumentation.ts (15 lines, create-next-suite)
+  knip.config.ts (6 lines, knip)
+  lib/logger.ts (21 lines, pino)
   lib/site-url.ts (3 lines, seo)
   lint-staged.config.mjs (6 lines, lint-staged)
   next-suite.json (88 lines, create-next-suite)
@@ -29,9 +29,9 @@ Files:
   package.json (53 lines, create-next-suite)
   pnpm-workspace.yaml (2 lines, pnpm)
   postcss.config.mjs (7 lines, tailwind)
-  security-headers.ts (22 lines, static-csp)
+  security-headers.ts (53 lines, static-csp)
   tsconfig.json (30 lines, base)
-  vitest.config.mts (10 lines, vitest)
+  vitest.config.mts (12 lines, vitest)
 Dependencies:
   @t3-oss/env-nextjs 0.13.11
   next 16.4.3
@@ -455,10 +455,13 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ instrumentation.ts
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,15 @@
 +import type { Instrumentation } from "next";
 +
 +export async function register() {
++  if (process.env.NEXT_RUNTIME !== "nodejs") {
++    return;
++  }
 +  await import("@/env");
 +}
 +
@@ -466,31 +469,45 @@ Dev dependencies:
 +  if (process.env.NEXT_RUNTIME !== "nodejs") {
 +    return;
 +  }
-+  const { logger } = await import("@/lib/logger");
++  await (await import("@/lib/logger")).reportRequestError(error, request, context);
++};
+
+===================================================================
+--- /dev/null
++++ knip.config.ts
+@@ -0,0 +1,6 @@
++import type { KnipConfig } from "knip";
++
++const config: KnipConfig = {
++};
++
++export default config;
+
+===================================================================
+--- /dev/null
++++ lib/logger.ts
+@@ -0,0 +1,21 @@
++import type { Instrumentation } from "next";
++import pino from "pino";
++
++import { env } from "@/env";
++
++const level = env.LOG_LEVEL;
++
++export const logger = pino({
++  level,
++  redact: [
++    "req.headers.authorization",
++    "req.headers.cookie",
++  ],
++});
++
++export const reportRequestError: Instrumentation.onRequestError = (error, request, context) => {
 +  logger.error(
 +    { err: error, path: request.path, method: request.method, ...context },
 +    "request failed",
 +  );
 +};
-
-===================================================================
---- /dev/null
-+++ knip.json
-@@ -0,0 +1,4 @@
-+{
-+  "entry": ["{,src/}env.ts"],
-+  "$schema": "https://unpkg.com/knip@6/schema.json"
-+}
-
-===================================================================
---- /dev/null
-+++ lib/logger.ts
-@@ -0,0 +1,5 @@
-+import pino from "pino";
-+
-+import { env } from "@/env";
-+
-+export const logger = pino({ level: env.LOG_LEVEL });
 
 ===================================================================
 --- /dev/null
@@ -699,21 +716,52 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ security-headers.ts
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,53 @@
 +const isDevelopment = process.env.NODE_ENV === "development";
 +
-+const contentSecurityPolicy = [
-+  "default-src 'self'",
-+  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-+  "style-src 'self' 'unsafe-inline'",
-+  "img-src 'self' blob: data:",
-+  "font-src 'self'",
-+  "object-src 'none'",
-+  "base-uri 'self'",
-+  "form-action 'self'",
-+  "frame-ancestors 'none'",
-+  "upgrade-insecure-requests",
-+].join("; ");
++const directives: Record<string, string[]> = {
++  "default-src": [
++    "'self'",
++  ],
++  "script-src": [
++    "'self'",
++    "'unsafe-inline'",
++  ],
++  "style-src": [
++    "'self'",
++    "'unsafe-inline'",
++  ],
++  "img-src": [
++    "'self'",
++    "blob:",
++    "data:",
++  ],
++  "font-src": [
++    "'self'",
++  ],
++  "object-src": [
++    "'none'",
++  ],
++  "base-uri": [
++    "'self'",
++  ],
++  "form-action": [
++    "'self'",
++  ],
++  "frame-ancestors": [
++    "'none'",
++  ],
++  "upgrade-insecure-requests": [
++  ],
++};
++
++if (isDevelopment) {
++  directives["script-src"]?.push("'unsafe-eval'");
++}
++
++const contentSecurityPolicy = Object.entries(directives)
++  .map(([directive, sources]) => [directive, ...sources].join(" "))
++  .join("; ");
 +
 +export const securityHeaders = [
 +  { key: "Content-Security-Policy", value: contentSecurityPolicy },
@@ -761,7 +809,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ vitest.config.mts
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,12 @@
 +import react from "@vitejs/plugin-react";
 +import tsconfigPaths from "vite-tsconfig-paths";
 +import { defineConfig } from "vitest/config";
@@ -770,6 +818,8 @@ Dev dependencies:
 +  plugins: [tsconfigPaths(), react()],
 +  test: {
 +    environment: "jsdom",
++    setupFiles: [
++    ],
 +  },
 +});
 

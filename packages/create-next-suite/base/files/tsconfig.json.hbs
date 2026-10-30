@@ -15,10 +15,16 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
+{{#each tsconfig.paths}}
+      "{{alias}}": {{targets}},
+{{/each}}
       "{{project.importAlias}}": ["{{project.importAliasTarget}}"]
     }
   },
   "include": [
+{{#each tsconfig.include}}
+    "{{this}}",
+{{/each}}
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",

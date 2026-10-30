@@ -9,8 +9,8 @@ Files:
   CLAUDE.md (1 line, agents-md)
   README.md (32 lines, base)
   __tests__/page.test.tsx (10 lines, vitest)
-  eslint.config.mjs (11 lines, eslint)
-  knip.json (3 lines, knip)
+  eslint.config.mjs (16 lines, eslint)
+  knip.config.ts (6 lines, knip)
   lint-staged.config.mjs (7 lines, lint-staged)
   next-suite.json (88 lines, create-next-suite)
   next.config.ts (9 lines, base)
@@ -18,7 +18,7 @@ Files:
   pnpm-workspace.yaml (3 lines, pnpm)
   postcss.config.mjs (7 lines, tailwind)
   prettier.config.mjs (6 lines, prettier)
-  security-headers.ts (22 lines, static-csp)
+  security-headers.ts (53 lines, static-csp)
   src/app/error.tsx (18 lines, base)
   src/app/global-error.tsx (14 lines, base)
   src/app/globals.css (13 lines, base)
@@ -28,11 +28,11 @@ Files:
   src/app/page.tsx (10 lines, base)
   src/app/robots.ts (10 lines, seo)
   src/app/sitemap.ts (7 lines, seo)
-  src/instrumentation.ts (12 lines, pino)
-  src/lib/logger.ts (3 lines, pino)
+  src/instrumentation.ts (8 lines, create-next-suite)
+  src/lib/logger.ts (19 lines, pino)
   src/lib/site-url.ts (1 line, seo)
   tsconfig.json (30 lines, base)
-  vitest.config.mts (10 lines, vitest)
+  vitest.config.mts (12 lines, vitest)
 Dependencies:
   next 16.4.3
   pino 10.4.0
@@ -260,7 +260,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ eslint.config.mjs
-@@ -0,0 +1,11 @@
+@@ -0,0 +1,16 @@
 +import { defineConfig, globalIgnores } from "eslint/config";
 +import nextVitals from "eslint-config-next/core-web-vitals";
 +import nextTs from "eslint-config-next/typescript";
@@ -268,18 +268,26 @@ Dev dependencies:
 +const eslintConfig = defineConfig([
 +  ...nextVitals,
 +  ...nextTs,
-+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
++  globalIgnores([
++    ".next/**",
++    "out/**",
++    "build/**",
++    "next-env.d.ts",
++  ]),
 +]);
 +
 +export default eslintConfig;
 
 ===================================================================
 --- /dev/null
-+++ knip.json
-@@ -0,0 +1,3 @@
-+{
-+  "$schema": "https://unpkg.com/knip@6/schema.json"
-+}
++++ knip.config.ts
+@@ -0,0 +1,6 @@
++import type { KnipConfig } from "knip";
++
++const config: KnipConfig = {
++};
++
++export default config;
 
 ===================================================================
 --- /dev/null
@@ -494,21 +502,52 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ security-headers.ts
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,53 @@
 +const isDevelopment = process.env.NODE_ENV === "development";
 +
-+const contentSecurityPolicy = [
-+  "default-src 'self'",
-+  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-+  "style-src 'self' 'unsafe-inline'",
-+  "img-src 'self' blob: data:",
-+  "font-src 'self'",
-+  "object-src 'none'",
-+  "base-uri 'self'",
-+  "form-action 'self'",
-+  "frame-ancestors 'none'",
-+  "upgrade-insecure-requests",
-+].join("; ");
++const directives: Record<string, string[]> = {
++  "default-src": [
++    "'self'",
++  ],
++  "script-src": [
++    "'self'",
++    "'unsafe-inline'",
++  ],
++  "style-src": [
++    "'self'",
++    "'unsafe-inline'",
++  ],
++  "img-src": [
++    "'self'",
++    "blob:",
++    "data:",
++  ],
++  "font-src": [
++    "'self'",
++  ],
++  "object-src": [
++    "'none'",
++  ],
++  "base-uri": [
++    "'self'",
++  ],
++  "form-action": [
++    "'self'",
++  ],
++  "frame-ancestors": [
++    "'none'",
++  ],
++  "upgrade-insecure-requests": [
++  ],
++};
++
++if (isDevelopment) {
++  directives["script-src"]?.push("'unsafe-eval'");
++}
++
++const contentSecurityPolicy = Object.entries(directives)
++  .map(([directive, sources]) => [directive, ...sources].join(" "))
++  .join("; ");
 +
 +export const securityHeaders = [
 +  { key: "Content-Security-Policy", value: contentSecurityPolicy },
@@ -671,27 +710,39 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ src/instrumentation.ts
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,8 @@
 +import type { Instrumentation } from "next";
 +
 +export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
 +  if (process.env.NEXT_RUNTIME !== "nodejs") {
 +    return;
 +  }
-+  const { logger } = await import("~/lib/logger");
-+  logger.error(
-+    { err: error, path: request.path, method: request.method, ...context },
-+    "request failed",
-+  );
++  await (await import("~/lib/logger")).reportRequestError(error, request, context);
 +};
 
 ===================================================================
 --- /dev/null
 +++ src/lib/logger.ts
-@@ -0,0 +1,3 @@
+@@ -0,0 +1,19 @@
++import type { Instrumentation } from "next";
 +import pino from "pino";
 +
-+export const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
++const level = process.env.LOG_LEVEL ?? "info";
++
++export const logger = pino({
++  level,
++  redact: [
++    "req.headers.authorization",
++    "req.headers.cookie",
++  ],
++});
++
++export const reportRequestError: Instrumentation.onRequestError = (error, request, context) => {
++  logger.error(
++    { err: error, path: request.path, method: request.method, ...context },
++    "request failed",
++  );
++};
 
 ===================================================================
 --- /dev/null
@@ -737,7 +788,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ vitest.config.mts
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,12 @@
 +import react from "@vitejs/plugin-react";
 +import tsconfigPaths from "vite-tsconfig-paths";
 +import { defineConfig } from "vitest/config";
@@ -746,6 +797,8 @@ Dev dependencies:
 +  plugins: [tsconfigPaths(), react()],
 +  test: {
 +    environment: "jsdom",
++    setupFiles: [
++    ],
 +  },
 +});
 

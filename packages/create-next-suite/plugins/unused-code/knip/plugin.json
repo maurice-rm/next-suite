@@ -12,5 +12,5 @@
     "ciChecks": ["knip"],
     "stack": ["Knip"]
   },
-  "files": [{ "source": "files/knip.json.hbs", "target": "knip.json" }]
+  "files": [{ "source": "files/knip.config.ts.hbs", "target": "knip.config.ts" }]
 }

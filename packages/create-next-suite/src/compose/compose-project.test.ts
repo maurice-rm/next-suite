@@ -249,6 +249,28 @@ describe('composeProject', () => {
     )
   })
 
+  it('rejects a tsconfig path that redefines the import alias', async () => {
+    const paths = await writePlugin('paths', {
+      contributes: { tsconfig: { paths: { '@/*': ['./other/*'] } } },
+    })
+
+    await expect(compose(await writeBase(), [paths], answersWith([]))).rejects.toThrow(
+      'a plugin redefines the tsconfig path "@/*", the project\'s import alias',
+    )
+  })
+
+  it('writes instrumentation.ts in the source folder once a plugin contributes a hook', async () => {
+    const env = await writePlugin('env', {
+      contributes: { instrumentation: { register: [{ module: '#src/env' }] } },
+    })
+
+    const without = await compose(await writeBase(), [], answersWith([], { 'src-dir': true }))
+    const plan = await compose(await writeBase(), [env], answersWith([], { 'src-dir': true }))
+
+    expect(contentOf(without, 'src/instrumentation.ts')).toBeUndefined()
+    expect(contentOf(plan, 'src/instrumentation.ts')).toContain('await import("@/env");')
+  })
+
   it('takes stack names and next steps from conditional contributions that hold', async () => {
     const extra = await writePlugin('extra', {
       conditionalContributions: [

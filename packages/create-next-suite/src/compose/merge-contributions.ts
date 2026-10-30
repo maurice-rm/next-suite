@@ -2,6 +2,7 @@ import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
+import { type ExtendedValues, mergeExtendedPoints } from './merge-extended-points.ts'
 
 const CATALOG_PREFIX = 'catalog:'
 
@@ -14,7 +15,7 @@ type ReadmeSection = { section: string; text: string }
 type RootProvider = { import: string; component: string }
 
 /** The merged contributions of all plugins, as the templates of shared files read them. */
-export type CompositionValues = {
+export type CompositionValues = ExtendedValues & {
   scripts: Record<string, string>
   fields: Record<string, FieldValue>
   dependencies: Record<string, string>
@@ -250,7 +251,7 @@ const assertNoDoubleDependencies = (accumulator: Accumulator): void => {
 
 const unique = (values: string[]): string[] => [...new Set(values)]
 
-const toValues = (accumulator: Accumulator): CompositionValues => ({
+const toValues = (accumulator: Accumulator): Omit<CompositionValues, keyof ExtendedValues> => ({
   scripts: valuesOf(accumulator.scripts),
   fields: valuesOf(accumulator.fields),
   dependencies: sortedValuesOf(accumulator.dependencies),
@@ -307,5 +308,13 @@ export const mergeContributions = (
     addLists(accumulator, manifest)
   }
   assertNoDoubleDependencies(accumulator)
-  return toValues(accumulator)
+  const extended = mergeExtendedPoints(manifests)
+  const values = toValues(accumulator)
+  return {
+    ...values,
+    ...extended,
+    gitignore: [
+      ...new Set([...values.gitignore, ...extended.generatedDirs.map((folder) => `/${folder}`)]),
+    ],
+  }
 }

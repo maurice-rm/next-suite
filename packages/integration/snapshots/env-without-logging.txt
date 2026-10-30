@@ -19,8 +19,9 @@ Files:
   app/robots.ts (10 lines, seo)
   app/sitemap.ts (7 lines, seo)
   env.ts (14 lines, t3-env)
-  eslint.config.mjs (11 lines, eslint)
-  knip.json (4 lines, knip)
+  eslint.config.mjs (16 lines, eslint)
+  instrumentation.ts (6 lines, create-next-suite)
+  knip.config.ts (6 lines, knip)
   lib/site-url.ts (3 lines, seo)
   lint-staged.config.mjs (7 lines, lint-staged)
   next-suite.json (88 lines, create-next-suite)
@@ -29,9 +30,9 @@ Files:
   pnpm-workspace.yaml (3 lines, pnpm)
   postcss.config.mjs (7 lines, tailwind)
   prettier.config.mjs (6 lines, prettier)
-  security-headers.ts (22 lines, static-csp)
+  security-headers.ts (53 lines, static-csp)
   tsconfig.json (30 lines, base)
-  vitest.config.mts (10 lines, vitest)
+  vitest.config.mts (12 lines, vitest)
 Dependencies:
   @t3-oss/env-nextjs 0.13.11
   next 16.4.3
@@ -424,7 +425,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ eslint.config.mjs
-@@ -0,0 +1,11 @@
+@@ -0,0 +1,16 @@
 +import { defineConfig, globalIgnores } from "eslint/config";
 +import nextVitals from "eslint-config-next/core-web-vitals";
 +import nextTs from "eslint-config-next/typescript";
@@ -432,19 +433,37 @@ Dev dependencies:
 +const eslintConfig = defineConfig([
 +  ...nextVitals,
 +  ...nextTs,
-+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
++  globalIgnores([
++    ".next/**",
++    "out/**",
++    "build/**",
++    "next-env.d.ts",
++  ]),
 +]);
 +
 +export default eslintConfig;
 
 ===================================================================
 --- /dev/null
-+++ knip.json
-@@ -0,0 +1,4 @@
-+{
-+  "entry": ["{,src/}env.ts"],
-+  "$schema": "https://unpkg.com/knip@6/schema.json"
++++ instrumentation.ts
+@@ -0,0 +1,6 @@
++export async function register() {
++  if (process.env.NEXT_RUNTIME !== "nodejs") {
++    return;
++  }
++  await import("@/env");
 +}
+
+===================================================================
+--- /dev/null
++++ knip.config.ts
+@@ -0,0 +1,6 @@
++import type { KnipConfig } from "knip";
++
++const config: KnipConfig = {
++};
++
++export default config;
 
 ===================================================================
 --- /dev/null
@@ -668,21 +687,52 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ security-headers.ts
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,53 @@
 +const isDevelopment = process.env.NODE_ENV === "development";
 +
-+const contentSecurityPolicy = [
-+  "default-src 'self'",
-+  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-+  "style-src 'self' 'unsafe-inline'",
-+  "img-src 'self' blob: data:",
-+  "font-src 'self'",
-+  "object-src 'none'",
-+  "base-uri 'self'",
-+  "form-action 'self'",
-+  "frame-ancestors 'none'",
-+  "upgrade-insecure-requests",
-+].join("; ");
++const directives: Record<string, string[]> = {
++  "default-src": [
++    "'self'",
++  ],
++  "script-src": [
++    "'self'",
++    "'unsafe-inline'",
++  ],
++  "style-src": [
++    "'self'",
++    "'unsafe-inline'",
++  ],
++  "img-src": [
++    "'self'",
++    "blob:",
++    "data:",
++  ],
++  "font-src": [
++    "'self'",
++  ],
++  "object-src": [
++    "'none'",
++  ],
++  "base-uri": [
++    "'self'",
++  ],
++  "form-action": [
++    "'self'",
++  ],
++  "frame-ancestors": [
++    "'none'",
++  ],
++  "upgrade-insecure-requests": [
++  ],
++};
++
++if (isDevelopment) {
++  directives["script-src"]?.push("'unsafe-eval'");
++}
++
++const contentSecurityPolicy = Object.entries(directives)
++  .map(([directive, sources]) => [directive, ...sources].join(" "))
++  .join("; ");
 +
 +export const securityHeaders = [
 +  { key: "Content-Security-Policy", value: contentSecurityPolicy },
@@ -730,7 +780,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ vitest.config.mts
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,12 @@
 +import react from "@vitejs/plugin-react";
 +import tsconfigPaths from "vite-tsconfig-paths";
 +import { defineConfig } from "vitest/config";
@@ -739,6 +789,8 @@ Dev dependencies:
 +  plugins: [tsconfigPaths(), react()],
 +  test: {
 +    environment: "jsdom",
++    setupFiles: [
++    ],
 +  },
 +});
 

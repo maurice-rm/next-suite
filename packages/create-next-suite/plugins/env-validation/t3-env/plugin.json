@@ -10,6 +10,21 @@
     "@t3-oss/env-nextjs": "catalog:t3-oss-env-nextjs",
     "zod": "catalog:zod"
   },
-  "contributes": { "stack": ["t3-env"] },
-  "files": [{ "source": "files/env.ts.hbs", "target": "env.ts", "root": "source" }]
+  "contributes": {
+    "instrumentation": {
+      "register": [
+        {
+          "module": "#src/env"
+        }
+      ]
+    },
+    "stack": ["t3-env"]
+  },
+  "files": [
+    {
+      "source": "files/env.ts.hbs",
+      "target": "env.ts",
+      "root": "source"
+    }
+  ]
 }
