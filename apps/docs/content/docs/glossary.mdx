@@ -16,11 +16,14 @@ Code, messages and these pages use each word below for one concept only.
 | section | a part of the wizard that asks its questions together, such as "Project" |
 | option | a further question of one plugin, with a flag `--<plugin>-<option>` |
 | base setting | a value the core and the base project read, such as `src-dir`; set by flag or answer file, never asked |
+| run setting | a choice about this run only, such as `install` or `git`; asked last in the wizard, never recorded in next-suite.json |
 | quick start | the wizard's offer to take the default for every question left |
+| project directory | the directory a run writes the project to; its name is the package name |
+| target action | what a run does with the project directory: create it or fill an empty one, empty it first except `.git` (`--empty`), or write over the files there (`--overwrite`) |
 | answers | what a run was told, by wizard, flags or an answer file (`--answers`); next-suite.json records them |
 | composition point | a file several plugins share, such as `package.json` or `.gitignore`, and the rule that merges what they contribute |
 | contribution | an entry a plugin adds to a composition point, under `contributes` |
-| template | a plugin file whose source ends in `.hbs`, rendered with the answers |
+| template | a plugin file whose source ends in `.hbs`, rendered with the template values |
 | template value | a value a template reads, such as `project.name` or `scripts` |
 | fact | a named condition over the answers that templates and logic modules ask through `has` |
 | logic module | code a plugin names in `logic` to compute files and contributions; it computes, the core writes |
@@ -29,5 +32,5 @@ Code, messages and these pages use each word below for one concept only.
 | core | the part of create-next-suite that writes files, runs processes and fetches |
 | address | where `--plugin` loads a plugin from, such as `./mail`, `npm:mail@^1` or `@acme/mail` |
 | source | an address without its ref or version; trust patterns match it |
-| registry | a directory, repository or tarball whose `registry.json` lists plugins, loaded by short name such as `@acme/mail` |
+| registry | a directory, repository or tarball whose `registry.json` lists plugins, known by a short name such as `@acme`; its plugins are addressed as `@acme/mail` |
 | trust | the permission for a plugin from a source other than a local directory to run code |
