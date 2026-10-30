@@ -19,7 +19,8 @@ env:
   TURBO_UI: false
 
 jobs:
-  # Lists the scenarios, the answer files under packages/integration/scenarios.
+  # Lists the scenarios, the answer files under packages/integration/scenarios, the way
+  # listScenarios in packages/integration/src/scenarios.ts does.
   list:
     name: List scenarios
     runs-on: ubuntu-slim
@@ -34,7 +35,9 @@ jobs:
           persist-credentials: false
       - id: list
         name: List scenarios
-        run: echo "scenarios=$(ls packages/integration/scenarios | sed 's/\.json$//' | jq -R . | jq -cs .)" >> "$GITHUB_OUTPUT"
+        run: |
+          scenarios=$(find packages/integration/scenarios -maxdepth 1 -name '*.json' -printf '%f\n' | sed 's/\.json$//' | LC_ALL=C sort | jq -R . | jq -cs .)
+          echo "scenarios=$scenarios" >> "$GITHUB_OUTPUT"
 
   # Generates each scenario with each package manager, installs it and runs the generated
   # project's own checks.
