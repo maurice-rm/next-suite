@@ -36,8 +36,10 @@ npx create-next-suite my-app --plugin ./hello
 A plugin without a `category` becomes a yes/no question, with a flag of its name (`--hello`,
 `--no-hello`). A plugin with a `category` is one of the choices of that category's question.
 Options in `options` become further questions and flags (`--hello-<option>`); an option's
-`description` says in `--help` what its flag sets. `--help` lists the flags under the section of
-the wizard that asks them.
+`description` says in `--help` what its flag sets. The choices of a `select` or `multiselect`
+option show their `description` as the hint beside the label, the way a category's choices show
+their plugin's description; a choice without one shows no hint. `--help` lists the flags under the
+section of the wizard that asks them.
 
 ## What a plugin can do
 

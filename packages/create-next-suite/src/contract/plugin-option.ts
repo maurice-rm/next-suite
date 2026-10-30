@@ -9,7 +9,7 @@ export type OptionChoice = {
   value: string
   /** The name the wizard shows. */
   label: string
-  /** A description of the choice; the wizard shows only the label. */
+  /** A description of the choice; the wizard shows it as the hint beside the label. */
   description?: string | undefined
 }
 
@@ -72,11 +72,9 @@ const choiceSchema = z
       description: 'The value the answers record, in kebab-case, such as `app-router`.',
     }),
     label: z.string().min(1).meta({ description: 'The name the wizard shows.' }),
-    description: z
-      .string()
-      .min(1)
-      .optional()
-      .meta({ description: 'A description of the choice; the wizard shows only the label.' }),
+    description: z.string().min(1).optional().meta({
+      description: 'A description of the choice; the wizard shows it as the hint beside the label.',
+    }),
   })
   .meta({
     id: 'OptionChoice',
