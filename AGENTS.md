@@ -34,9 +34,9 @@ says what next-suite does; this file says how code is written here.
 - **Public exports carry complete TSDoc:** a summary; `@typeParam` for every type parameter;
   `@param name -` and `@returns` where they say more than the type; `@throws` for every error
   raised on purpose; at least one `@example` per entry point. No types inside `@param`. Public
-  means the `create-next-suite/plugin` and `create-next-suite/testing` subpaths; the field
-  descriptions of the JSON schemas under `create-next-suite/schemas/` are read by users too. The
-  bins are no API.
+  means the `create-next-suite/config`, `create-next-suite/plugin` and `create-next-suite/testing`
+  subpaths; the field descriptions of the JSON schemas under `create-next-suite/schemas/` are read
+  by users too. The bins are no API.
 - **Internal code** gets a doc comment only where name and signature do not say enough. An inline
   comment is reserved for a workaround (with a link), a non-obvious constraint, or a dense
   algorithm. Design history and rationale stay out of TSDoc — TSDoc ships in `dist`.
@@ -74,6 +74,7 @@ says what next-suite does; this file says how code is written here.
   | `loader/remote/`     | as `loader/`, and of `loader/` only `plugin-address.ts` and `plugin-load-error.ts`                              |
   | `trust/`             | `contract/`, `file-system/`, `loader/`, the error files                                                         |
   | `questions/`         | `contract/`, `answers/`, `loader/`, `plugin-definition/`, `ui/`, `file-system/`, the error files                |
+  | `project-config/`    | `contract/`, `file-system/`, `plugin-definition/`, `answers/`, `project-model/`, `loader/`, the error files     |
   | `write/`             | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                                             |
   | `test-support/`      | `contract/`, `answers/`, `loader/`, `questions/`, `cli/`, `file-system/`, `plugin-definition/`, the error files |
   | `cli/`               | every module, never the package entries                                                                         |

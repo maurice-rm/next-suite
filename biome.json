@@ -152,6 +152,7 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -161,7 +162,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: contract/ is the innermost module and imports no other"
                   }
@@ -211,6 +214,7 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -222,7 +226,9 @@
                       "**/contract",
                       "**/contract/**",
                       "**/code-edit",
-                      "**/code-edit/**"
+                      "**/code-edit/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: points/ holds the shared points and imports no other module"
                   }
@@ -272,6 +278,7 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -281,7 +288,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: file-system/ wraps Node.js and imports no other module"
                   }
@@ -329,6 +338,7 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -338,7 +348,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: answers/ imports only from contract/"
                   }
@@ -380,6 +392,7 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -387,7 +400,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: loader/ imports from contract/, file-system/, plugin-definition/ and the error classes only"
                   }
@@ -429,6 +444,7 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "../load-*.ts",
@@ -441,7 +457,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: loader/remote/ fetches sources and imports from contract/, file-system/, the error classes, the plugin address and the plugin load error only"
                   }
@@ -479,6 +497,7 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -488,7 +507,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: write/ imports from contract/, answers/, loader/, file-system/ and the error classes only"
                   }
@@ -522,6 +543,7 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/package-manager",
@@ -531,7 +553,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: questions/ imports from contract/, answers/, loader/, plugin-definition/, ui/, file-system/ and the error classes only"
                   }
@@ -575,6 +599,7 @@
                       "**/file-system/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -582,7 +607,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: package-manager/ imports from contract/, plugin-definition/ and the error classes only"
                   }
@@ -624,6 +651,7 @@
                       "**/file-system/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -633,7 +661,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: post-steps/ imports from contract/, package-manager/ and the error classes only"
                   }
@@ -684,6 +714,7 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -693,7 +724,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: code-edit/ edits source text and imports no other module but expected-error.ts"
                   }
@@ -740,6 +773,7 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/package-manager",
@@ -751,7 +785,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: ui/ renders only and imports no other module but the error classes"
                   }
@@ -795,6 +831,7 @@
                       "**/test-support/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -804,7 +841,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: user-config/ imports from contract/, file-system/ and the error classes only"
                   }
@@ -846,6 +885,7 @@
                       "**/test-support/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -855,7 +895,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: trust/ imports from contract/, file-system/, loader/ and the error classes only"
                   }
@@ -879,6 +921,7 @@
                     "group": [
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts"
                     ],
@@ -916,6 +959,7 @@
                       "**/ui/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
@@ -923,7 +967,9 @@
                       "**/assembly",
                       "**/assembly/**",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: test-support/ builds fixtures and runs from contract/, answers/, loader/, questions/, cli/, file-system/, plugin-definition/ and the error classes only"
                   }
@@ -976,10 +1022,13 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/points",
-                      "**/points/**"
+                      "**/points/**",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: project-model/ imports from code-edit/, file-system/ and expected-error.ts only"
                   }
@@ -1028,8 +1077,11 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
-                      "**/testing.ts"
+                      "**/testing.ts",
+                      "**/project-config",
+                      "**/project-config/**"
                     ],
                     "message": "create-next-suite: plugin-definition/ imports from contract/, code-edit/, project-model/, points/ and expected-error.ts only"
                   }
@@ -1078,10 +1130,63 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
+                      "**/config.ts",
+                      "**/plugin.ts",
+                      "**/testing.ts",
+                      "**/project-config",
+                      "**/project-config/**"
+                    ],
+                    "message": "create-next-suite: assembly/ imports from plugin-definition/, points/, project-model/, code-edit/ and expected-error.ts only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/project-config/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/trust",
+                      "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/test-support",
+                      "**/test-support/**",
+                      "**/assembly",
+                      "**/assembly/**",
+                      "**/points",
+                      "**/points/**",
+                      "**/code-edit",
+                      "**/code-edit/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/config.ts",
                       "**/plugin.ts",
                       "**/testing.ts"
                     ],
-                    "message": "create-next-suite: assembly/ imports from plugin-definition/, points/, project-model/, code-edit/ and expected-error.ts only"
+                    "message": "create-next-suite: project-config/ imports from contract/, file-system/, plugin-definition/, answers/, project-model/, loader/ and the error classes only"
                   }
                 ]
               }

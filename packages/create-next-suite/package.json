@@ -33,6 +33,7 @@
     "next-suite": "./dist/next-suite.mjs"
   },
   "exports": {
+    "./config": "./dist/config.mjs",
     "./plugin": "./dist/plugin.mjs",
     "./testing": "./dist/testing.mjs",
     "./schemas/registry.json": "./dist/schemas/registry.json",
