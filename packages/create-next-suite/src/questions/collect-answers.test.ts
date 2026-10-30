@@ -85,6 +85,12 @@ describe('collectAnswers from the input', () => {
     expect(result.answers.options).not.toHaveProperty(['drizzle.casing'])
   })
 
+  it('fails with the reason of a chosen plugin whose precondition fails', async () => {
+    await expect(collect({ input: { ...ALL_ANSWERS, 'better-auth': true } })).rejects.toThrow(
+      'the answers do not fit together:\nbetter-auth: Stores sessions in the database.',
+    )
+  })
+
   it('rejects plugins that do not fit together, with the reasons', async () => {
     await expect(
       collect({ input: { ...ALL_ANSWERS, orm: 'prisma', 'better-auth': true } }),

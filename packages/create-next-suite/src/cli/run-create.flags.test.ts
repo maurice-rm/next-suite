@@ -172,6 +172,30 @@ describe('runCreate with flags and answer files', () => {
     expect(result.error).toContain('Prettier: Biome formats the code already.')
   })
 
+  it('leaves out lint-staged by default without a linter or a formatter', async () => {
+    const result = await run(['my-app', '--yes', '--dry-run', '--no-linter', '--no-formatter'])
+
+    expect(result).toMatchObject({ exitCode: 0, error: '' })
+    expect(result.output).not.toContain('lint-staged')
+  })
+
+  it('stops with the reason of lint-staged when it is chosen without a linter or a formatter', async () => {
+    const result = await run([
+      'my-app',
+      '--yes',
+      '--dry-run',
+      '--no-linter',
+      '--no-formatter',
+      '--git-hooks',
+      'lint-staged',
+    ])
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain(
+      'the answers do not fit together:\nlint-staged with Husky: it needs a linter or a formatter to run on the staged files',
+    )
+  })
+
   it('refuses plugins from addresses in this version', async () => {
     const result = await run(['my-app', '--yes', '--dry-run', '--plugin', './mail'])
 

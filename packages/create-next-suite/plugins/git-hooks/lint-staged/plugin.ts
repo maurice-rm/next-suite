@@ -42,6 +42,10 @@ export default definePlugin({
   description:
     'Lints and formats the staged files before each commit, through a Husky pre-commit hook.',
   category: 'git-hooks',
+  precondition: ({ hasCategory }) =>
+    hasCategory('linter') ||
+    hasCategory('formatter') ||
+    'it needs a linter or a formatter to run on the staged files',
   devDependencies: VERSIONS,
   scripts: { prepare: 'husky' },
   stack: ['Husky'],
@@ -60,13 +64,9 @@ export default definePlugin({
   collects: {
     lintStaged: {
       create: createLintStagedCommands,
-      finish: (lintStaged, { module, fail }) => {
-        const commands = lintStaged.commands()
-        if (commands.size === 0) {
-          fail('it needs a linter or a formatter to run on the staged files')
-        }
+      finish: (lintStaged, { module }) => {
         const config = module(CONFIG_FILE).object(CONFIG_OBJECT)
-        for (const [glob, globCommands] of commands) {
+        for (const [glob, globCommands] of lintStaged.commands()) {
           config.set(glob, commandList(globCommands))
         }
       },

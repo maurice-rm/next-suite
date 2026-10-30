@@ -169,4 +169,18 @@ describe('resolvePlugins', () => {
 
     expect(order(prettier, biome, oxfmt)).toEqual(['prettier', 'oxfmt'])
   })
+
+  it('refuses a plugin whose precondition fails among the plugins that run, with its reason', () => {
+    const lintStaged = definePlugin({
+      name: 'lint-staged',
+      title: 'lint-staged',
+      precondition: ({ hasCategory }) => hasCategory('linter') || 'it needs a linter',
+    })
+    const eslint = definePlugin({ name: 'eslint', title: 'ESLint', category: 'linter' })
+
+    expect(() => order(lintStaged, eslint)).not.toThrow()
+    expect(() => order(lintStaged)).toThrow(
+      new AssemblyError('lint-staged cannot run: it needs a linter'),
+    )
+  })
 })

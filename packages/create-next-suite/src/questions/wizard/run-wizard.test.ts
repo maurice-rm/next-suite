@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { TEST_PLUGINS, TEST_QUESTIONS } from '../../test-support/questions.ts'
 import { GO_BACK } from '../../ui/prompts.ts'
-import { findConflicts } from '../find-incompatibilities.ts'
+import { findIncompatibilities } from '../find-incompatibilities.ts'
 import { type Ask, runWizard, type WizardStep } from './run-wizard.ts'
 
 const SETTINGS = {
@@ -29,7 +29,7 @@ const wizard = (ask: Ask, input: Record<string, unknown> = {}, shown: string[][]
     questions: TEST_QUESTIONS,
     input: { ...SETTINGS, ...input },
     ask,
-    findProblems: (answers) => findConflicts(TEST_PLUGINS, answers),
+    findProblems: (answers) => findIncompatibilities(TEST_PLUGINS, answers),
     showProblems: (problems) => shown.push(problems),
     directory: 'my-app',
     action: undefined,
@@ -197,6 +197,16 @@ describe('runWizard', () => {
     expect(pluginNames(result)).toEqual(['pnpm', 'prisma'])
   })
 
+  it('shows the reason of a chosen plugin whose precondition fails and goes back', async () => {
+    const shown: string[][] = []
+    const { ask } = scripted(['pnpm', false, null, [], false, true, false])
+
+    const result = await wizard(ask, {}, shown)
+
+    expect(shown).toEqual([['better-auth: Stores sessions in the database.']])
+    expect(pluginNames(result)).toEqual(['pnpm'])
+  })
+
   it('reports input that the final answers do not use', async () => {
     const { ask } = scripted([false, null, [], false, false])
 
@@ -223,7 +233,7 @@ describe('runWizard', () => {
         questions: TEST_QUESTIONS,
         input,
         ask: scripted(['my-app']).ask,
-        findProblems: (answers) => findConflicts(TEST_PLUGINS, answers),
+        findProblems: (answers) => findIncompatibilities(TEST_PLUGINS, answers),
         showProblems: () => undefined,
         directory: undefined,
         action: undefined,

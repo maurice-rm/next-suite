@@ -148,9 +148,7 @@ describe('the tooling plugins', () => {
         plugins,
         categoryOrder: CATEGORIES.map(({ id }) => id),
       }),
-    ).toThrow(
-      'lint-staged (finish lintStaged): it needs a linter or a formatter to run on the staged files',
-    )
+    ).toThrow('lint-staged cannot run: it needs a linter or a formatter to run on the staged files')
   })
 
   it('refuses Prettier together with Biome', () => {

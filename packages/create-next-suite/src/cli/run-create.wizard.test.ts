@@ -77,6 +77,17 @@ describe('runCreate in the wizard', () => {
     )
   })
 
+  it('leaves out lint-staged in the quick start without a linter or a formatter', async () => {
+    const result = await run(['my-app', '--dry-run', '--no-linter', '--no-formatter'], {
+      isInteractive: true,
+      keys: [KEYS.enter, 'y', KEYS.enter],
+    })
+
+    expect(result.exitCode).toBe(0)
+    expect(result.output).toContain('└  Dry run, nothing was written')
+    expect(result.output).not.toContain('lint-staged')
+  })
+
   it('takes the quick start and frames the dry run in the wizard', async () => {
     const result = await run(['my-app', '--dry-run'], {
       isInteractive: true,

@@ -1,4 +1,5 @@
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
+import { findUnmetPrecondition } from '../plugin-definition/precondition.ts'
 import { isOptionalUse, pointOf } from '../plugin-definition/used-point.ts'
 import { AssemblyError } from './assembly-error.ts'
 import type { LoadedPlugin } from './loaded-plugin.ts'
@@ -29,6 +30,16 @@ const assertNoConflicts = (plugins: readonly LoadedPlugin[]): void => {
       if (names.has(other)) {
         throw new AssemblyError(`${plugin.name} conflicts with ${other}: ${reason}`)
       }
+    }
+  }
+}
+
+const assertPreconditions = (plugins: readonly LoadedPlugin[]): void => {
+  const selection = plugins.map(({ plugin }) => plugin)
+  for (const { plugin } of plugins) {
+    const reason = findUnmetPrecondition(plugin.precondition, selection)
+    if (reason !== undefined) {
+      throw new AssemblyError(`${plugin.name} cannot run: ${reason}`)
     }
   }
 }
@@ -125,14 +136,17 @@ const orderPlugins = (
 
 /**
  * The plugins that run and their order. A replaced plugin is dropped first, so its replacement
- * provides its points; then conflicts, providers and the points each plugin uses are checked.
+ * provides its points; then conflicts, preconditions, providers and the points each plugin uses
+ * are checked.
  *
- * @throws AssemblyError for a conflict, two providers of a point, a required point without a
- * provider, a plugin that uses its own point, and plugins that use each other's points.
+ * @throws AssemblyError for a conflict, an unmet precondition, two providers of a point, a
+ * required point without a provider, a plugin that uses its own point, and plugins that use each
+ * other's points.
  */
 export const resolvePlugins = ({ plugins, categoryOrder }: ResolveInput): ResolvedPlugins => {
   const running = dropReplaced(plugins)
   assertNoConflicts(running)
+  assertPreconditions(running)
   const providers = findProviders(running)
   return { plugins: orderPlugins(running, { providers, categoryOrder }), providers }
 }

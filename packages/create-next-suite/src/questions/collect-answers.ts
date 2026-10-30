@@ -5,7 +5,7 @@ import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import { renderFramed } from '../ui/frame.ts'
 import type { Streams } from '../ui/prompts.ts'
 import type { Question, SettingScope } from './build-questions.ts'
-import { assertCompatible, findConflicts } from './find-incompatibilities.ts'
+import { assertCompatible, findConflicts, findIncompatibilities } from './find-incompatibilities.ts'
 import { resolveAnswers } from './resolve-answers.ts'
 import { type AskContext, createAsk } from './wizard/create-ask.ts'
 import { runWizard, type TargetInput } from './wizard/run-wizard.ts'
@@ -65,7 +65,10 @@ const assertNoUnused = (unused: readonly string[], sources: AnswerSources): void
   }
 }
 
-/** Fails before the first question when the input alone already selects conflicting plugins. */
+/**
+ * Fails before the first question when the input alone already selects conflicting plugins; a
+ * precondition waits for every answer, since a later one may meet it.
+ */
 const assertInputHasNoConflicts = (sources: AnswerSources, input: AnswerInput): void => {
   const { answers } = resolveAnswers({ questions: sources.questions, input, useDefaults: false })
   assertCompatible(findConflicts(sources.plugins, answers))
@@ -85,7 +88,7 @@ const askInWizard = async (
     action: sources.action,
     hasExistingFiles: sources.hasExistingFiles,
     ask: createAsk(streams, context),
-    findProblems: (answers) => findConflicts(plugins, answers),
+    findProblems: (answers) => findIncompatibilities(plugins, answers),
     showProblems: (problems) =>
       streams.output.write(renderFramed([INCOMPATIBLE_IN_WIZARD, ...problems].join('\n'))),
   })
@@ -137,7 +140,7 @@ const resolveFromInput = (
       `answers are missing; pass them as flags or in --answers, or use --yes:\n${listMissing(resolution.missing)}`,
     )
   }
-  assertCompatible(findConflicts(plugins, resolution.answers))
+  assertCompatible(findIncompatibilities(plugins, resolution.answers))
   return { answers: resolution.answers, directory, action }
 }
 

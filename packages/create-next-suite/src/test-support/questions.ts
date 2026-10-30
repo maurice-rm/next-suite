@@ -60,7 +60,10 @@ export const TEST_PLUGINS: Plugin[] = [
       'og-image': { type: 'boolean', question: 'Add an Open Graph image?', default: false },
     },
   }),
-  testPlugin('better-auth', { conflicts: { prisma: 'Not tested with Prisma.' } }),
+  testPlugin('better-auth', {
+    precondition: ({ hasCategory }) => hasCategory('orm') || 'Stores sessions in the database.',
+    conflicts: { prisma: 'Not tested with Prisma.' },
+  }),
 ]
 
 /** Questions built from small test plugins: three categories, two extras, the base settings. */

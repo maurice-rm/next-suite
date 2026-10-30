@@ -124,4 +124,47 @@ describe('resolveAnswers', () => {
     expect(namesOf(withBiome)).toEqual(['biome'])
     expect(namesOf(withEslint)).toEqual(['eslint', 'prettier'])
   })
+
+  it('leaves out a default plugin whose precondition fails on the whole selection, and keeps a met one', () => {
+    const questions = buildQuestions({
+      categories: [
+        {
+          id: 'linter',
+          question: '?',
+          section: 'Tooling',
+          cardinality: 'at-most-one',
+          default: 'eslint',
+        },
+        {
+          id: 'git-hooks',
+          question: '?',
+          section: 'Tooling',
+          cardinality: 'at-most-one',
+          default: 'lint-staged',
+        },
+        { id: 'tests', question: '?', section: 'Tooling', cardinality: 'many', default: ['e2e'] },
+      ],
+      plugins: [
+        testPlugin('eslint', { category: 'linter' }),
+        testPlugin('lint-staged', {
+          category: 'git-hooks',
+          precondition: ({ hasCategory }) => hasCategory('linter') || 'Runs the linter.',
+        }),
+        testPlugin('e2e', {
+          category: 'tests',
+          precondition: ({ has }) => has('lint-staged') || 'Runs before each commit.',
+        }),
+      ],
+      settings: [],
+      runSettings: [],
+    })
+    const namesOf = (input: Record<string, unknown>) =>
+      resolveAnswers({ questions, input, useDefaults: true }).answers.plugins.map(
+        (answer) => answer.name,
+      )
+
+    expect(namesOf({})).toEqual(['eslint', 'lint-staged', 'e2e'])
+    expect(namesOf({ linter: null })).toEqual([])
+    expect(namesOf({ linter: null, 'git-hooks': 'lint-staged' })).toEqual(['lint-staged', 'e2e'])
+  })
 })
