@@ -13,14 +13,14 @@ import ansis from 'ansis'
 
 import { PromptCancelledError } from './prompt-cancelled-error.ts'
 import {
-  pick,
+  type PromptKey,
   renderEnd,
   renderFooter,
   renderLine,
   renderPromptTitle,
   renderResolved,
-  SYMBOLS,
-} from './theme.ts'
+} from './prompt-frame.ts'
+import { chosen, SYMBOLS, warning } from './theme.ts'
 
 /** Where prompts read keys and render to; the terminal in the CLI, streams in tests. */
 export type Streams = { input: Readable; output: Writable }
@@ -41,21 +41,21 @@ const YES_LABEL = 'Yes'
 const NO_LABEL = 'No'
 const NONE_LABEL = 'none'
 
-const LIST_KEYS: [string, string][] = [
+const LIST_KEYS: PromptKey[] = [
   ['↑/↓', 'navigate'],
   ['enter', 'confirm'],
 ]
-const MULTISELECT_KEYS: [string, string][] = [
+const MULTISELECT_KEYS: PromptKey[] = [
   ['↑/↓', 'navigate'],
   ['space', 'toggle'],
   ['enter', 'confirm'],
 ]
-const CONFIRM_KEYS: [string, string][] = [
+const CONFIRM_KEYS: PromptKey[] = [
   ['←/→', 'toggle'],
   ['y/n', 'select'],
   ['enter', 'confirm'],
 ]
-const TEXT_KEYS: [string, string][] = [['enter', 'confirm']]
+const TEXT_KEYS: PromptKey[] = [['enter', 'confirm']]
 
 /** The default shown in an empty text field, with the cursor on its first character. */
 const renderPlaceholder = (placeholder: string): string =>
@@ -69,7 +69,7 @@ type OpenPrompt = {
   state: State
   options: PromptBase
   body: string
-  keys: [string, string][]
+  keys: PromptKey[]
   backKey: string
 }
 
@@ -133,7 +133,7 @@ export const select = async <Value>(
       const lines = options.choices.map((choice, index) =>
         renderChoice(
           choice,
-          index === this.cursor ? pick(SYMBOLS.radioOn) : ansis.dim(SYMBOLS.radioOff),
+          index === this.cursor ? chosen(SYMBOLS.radioOn) : ansis.dim(SYMBOLS.radioOff),
           index === this.cursor,
         ),
       )
@@ -174,7 +174,7 @@ export const multiselect = async <Value>(
         renderChoice(
           choice,
           selected.includes(choice.value)
-            ? pick(SYMBOLS.checkboxOn)
+            ? chosen(SYMBOLS.checkboxOn)
             : ansis.dim(SYMBOLS.checkboxOff),
           index === this.cursor,
         ),
@@ -204,7 +204,7 @@ export const confirm = async (
       if (isDone(this.state)) {
         return renderResolved(this.state, options.message, this.value ? YES_LABEL : NO_LABEL)
       }
-      const on = `${pick(SYMBOLS.radioOn)} `
+      const on = `${chosen(SYMBOLS.radioOn)} `
       const off = `${SYMBOLS.radioOff} `
       const yes = this.value ? `${on}${YES_LABEL}` : ansis.dim(`${off}${YES_LABEL}`)
       const no = this.value ? ansis.dim(`${off}${NO_LABEL}`) : `${on}${NO_LABEL}`
@@ -246,7 +246,7 @@ export const text = async (options: TextOptions): Promise<string | typeof GO_BAC
       }
       const value =
         this.userInput === '' ? renderPlaceholder(placeholder) : this.userInputWithCursor
-      const error = this.state === 'error' ? `\n${renderLine(ansis.yellow(this.error))}` : ''
+      const error = this.state === 'error' ? `\n${renderLine(warning(this.error))}` : ''
       return renderOpenPrompt({
         state: this.state,
         options,

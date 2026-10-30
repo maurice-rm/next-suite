@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { Answers } from '../answers/answers.ts'
 import { holdsFor } from '../answers/evaluate-condition.ts'
 import { optionsOf } from '../answers/plugin-options.ts'
+import { isTemplateSource } from '../contract/plugin-file.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
 import { assertSafeTarget } from './assert-safe-target.ts'
@@ -24,8 +25,6 @@ import { type TemplateValues, templateContext } from './template-values.ts'
 import { addFile, type VirtualFiles } from './virtual-files.ts'
 
 const CORE_ORIGIN = 'create-next-suite'
-/** Plugin sources with this extension are templates; every other source is copied as it is. */
-const TEMPLATE_EXTENSION = '.hbs'
 const INSTRUMENTATION_FILE = 'instrumentation.ts'
 const INSTRUMENTATION_CLIENT_FILE = 'instrumentation-client.ts'
 
@@ -64,7 +63,7 @@ const readPluginFile = async ({
   allowedBlocks,
 }: FileToRender): Promise<string> => {
   const source = await readFile(join(plugin.directory, file.source), 'utf8')
-  if (!file.source.endsWith(TEMPLATE_EXTENSION)) {
+  if (!isTemplateSource(file.source)) {
     return source
   }
   const values = templateContext(context.values, {

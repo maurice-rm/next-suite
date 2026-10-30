@@ -138,6 +138,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -190,6 +192,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -236,6 +240,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -284,6 +290,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -326,6 +334,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -367,6 +377,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -406,6 +418,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -442,6 +456,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -484,9 +500,57 @@
                       "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/package-manager",
+                      "**/package-manager/**"
                     ],
                     "message": "create-next-suite: questions/ imports from contract/, answers/, loader/, ui/, file-system/ and the error classes only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/package-manager/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/trust",
+                      "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/loader",
+                      "**/loader/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/file-system",
+                      "**/file-system/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: package-manager/ imports only from contract/"
                   }
                 ]
               }
@@ -530,7 +594,7 @@
                       "**/next-suite.ts",
                       "**/plugin.ts"
                     ],
-                    "message": "create-next-suite: post-steps/ imports only from contract/"
+                    "message": "create-next-suite: post-steps/ imports only from contract/ and package-manager/"
                   }
                 ]
               }
@@ -577,7 +641,9 @@
                       "**/input-error.ts",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
-                      "**/plugin.ts"
+                      "**/plugin.ts",
+                      "**/package-manager",
+                      "**/package-manager/**"
                     ],
                     "message": "create-next-suite: ui/ renders only and imports no other module but the error classes"
                   }
@@ -611,6 +677,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -653,6 +721,8 @@
                       "**/questions/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",
@@ -713,6 +783,8 @@
                       "**/write/**",
                       "**/post-steps",
                       "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
                       "**/cli",

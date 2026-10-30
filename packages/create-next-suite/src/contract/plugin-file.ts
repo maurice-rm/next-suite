@@ -7,3 +7,8 @@ export const conflictStrategySchema = z
 
 /** Where a target path starts: the project root, or `src/` when the project uses a src directory. */
 export const fileRootSchema = z.enum(['project', 'source']).default('project')
+
+const TEMPLATE_EXTENSION = '.hbs'
+
+/** Whether a plugin file is a Handlebars template; every other source is copied as it is. */
+export const isTemplateSource = (source: string): boolean => source.endsWith(TEMPLATE_EXTENSION)

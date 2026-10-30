@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { findNodeVersionProblem } from './check-node-version.ts'
+import { findNodeVersionProblem } from './find-node-version-problem.ts'
 
 describe('findNodeVersionProblem', () => {
   it('accepts a version in the range and names the required one otherwise', () => {

@@ -1,14 +1,14 @@
 import { resolve } from 'node:path'
 
 import type { NextStep } from '../compose/run-summary.ts'
+import type { SuggestedCommand } from '../ui/outro.ts'
 
 const WHITESPACE = /\s/
-const FALLBACK_PACKAGE_MANAGER = 'npm'
 
 type NextStepsInput = {
   directory: string
   cwd: string
-  packageManager: string | undefined
+  packageManager: string
   isInstalled: boolean
   nextSteps: readonly NextStep[]
 }
@@ -26,16 +26,15 @@ export const listNextSteps = ({
   packageManager,
   isInstalled,
   nextSteps,
-}: NextStepsInput): { command: string; packageManager: string | undefined }[] => {
-  const manager = packageManager ?? FALLBACK_PACKAGE_MANAGER
-  const withManager = (command: string) => ({ command, packageManager: manager })
-  const plain = (command: string) => ({ command, packageManager: undefined })
+}: NextStepsInput): SuggestedCommand[] => {
+  const withManager = (command: string): SuggestedCommand => ({ command, packageManager })
+  const plain = (command: string): SuggestedCommand => ({ command, packageManager: undefined })
   return [
     ...(resolve(cwd, directory) === resolve(cwd) ? [] : [plain(`cd ${quoted(directory)}`)]),
     ...nextSteps.flatMap((step) => ('command' in step ? [plain(step.command)] : [])),
-    ...(isInstalled ? [] : [withManager(`${manager} install`)]),
+    ...(isInstalled ? [] : [withManager(`${packageManager} install`)]),
     ...nextSteps.flatMap((step) =>
-      'script' in step ? [withManager(`${manager} run ${step.script}`)] : [],
+      'script' in step ? [withManager(`${packageManager} run ${step.script}`)] : [],
     ),
   ]
 }

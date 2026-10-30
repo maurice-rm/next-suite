@@ -6,7 +6,12 @@ import { renderBanner } from './banner.ts'
 const plain = (columns: number, latest?: string): string[] =>
   ansis
     .strip(
-      renderBanner({ version: '2.0.0', latest, link: 'github.com/maurice-rm/next-suite', columns }),
+      renderBanner({
+        version: '2.0.0',
+        latest,
+        repositoryLink: 'github.com/maurice-rm/next-suite',
+        columns,
+      }),
     )
     .split('\n')
 

@@ -115,7 +115,7 @@ export const parseCommandLine = async (
   return invocation
 }
 
-/** What to do with a target folder that has files, as the flags say, if they say anything. */
+/** What to do with a target directory that has files, as the flags say, if they say anything. */
 export const targetActionOf = ({ flags }: Invocation): TargetAction | undefined => {
   if (flags.overwrite === true) {
     return 'overwrite'

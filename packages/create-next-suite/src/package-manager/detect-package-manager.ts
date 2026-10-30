@@ -1,14 +1,7 @@
-import type { Category } from '../contract/category.ts'
 import { PACKAGE_MANAGER_CATEGORY, type ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import {
-  findUnsupportedVersion,
-  type PackageManagerVersion,
-} from '../post-steps/supported-versions.ts'
+import { findUnsupportedVersion, type PackageManagerVersion } from './supported-versions.ts'
 
 const USER_AGENT = /^([a-z][a-z0-9-]*)\/(\S+)/
-
-/** The package manager that started create-next-suite, with its version. */
-type InvokingPackageManager = PackageManagerVersion
 
 /**
  * Reads the package manager that started create-next-suite from the user agent every package
@@ -16,7 +9,7 @@ type InvokingPackageManager = PackageManagerVersion
  */
 export const detectPackageManager = (
   userAgent: string | undefined,
-): InvokingPackageManager | undefined => {
+): PackageManagerVersion | undefined => {
   const match = USER_AGENT.exec(userAgent ?? '')
   const [, name, version] = match ?? []
   return name === undefined || version === undefined ? undefined : { name, version }
@@ -28,7 +21,7 @@ export const detectPackageManager = (
  */
 export const findUsablePackageManager = (
   plugins: readonly ParsedPluginManifest[],
-  invoking: InvokingPackageManager | undefined,
+  invoking: PackageManagerVersion | undefined,
 ): string | undefined => {
   const isUsable =
     invoking !== undefined &&
@@ -38,16 +31,3 @@ export const findUsablePackageManager = (
     )
   return isUsable ? invoking.name : undefined
 }
-
-/** Makes a package manager the default of the package manager question; nothing keeps it. */
-export const preferPackageManager = (
-  categories: readonly Category[],
-  packageManager: string | undefined,
-): Category[] =>
-  categories.map((category) =>
-    packageManager !== undefined &&
-    category.id === PACKAGE_MANAGER_CATEGORY &&
-    category.cardinality === 'one'
-      ? { ...category, default: packageManager }
-      : category,
-  )

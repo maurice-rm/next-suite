@@ -2,14 +2,21 @@ import { resolve } from 'node:path'
 import type { Writable } from 'node:stream'
 
 import { CommanderError } from 'commander'
+import type { Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
-import { composeProject } from '../compose/compose-project.ts'
+import { composeProject, type ProjectPlan } from '../compose/compose-project.ts'
 import { InputError } from '../input-error.ts'
 import { assertUniqueNames } from '../loader/assert-unique-names.ts'
 import type { Assets } from '../loader/load-assets.ts'
 import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
 import { loadLogic } from '../loader/load-logic.ts'
+import type { LoadedPlugin } from '../loader/load-plugin.ts'
 import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
+import {
+  detectPackageManager,
+  findUsablePackageManager,
+} from '../package-manager/detect-package-manager.ts'
+import { preferPackageManager } from '../package-manager/prefer-package-manager.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
@@ -36,12 +43,8 @@ import {
 } from './command-line.ts'
 import { CREATE_COMMAND } from './command-name.ts'
 import { confirmTrust } from './confirm-trust.ts'
+import { describeExpectedError } from './describe-expected-error.ts'
 import { describePlan, diffPlan } from './describe-plan.ts'
-import {
-  detectPackageManager,
-  findUsablePackageManager,
-  preferPackageManager,
-} from './detect-package-manager.ts'
 import { EXIT_CANCELLED, EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import { listNextSteps } from './next-steps.ts'
 import {
@@ -52,9 +55,8 @@ import {
   presentDryRun,
   presentFailure,
   presentNothingGenerated,
-} from './present.ts'
-import { describeExpectedError } from './report-error.ts'
-import { createStepReporter } from './report-steps.ts'
+} from './presenter.ts'
+import { createStepReporter } from './step-reporter.ts'
 
 /**
  * Everything a run reads from outside: arguments, terminal, working directory, clock, the user
@@ -112,11 +114,20 @@ type DirectoryCheck = { cwd: string; action: TargetAction | undefined }
  * What is wrong with a project directory: as typed, what is already on disk at its path, and,
  * when the flags say to empty it, whether it may be emptied.
  */
-const findDirectoryProblem = (directory: string, { cwd, action }: DirectoryCheck) => {
+const findDirectoryProblem = (
+  directory: string,
+  { cwd, action }: DirectoryCheck,
+): string | undefined => {
   const path = resolve(cwd, directory)
   const problem = findProjectDirectoryProblem(directory, cwd) ?? findTargetProblem(directory, path)
-  if (problem !== undefined || action !== 'empty' || inspectTarget(path) !== 'not-empty') {
+  if (problem !== undefined) {
     return problem
+  }
+  if (action !== 'empty') {
+    return undefined
+  }
+  if (inspectTarget(path) !== 'not-empty') {
+    return undefined
   }
   return findEmptyingProblem(path, cwd)
 }
@@ -162,29 +173,20 @@ const askQuestions = ({
   })
 }
 
-/**
- * Runs the steps of create-next-suite: ask the questions, compose the project in memory, write
- * it, then initialize git, install and commit.
- */
-const create = async (run: Run): Promise<void> => {
-  const { environment, invocation, questions, presenter } = run
-  const { assets } = environment
-  if (presenter.isFramed) {
-    openFrame(presenter.output, {
-      version: environment.cliVersion,
-      latest: await environment.fetchLatestVersion(),
-      columns: environment.columns,
-    })
-  }
-  const { answers, directory, action } = await askQuestions(run)
-  assertUsableDirectory(directory, { cwd: environment.cwd, action })
-  if (assets.base === undefined) {
-    presentNothingGenerated(presenter)
-    return
-  }
-  const selected = answers.plugins.flatMap((answer) =>
-    assets.plugins.filter((plugin) => plugin.manifest.name === answer.name),
-  )
+type Project = {
+  directory: string
+  projectName: string
+  action: TargetAction
+  answers: Answers
+  selected: LoadedPlugin[]
+}
+
+/** Composes the project in memory, once its plugins are trusted. */
+const composePlan = async (
+  { environment, invocation, questions, presenter }: Run,
+  { projectName, answers, selected }: Project,
+  base: LoadedPlugin,
+): Promise<ProjectPlan> => {
   await confirmTrust({
     plugins: selected,
     isDryRun: invocation.flags.dryRun === true,
@@ -192,25 +194,29 @@ const create = async (run: Run): Promise<void> => {
     userConfigPath: environment.userConfigPath,
     streams: presenter.isFramed ? environment.streams : undefined,
   })
-  const plan = await composeProject({
-    projectName: projectNameOf(directory, environment.cwd),
-    base: assets.base,
-    available: assets.plugins,
+  return composeProject({
+    projectName,
+    base,
+    available: environment.assets.plugins,
     selected,
     answers,
-    logic: await loadLogic([assets.base, ...selected]),
+    logic: await loadLogic([base, ...selected]),
     recordedAnswers: recordAnswers(questions, answers),
-    catalog: assets.catalog,
+    catalog: environment.assets.catalog,
     cliVersion: environment.cliVersion,
     createdAt: environment.now(),
   })
-  if (invocation.flags.dryRun) {
-    const report = describePlan(plan)
-    presentDryRun(presenter, invocation.flags.diff ? `${report}\n\n${diffPlan(plan)}` : report)
-    return
-  }
-  const target = resolve(environment.cwd, directory)
-  await writeProject(plan, { directory: target, action, cwd: environment.cwd })
+}
+
+/** Writes the project, runs the steps after writing, and shows what to do next. */
+const writeAndFinish = async (
+  { environment, presenter }: Run,
+  { directory, projectName, action, answers }: Project,
+  plan: ProjectPlan,
+): Promise<void> => {
+  const { cwd } = environment
+  const target = resolve(cwd, directory)
+  await writeProject(plan, { directory: target, action, cwd })
   const { isInstalled } = await runPostSteps({
     directory: target,
     packageManager: plan.packageManager,
@@ -222,16 +228,54 @@ const create = async (run: Run): Promise<void> => {
     reporter: createStepReporter({ presenter, canAnimate: environment.isInteractive }),
   })
   presentCreated(presenter, {
-    projectName: projectNameOf(directory, environment.cwd),
+    projectName,
     stack: plan.summary.stack,
     nextSteps: listNextSteps({
       directory,
-      cwd: environment.cwd,
-      packageManager: plan.packageManager,
+      cwd,
+      packageManager: plan.projectPackageManager,
       isInstalled,
       nextSteps: plan.summary.nextSteps,
     }),
   })
+}
+
+/**
+ * Runs the steps of create-next-suite: ask the questions, compose the project in memory, write
+ * it, then initialize git, install and commit.
+ */
+const create = async (run: Run): Promise<void> => {
+  const { environment, invocation, presenter } = run
+  const { assets, cwd } = environment
+  if (presenter.isFramed) {
+    openFrame(presenter.output, {
+      version: environment.cliVersion,
+      latest: await environment.fetchLatestVersion(),
+      columns: environment.columns,
+    })
+  }
+  const { answers, directory, action } = await askQuestions(run)
+  assertUsableDirectory(directory, { cwd, action })
+  if (assets.base === undefined) {
+    presentNothingGenerated(presenter)
+    return
+  }
+  const project: Project = {
+    directory,
+    projectName: projectNameOf(directory, cwd),
+    action,
+    answers,
+    selected: answers.plugins.flatMap((answer) =>
+      assets.plugins.filter((plugin) => plugin.manifest.name === answer.name),
+    ),
+  }
+  const plan = await composePlan(run, project, assets.base)
+  if (invocation.flags.dryRun) {
+    const report = describePlan(plan)
+    presentDryRun(presenter, invocation.flags.diff ? `${report}\n\n${diffPlan(plan)}` : report)
+    return
+  }
+  await writeAndFinish(run, project, plan)
 }
 
 /**

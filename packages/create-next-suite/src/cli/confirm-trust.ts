@@ -2,7 +2,7 @@ import type { LoadedPlugin } from '../loader/load-plugin.ts'
 import { TrustError } from '../trust/trust-error.ts'
 import { isPinned, matchesTrustPattern, sourceOf, trustLevelOf } from '../trust/trust-level.ts'
 import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
-import { type Streams, select } from '../ui/prompts.ts'
+import { GO_BACK, type Streams, select } from '../ui/prompts.ts'
 import { addTrustedPattern } from '../user-config/trust-list.ts'
 import { readUserConfig } from '../user-config/user-config.ts'
 
@@ -21,7 +21,10 @@ const ONCE = 'once'
 const ALWAYS = 'always'
 const CANCEL = 'cancel'
 
-const describe = (plugin: LoadedPlugin): string => {
+/** How long the user trusts a source: for this run, or from now on. */
+type TrustReply = typeof ONCE | typeof ALWAYS
+
+const describePlugin = (plugin: LoadedPlugin): string => {
   const { source, manifest } = plugin
   const address = source.kind === 'external' ? source.address : manifest.name
   const resolved =
@@ -29,20 +32,23 @@ const describe = (plugin: LoadedPlugin): string => {
   return `${manifest.name} ${manifest.version} from ${address}${resolved}`
 }
 
-const ask = async (plugin: LoadedPlugin, address: string, streams: Streams): Promise<string> => {
-  const pattern = sourceOf(address)
-  const reply = await select({
+const askForTrust = async (
+  plugin: LoadedPlugin,
+  address: string,
+  streams: Streams,
+): Promise<TrustReply> => {
+  const reply = await select<TrustReply | typeof CANCEL>({
     ...streams,
     canGoBack: false,
-    message: `${describe(plugin)} comes from an untrusted source and can run code on your machine. Use it?`,
+    message: `${describePlugin(plugin)} comes from an untrusted source and can run code on your machine. Use it?`,
     choices: [
-      ...(isPinned(address) ? [{ value: ONCE, label: 'Allow this version once' }] : []),
-      { value: ALWAYS, label: `Always trust ${pattern}` },
+      ...(isPinned(address) ? [{ value: ONCE, label: 'Allow this version once' } as const] : []),
+      { value: ALWAYS, label: `Always trust ${sourceOf(address)}` },
       { value: CANCEL, label: 'Cancel' },
     ],
     initialValue: CANCEL,
   })
-  if (reply === CANCEL || typeof reply !== 'string') {
+  if (reply === CANCEL || reply === GO_BACK) {
     throw new PromptCancelledError()
   }
   return reply
@@ -75,10 +81,10 @@ export const confirmTrust = async ({
     }
     if (streams === undefined) {
       throw new TrustError(
-        `${describe(plugin)} comes from an untrusted source; pass --trust "${sourceOf(source.address)}" or add the pattern to "trust" in ${userConfigPath}`,
+        `${describePlugin(plugin)} comes from an untrusted source; pass --trust "${sourceOf(source.address)}" or add the pattern to "trust" in ${userConfigPath}`,
       )
     }
-    if ((await ask(plugin, source.address, streams)) === ALWAYS) {
+    if ((await askForTrust(plugin, source.address, streams)) === ALWAYS) {
       const pattern = sourceOf(source.address)
       await addTrustedPattern(userConfigPath, pattern)
       trust.push(pattern)

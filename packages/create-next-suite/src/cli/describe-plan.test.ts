@@ -12,6 +12,7 @@ const PLAN: ProjectPlan = {
   dependencies: { next: '16.4.3' },
   devDependencies: {},
   packageManager: 'pnpm',
+  projectPackageManager: 'pnpm',
   installArgs: ['install'],
   postSteps: [],
   summary: { stack: [], nextSteps: [] },

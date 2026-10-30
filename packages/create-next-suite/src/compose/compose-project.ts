@@ -52,6 +52,8 @@ export type ProjectPlan = {
   devDependencies: Record<string, string>
   /** The command of the selected package manager, if a package manager plugin is selected. */
   packageManager: string | undefined
+  /** The package manager the commands of the project use: the selected one, npm without one. */
+  projectPackageManager: string
   /** The arguments its first install runs with. */
   installArgs: string[]
   /** The scripts to run after the install, in plugin order, with what the run shows for them. */
@@ -142,6 +144,7 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     dependencies: values.dependencies,
     devDependencies: values.devDependencies,
     packageManager: packageManager?.name,
+    projectPackageManager: project.packageManager,
     installArgs: packageManager?.packageManager.installArgs ?? DEFAULT_INSTALL_ARGS,
     postSteps: collectPostSteps(
       plugins.map(({ manifest }) => manifest),

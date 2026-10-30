@@ -1,13 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Category } from '../contract/category.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { parseTestManifest } from '../test-support/test-manifest.ts'
-import {
-  detectPackageManager,
-  findUsablePackageManager,
-  preferPackageManager,
-} from './detect-package-manager.ts'
+import { detectPackageManager, findUsablePackageManager } from './detect-package-manager.ts'
 
 const packageManager = (name: string): ParsedPluginManifest =>
   parseTestManifest(name, {
@@ -21,19 +16,6 @@ const packageManager = (name: string): ParsedPluginManifest =>
   })
 
 const PLUGINS = [packageManager('pnpm'), packageManager('npm'), packageManager('yarn')]
-const CATEGORIES: Category[] = [
-  {
-    id: 'package-manager',
-    question: 'Which package manager?',
-    section: 'Project',
-    cardinality: 'one',
-    default: 'pnpm',
-  },
-  { id: 'orm', question: 'Which ORM?', section: 'Data', cardinality: 'at-most-one', default: null },
-]
-
-const defaultOf = (categories: Category[]) => categories[0]?.default
-
 describe('detectPackageManager', () => {
   it('reads the name and version from the user agent', () => {
     expect(detectPackageManager('npm/12.2.1 node/v24.15.0 linux x64 workspaces/false')).toEqual({
@@ -66,18 +48,5 @@ describe('findUsablePackageManager', () => {
     ]) {
       expect(findUsablePackageManager(PLUGINS, invoking)).toBeUndefined()
     }
-  })
-})
-
-describe('preferPackageManager', () => {
-  it('makes the package manager the default of its question only', () => {
-    const categories = preferPackageManager(CATEGORIES, 'npm')
-
-    expect(defaultOf(categories)).toBe('npm')
-    expect(categories[1]).toEqual(CATEGORIES[1])
-  })
-
-  it('keeps the default without a package manager', () => {
-    expect(defaultOf(preferPackageManager(CATEGORIES, undefined))).toBe('pnpm')
   })
 })

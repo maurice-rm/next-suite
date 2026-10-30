@@ -62,7 +62,8 @@ says what next-suite does; this file says how code is written here.
   | `ui/`               | no other module                                    |
   | `answers/`          | `contract/`                                        |
   | `loader/`           | `contract/`                                        |
-  | `post-steps/`       | `contract/`                                        |
+  | `package-manager/`  | `contract/`                                        |
+  | `post-steps/`       | `contract/`, `package-manager/`                    |
   | `trust/`            | `contract/`, `loader/`                             |
   | `compose/`          | `contract/`, `answers/`, `loader/`                 |
   | `compose/template/` | `contract/`, `answers/`, `loader/`, not `compose/` |

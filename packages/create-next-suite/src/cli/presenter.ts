@@ -2,8 +2,9 @@ import type { Writable } from 'node:stream'
 
 import packageJson from '../../package.json' with { type: 'json' }
 import { renderBanner } from '../ui/banner.ts'
+import { renderCancelled, renderFramed, renderIntro, renderOutro } from '../ui/frame.ts'
 import { type Outro, renderOutroSummary, renderPlainSummary } from '../ui/outro.ts'
-import { failure, renderCancelled, renderFramed, renderIntro, renderOutro } from '../ui/theme.ts'
+import { failure } from '../ui/theme.ts'
 
 const INTRO = "Let's lay the foundation"
 const CANCELLED = 'Operation cancelled.'
@@ -25,7 +26,7 @@ export const openFrame = (
   output: Writable,
   banner: { version: string; latest: string | undefined; columns: number },
 ): void => {
-  output.write(renderBanner({ ...banner, link: REPOSITORY_LINK }))
+  output.write(renderBanner({ ...banner, repositoryLink: REPOSITORY_LINK }))
   output.write(renderIntro(INTRO))
 }
 
@@ -42,9 +43,9 @@ export const presentNothingGenerated = ({ output, isFramed }: Presenter): void =
 /** Confirms the written project with its stack and the commands to run next. */
 export const presentCreated = (
   { output, isFramed }: Presenter,
-  summary: Omit<Outro, 'docsLink'>,
+  summary: Omit<Outro, 'repositoryLink'>,
 ): void => {
-  const outro = { ...summary, docsLink: REPOSITORY_LINK }
+  const outro = { ...summary, repositoryLink: REPOSITORY_LINK }
   output.write(isFramed ? renderOutroSummary(outro) : renderPlainSummary(outro))
 }
 
@@ -53,7 +54,7 @@ export const presentCancelled = ({ output }: Presenter): void => {
   output.write(renderCancelled(CANCELLED))
 }
 
-/** Shows an expected failure, closing the frame when the wizard opened one. */
+/** Shows a failure, closing the frame when the wizard opened one. */
 export const presentFailure = ({ error, isFramed }: Presenter, message: string): void => {
   error.write(isFramed ? renderCancelled(message) : `${failure(message)}\n`)
 }

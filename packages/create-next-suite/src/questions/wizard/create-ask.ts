@@ -5,6 +5,7 @@ import {
   type ParsedPluginManifest,
 } from '../../contract/plugin-manifest.ts'
 import type { PluginOption } from '../../contract/plugin-option.ts'
+import { renderSectionBadge } from '../../ui/frame.ts'
 import { PromptCancelledError } from '../../ui/prompt-cancelled-error.ts'
 import {
   type Choice,
@@ -16,7 +17,6 @@ import {
   select,
   text,
 } from '../../ui/prompts.ts'
-import { renderSectionBadge } from '../../ui/theme.ts'
 import type { CategoryQuestion } from '../build-questions.ts'
 import { findPluginProblems } from '../find-incompatibilities.ts'
 import { DEFAULT_PROJECT_DIRECTORY } from '../project-directory.ts'

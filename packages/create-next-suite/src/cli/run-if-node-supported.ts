@@ -1,6 +1,6 @@
 import packageJson from '../../package.json' with { type: 'json' }
-import { findNodeVersionProblem } from './check-node-version.ts'
 import { EXIT_FAILURE } from './exit-code.ts'
+import { findNodeVersionProblem } from './find-node-version-problem.ts'
 
 /**
  * Runs a command of the package when this Node.js satisfies its engines range, and sets the exit
