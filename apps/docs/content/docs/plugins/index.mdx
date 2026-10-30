@@ -80,7 +80,7 @@ the wizard and the error show.
 
 ## Plugins of your own
 
-Plugins from outside create-next-suite move to the `plugin.ts` form. In this version only the
-built-in plugins run: `--plugin` and `next-suite plugin validate` stop with a message. The pages
-on [sources and trust](./sources-and-trust) and [testing](./testing) say what returns once plugins
-of your own load again.
+A plugin of your own is a directory with a `plugin.ts`, loaded with `--plugin <address>` from a
+local directory, npm, GitHub, GitLab, Git, a tarball URL or a registry. Its questions and flags
+join those of the built-in plugins. The page on [sources and trust](./sources-and-trust) says
+where plugins come from and which of them may run.

@@ -124,6 +124,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
@@ -181,6 +183,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
@@ -240,6 +244,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -297,6 +303,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/loader",
@@ -352,6 +360,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
@@ -399,6 +409,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
@@ -451,6 +463,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/questions",
@@ -496,6 +510,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/write",
@@ -537,6 +553,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
@@ -586,6 +604,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/answers",
@@ -635,6 +655,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -693,6 +715,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -749,6 +773,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
@@ -781,6 +807,57 @@
                       "**/points/**"
                     ],
                     "message": "create-next-suite: user-config/ imports from contract/, file-system/ and the error classes only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/trust/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/answers",
+                      "**/answers/**",
+                      "**/user-config",
+                      "**/user-config/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/test-support",
+                      "**/test-support/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts",
+                      "**/testing.ts",
+                      "**/project-model",
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**",
+                      "**/assembly",
+                      "**/assembly/**",
+                      "**/points",
+                      "**/points/**"
+                    ],
+                    "message": "create-next-suite: trust/ imports from contract/, file-system/, loader/ and the error classes only"
                   }
                 ]
               }
@@ -825,6 +902,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/write",
@@ -866,6 +945,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -920,6 +1001,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",
@@ -970,6 +1053,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/trust",
+                      "**/trust/**",
                       "**/user-config",
                       "**/user-config/**",
                       "**/contract",

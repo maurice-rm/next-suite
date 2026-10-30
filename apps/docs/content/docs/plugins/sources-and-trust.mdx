@@ -3,13 +3,6 @@ title: Sources and trust
 description: Where plugins come from, and which of them may run.
 ---
 
-<Callout type="warn">
-  Plugins from outside create-next-suite move to the `plugin.ts` form. In this version `--plugin`
-  stops with a message for every address; registries and trusted sources can be managed with
-  `next-suite`, but their plugins are not loaded. This page describes how sources and trust work
-  once they load again.
-</Callout>
-
 `--plugin` takes an address:
 
 | Form | Example |
@@ -21,31 +14,77 @@ description: Where plugins come from, and which of them may run.
 | tarball URL | `https://host/mail.tgz` |
 | registry | `@acme/mail` |
 
+Each address points to a directory with a `plugin.ts`. A plugin of a GitHub or GitLab repository
+or of a registry may sit in a subdirectory; an npm package or a tarball has it at its root.
+
 npm tarballs are checked against their integrity and never run install scripts. GitHub and GitLab
 refs resolve to a commit; next-suite.json records what each source resolved to. Tokens come from
 `GH_TOKEN`, `GITHUB_TOKEN`, the GitHub CLI or `GITLAB_TOKEN` and are sent to their own host only.
 
 A tarball URL or Git address over plain http is refused before anything is downloaded:
 `http://…` and `git+http://…` must use https, for a plugin and for the source of a registry alike.
+A URL or Git address with a `.` or `..` segment, also percent-encoded, is refused too, since it
+would lead elsewhere than the address a trust pattern matched.
 Downloads follow redirects to https only. A download may hold at most 50 MiB and unpack to at most
 200 MiB. Git never asks for a password: an SSH source needs a key that works without a prompt, such
 as one held by an SSH agent.
+
+## Read before it runs
+
+create-next-suite fetches a plugin into its cache and copies its files into a snapshot named by
+their content hash; everything later reads that snapshot, so the files cannot change between the
+trust question and the run. Links and other entries that are no regular files are refused, and
+`node_modules` and `.git` are left out.
+
+Then it reads the [metadata](./definition#metadata) from `plugin.ts` without running it. That is
+why metadata are written as fixed values: the plugin's questions and flags, and `--help`, show
+before any of its code runs. A plugin whose metadata needs running, such as a variable, a call or
+a spread, does not load. Its code runs only once it is selected and trusted, and the metadata it
+exports then has to match what was read.
 
 ## Trust
 
 A plugin from anywhere but a local directory can run code on your machine: through its
 `plugin.ts`, but also through scripts, post-steps or package manager settings. So it needs your
-trust:
+trust before its code runs, in a dry run too:
 
 - in a terminal, create-next-suite asks: allow a pinned version once, always trust the source, or
-  cancel;
+  cancel. The question names the plugin, its address, the commit or version it resolved to, its
+  content hash, the plugin it replaces and the points it provides;
 - without one, pass `--trust "github:acme/*"` for the run;
 - or keep trusted patterns with `next-suite trust add "github:acme/*"`.
 
 Patterns match the address without its ref or version, and `*` stands for anything.
 
+The user configuration also keeps the content hashes you trusted for each source, the first one
+recorded when the source first runs. A content of that source you have not trusted yet, such as a
+branch with new commits or another tag or version, is asked about again: run it once (offered for
+a pinned address), trust the new content, or cancel. Without a terminal the run stops; `--trust`
+runs it for that run without recording it. Removing a pattern, with `next-suite trust remove` or
+`next-suite registry remove`, forgets the content hashes only it covered.
+
 GitHub serves commits of forks through the original repository too. A commit pinned under a trusted
 owner can therefore come from someone else's fork; pin tags or branches of repositories you trust.
+
+## npm packages of a plugin
+
+A plugin may import npm packages while it runs, such as a library that builds a config. It names
+them under `dependencies` in a `package.json` beside its `plugin.ts`. Once the plugin is trusted,
+create-next-suite installs them with npm into a copy of the plugin in its cache, one per content
+hash, and the plugin imports them from there:
+
+- with `npm ci` when the plugin ships a `package-lock.json`, so the versions are fixed and npm
+  checks each package against the integrity the lockfile records; with `npm install` from the
+  ranges otherwise;
+- only `dependencies` and `optionalDependencies`: list `create-next-suite`, TypeScript and test
+  tools under `devDependencies` or `peerDependencies`, which are never installed;
+- with `--ignore-scripts`, so no install script of any package runs, and without the plugin's own
+  `.npmrc`;
+- with `--prefer-offline`, so packages your npm cache holds are not downloaded again.
+
+npm runs with your npm configuration, such as your registry and its token. A failed install stops
+the run with npm's output. Imports of `create-next-suite/plugin` always go to the running
+create-next-suite.
 
 ## Registries
 

@@ -4,12 +4,17 @@ export const PROJECT_MANIFEST_FILE = 'next-suite.json'
 /** The version of the plugin contract next-suite.json records. */
 const CONTRACT_VERSION = '1.0.0'
 
-/** A plugin as next-suite.json records it: where it came from and its version. */
+/**
+ * A plugin as next-suite.json records it: where it came from, what its address resolved to and
+ * the version of a built-in plugin.
+ */
 type RecordedPlugin = {
   name: string
   /** `builtin`, or the address a user gave. */
   source: string
-  version: string
+  /** The commit, version or archive hash an external address resolved to. */
+  resolved: string | undefined
+  version: string | undefined
 }
 
 type ProjectManifestInput = {
@@ -33,7 +38,12 @@ export const createProjectManifest = ({
     cli: cliVersion,
     contract: CONTRACT_VERSION,
     createdAt: createdAt.toISOString(),
-    plugins: plugins.map(({ name, source, version }) => ({ name, source, version })),
+    plugins: plugins.map(({ name, source, resolved, version }) => ({
+      name,
+      source,
+      ...(resolved === undefined ? {} : { resolved }),
+      ...(version === undefined ? {} : { version }),
+    })),
     answers,
   }
   return `${JSON.stringify(manifest, null, 2)}\n`

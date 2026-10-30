@@ -3,6 +3,7 @@ import { optionsOf } from '../answers/plugin-options.ts'
 import { assembleProject } from '../assembly/assemble-project.ts'
 import type { RunSteps } from '../assembly/run-steps.ts'
 import { InputError } from '../input-error.ts'
+import type { LoadedExternalPlugin } from '../loader/load-external-plugin.ts'
 import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
 import { CATEGORIES } from '../plugin-definition/categories.ts'
 import { CORE_OWNER, createProject, PROJECT_FILES } from '../project-model/project.ts'
@@ -33,6 +34,8 @@ const BASE_SUMMARY: ProjectPlan['summary'] = {
 
 type PlanInput = {
   assets: BuiltInAssets
+  /** The selected external plugins, trusted and run. */
+  externalPlugins: readonly LoadedExternalPlugin[]
   projectName: string
   answers: Answers
   /** The answers as next-suite.json records them. */
@@ -62,12 +65,27 @@ const importAliasOf = (answers: Answers): string => {
   return importAlias
 }
 
-/** The selected built-in plugins, in the order the answers name them. */
+/** A plugin of the run with what next-suite.json records about its source. */
+type RunPlugin = { module: LoadedPluginModule; source: string; resolved: string | undefined }
+
+/** The selected plugins, built-in and external, in the order the answers name them. */
 const selectPlugins = ({
   assets,
+  externalPlugins,
   answers,
-}: Pick<PlanInput, 'assets' | 'answers'>): LoadedPluginModule[] =>
-  answers.plugins.flatMap(({ name }) => assets.plugins.filter(({ plugin }) => plugin.name === name))
+}: Pick<PlanInput, 'assets' | 'externalPlugins' | 'answers'>): RunPlugin[] => {
+  const available: RunPlugin[] = [
+    ...assets.plugins.map((module) => ({ module, source: BUILT_IN_SOURCE, resolved: undefined })),
+    ...externalPlugins.map(({ module, address, resolved }) => ({
+      module,
+      source: address,
+      resolved,
+    })),
+  ]
+  return answers.plugins.flatMap(({ name }) =>
+    available.filter(({ module }) => module.plugin.name === name),
+  )
+}
 
 const answersOf = (plugins: readonly LoadedPluginModule[], answers: Answers) =>
   Object.fromEntries(plugins.map(({ plugin }) => [plugin.name, optionsOf(plugin.name, answers)]))
@@ -105,14 +123,15 @@ const dependenciesOf = (files: ReadonlyMap<string, string>): Required<PackageJso
 }
 
 /**
- * Plans a project: the base project as real files, the base settings and the selected plugins,
- * assembled in memory, with next-suite.json. Nothing is written.
+ * Plans a project: the base project as real files, the base settings and the selected built-in
+ * and external plugins, assembled in memory, with next-suite.json. Nothing is written.
  *
  * @throws InputError for an invalid import alias.
  */
 export const planProject = (input: PlanInput): ProjectPlan => {
   const { assets, answers, projectName } = input
-  const plugins = selectPlugins(input)
+  const selected = selectPlugins(input)
+  const plugins = selected.map(({ module }) => module)
   const isSrcDirectory = answers.settings[SRC_DIR_SETTING] === true
   const importAlias = importAliasOf(answers)
   const project = createProject({
@@ -124,10 +143,11 @@ export const planProject = (input: PlanInput): ProjectPlan => {
     createProjectManifest({
       cliVersion: input.cliVersion,
       createdAt: input.createdAt,
-      plugins: plugins.map(({ plugin }) => ({
-        name: plugin.name,
-        source: BUILT_IN_SOURCE,
-        version: BUILT_IN_PLUGIN_VERSION,
+      plugins: selected.map(({ module, source, resolved }) => ({
+        name: module.plugin.name,
+        source,
+        resolved,
+        version: source === BUILT_IN_SOURCE ? BUILT_IN_PLUGIN_VERSION : undefined,
       })),
       answers: input.recordedAnswers,
     }),

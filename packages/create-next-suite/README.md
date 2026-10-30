@@ -41,9 +41,17 @@ Requires Node.js 24.12 or newer.
 `npx create-next-suite@latest --help` lists every flag. With `npm create`, flags follow a `--`:
 `npm create next-suite@latest my-app -- --yes`.
 
-Plugins move to the `plugin.ts` form. In this version only the built-in plugins run: `--plugin`
-and `next-suite plugin validate` stop with a message, and registries can be managed but their
-plugins not loaded.
+## Plugins of your own
+
+```bash
+npx create-next-suite@latest my-app --plugin github:acme/plugins/mail#v1 --mail
+```
+
+`--plugin` loads a plugin, a directory with a `plugin.ts`, from a local directory, npm, GitHub,
+GitLab, Git, a tarball URL or a registry; its questions and flags join the built-in ones. Its
+metadata are read without running it; its code runs only once you trust it: in the terminal, with
+`--trust <pattern>` or through `next-suite trust add`. A local directory is trusted, and a trusted
+plugin whose content changed is asked about again.
 
 ## Without questions
 
@@ -75,7 +83,7 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | ------------------------------------------------ | --------------------------------------------------------- |
 | `registry add <name> <source>`, `list`, `remove` | manages the registries `--plugin @name/plugin` loads from |
 | `trust add <pattern>`, `list`, `remove`          | manages the sources whose plugins may run code            |
-| `plugin validate <directory>`                    | checks a plugin; not available in this version            |
+| `plugin validate <directory>`                    | checks a plugin and runs its `plugin.ts` on its own       |
 
 ## For plugin authors
 

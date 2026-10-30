@@ -1,9 +1,12 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { writeFiles } from './test-support/write-files.ts'
 import { createTestProject } from './testing.ts'
 
 let root: string
@@ -28,9 +31,55 @@ describe('createTestProject', () => {
     expect(project.output).toContain('test-app is ready')
   })
 
-  it('names the reason when the project cannot be generated, such as a plugin address', async () => {
+  it('generates a project with a plugin from an address, trusted for the test', async () => {
+    const repository = join(root, 'hello-repository')
+    await writeFiles(repository, {
+      'plugin.ts': [
+        "import { definePlugin } from 'create-next-suite/plugin'",
+        "export default definePlugin({ name: 'hello', title: 'Hello', files: { 'hello.txt': 'files/hello.txt' } })",
+        '',
+      ].join('\n'),
+      'files/hello.txt': 'hi\n',
+    })
+    const git = (...args: string[]) => execFileSync('git', ['-C', repository, ...args])
+    git('init', '--quiet', '--initial-branch', 'main')
+    git('add', '.')
+    git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'init')
+
+    const project = await createTestProject({
+      plugins: [`git+file://${repository}#main`],
+      answers: { hello: true },
+      parent: root,
+    })
+
+    expect(await readFile(join(project.directory, 'hello.txt'), 'utf8')).toBe('hi\n')
+    expect(existsSync(join(root, 'next-suite-config.json'))).toBe(false)
+  })
+
+  it('finds a plugin in a local directory relative to the current directory', async () => {
+    await writeFiles(join(root, 'greet'), {
+      'plugin.ts': [
+        "import { definePlugin } from 'create-next-suite/plugin'",
+        "export default definePlugin({ name: 'greet', title: 'Greet', readme: { Greet: 'Hello.' } })",
+        '',
+      ].join('\n'),
+    })
+    await mkdir(join(root, 'parent'))
+
+    const previous = process.cwd()
+    process.chdir(root)
+    const project = await createTestProject({
+      plugins: ['./greet'],
+      answers: { greet: true },
+      parent: join(root, 'parent'),
+    }).finally(() => process.chdir(previous))
+
+    expect(await readFile(join(project.directory, 'README.md'), 'utf8')).toContain('Hello.')
+  })
+
+  it('names the reason when the project cannot be generated, such as a missing plugin', async () => {
     await expect(createTestProject({ plugins: ['./greet'], parent: root })).rejects.toThrow(
-      /could not generate the test project:\n.*--plugin cannot be used/,
+      /could not generate the test project:\n.*cannot load the plugin \S*greet: .* does not exist/,
     )
   })
 })

@@ -10,10 +10,10 @@ create-next-suite checks its own plugins with every package manager:
 import { createTestProject } from 'create-next-suite/testing'
 import { expect, test } from 'vitest'
 
-test('the project builds with Biome', async () => {
+test('the project builds with my plugin and Biome', async () => {
   const project = await createTestProject({
-    plugins: [],
-    answers: { linter: 'biome' },
+    plugins: ['./my-plugin'],
+    answers: { 'my-plugin': true, linter: 'biome' },
     install: true,
   })
 
@@ -21,12 +21,23 @@ test('the project builds with Biome', async () => {
 })
 ```
 
+`plugins` takes the addresses of the plugins under test: a local directory, relative to the
+current directory, npm, GitHub, GitLab, Git or a URL. A registry short name is unknown to the
+test's own configuration. The plugins are trusted for the test without a question, and nothing is recorded in your user configuration: the run keeps its
+cache and configuration in the directory it creates the project in. A plugin without a category is
+selected by its name in `answers`, as `--<name>` selects it on the command line.
+
 Every question you leave out takes its default; git stays off. Run the checks of the generated
 project, such as `typecheck`, `lint` and `test`.
 
-## In this version
+## Check a plugin
 
-Plugins from outside create-next-suite cannot be loaded yet, so a test project holds built-in
-plugins only: an address in `plugins` makes `createTestProject` fail, and
-`next-suite plugin validate` stops with a message. Both return for plugins written as `plugin.ts`,
-together with the helpers to test a plugin of your own.
+```bash
+npx -p create-next-suite next-suite plugin validate ./my-plugin
+```
+
+`plugin validate` loads a plugin the way create-next-suite does: it reads its files and its
+metadata without running it, checks its category, installs the npm packages of its `package.json`
+and runs its `plugin.ts` on its own. It prints the plugin's options and points, and hints where
+`create-next-suite` belongs in its `package.json` so `plugin.ts` can be type-checked. It does not
+run a type check itself; run `tsc` in the plugin for that.

@@ -9,7 +9,7 @@ import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import { assertSourceFile } from './assert-source-file.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
-const PLUGIN_FILE = 'plugin.ts'
+export const PLUGIN_FILE = 'plugin.ts'
 /** The module plugins import `definePlugin` from. */
 const PLUGIN_CONTRACT = 'create-next-suite/plugin'
 
@@ -32,15 +32,16 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isPlugin = (value: unknown): value is Plugin =>
   isRecord(value) && typeof value.name === 'string' && typeof value.title === 'string'
 
-const assertPluginFile = async (directory: string, path: string): Promise<void> => {
+/** Fails unless `path` is a regular file; `location` names the plugin in the error. */
+export const assertPluginFile = async (location: string, path: string): Promise<void> => {
   const stats = await lstat(path).catch((error: unknown) => {
     if (isMissingFileError(error)) {
-      throw new PluginLoadError(directory, `no ${PLUGIN_FILE}`, { cause: error })
+      throw new PluginLoadError(location, `no ${PLUGIN_FILE}`, { cause: error })
     }
     throw error
   })
   if (!stats.isFile()) {
-    throw new PluginLoadError(directory, `${PLUGIN_FILE} is no regular file`)
+    throw new PluginLoadError(location, `${PLUGIN_FILE} is no regular file`)
   }
 }
 

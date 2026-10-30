@@ -53,4 +53,21 @@ describe('parsePluginAddress', () => {
     expect(parsePluginAddress('github:../plugins')).toBeUndefined()
     expect(parsePluginAddress('https://*.evil.example/p.tgz')).toBeUndefined()
   })
+
+  it('answers nothing for a URL or Git address with a dot segment, which a pattern would misread', () => {
+    for (const address of [
+      'https://github.com/acme/%2e%2e/mallory/x.tgz',
+      'https://github.com/acme/../mallory/x.tgz',
+      'https://github.com/acme\\..\\mallory/x.tgz',
+      'https://host/acme/./x.tgz',
+      'git+https://gitlab.example.com/acme/../mallory/x.git',
+      'git+git@host:acme/%2E%2E/mallory.git#main',
+    ]) {
+      expect(parsePluginAddress(address), address).toBeUndefined()
+    }
+    expect(parsePluginAddress('https://host/acme/x..y.tgz')).toEqual({
+      kind: 'url',
+      url: 'https://host/acme/x..y.tgz',
+    })
+  })
 })
