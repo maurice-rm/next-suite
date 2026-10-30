@@ -90,4 +90,5 @@ alias, such as `@/lib/db`. An entry with a key reads as `{{key}}` and `{{value}}
 ## Facts
 
 `has` asks named facts: `plugin:<name>` (a plugin is selected), `category:<id>` (a plugin of the
-category is selected) and the facts plugins declare in `facts`, each a condition over the answers.
+category is selected) and `fact:<name>` for a fact a plugin declares in `facts`, each a condition
+over the answers. Asking an unknown fact stops the run.
