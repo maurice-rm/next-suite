@@ -3,20 +3,28 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import packageJson from 'create-next-suite/package.json' with { type: 'json' }
-import type { Category, PluginManifest } from 'create-next-suite/plugin'
+import type { CategoriesFile, ListedCategory, PluginManifest } from 'create-next-suite/plugin'
 
 /** Writes the docs pages that come from create-next-suite itself: its options and its CLI help. */
 
-/** A category as categories.json lists it, inside its section. */
-type ListedCategory = Omit<Category, 'section'>
-type Section = { section: string; categories: ListedCategory[] }
-type SchemaProperty = {
+type Section = CategoriesFile[number]
+type SchemaNode = {
   description?: string
-  type?: string
+  type?: string | string[]
   enum?: unknown[]
-  items?: SchemaProperty
-  properties?: Record<string, SchemaProperty>
+  const?: unknown
+  // biome-ignore lint/style/useNamingConvention: JSON Schema fixes the name of this key
+  $ref?: string
+  items?: SchemaNode
+  additionalProperties?: SchemaNode | boolean
+  properties?: Record<string, SchemaNode>
   required?: string[]
+  anyOf?: SchemaNode[]
+  oneOf?: SchemaNode[]
+}
+type RootSchema = SchemaNode & {
+  // biome-ignore lint/style/useNamingConvention: JSON Schema fixes the name of this key
+  $defs?: Record<string, SchemaNode>
 }
 
 const PACKAGE_ROOT = fileURLToPath(
@@ -25,6 +33,7 @@ const PACKAGE_ROOT = fileURLToPath(
 const CLI_PATH = join(PACKAGE_ROOT, packageJson.bin['create-next-suite'])
 const CATEGORIES_PATH = join(PACKAGE_ROOT, 'categories.json')
 const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins')
+const DEFS_PREFIX = '#/$defs/'
 const PLUGIN_SCHEMA_PATH = join(PACKAGE_ROOT, 'dist', 'schemas', 'plugin.json')
 const MANIFEST_FILE = 'plugin.json'
 const CONTENT_PATH = fileURLToPath(new URL('../content/docs/', import.meta.url))
@@ -111,17 +120,33 @@ const cliPage = (): string => {
   ])
 }
 
-const typeOf = (property: SchemaProperty): string => {
-  if (property.enum !== undefined) {
-    return property.enum.map((value) => `\`${JSON.stringify(value)}\``).join(' | ')
+const definitionName = (node: SchemaNode): string | undefined =>
+  node.$ref?.startsWith(DEFS_PREFIX) ? node.$ref.slice(DEFS_PREFIX.length) : undefined
+
+const typeOf = (node: SchemaNode): string => {
+  const name = definitionName(node)
+  if (name !== undefined) {
+    return `[${name}](#${name.toLowerCase()})`
   }
-  if (property.type === 'array') {
-    return `${property.items === undefined ? 'unknown' : typeOf(property.items)}[]`
+  if (node.enum !== undefined) {
+    return node.enum.map((value) => `\`${JSON.stringify(value)}\``).join(' | ')
   }
-  return property.type ?? 'object'
+  if (node.const !== undefined) {
+    return `\`${JSON.stringify(node.const)}\``
+  }
+  if (node.type === 'array') {
+    return `${node.items === undefined ? 'unknown' : typeOf(node.items)}[]`
+  }
+  if (typeof node.additionalProperties === 'object') {
+    return `map of ${typeOf(node.additionalProperties)}`
+  }
+  if (Array.isArray(node.type)) {
+    return node.type.join(' | ')
+  }
+  return node.type ?? 'object'
 }
 
-const propertyTable = ({ properties = {}, required = [] }: SchemaProperty): string =>
+const propertyTable = ({ properties = {}, required = [] }: SchemaNode): string =>
   tableOf(
     ['Field', 'Type', 'Required', 'Description'],
     Object.entries(properties)
@@ -134,15 +159,42 @@ const propertyTable = ({ properties = {}, required = [] }: SchemaProperty): stri
       ]),
   )
 
+const variantTitle = (variant: SchemaNode): string => {
+  const [name, discriminator] =
+    Object.entries(variant.properties ?? {}).find(([, property]) => property.const !== undefined) ??
+    []
+  if (variant.description !== undefined || discriminator === undefined) {
+    return variant.description ?? typeOf(variant)
+  }
+  return `\`${name}\`: ${typeOf(discriminator)}`
+}
+
+const variantSection = (variant: SchemaNode): string[] =>
+  variant.properties === undefined
+    ? [`- ${typeOf(variant)}`]
+    : ['', `**${variantTitle(variant)}**`, '', propertyTable(variant)]
+
+const definitionSection = ([name, definition]: [string, SchemaNode]): string => {
+  const variants = definition.anyOf ?? definition.oneOf ?? []
+  const body =
+    definition.properties === undefined
+      ? variants.flatMap(variantSection)
+      : ['', propertyTable(definition)]
+  return [`## ${name}`, '', definition.description ?? '', ...body].join('\n')
+}
+
 const manifestPage = (): string => {
-  const schema = readJson<SchemaProperty>(PLUGIN_SCHEMA_PATH)
-  const contributes = schema.properties?.contributes
+  const schema = readJson<RootSchema>(PLUGIN_SCHEMA_PATH)
   return pageOf({ title: 'Manifest reference', description: 'Every field of plugin.json.' }, [
     'The JSON schema ships as `create-next-suite/schemas/plugin.json`; point `$schema` at it for',
-    'completion in your editor.',
+    'completion in your editor. The types of `create-next-suite/plugin` carry the same names and',
+    'descriptions.',
     '',
     propertyTable(schema),
-    ...(contributes === undefined ? [] : ['', '## `contributes`', '', propertyTable(contributes)]),
+    '',
+    Object.entries(schema.$defs ?? {})
+      .map(definitionSection)
+      .join('\n\n'),
   ])
 }
 
