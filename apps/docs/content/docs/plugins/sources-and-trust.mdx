@@ -18,6 +18,8 @@ npm tarballs are checked against their integrity and never run install scripts. 
 refs resolve to a commit; next-suite.json records what each source resolved to. Tokens come from
 `GH_TOKEN`, `GITHUB_TOKEN`, the GitHub CLI or `GITLAB_TOKEN` and are sent to their own host only.
 
+A tarball URL or Git address over plain http is refused before anything is downloaded:
+`http://…` and `git+http://…` must use https, for a plugin and for the source of a registry alike.
 Downloads follow redirects to https only. A download may hold at most 50 MiB and unpack to at most
 200 MiB. Git never asks for a password: an SSH source needs a key that works without a prompt, such
 as one held by an SSH agent.

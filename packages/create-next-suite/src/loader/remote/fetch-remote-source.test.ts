@@ -176,6 +176,33 @@ describe('fetchRemoteSource', () => {
     expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
   })
 
+  it('refuses a URL or Git address over plain http before any download', async () => {
+    const requested: string[] = []
+    const environment: RemoteEnvironment = {
+      ...stubRemote(root),
+      fetch: async (input) => {
+        requested.push(String(input))
+        return respond('')
+      },
+    }
+
+    const url = fetchRemoteSource(environment, { kind: 'url', url: 'http://host/mail.tgz' })
+    const git = fetchRemoteSource(environment, {
+      kind: 'git',
+      url: 'HTTP://host/repo.git',
+      ref: undefined,
+    })
+
+    await expect(url).rejects.toThrow(PluginLoadError)
+    await expect(url).rejects.toThrow(
+      'cannot load the plugin http://host/mail.tgz: plugin addresses must use https',
+    )
+    await expect(git).rejects.toThrow(
+      'cannot load the plugin HTTP://host/repo.git: plugin addresses must use https',
+    )
+    expect(requested).toEqual([])
+  })
+
   it('clones a Git repository and resolves its commit', async () => {
     const repository = join(root, 'repo')
     await mkdir(repository)

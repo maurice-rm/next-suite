@@ -22,6 +22,7 @@ const DEFAULT_REF = 'HEAD'
 const INTEGRITY_ALGORITHM = 'sha512'
 const INTEGRITY_SEPARATOR = /\s+/
 const INTEGRITY_OPTIONS = /\?.*$/
+const PLAIN_HTTP = /^http:\/\//i
 /** npm, GitHub and GitLab wrap the files of a tarball in one top directory. */
 const WRAPPED = 1
 const UNWRAPPED = 0
@@ -199,15 +200,24 @@ const fetchUrl = async (
   return { directory: await unwrapSingleDirectory(directory), resolved: `sha256-${digest}` }
 }
 
+/** Fails for a URL or Git address over plain http, which anyone on the way could tamper with. */
+const assertSecureTransport = (address: RemoteAddress): void => {
+  if ((address.kind === 'url' || address.kind === 'git') && PLAIN_HTTP.test(address.url)) {
+    throw new PluginLoadError(address.url, 'plugin addresses must use https')
+  }
+}
+
 /**
  * Fetches a source from npm, GitHub, GitLab, any Git repository or a tarball URL into the cache,
  * one directory per source and resolved version or commit, and answers that directory. npm
- * tarballs are checked against their integrity; no install script ever runs.
+ * tarballs are checked against their integrity; no install script ever runs. A URL or Git address
+ * over plain http fails before anything is fetched.
  */
 export const fetchRemoteSource = async (
   environment: RemoteEnvironment,
   address: RemoteAddress,
 ): Promise<FetchedSource> => {
+  assertSecureTransport(address)
   switch (address.kind) {
     case 'npm':
       return fetchNpm(environment, address)
