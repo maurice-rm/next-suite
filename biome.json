@@ -155,7 +155,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: contract/ is the innermost module and imports no other"
                   }
@@ -210,7 +212,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: file-system/ wraps Node.js and imports no other module"
                   }
@@ -263,7 +267,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: answers/ imports only from contract/"
                   }
@@ -310,7 +316,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: loader/ imports from contract/, file-system/ and the error classes only"
                   }
@@ -360,7 +368,9 @@
                       "../registry.ts",
                       "../assert-unique-names.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: loader/remote/ fetches sources and imports from contract/, file-system/, the error classes, the plugin address and the plugin load error only"
                   }
@@ -403,7 +413,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: compose/ imports from contract/, answers/, loader/, file-system/ and the error classes only"
                   }
@@ -447,7 +459,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: compose/template/ imports from contract/, answers/, loader/, file-system/ and the error classes only, never from compose/"
                   }
@@ -488,7 +502,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: write/ imports from contract/, answers/, loader/, compose/, file-system/ and the error classes only"
                   }
@@ -529,7 +545,9 @@
                       "**/package-manager",
                       "**/package-manager/**",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: questions/ imports from contract/, answers/, loader/, ui/, file-system/ and the error classes only"
                   }
@@ -578,7 +596,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: package-manager/ imports from contract/ and the error classes only"
                   }
@@ -625,7 +645,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: post-steps/ imports from contract/, package-manager/ and the error classes only"
                   }
@@ -681,7 +703,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: code-edit/ edits source text and imports no other module but expected-error.ts"
                   }
@@ -735,7 +759,9 @@
                       "**/package-manager",
                       "**/package-manager/**",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: ui/ renders only and imports no other module but the error classes"
                   }
@@ -780,7 +806,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: trust/ imports from contract/, loader/, file-system/ and the error classes only"
                   }
@@ -829,7 +857,9 @@
                       "**/plugin.ts",
                       "**/testing.ts",
                       "**/project-model",
-                      "**/project-model/**"
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
                     ],
                     "message": "create-next-suite: user-config/ imports from contract/, file-system/ and the error classes only"
                   }
@@ -897,7 +927,7 @@
                       "**/project-model",
                       "**/project-model/**"
                     ],
-                    "message": "create-next-suite: test-support/ builds fixtures and runs from contract/, answers/, loader/, questions/, cli/, file-system/ and the error classes only"
+                    "message": "create-next-suite: test-support/ builds fixtures and runs from contract/, answers/, loader/, questions/, cli/, file-system/, plugin-definition/ and the error classes only"
                   }
                 ]
               }
@@ -949,9 +979,121 @@
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts",
+                      "**/testing.ts",
+                      "**/project-model",
+                      "**/project-model/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**"
+                    ],
+                    "message": "create-next-suite: project-model/ imports from code-edit/ and expected-error.ts only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/project-model/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/trust",
+                      "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
+                      "**/contract",
+                      "**/contract/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/loader",
+                      "**/loader/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/file-system",
+                      "**/file-system/**",
+                      "**/test-support",
+                      "**/test-support/**",
+                      "**/plugin-definition",
+                      "**/plugin-definition/**",
+                      "**/input-error.ts",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts",
                       "**/testing.ts"
                     ],
                     "message": "create-next-suite: project-model/ imports from code-edit/ and expected-error.ts only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/plugin-definition/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/trust",
+                      "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
+                      "**/contract",
+                      "**/contract/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/loader",
+                      "**/loader/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/file-system",
+                      "**/file-system/**",
+                      "**/input-error.ts",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts",
+                      "**/testing.ts"
+                    ],
+                    "message": "create-next-suite: plugin-definition/ imports from code-edit/, project-model/ and expected-error.ts only"
                   }
                 ]
               }
