@@ -6,6 +6,7 @@ import { createBuiltDependencies } from '../points/built-dependencies.ts'
 import { createProject } from '../project-model/project.ts'
 import { createCspSources, csp, orm } from '../test-support/fixture-points.ts'
 import { type AssemblyInput, assembleProject } from './assemble-project.ts'
+import { AssemblyError } from './assembly-error.ts'
 
 const source = (...lines: string[]): string => `${lines.join('\n')}\n`
 
@@ -791,6 +792,79 @@ describe('assembleProject', () => {
       expect.arrayContaining(['drizzle.config.ts', 'src/db/16.1.0.ts', 'src/src-db-schema.ts']),
     )
     expect(fileOf(files, 'README.md')).toContain('## Database\n\nDrizzle.')
+  })
+
+  it('gives functions the project name and package manager, and finish the scripts', () => {
+    const seen: unknown[] = []
+    const pnpm = definePlugin({
+      name: 'pnpm',
+      title: 'pnpm',
+      category: 'package-manager',
+      packageManager: {
+        version: '12.16.1',
+        ciInstallArgs: ['install', '--frozen-lockfile'],
+        whenVersionDiffers: 'download',
+      },
+    })
+    const ci = definePlugin({
+      name: 'ci',
+      title: 'CI',
+      scripts: ({ projectName, packageManager }) => {
+        seen.push(projectName, packageManager)
+        return { lint: 'eslint' }
+      },
+      collects: {
+        ciChecks: {
+          create: () => ({ run: () => undefined, scripts: () => [] }),
+          finish: (_checks, { scripts }) => {
+            seen.push(scripts)
+          },
+        },
+      },
+    })
+
+    assemble([withFiles(pnpm), withFiles(ci)])
+    assemble([withFiles(ci)])
+
+    expect(seen).toEqual([
+      'next-suite-app',
+      {
+        name: 'pnpm',
+        version: '12.16.1',
+        run: 'pnpm run',
+        ciInstall: 'pnpm install --frozen-lockfile',
+      },
+      { dev: 'next dev', lint: 'eslint' },
+      'next-suite-app',
+      { name: 'npm', run: 'npm run', ciInstall: 'npm ci' },
+      { dev: 'next dev', lint: 'eslint' },
+    ])
+  })
+
+  it('stops with the message a plugin fails with, after the plugin and its step', () => {
+    const hooks = definePlugin({
+      name: 'hooks',
+      title: 'Hooks',
+      collects: {
+        ciChecks: {
+          create: () => ({ run: () => undefined, scripts: () => [] }),
+          finish: (_checks, { fail }) => fail('it needs a linter'),
+        },
+      },
+    })
+
+    const failure = (() => {
+      try {
+        assemble([withFiles(hooks)])
+      } catch (error) {
+        return error
+      }
+      return undefined
+    })()
+
+    expect(failure).toBeInstanceOf(AssemblyError)
+    expect(failure).toHaveProperty('message', 'hooks (finish ciChecks): it needs a linter')
+    expect(failure).not.toHaveProperty('cause')
   })
 
   it('lets setup write files, edit modules and add tsconfig entries, recorded as setup', () => {

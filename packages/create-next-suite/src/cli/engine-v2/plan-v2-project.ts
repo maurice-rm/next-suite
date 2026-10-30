@@ -22,8 +22,6 @@ const BUILT_IN_SOURCE = 'builtin'
 const REACT_COMPILER_SETTING = 'react-compiler'
 const CACHE_COMPONENTS_SETTING = 'cache-components'
 const DEFAULT_INSTALL_ARGS = ['install']
-/** The package manager the commands of a project without a package manager plugin use. */
-const FALLBACK_PACKAGE_MANAGER = 'npm'
 /** What the end of a run shows for the base project. */
 const BASE_SUMMARY: ProjectPlan['summary'] = {
   stack: ['Next.js', 'TypeScript'],
@@ -53,7 +51,7 @@ const selectPlugins = ({
     const loaded = assets.plugins.find(({ plugin }) => plugin.name === name)
     if (loaded === undefined) {
       throw new InputError(
-        `${name} has no plugin.ts form yet, so it does not run with ${ENGINE_VARIABLE}=v2; unset ${ENGINE_VARIABLE} to use it`,
+        `${name} comes from --plugin, which ${ENGINE_VARIABLE}=v2 does not run yet; unset ${ENGINE_VARIABLE} to use it`,
       )
     }
     return loaded
@@ -110,7 +108,8 @@ const dependenciesOf = (files: ReadonlyMap<string, string>): Required<PackageJso
  * The plan has the form the manifest engine gives it, so writing and the steps after it stay the
  * same.
  *
- * @throws InputError when a selected plugin has no `plugin.ts` form yet.
+ * @throws InputError when a selected plugin is none of the built-in plugins, such as one from
+ * `--plugin`.
  */
 export const planV2Project = (input: PlanInput): ProjectPlan => {
   const { assets, answers, projectName } = input
@@ -135,7 +134,12 @@ export const planV2Project = (input: PlanInput): ProjectPlan => {
     }),
     CORE_ORIGIN,
   )
-  const { files, owners, runSteps } = assembleProject({
+  const {
+    files,
+    owners,
+    runSteps,
+    packageManager: projectPackageManager,
+  } = assembleProject({
     project,
     plugins,
     categoryOrder: CATEGORIES.map(({ id }) => id),
@@ -157,7 +161,7 @@ export const planV2Project = (input: PlanInput): ProjectPlan => {
     })),
     ...dependenciesOf(files),
     packageManager: packageManager?.name,
-    projectPackageManager: packageManager?.name ?? FALLBACK_PACKAGE_MANAGER,
+    projectPackageManager: projectPackageManager.name,
     installArgs: [...(packageManager?.packageManager?.installArgs ?? DEFAULT_INSTALL_ARGS)],
     postSteps: postStepsOf(runSteps, answers),
     summary: summaryOf(runSteps),

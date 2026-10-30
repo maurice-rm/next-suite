@@ -2,6 +2,7 @@ import type { ChildrenWrapper } from '../code-edit/order-wrappers.ts'
 import type { TypescriptModule } from '../code-edit/typescript-module.ts'
 import { ExpectedError } from '../expected-error.ts'
 import type { NextStep } from '../plugin-definition/next-step.ts'
+import type { ProjectPackageManager } from '../plugin-definition/plugin-context.ts'
 import type {
   AnyContext,
   AnyFinishContext,
@@ -37,6 +38,8 @@ type RunInput = {
   answers: PluginAnswers | undefined
   /** The directories of generated code on disk, which every plugin adds to while it collects. */
   generatedDirectories: string[]
+  projectName: string
+  packageManager: ProjectPackageManager
 }
 
 /** One plugin's way through the phases of an assembly, each run once in plugin order. */
@@ -67,15 +70,21 @@ const resolveField = <Value>(field: unknown, context: AnyContext): Value | undef
 const entriesOf = <Value>(record: object | undefined): [string, Value][] =>
   Object.entries(record ?? {}) as [string, Value][]
 
+/** What a plugin's `fail` throws: its message is the whole failure, there is no cause to show. */
+class PluginFailure extends ExpectedError {
+  override name = 'PluginFailure'
+}
+
 /** Runs a step of a plugin; an error the user can act on gets the plugin and step in front. */
 const inStep = <Result>(plugin: string, step: string, run: () => Result): Result => {
   try {
     return run()
   } catch (error) {
     if (error instanceof ExpectedError) {
-      throw new AssemblyError(`${plugin} (${step}): ${error.message}`, {
-        cause: error,
-      })
+      throw new AssemblyError(
+        `${plugin} (${step}): ${error.message}`,
+        error instanceof PluginFailure ? {} : { cause: error },
+      )
     }
     throw error
   }
@@ -83,7 +92,15 @@ const inStep = <Result>(plugin: string, step: string, run: () => Result): Result
 
 export const createPluginRun = (
   { plugin, readFile }: LoadedPlugin,
-  { project, points, running, answers, generatedDirectories }: RunInput,
+  {
+    project,
+    points,
+    running,
+    answers,
+    generatedDirectories,
+    projectName,
+    packageManager,
+  }: RunInput,
 ): PluginRun => {
   const { name } = plugin
   const ownEdits: [string, FileEdit<AnyFinishContext>][] = []
@@ -121,10 +138,15 @@ export const createPluginRun = (
     return {
       ...Object.fromEntries(usedValues),
       options: resolveAnswers(plugin, answers),
+      projectName,
+      packageManager,
       has: (pluginName: string) => running.has(pluginName),
       diskPath: (path: string) => project.diskPath(path),
       readFile,
       versionOf: (dependency: string) => project.packageJson().versionOf(dependency),
+      fail: (message: string): never => {
+        throw new PluginFailure(message)
+      },
     }
   }
 
@@ -141,6 +163,7 @@ export const createPluginRun = (
     ...contextOf(),
     env: project.environment.variables(),
     generatedDirectories,
+    scripts: project.packageJson().scripts(),
     module: (path: string): TypescriptModule => {
       record(path, `${step}: module`, kindOf(path))
       return project.module(path)
@@ -184,13 +207,13 @@ export const createPluginRun = (
   }
 
   const applyPackageManager = (): void => {
-    const { packageManager } = plugin
-    if (packageManager === undefined) {
+    const section = plugin.packageManager
+    if (section === undefined) {
       return
     }
     inStep(name, 'packageManager', () => {
-      project.packageJson().usePackageManager({ ...packageManager, name })
-      project.readme().setRunCommand(`${name} run`)
+      project.packageJson().usePackageManager({ ...section, name })
+      project.readme().setRunCommand(packageManager.run)
     })
     record(PROJECT_FILES.packageJson, `packageManager ${name}`, 'extend')
     record(PROJECT_FILES.readme, `packageManager ${name}`, 'extend')

@@ -3,7 +3,7 @@ import { ProjectError } from '../project-model/project-error.ts'
 import { aliasTarget } from '../project-model/source-path.ts'
 
 /** The name the base project has until the core replaces it with the project's. */
-const BASE_PROJECT_NAME = 'next-suite-app'
+export const BASE_PROJECT_NAME = 'next-suite-app'
 const BASE_ALIAS = '@/*'
 const START_PAGE = '@/app/page.tsx'
 const SETTINGS_ORIGIN = 'base-settings'

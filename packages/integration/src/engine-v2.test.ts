@@ -5,12 +5,20 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { dryRunScenario } from './dry-run-scenario.ts'
-import { FROZEN_SCENARIOS, listScenarios, snapshotOf } from './scenarios.ts'
+import {
+  FROZEN_SCENARIOS,
+  listScenarios,
+  SNAPSHOT_PACKAGE_MANAGER,
+  snapshotOf,
+} from './scenarios.ts'
 
 const PACKAGE_MANAGERS = ['pnpm', 'npm', 'yarn', 'bun']
 
-const cases = FROZEN_SCENARIOS.flatMap((name) =>
-  PACKAGE_MANAGERS.map((packageManager) => ({ name, packageManager })),
+/** Every scenario with each package manager it has a snapshot of. */
+const cases = listScenarios().flatMap(({ name }) =>
+  (FROZEN_SCENARIOS.includes(name) ? PACKAGE_MANAGERS : [SNAPSHOT_PACKAGE_MANAGER]).map(
+    (packageManager) => ({ name, packageManager }),
+  ),
 )
 
 let cwd: string
