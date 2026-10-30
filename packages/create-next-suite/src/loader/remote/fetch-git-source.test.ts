@@ -137,4 +137,35 @@ describe('fetchGitSource', () => {
     await expect(fetchGitSource(stubRemote(root), SSH_ADDRESS)).rejects.toThrow(PluginLoadError)
     expect(existsSync(planted)).toBe(false)
   })
+
+  it('takes the branch of a name that is a branch and a tag, as git clone does', async () => {
+    const repository = join(root, 'repo')
+    const git = (...args: string[]) =>
+      execFileSync('git', ['-C', repository, ...args], { encoding: 'utf8' }).trim()
+    const commit = (message: string) =>
+      git(
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@t',
+        'commit',
+        '--quiet',
+        '--allow-empty',
+        '-m',
+        message,
+      )
+    await mkdir(repository)
+    git('init', '--quiet', '--initial-branch', 'main')
+    commit('tagged')
+    git('tag', 'v1')
+    commit('branched')
+    git('branch', 'v1')
+    const address = { kind: 'git', url: `file://${repository}` } as const
+
+    const branch = await fetchGitSource(stubRemote(root), { ...address, ref: 'v1' })
+    const tag = await fetchGitSource(stubRemote(root), { ...address, ref: 'refs/tags/v1' })
+
+    expect(branch.resolved).toBe(git('rev-parse', 'refs/heads/v1'))
+    expect(tag.resolved).toBe(git('rev-parse', 'refs/tags/v1^{commit}'))
+  })
 })

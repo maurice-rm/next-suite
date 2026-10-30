@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { errorCodeOf } from '../../file-system/error-code.ts'
 import { PluginLoadError } from '../plugin-load-error.ts'
 import { fillCacheOnce } from './cache.ts'
+import { COMMIT_ID } from './commit-id.ts'
 import type { FetchedSource, RemoteAddress, RemoteEnvironment } from './remote-source.ts'
 
 /**
@@ -44,6 +45,7 @@ const NO_HOOKS = 'no-hooks'
 const CLONE = 'clone'
 /** What a fetch without a ref takes: the branch the repository names as its default. */
 const DEFAULT_REF = 'HEAD'
+const FULL_REF_PREFIX = 'refs/'
 
 /** Makes ssh fail instead of asking for a password or to accept an unknown host key. */
 const SSH_BATCH_MODE = '-o BatchMode=yes'
@@ -133,6 +135,33 @@ const gitWith =
     execFileAsync('git', [...GIT_HARDENING, ...switchedOff, ...args], place)
 
 /**
+ * The refs a fetch tries for an address, in order: a short name as a branch before a tag, as
+ * `git clone --branch` takes it, where `git fetch` alone would prefer the tag.
+ */
+const refCandidates = (ref: string | undefined): string[] => {
+  if (ref === undefined || COMMIT_ID.test(ref) || ref.startsWith(FULL_REF_PREFIX)) {
+    return [ref ?? DEFAULT_REF]
+  }
+  return [`refs/heads/${ref}`, `refs/tags/${ref}`]
+}
+
+/** Fetches the first of the candidate refs the repository has, without history. */
+const fetchFirstRef = async (
+  git: Git,
+  { url, clone, refs }: { url: string; clone: string; refs: string[] },
+) => {
+  const [first, ...rest] = refs
+  try {
+    await git(['-C', clone, 'fetch', '--quiet', '--depth', '1', '--', url, first ?? DEFAULT_REF])
+  } catch (error) {
+    if (rest.length === 0) {
+      throw error
+    }
+    await fetchFirstRef(git, { url, clone, refs: rest })
+  }
+}
+
+/**
  * Fetches the ref of a repository, or its default branch, into a fresh repository and checks it
  * out, both with the commands switched off that the configuration names for that repository.
  */
@@ -143,7 +172,7 @@ const cloneInto = async (scratch: string, { url, ref }: GitAddress, place: GitPl
   const git = gitWith(await commandsSwitchedOff(hooks, place), place)
   await git(['init', '--quiet', clone])
   const inClone = gitWith(await commandsSwitchedOff(hooks, { ...place, cwd: clone }), place)
-  await inClone(['-C', clone, 'fetch', '--quiet', '--depth', '1', '--', url, ref ?? DEFAULT_REF])
+  await fetchFirstRef(inClone, { url, clone, refs: refCandidates(ref) })
   await inClone(['-C', clone, 'checkout', '--quiet', 'FETCH_HEAD'])
   const { stdout } = await inClone(['-C', clone, 'rev-parse', 'HEAD'])
   return { clone, commit: stdout.trim() }
