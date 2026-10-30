@@ -12,14 +12,14 @@
     },
     {
       "matchFileNames": [
-        "packages/create-next-suite/plugins-v2/*/*/plugin.ts",
-        "packages/create-next-suite/base-project/package.json"
+        "packages/create-next-suite/plugins/*/*/plugin.ts",
+        "packages/create-next-suite/base/package.json"
       ],
       "groupName": "built-in versions"
     },
     {
       "description": "@types/node of generated projects stays on the Node.js major their CI runs, the one create-next-suite's engines name",
-      "matchFileNames": ["packages/create-next-suite/base-project/package.json"],
+      "matchFileNames": ["packages/create-next-suite/base/package.json"],
       "matchDepNames": ["@types/node"],
       "allowedVersions": "24.x"
     },
@@ -33,7 +33,7 @@
     {
       "description": "The versions of the built-in plugins: each entry of their VERSIONS constant, keyed by its npm package",
       "customType": "regex",
-      "managerFilePatterns": ["/^packages/create-next-suite/plugins-v2/[^/]+/[^/]+/plugin\\.ts$/"],
+      "managerFilePatterns": ["/^packages/create-next-suite/plugins/[^/]+/[^/]+/plugin\\.ts$/"],
       "matchStringsStrategy": "recursive",
       "matchStrings": [
         "const VERSIONS = \\{[^}]*\\}",

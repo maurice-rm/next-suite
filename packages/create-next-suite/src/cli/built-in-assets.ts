@@ -4,8 +4,8 @@ import { loadBaseProject } from '../loader/load-base-project.ts'
 import { loadGroupedPluginModules } from '../loader/load-grouped-plugin-modules.ts'
 import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
 
-const BASE_DIRECTORY = 'base-project'
-const PLUGINS_DIRECTORY = 'plugins-v2'
+const BASE_DIRECTORY = 'base'
+const PLUGINS_DIRECTORY = 'plugins'
 
 /** What ships with create-next-suite: the base project and the built-in plugins. */
 export type BuiltInAssets = {

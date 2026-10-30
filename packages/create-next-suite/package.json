@@ -25,8 +25,8 @@
   },
   "files": [
     "dist",
-    "base-project",
-    "plugins-v2"
+    "base",
+    "plugins"
   ],
   "bin": {
     "create-next-suite": "./dist/create-next-suite.mjs",

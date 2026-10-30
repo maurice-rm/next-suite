@@ -58,7 +58,7 @@ describe('loadGroupedPluginModules', () => {
 
 describe('the built-in plugins', () => {
   it('load', async () => {
-    const directory = fileURLToPath(new URL('../../plugins-v2', import.meta.url))
+    const directory = fileURLToPath(new URL('../../plugins', import.meta.url))
 
     const plugins = await loadGroupedPluginModules(directory, PLUGIN_ENTRY)
 

@@ -16,8 +16,8 @@ import packageJson from 'create-next-suite/package.json' with { type: 'json' }
 const PACKAGE_ROOT = fileURLToPath(
   new URL('.', import.meta.resolve('create-next-suite/package.json')),
 )
-const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins-v2')
-const BASE_PACKAGE_PATH = join(PACKAGE_ROOT, 'base-project', 'package.json')
+const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins')
+const BASE_PACKAGE_PATH = join(PACKAGE_ROOT, 'base', 'package.json')
 const PACKAGE_MANAGER_CATEGORY = 'package-manager'
 /** The versions of a plugin, one `'<package>': '<version>'` entry each. */
 const VERSIONS_CONSTANT = /const VERSIONS = \{[^}]*\}/

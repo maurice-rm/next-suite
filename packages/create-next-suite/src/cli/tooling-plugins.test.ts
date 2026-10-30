@@ -73,10 +73,10 @@ const fileOf = (files: ReadonlyMap<string, string>, path: string): string => {
 
 beforeAll(async () => {
   builtIn = await loadGroupedPluginModules(
-    fileURLToPath(new URL('plugins-v2', PACKAGE_ROOT)),
+    fileURLToPath(new URL('plugins', PACKAGE_ROOT)),
     PLUGIN_ENTRY,
   )
-  baseFiles = await loadBaseProject(fileURLToPath(new URL('base-project', PACKAGE_ROOT)))
+  baseFiles = await loadBaseProject(fileURLToPath(new URL('base', PACKAGE_ROOT)))
 })
 
 describe('the tooling plugins', () => {

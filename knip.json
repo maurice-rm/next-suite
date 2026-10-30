@@ -2,8 +2,8 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
     "packages/create-next-suite": {
-      "entry": ["plugins-v2/*/*/plugin.ts"],
-      "ignore": ["base-project/**", "plugins-v2/*/*/files/**"],
+      "entry": ["plugins/*/*/plugin.ts"],
+      "ignore": ["base/**", "plugins/*/*/files/**"],
       "vitest": {
         "entry": ["src/**/*.test.ts", "src/**/*.test-d.ts"]
       }

@@ -23,7 +23,7 @@ const PACKAGE_ROOT = fileURLToPath(
 )
 const CLI_PATH = join(PACKAGE_ROOT, packageJson.bin['create-next-suite'])
 const CATEGORIES_PATH = join(PACKAGE_ROOT, 'src', 'plugin-definition', 'categories.ts')
-const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins-v2')
+const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins')
 const PLUGIN_FILE = 'plugin.ts'
 const CONTENT_PATH = fileURLToPath(new URL('../content/docs/', import.meta.url))
 const OPTIONS_PATH = join(CONTENT_PATH, 'options')
