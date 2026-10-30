@@ -1,7 +1,7 @@
 import { InputError } from '../input-error.ts'
 import { type UserConfig, updateUserConfig } from './user-config.ts'
 
-/** Whether a plugin address falls under a trust pattern. */
+/** Whether a plugin address or source falls under a trust pattern. */
 export type TrustMatcher = (address: string, pattern: string) => boolean
 
 /** Adds a pattern to the sources the user trusts, unless it is there already. */
@@ -13,8 +13,8 @@ export const addTrustedPattern = (path: string, pattern: string): Promise<void> 
   })
 
 /**
- * Drops a pattern from a configuration, with the content hashes of the addresses it covered that
- * no remaining pattern covers.
+ * Drops a pattern from a configuration, with the content hashes of the sources it covered that no
+ * remaining pattern covers.
  */
 export const dropTrustedPattern = (
   config: UserConfig,
@@ -22,10 +22,10 @@ export const dropTrustedPattern = (
   matches: TrustMatcher,
 ): void => {
   config.trust = config.trust.filter((trusted) => trusted !== pattern)
-  for (const address of Object.keys(config.trustedContent)) {
-    const isStillTrusted = config.trust.some((trusted) => matches(address, trusted))
-    if (matches(address, pattern) && !isStillTrusted) {
-      delete config.trustedContent[address]
+  for (const source of Object.keys(config.trustedContent)) {
+    const isStillTrusted = config.trust.some((trusted) => matches(source, trusted))
+    if (matches(source, pattern) && !isStillTrusted) {
+      delete config.trustedContent[source]
     }
   }
 }
@@ -46,11 +46,12 @@ export const removeTrustedPattern = (
     dropTrustedPattern(config, pattern, matches)
   })
 
-/** Keeps the content hash of the plugin at an address as the one the user trusts. */
+/** Adds a content hash to those the user trusts for a source. */
 export const recordTrustedContent = (
   path: string,
-  { address, contentHash }: { address: string; contentHash: string },
+  { source, contentHash }: { source: string; contentHash: string },
 ): Promise<void> =>
   updateUserConfig(path, (config) => {
-    config.trustedContent[address] = contentHash
+    const hashes = config.trustedContent[source] ?? []
+    config.trustedContent[source] = hashes.includes(contentHash) ? hashes : [...hashes, contentHash]
   })

@@ -183,7 +183,7 @@ describe('runCreate with external plugins', () => {
 
     expect(first.exitCode).toBe(0)
     expect(trustedContent).toEqual({
-      [HELLO_ADDRESS]: expect.stringMatching(/^sha256-[0-9a-f]{64}$/),
+      [HELLO_ADDRESS]: [expect.stringMatching(/^sha256-[0-9a-f]{64}$/)],
     })
     expect(changed.exitCode).toBe(1)
     expect(changed.error).toContain(
@@ -211,14 +211,14 @@ describe('runCreate with external plugins', () => {
     )
     expect(result.exitCode).toBe(0)
     expect(config.trust).toEqual([HELLO_ADDRESS])
-    expect(config.trustedContent).toEqual({ [HELLO_ADDRESS]: expect.stringMatching(/^sha256-/) })
+    expect(config.trustedContent).toEqual({ [HELLO_ADDRESS]: [expect.stringMatching(/^sha256-/)] })
   })
 
   it('asks again in the terminal for changed content and keeps the new content when trusted', async () => {
     await write({
       'config.json': JSON.stringify({
         trust: ['github:acme/*'],
-        trustedContent: { [HELLO_ADDRESS]: `sha256-${'0'.repeat(64)}` },
+        trustedContent: { [HELLO_ADDRESS]: [`sha256-${'0'.repeat(64)}`] },
       }),
     })
 
@@ -232,7 +232,9 @@ describe('runCreate with external plugins', () => {
     expect(result.output).toContain('changed since you trusted its content sha256-000000000000')
     expect(result.output).toContain('Trust the new content')
     expect(result.exitCode).toBe(0)
-    expect(config.trustedContent).not.toEqual({ [HELLO_ADDRESS]: `sha256-${'0'.repeat(64)}` })
+    expect(config.trustedContent).toEqual({
+      [HELLO_ADDRESS]: [`sha256-${'0'.repeat(64)}`, expect.stringMatching(/^sha256-[0-9a-f]{64}$/)],
+    })
   })
 
   it('loads a plugin of a registry by its short name', async () => {

@@ -18,12 +18,12 @@ const CONTENT_HASH = /^sha256-[0-9a-f]{64}$/
 const userConfigSchema = z.looseObject({
   trust: z.array(z.string().min(1)).default([]),
   registries: z.record(registryName, z.string().min(1)).default({}),
-  trustedContent: z.record(z.string().min(1), z.string().regex(CONTENT_HASH)).default({}),
+  trustedContent: z.record(z.string().min(1), z.array(z.string().regex(CONTENT_HASH))).default({}),
 })
 
 /**
  * What a user configured for next-suite: trusted sources, registry short names and the content
- * hash last trusted for each plugin address.
+ * hashes trusted for each source.
  */
 export type UserConfig = z.output<typeof userConfigSchema>
 

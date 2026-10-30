@@ -28,16 +28,33 @@ describe('judgeTrust', () => {
     ).toEqual({ kind: 'unknown' })
   })
 
-  it('records the first content of a trusted source and asks again once it changes', () => {
+  it('records the first content of a trusted source and asks again for any other content', () => {
     const trusted = { ...NOTHING_TRUSTED, patterns: ['github:acme/*'] }
-    const address = 'github:acme/mail'
+    const source = 'github:acme/mail'
 
-    expect(judgeTrust(remote(address), trusted)).toEqual({ kind: 'trusted', recordsContent: true })
+    expect(judgeTrust(remote(source), trusted)).toEqual({ kind: 'trusted', recordsContent: true })
     expect(
-      judgeTrust(remote(address), { ...trusted, trustedContent: { [address]: HASH } }),
+      judgeTrust(remote(source), { ...trusted, trustedContent: { [source]: [OTHER_HASH, HASH] } }),
     ).toEqual({ kind: 'trusted', recordsContent: false })
     expect(
-      judgeTrust(remote(address), { ...trusted, trustedContent: { [address]: OTHER_HASH } }),
+      judgeTrust(remote(source), { ...trusted, trustedContent: { [source]: [OTHER_HASH] } }),
     ).toEqual({ kind: 'changed', trustedHash: OTHER_HASH })
+  })
+
+  it('keeps the trusted content by source, so another ref or version is asked about too', () => {
+    const trusted = {
+      ...NOTHING_TRUSTED,
+      patterns: ['github:acme/mail', 'npm:@acme/mail'],
+      trustedContent: { 'github:acme/mail': [OTHER_HASH], 'npm:@acme/mail': [OTHER_HASH] },
+    }
+
+    expect(judgeTrust(remote('github:acme/mail#v2'), trusted)).toEqual({
+      kind: 'changed',
+      trustedHash: OTHER_HASH,
+    })
+    expect(judgeTrust(remote('npm:@acme/mail@^2'), trusted)).toEqual({
+      kind: 'changed',
+      trustedHash: OTHER_HASH,
+    })
   })
 })

@@ -105,9 +105,9 @@ describe('removing trust', () => {
       'config.json': JSON.stringify({
         trust: ['github:acme/*', 'github:acme/plugins/mail', 'npm:@acme/*'],
         trustedContent: {
-          'github:acme/plugins/mail#v1': Hash,
-          'github:acme/plugins/sms': Hash,
-          'npm:@acme/mail@1.0.0': Hash,
+          'github:acme/plugins/mail': [Hash],
+          'github:acme/plugins/sms': [Hash],
+          'npm:@acme/mail': [Hash],
         },
       }),
     })
@@ -115,8 +115,8 @@ describe('removing trust', () => {
     await run(['trust', 'remove', 'github:acme/*'])
 
     expect((await config()).trustedContent).toEqual({
-      'github:acme/plugins/mail#v1': Hash,
-      'npm:@acme/mail@1.0.0': Hash,
+      'github:acme/plugins/mail': [Hash],
+      'npm:@acme/mail': [Hash],
     })
   })
 
@@ -125,13 +125,13 @@ describe('removing trust', () => {
       'config.json': JSON.stringify({
         trust: ['@acme/*'],
         registries: { '@acme': join(root, 'registry') },
-        trustedContent: { '@acme/mail': Hash, '@other/mail': Hash },
+        trustedContent: { '@acme/mail': [Hash], '@other/mail': [Hash] },
       }),
     })
 
     await run(['registry', 'remove', '@acme'])
 
-    expect((await config()).trustedContent).toEqual({ '@other/mail': Hash })
+    expect((await config()).trustedContent).toEqual({ '@other/mail': [Hash] })
   })
 })
 

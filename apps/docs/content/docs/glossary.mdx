@@ -43,4 +43,4 @@ Code, messages and these pages use each word below for one concept only.
 | trust | the permission for a plugin from a source other than a local directory to run code |
 | trust pattern | a source with `*` for anything, such as `github:acme/*`, whose plugins may run code; kept in the user configuration or given with `--trust` for one run |
 | snapshot | the copy of a plugin's files in the cache, named by their content hash, that create-next-suite reads, trusts and runs |
-| content hash | the hash of a plugin's files; the user configuration keeps it for each trusted address, and a plugin whose content hash changed is asked about again |
+| content hash | the hash of a plugin's files; the user configuration keeps those trusted for each source, and a plugin with a content hash not trusted yet is asked about again |

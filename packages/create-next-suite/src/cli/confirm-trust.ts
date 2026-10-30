@@ -102,6 +102,11 @@ const questionFor = (
   }
 }
 
+const contentOf = ({ address, contentHash }: FetchedPlugin) => ({
+  source: sourceOf(address),
+  contentHash,
+})
+
 /**
  * Checks every external plugin a run selects before any of its code runs. A local directory, a
  * source `--trust` covers and a trusted source whose content is unchanged pass; the first content
@@ -123,7 +128,7 @@ export const confirmTrust = async ({
     const verdict = judgeTrust(plugin, { patterns: trust, flagPatterns, trustedContent })
     if (verdict.kind === 'trusted') {
       if (verdict.recordsContent) {
-        await recordTrustedContent(userConfigPath, plugin)
+        await recordTrustedContent(userConfigPath, contentOf(plugin))
       }
       continue
     }
@@ -141,7 +146,11 @@ export const confirmTrust = async ({
       await addTrustedPattern(userConfigPath, pattern)
       trust.push(pattern)
     }
-    await recordTrustedContent(userConfigPath, plugin)
-    trustedContent[plugin.address] = plugin.contentHash
+    const content = contentOf(plugin)
+    await recordTrustedContent(userConfigPath, content)
+    trustedContent[content.source] = [
+      ...(trustedContent[content.source] ?? []),
+      content.contentHash,
+    ]
   }
 }
