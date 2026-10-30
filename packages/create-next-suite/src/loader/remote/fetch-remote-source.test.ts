@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import * as tar from 'tar'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { stubRemote } from '../../test-support/stub-remote.ts'
+import { COMMIT_SHA, stubRemote } from '../../test-support/stub-remote.ts'
 import { writeFiles } from '../../test-support/write-files.ts'
 import { PluginLoadError } from '../plugin-load-error.ts'
 import { fetchRemoteSource } from './fetch-remote-source.ts'
@@ -112,10 +112,8 @@ describe('fetchRemoteSource', () => {
   it('fetches a directory of a GitHub repository at the commit its ref resolves to', async () => {
     const archive = await tarball('acme-plugins-top', { 'mail/plugin.json': PLUGIN })
     const environment = stubRemote(root, {
-      'https://api.github.com/repos/acme/plugins/commits/v2': () =>
-        respond('0123456789abcdef0123456789abcdef01234567\n'),
-      'https://api.github.com/repos/acme/plugins/tarball/0123456789abcdef0123456789abcdef01234567':
-        () => respond(archive),
+      'https://api.github.com/repos/acme/plugins/commits/v2': () => respond(`${COMMIT_SHA}\n`),
+      [`https://api.github.com/repos/acme/plugins/tarball/${COMMIT_SHA}`]: () => respond(archive),
     })
 
     const fetched = await fetchRemoteSource(environment, {
@@ -126,7 +124,7 @@ describe('fetchRemoteSource', () => {
       ref: 'v2',
     })
 
-    expect(fetched.resolved).toBe('0123456789abcdef0123456789abcdef01234567')
+    expect(fetched.resolved).toBe(COMMIT_SHA)
     expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
   })
 
@@ -200,7 +198,6 @@ describe('fetchRemoteSource', () => {
 
   it('sends a token only to the origin it was meant for, not after a redirect elsewhere', async () => {
     const archive = await tarball('top', { 'plugin.json': PLUGIN })
-    const sha = '0123456789abcdef0123456789abcdef01234567'
     const seen: Record<string, string | null> = {}
     const environment: RemoteEnvironment = {
       ...stubRemote(root),
@@ -209,9 +206,9 @@ describe('fetchRemoteSource', () => {
         const url = String(input)
         seen[url] = new Headers(init?.headers).get('authorization')
         if (url.endsWith('/commits/HEAD')) {
-          return respond(sha)
+          return respond(COMMIT_SHA)
         }
-        if (url.endsWith(`/tarball/${sha}`)) {
+        if (url.endsWith(`/tarball/${COMMIT_SHA}`)) {
           return new Response(null, {
             status: 302,
             headers: { location: 'https://codeload.example/t.tgz' },
@@ -229,7 +226,7 @@ describe('fetchRemoteSource', () => {
       ref: undefined,
     })
 
-    expect(seen[`https://api.github.com/repos/acme/p/tarball/${sha}`]).toBe('Bearer secret')
+    expect(seen[`https://api.github.com/repos/acme/p/tarball/${COMMIT_SHA}`]).toBe('Bearer secret')
     expect(seen['https://codeload.example/t.tgz']).toBeNull()
   })
 

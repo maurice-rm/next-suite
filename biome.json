@@ -787,13 +787,11 @@
                       "**/package-manager/**",
                       "**/ui",
                       "**/ui/**",
-                      "**/cli",
-                      "**/cli/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/plugin.ts"
                     ],
-                    "message": "create-next-suite: test-support/ builds fixtures from contract/, loader/ and questions/ only"
+                    "message": "create-next-suite: test-support/ builds fixtures and runs from contract/, loader/, questions/ and cli/ only"
                   }
                 ]
               }

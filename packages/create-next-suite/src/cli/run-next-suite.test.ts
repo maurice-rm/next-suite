@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -6,6 +6,7 @@ import ansis from 'ansis'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { collectOutput } from '../test-support/collect-output.ts'
+import { readJson } from '../test-support/read-json.ts'
 import { stubRemote } from '../test-support/stub-remote.ts'
 import { testManifestJson } from '../test-support/test-manifest.ts'
 import { writeFiles } from '../test-support/write-files.ts'
@@ -28,7 +29,7 @@ const run = async (argv: string[]) => {
   return { exitCode, output: output.text(), error: ansis.strip(error.text()) }
 }
 
-const config = async () => JSON.parse(await readFile(join(root, 'config.json'), 'utf8'))
+const config = () => readJson(join(root, 'config.json'))
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'next-suite-command-'))

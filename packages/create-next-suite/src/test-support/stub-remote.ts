@@ -7,6 +7,9 @@ export type Routes = Readonly<Record<string, () => Response>>
 
 const NOT_FOUND = 404
 
+/** A commit id in the format GitHub and GitLab answer, for routes that resolve a ref. */
+export const COMMIT_SHA = '0123456789abcdef0123456789abcdef01234567'
+
 /** A remote environment without network: fixed routes, a cache directory below `root`, no tokens. */
 export const stubRemote = (root: string, routes: Routes = {}): RemoteEnvironment => ({
   fetch: async (input) =>
