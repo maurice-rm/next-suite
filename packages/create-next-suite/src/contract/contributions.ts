@@ -1,5 +1,6 @@
 import * as z from 'zod'
 
+import { PACKAGE_JSON_BUILD_FIELDS } from './allowed-builds-location.ts'
 import { conditionSchema } from './condition.ts'
 import { scriptName } from './identifiers.ts'
 
@@ -10,9 +11,7 @@ const RESERVED_PACKAGE_FIELDS: ReadonlySet<string> = new Set([
   'devDependencies',
   'packageManager',
   'devEngines',
-  'allowScripts',
-  'dependenciesMeta',
-  'trustedDependencies',
+  ...PACKAGE_JSON_BUILD_FIELDS,
 ])
 
 const nonEmpty = z.string().min(1)
@@ -24,6 +23,12 @@ const moduleExport = z.strictObject({
   }),
   export: nonEmpty.optional(),
 })
+
+/** A section of a Markdown file several plugins write, such as README.md. */
+const sectionTextSchema = z.strictObject({ section: nonEmpty, text: nonEmpty })
+
+/** A key with its value written as code, such as a field of an object literal. */
+const codeEntrySchema = z.strictObject({ key: nonEmpty, value: nonEmpty })
 
 /**
  * What a plugin adds to the files several plugins share. The core merges the entries of all
@@ -50,14 +55,11 @@ export const contributionsSchema = z.strictObject({
       'Dependencies whose install scripts may run; the package manager plugin writes them where its manager reads them.',
   }),
   gitignore: z.array(nonEmpty).optional().meta({ description: 'Patterns for .gitignore.' }),
-  readme: z
-    .array(z.strictObject({ section: nonEmpty, text: nonEmpty }))
-    .optional()
-    .meta({ description: 'Sections of README.md.' }),
+  readme: z.array(sectionTextSchema).optional().meta({ description: 'Sections of README.md.' }),
   nextConfig: z
     .strictObject({
       imports: z.array(nonEmpty).optional(),
-      options: z.array(z.strictObject({ key: nonEmpty, value: nonEmpty })).optional(),
+      options: z.array(codeEntrySchema).optional(),
       wrappers: z.array(z.strictObject({ import: nonEmpty, call: nonEmpty })).optional(),
     })
     .optional()
@@ -84,7 +86,7 @@ export const contributionsSchema = z.strictObject({
       'Scripts the CI workflow runs as checks, such as `lint`; `build` always runs last.',
   }),
   agents: z
-    .array(z.strictObject({ section: nonEmpty, text: nonEmpty }))
+    .array(sectionTextSchema)
     .optional()
     .meta({ description: 'Sections of AGENTS.md, the instructions for coding agents.' }),
   stack: z.array(nonEmpty).optional().meta({
@@ -102,13 +104,10 @@ export const contributionsSchema = z.strictObject({
       description:
         'Commands the end of a run suggests: a plain `command`, or a `script` run with the package manager.',
     }),
-  layoutMetadata: z
-    .array(z.strictObject({ key: nonEmpty, value: nonEmpty }))
-    .optional()
-    .meta({
-      description:
-        'Fields of the `metadata` the root layout exports, such as `metadataBase`, with their value as code.',
-    }),
+  layoutMetadata: z.array(codeEntrySchema).optional().meta({
+    description:
+      'Fields of the `metadata` the root layout exports, such as `metadataBase`, with their value as code.',
+  }),
   instrumentation: z
     .strictObject({
       register: z.array(moduleExport).optional(),
@@ -123,7 +122,7 @@ export const contributionsSchema = z.strictObject({
     description: 'Functions instrumentation-client.ts calls in the browser before the app starts.',
   }),
   bodyEnd: z
-    .array(z.strictObject({ module: nonEmpty, export: nonEmpty }))
+    .array(moduleExport.required({ export: true }))
     .optional()
     .meta({
       description: 'Components the root layout renders at the end of `body`, such as analytics.',
@@ -137,7 +136,7 @@ export const contributionsSchema = z.strictObject({
     .meta({ description: 'Paths and includes of tsconfig.json; one target list per path.' }),
   generatedDirs: z.array(nonEmpty).optional().meta({
     description:
-      'Folders of generated code, such as `src/generated`: ignored by git, the linter and Knip.',
+      'Directories of generated code, such as `src/generated`: ignored by git, the linter and Knip.',
   }),
   lint: z
     .strictObject({ ignores: z.array(nonEmpty).optional() })

@@ -1,10 +1,12 @@
 import { isAbsolute } from 'node:path'
 
-/** A repository on GitHub or GitLab, a folder in it and the ref to take. */
+import { REGISTRY_PLUGIN_ADDRESS } from '../contract/identifiers.ts'
+
+/** A repository on GitHub or GitLab, a directory in it and the ref to take. */
 type HostedRepository = { owner: string; repo: string; path: string; ref: string | undefined }
 
 /**
- * Where an external plugin comes from, parsed from the address a user passes: a local folder, an
+ * Where an external plugin comes from, parsed from the address a user passes: a local directory, an
  * npm package, a GitHub or GitLab repository, any Git repository, a tarball URL, or a plugin of a
  * registry by its short name.
  */
@@ -21,9 +23,10 @@ const NPM = /^npm:((?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*)(?:@(.+))?$/
 const HOSTED = /^(github|gitlab):([^/#\s]+)\/([^/#\s]+)((?:\/[^#\s]+)?)(?:#(\S+))?$/
 const GIT = /^git\+(\S+?)(?:#(\S+))?$/
 const URL_ADDRESS = /^https?:\/\/\S+$/
-const REGISTRY = /^(@[a-z0-9][a-z0-9-]*)\/([a-z0-9][a-z0-9-]*)$/
+const NAME_PART = /^[A-Za-z0-9_.-]+$/
 const LOCAL_PREFIXES = ['./', '../', '.\\', '..\\']
-const ANY_VERSION = 'latest'
+/** The npm dist-tag an address without a version range takes. */
+const LATEST_TAG = 'latest'
 
 const isLocal = (address: string): boolean =>
   address === '.' ||
@@ -31,9 +34,8 @@ const isLocal = (address: string): boolean =>
   isAbsolute(address) ||
   LOCAL_PREFIXES.some((prefix) => address.startsWith(prefix))
 
-const NAME_PART = /^[A-Za-z0-9_.-]+$/
 const isNamePart = (part: string): boolean => NAME_PART.test(part) && part !== '.' && part !== '..'
-const isFolderPath = (path: string): boolean =>
+const isDirectoryPath = (path: string): boolean =>
   path === '' || path.split('/').every((segment) => segment !== '' && isNamePart(segment))
 
 /** A GitHub or GitLab address, or nothing when it is none or names a path outside the repository. */
@@ -48,7 +50,7 @@ const parseHosted = (address: string): PluginAddress | undefined => {
     path: (path ?? '').replace(/^\//, ''),
     ref,
   }
-  if (!isNamePart(owner) || !isNamePart(repo) || !isFolderPath(repository.path)) {
+  if (!isNamePart(owner) || !isNamePart(repo) || !isDirectoryPath(repository.path)) {
     return undefined
   }
   return host === 'github' ? { kind: 'github', ...repository } : { kind: 'gitlab', ...repository }
@@ -67,7 +69,7 @@ export const parsePluginAddress = (address: string): PluginAddress | undefined =
   }
   const npm = NPM.exec(address)
   if (npm?.[1] !== undefined) {
-    return { kind: 'npm', name: npm[1], range: npm[2] ?? ANY_VERSION }
+    return { kind: 'npm', name: npm[1], range: npm[2] ?? LATEST_TAG }
   }
   const hosted = parseHosted(address)
   if (hosted !== undefined) {
@@ -80,7 +82,7 @@ export const parsePluginAddress = (address: string): PluginAddress | undefined =
   if (URL_ADDRESS.test(address)) {
     return { kind: 'url', url: address }
   }
-  const registry = REGISTRY.exec(address)
+  const registry = REGISTRY_PLUGIN_ADDRESS.exec(address)
   if (registry?.[1] !== undefined && registry[2] !== undefined) {
     return { kind: 'registry', registry: registry[1], name: registry[2] }
   }

@@ -124,6 +124,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
@@ -172,6 +174,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/contract",
                       "**/contract/**",
                       "**/answers",
@@ -220,6 +224,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/loader",
                       "**/loader/**",
                       "**/compose",
@@ -266,6 +272,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/compose",
@@ -294,6 +302,51 @@
       }
     },
     {
+      "includes": ["packages/create-next-suite/src/loader/remote/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/trust",
+                      "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts",
+                      "../load-*.ts",
+                      "../registry.ts",
+                      "../assert-unique-names.ts"
+                    ],
+                    "message": "create-next-suite: loader/remote/ fetches sources and imports from contract/, file-system/, the error classes and the plugin address only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/create-next-suite/src/compose/**"],
       "linter": {
         "rules": {
@@ -306,6 +359,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/write",
                       "**/write/**",
                       "**/questions",
@@ -342,6 +397,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "../*.ts",
                       "**/write",
                       "**/write/**",
@@ -379,6 +436,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/questions",
                       "**/questions/**",
                       "**/post-steps",
@@ -413,6 +472,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",
@@ -447,6 +508,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/loader",
@@ -489,6 +552,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/contract",
                       "**/contract/**",
                       "**/answers",
@@ -534,6 +599,8 @@
                 "patterns": [
                   {
                     "group": [
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/answers",
                       "**/answers/**",
                       "**/compose",
@@ -553,6 +620,50 @@
                       "**/plugin.ts"
                     ],
                     "message": "create-next-suite: trust/ imports from contract/, loader/, file-system/ and the error classes only"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/create-next-suite/src/user-config/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/trust",
+                      "**/trust/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/loader",
+                      "**/loader/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/test-support",
+                      "**/test-support/**",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts"
+                    ],
+                    "message": "create-next-suite: user-config/ imports from contract/, file-system/ and the error classes only"
                   }
                 ]
               }
@@ -594,6 +705,8 @@
                     "group": [
                       "**/trust",
                       "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
                       "**/compose",
                       "**/compose/**",
                       "**/write",

@@ -7,17 +7,19 @@ import { Command, CommanderError } from 'commander'
 import { checkTemplate, PLUGIN_TEMPLATE_BLOCKS } from '../compose/template/check-template.ts'
 import { registryName } from '../contract/identifiers.ts'
 import { InputError } from '../input-error.ts'
-import type { RemoteEnvironment } from '../loader/fetch-remote-plugin.ts'
 import { loadPlugin } from '../loader/load-plugin.ts'
 import { parsePluginAddress } from '../loader/plugin-address.ts'
 import { fetchRegistry } from '../loader/registry.ts'
-import { readUserConfig, type UserConfig, writeUserConfig } from '../trust/user-config.ts'
+import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
 import { failure } from '../ui/theme.ts'
+import { removeRegistry, saveRegistry } from '../user-config/registries.ts'
+import { addTrustedPattern, removeTrustedPattern } from '../user-config/trust-list.ts'
+import { readUserConfig } from '../user-config/user-config.ts'
 import { NEXT_SUITE_COMMAND } from './command-name.ts'
 import { EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import { describeExpectedError } from './report-error.ts'
 
-/** Everything `next-suite` reads from outside: arguments, output, folder, network and config. */
+/** Everything `next-suite` reads from outside: arguments, output, directory, network and config. */
 export type NextSuiteEnvironment = {
   argv: readonly string[]
   cliVersion: string
@@ -30,15 +32,9 @@ export type NextSuiteEnvironment = {
 
 const TEMPLATE_EXTENSION = '.hbs'
 
-const updateConfig = async (path: string, change: (config: UserConfig) => void): Promise<void> => {
-  const config = await readUserConfig(path)
-  change(config)
-  await writeUserConfig(path, config)
-}
-
 type RegistryToAdd = { name: string; source: string; isTrusted: boolean; isReplacing: boolean }
 
-/** A local registry is kept by its absolute path, so it resolves from any folder later. */
+/** A local registry is kept by its absolute path, so it resolves from any directory later. */
 const storedSource = (source: string, cwd: string): string =>
   parsePluginAddress(source)?.kind === 'local' ? resolve(cwd, source) : source
 
@@ -59,12 +55,10 @@ const addRegistry = async (
   if (registry.index.name !== name) {
     throw new InputError(`${source} is the registry ${registry.index.name}, not ${name}`)
   }
-  await updateConfig(environment.userConfigPath, (config) => {
-    config.registries[name] = storedSource(source, environment.cwd)
-    const pattern = `${name}/*`
-    if (isTrusted && !config.trust.includes(pattern)) {
-      config.trust.push(pattern)
-    }
+  await saveRegistry(environment.userConfigPath, {
+    name,
+    source: storedSource(source, environment.cwd),
+    isTrusted,
   })
   const trusted = isTrusted ? ', trusted' : ''
   return `Added ${name} with ${registry.index.plugins.length} plugins${trusted}`
@@ -86,35 +80,19 @@ const listRegistries = async (environment: NextSuiteEnvironment, name: string | 
   return index.plugins.map((plugin) => `${name}/${plugin.name}  ${plugin.description}`).join('\n')
 }
 
-const removeRegistry = async (environment: NextSuiteEnvironment, name: string) => {
-  await updateConfig(environment.userConfigPath, (config) => {
-    if (config.registries[name] === undefined) {
-      throw new InputError(`the registry ${name} is unknown`)
-    }
-    delete config.registries[name]
-    config.trust = config.trust.filter((pattern) => pattern !== `${name}/*`)
-  })
+const forgetRegistry = async (environment: NextSuiteEnvironment, name: string) => {
+  await removeRegistry(environment.userConfigPath, name)
   return `Removed ${name}`
 }
 
-const changeTrust = async (
-  environment: NextSuiteEnvironment,
-  pattern: string,
-  isAdding: boolean,
-): Promise<string> => {
-  await updateConfig(environment.userConfigPath, (config) => {
-    const index = config.trust.indexOf(pattern)
-    if (isAdding && index === -1) {
-      config.trust.push(pattern)
-    }
-    if (!isAdding) {
-      if (index === -1) {
-        throw new InputError(`${pattern} is not trusted`)
-      }
-      config.trust.splice(index, 1)
-    }
-  })
-  return isAdding ? `Trusted ${pattern}` : `No longer trusted: ${pattern}`
+const trustPattern = async (environment: NextSuiteEnvironment, pattern: string) => {
+  await addTrustedPattern(environment.userConfigPath, pattern)
+  return `Trusted ${pattern}`
+}
+
+const distrustPattern = async (environment: NextSuiteEnvironment, pattern: string) => {
+  await removeTrustedPattern(environment.userConfigPath, pattern)
+  return `No longer trusted: ${pattern}`
 }
 
 const listTrust = async (environment: NextSuiteEnvironment): Promise<string> => {
@@ -122,13 +100,13 @@ const listTrust = async (environment: NextSuiteEnvironment): Promise<string> => 
   return trust.length === 0 ? 'No trusted sources yet' : trust.join('\n')
 }
 
-/** Loads a plugin folder like any plugin and checks its templates against the template rules. */
-const validatePlugin = async (environment: NextSuiteEnvironment, folder: string) => {
-  const plugin = await loadPlugin(resolve(environment.cwd, folder))
+/** Loads a plugin directory like any plugin and checks its templates against the template rules. */
+const validatePlugin = async (environment: NextSuiteEnvironment, directory: string) => {
+  const plugin = await loadPlugin(resolve(environment.cwd, directory))
   for (const file of plugin.manifest.files ?? []) {
     if (file.source.endsWith(TEMPLATE_EXTENSION)) {
       checkTemplate(
-        await readFile(join(plugin.folder, file.source), 'utf8'),
+        await readFile(join(plugin.directory, file.source), 'utf8'),
         PLUGIN_TEMPLATE_BLOCKS,
       )
     }
@@ -169,14 +147,14 @@ const createProgram = (environment: NextSuiteEnvironment, report: (text: string)
   registry
     .command('remove <name>')
     .description('remove a registry')
-    .action(async (name: string) => report(await removeRegistry(environment, name)))
+    .action(async (name: string) => report(await forgetRegistry(environment, name)))
   const trust = program
     .command('trust')
     .description('Manage the sources whose plugins may run code.')
   trust
     .command('add <pattern>')
     .description('trust a source pattern, such as `github:acme/*` or `@acme/*`')
-    .action(async (pattern: string) => report(await changeTrust(environment, pattern, true)))
+    .action(async (pattern: string) => report(await trustPattern(environment, pattern)))
   trust
     .command('list')
     .description('list the trusted source patterns')
@@ -184,13 +162,13 @@ const createProgram = (environment: NextSuiteEnvironment, report: (text: string)
   trust
     .command('remove <pattern>')
     .description('stop trusting a source pattern')
-    .action(async (pattern: string) => report(await changeTrust(environment, pattern, false)))
+    .action(async (pattern: string) => report(await distrustPattern(environment, pattern)))
   program
     .command('plugin')
     .description('Work on plugins.')
-    .command('validate <folder>')
-    .description('check that a folder is a valid plugin with valid templates')
-    .action(async (folder: string) => report(await validatePlugin(environment, folder)))
+    .command('validate <directory>')
+    .description('check that a directory is a valid plugin with valid templates')
+    .action(async (directory: string) => report(await validatePlugin(environment, directory)))
   return program
 }
 

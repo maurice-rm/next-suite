@@ -7,9 +7,10 @@ import { join } from 'node:path'
 import * as tar from 'tar'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { stubRemote } from '../test-support/stub-remote.ts'
-import { writeFiles } from '../test-support/write-files.ts'
-import { fetchRemotePlugin, type RemoteEnvironment } from './fetch-remote-plugin.ts'
+import { stubRemote } from '../../test-support/stub-remote.ts'
+import { writeFiles } from '../../test-support/write-files.ts'
+import { fetchRemoteSource } from './fetch-remote-source.ts'
+import type { RemoteEnvironment } from './remote-source.ts'
 
 let root: string
 
@@ -21,7 +22,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-/** A gzipped tarball of files under one top folder, as npm and GitHub serve them. */
+/** A gzipped tarball of files under one top directory, as npm and GitHub serve them. */
 const tarball = async (top: string, files: Record<string, string>): Promise<Buffer> => {
   const source = join(root, 'source', top)
   await writeFiles(source, files)
@@ -36,7 +37,7 @@ const respond = (body: Buffer | string, status = 200) =>
 
 const PLUGIN = '{"name":"mail"}'
 
-describe('fetchRemotePlugin', () => {
+describe('fetchRemoteSource', () => {
   it('fetches an npm package, picks the version of the range and checks its integrity', async () => {
     const archive = await tarball('package', { 'plugin.json': PLUGIN })
     const integrity = `sha512-${createHash('sha512').update(archive).digest('base64')}`
@@ -54,14 +55,14 @@ describe('fetchRemotePlugin', () => {
       'https://t/1.2.0.tgz': () => respond(archive),
     })
 
-    const fetched = await fetchRemotePlugin(environment, {
+    const fetched = await fetchRemoteSource(environment, {
       kind: 'npm',
       name: '@acme/mail',
       range: '^1',
     })
 
     expect(fetched.resolved).toBe(`1.2.0 ${integrity}`)
-    expect(await readFile(join(fetched.folder, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
   })
 
   it('rejects an npm tarball that does not match its integrity', async () => {
@@ -79,11 +80,11 @@ describe('fetchRemotePlugin', () => {
     })
 
     await expect(
-      fetchRemotePlugin(environment, { kind: 'npm', name: 'mail', range: 'latest' }),
+      fetchRemoteSource(environment, { kind: 'npm', name: 'mail', range: 'latest' }),
     ).rejects.toThrow('does not match its integrity')
   })
 
-  it('fetches a folder of a GitHub repository at the commit its ref resolves to', async () => {
+  it('fetches a directory of a GitHub repository at the commit its ref resolves to', async () => {
     const archive = await tarball('acme-plugins-top', { 'mail/plugin.json': PLUGIN })
     const environment = stubRemote(root, {
       'https://api.github.com/repos/acme/plugins/commits/v2': () =>
@@ -92,7 +93,7 @@ describe('fetchRemotePlugin', () => {
         () => respond(archive),
     })
 
-    const fetched = await fetchRemotePlugin(environment, {
+    const fetched = await fetchRemoteSource(environment, {
       kind: 'github',
       owner: 'acme',
       repo: 'plugins',
@@ -101,20 +102,20 @@ describe('fetchRemotePlugin', () => {
     })
 
     expect(fetched.resolved).toBe('0123456789abcdef0123456789abcdef01234567')
-    expect(await readFile(join(fetched.folder, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
   })
 
   it('fetches a tarball URL and names it by its digest', async () => {
     const archive = await tarball('mail', { 'plugin.json': PLUGIN })
     const environment = stubRemote(root, { 'https://host/mail.tgz': () => respond(archive) })
 
-    const fetched = await fetchRemotePlugin(environment, {
+    const fetched = await fetchRemoteSource(environment, {
       kind: 'url',
       url: 'https://host/mail.tgz',
     })
 
     expect(fetched.resolved).toMatch(/^sha256-[0-9a-f]{64}$/)
-    expect(await readFile(join(fetched.folder, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
   })
 
   it('clones a Git repository and resolves its commit', async () => {
@@ -127,14 +128,14 @@ describe('fetchRemotePlugin', () => {
     git('add', '.')
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'init')
 
-    const fetched = await fetchRemotePlugin(stubRemote(root), {
+    const fetched = await fetchRemoteSource(stubRemote(root), {
       kind: 'git',
       url: `file://${repository}`,
       ref: 'main',
     })
 
     expect(fetched.resolved).toBe(git('rev-parse', 'HEAD'))
-    expect(await readFile(join(fetched.folder, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
   })
 
   it('sends a token only to the origin it was meant for, not after a redirect elsewhere', async () => {
@@ -160,7 +161,7 @@ describe('fetchRemotePlugin', () => {
       },
     }
 
-    await fetchRemotePlugin(environment, {
+    await fetchRemoteSource(environment, {
       kind: 'github',
       owner: 'acme',
       repo: 'p',
@@ -184,7 +185,7 @@ describe('fetchRemotePlugin', () => {
     git('config', 'uploadpack.allowReachableSHA1InWant', 'true')
     const sha = git('rev-parse', 'HEAD')
 
-    const fetched = await fetchRemotePlugin(stubRemote(root), {
+    const fetched = await fetchRemoteSource(stubRemote(root), {
       kind: 'git',
       url: `file://${repository}`,
       ref: sha,

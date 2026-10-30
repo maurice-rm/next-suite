@@ -1,10 +1,11 @@
 import { resolve } from 'node:path'
 
-import { fetchRemotePlugin, type RemoteEnvironment } from './fetch-remote-plugin.ts'
 import { type LoadedPlugin, loadPlugin } from './load-plugin.ts'
 import { parsePluginAddress } from './plugin-address.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
-import { fetchRegistry, registryPluginFolder } from './registry.ts'
+import { fetchRegistry, registryPluginDirectory } from './registry.ts'
+import { fetchRemoteSource } from './remote/fetch-remote-source.ts'
+import type { RemoteEnvironment } from './remote/remote-source.ts'
 
 type ExternalSources = {
   cwd: string
@@ -34,18 +35,18 @@ const loadOne = async (address: string, sources: ExternalSources): Promise<Loade
       )
     }
     const registry = await fetchRegistry(source, sources)
-    return loadPlugin(registryPluginFolder(registry, parsed.name, address), {
+    return loadPlugin(registryPluginDirectory(registry, parsed.name, address), {
       kind: 'external',
       address,
       resolved: registry.resolved,
     })
   }
-  const fetched = await fetchRemotePlugin(sources.remote, parsed)
-  return loadPlugin(fetched.folder, { kind: 'external', address, resolved: fetched.resolved })
+  const fetched = await fetchRemoteSource(sources.remote, parsed)
+  return loadPlugin(fetched.directory, { kind: 'external', address, resolved: fetched.resolved })
 }
 
 /**
- * Loads the plugins a user names by address: a local folder directly, a registry short name
+ * Loads the plugins a user names by address: a local directory directly, a registry short name
  * through its registry, and npm, GitHub, GitLab, Git or URL sources through the cache.
  */
 export const loadExternalPlugins = async (

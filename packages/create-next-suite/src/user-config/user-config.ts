@@ -6,7 +6,7 @@ import * as z from 'zod'
 import { registryName } from '../contract/identifiers.ts'
 import { isMissingFileError } from '../file-system/error-code.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
-import { TrustError } from './trust-error.ts'
+import { UserConfigError } from './user-config-error.ts'
 
 /** Keys other tools keep in the same file, such as the server settings of `next-suite provision`, stay. */
 const userConfigSchema = z.looseObject({
@@ -27,7 +27,7 @@ export const readUserConfig = async (path: string): Promise<UserConfig> => {
     return await readJsonFile(
       path,
       userConfigSchema,
-      (problem, options) => new TrustError(`${path} ${problem}`, options),
+      (problem, options) => new UserConfigError(`${path} ${problem}`, options),
     )
   } catch (error) {
     if (isMissingFileError(error)) {
@@ -37,8 +37,18 @@ export const readUserConfig = async (path: string): Promise<UserConfig> => {
   }
 }
 
-/** Writes the user configuration, creating its folder. */
+/** Writes the user configuration, creating its directory. */
 export const writeUserConfig = async (path: string, config: UserConfig): Promise<void> => {
   await mkdir(dirname(path), { recursive: true })
   await writeFile(path, `${JSON.stringify(config, null, 2)}\n`)
+}
+
+/** Reads the user configuration, lets `change` edit it and writes it back. */
+export const updateUserConfig = async (
+  path: string,
+  change: (config: UserConfig) => void,
+): Promise<void> => {
+  const config = await readUserConfig(path)
+  change(config)
+  await writeUserConfig(path, config)
 }

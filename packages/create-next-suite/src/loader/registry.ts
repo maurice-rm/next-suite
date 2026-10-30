@@ -1,44 +1,27 @@
 import { lstat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
-import * as z from 'zod'
-
-import { registryName } from '../contract/identifiers.ts'
+import { type RegistryIndex, registryIndexSchema } from '../contract/registry-index.ts'
 import { isInside } from '../file-system/is-inside.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
-import { fetchRemotePlugin, type RemoteEnvironment } from './fetch-remote-plugin.ts'
 import { parsePluginAddress } from './plugin-address.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
+import { fetchRemoteSource } from './remote/fetch-remote-source.ts'
+import type { RemoteEnvironment } from './remote/remote-source.ts'
 
-/** The index file at the root of a registry. */
 const REGISTRY_FILE = 'registry.json'
 
-/** The index of a registry: its short name and the plugins it lists, each in a folder. */
-export const registryIndexSchema = z
-  .strictObject({
-    // biome-ignore lint/style/useNamingConvention: JSON Schema fixes the name of this key
-    $schema: z.string().optional(),
-    name: registryName,
-    plugins: z.array(
-      z.strictObject({
-        name: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
-        path: z.string().min(1),
-        description: z.string().min(1),
-      }),
-    ),
-  })
-  .meta({ title: 'next-suite plugin registry' })
-
-/** The index of a registry, as listed in its registry.json. */
-type RegistryIndex = z.output<typeof registryIndexSchema>
-
-/** A fetched registry: its folder, what its source resolved to, and its index. */
-export type FetchedRegistry = { folder: string; resolved: string | undefined; index: RegistryIndex }
+/** A fetched registry: its directory, what its source resolved to, and its index. */
+export type FetchedRegistry = {
+  directory: string
+  resolved: string | undefined
+  index: RegistryIndex
+}
 
 type RegistrySources = { cwd: string; remote: RemoteEnvironment }
 
-const readIndex = async (folder: string, source: string): Promise<RegistryIndex> => {
-  const path = join(folder, REGISTRY_FILE)
+const readIndex = async (directory: string, source: string): Promise<RegistryIndex> => {
+  const path = join(directory, REGISTRY_FILE)
   const stats = await lstat(path).catch(() => undefined)
   if (stats === undefined || !stats.isFile()) {
     throw new PluginLoadError(source, `the registry has no ${REGISTRY_FILE}`)
@@ -50,24 +33,24 @@ const readIndex = async (folder: string, source: string): Promise<RegistryIndex>
   )
 }
 
-/** Fetches a registry from a local folder or a remote source and reads its index. */
+/** Fetches a registry from a local directory or a remote source and reads its index. */
 export const fetchRegistry = async (
   source: string,
   { cwd, remote }: RegistrySources,
 ): Promise<FetchedRegistry> => {
   const parsed = parsePluginAddress(source)
   if (parsed === undefined || parsed.kind === 'registry') {
-    throw new PluginLoadError(source, 'a registry is a folder, a repository or a tarball')
+    throw new PluginLoadError(source, 'a registry is a directory, a repository or a tarball')
   }
   const fetched =
     parsed.kind === 'local'
-      ? { folder: resolve(cwd, parsed.path), resolved: undefined }
-      : await fetchRemotePlugin(remote, parsed)
-  return { ...fetched, index: await readIndex(fetched.folder, source) }
+      ? { directory: resolve(cwd, parsed.path), resolved: undefined }
+      : await fetchRemoteSource(remote, parsed)
+  return { ...fetched, index: await readIndex(fetched.directory, source) }
 }
 
-/** The folder of a plugin a registry lists; it fails for an unlisted name or a path outside. */
-export const registryPluginFolder = (
+/** The directory of a plugin a registry lists; it fails for an unlisted name or a path outside. */
+export const registryPluginDirectory = (
   registry: FetchedRegistry,
   name: string,
   address: string,
@@ -79,9 +62,9 @@ export const registryPluginFolder = (
       `the registry ${registry.index.name} lists no plugin ${name}`,
     )
   }
-  const folder = resolve(registry.folder, entry.path)
-  if (!isInside(registry.folder, folder)) {
+  const directory = resolve(registry.directory, entry.path)
+  if (!isInside(registry.directory, directory)) {
     throw new PluginLoadError(address, `the registry places ${name} outside itself`)
   }
-  return folder
+  return directory
 }

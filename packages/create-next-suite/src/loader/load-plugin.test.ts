@@ -7,13 +7,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { testManifestJson } from '../test-support/test-manifest.ts'
 import { writeFiles } from '../test-support/write-files.ts'
 import { loadPlugin } from './load-plugin.ts'
-import { loadPlugins } from './load-plugins.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
 let root: string
 
-const loadError = async (folder: string): Promise<PluginLoadError> => {
-  const error = await loadPlugin(join(root, folder)).catch((caught: unknown) => caught)
+const loadError = async (directory: string): Promise<PluginLoadError> => {
+  const error = await loadPlugin(join(root, directory)).catch((caught: unknown) => caught)
   if (!(error instanceof PluginLoadError)) {
     throw new Error('Expected a PluginLoadError')
   }
@@ -29,7 +28,7 @@ afterEach(async () => {
 })
 
 describe('loadPlugin', () => {
-  it('returns the parsed manifest and the absolute folder', async () => {
+  it('returns the parsed manifest and the absolute directory', async () => {
     await writeFiles(root, {
       'auth/plugin.json': testManifestJson('auth', {
         files: [{ source: 'files/auth.ts', target: 'lib/auth.ts' }],
@@ -39,12 +38,12 @@ describe('loadPlugin', () => {
 
     const plugin = await loadPlugin(join(root, 'auth'))
 
-    expect(plugin.folder).toBe(join(root, 'auth'))
+    expect(plugin.directory).toBe(join(root, 'auth'))
     expect(plugin.manifest.name).toBe('auth')
     expect(plugin.manifest.files?.[0]?.conflict).toBe('error')
   })
 
-  it('rejects a folder without plugin.json', async () => {
+  it('rejects a directory without plugin.json', async () => {
     await mkdir(join(root, 'empty'))
 
     expect((await loadError('empty')).message).toContain('no plugin.json')
@@ -70,7 +69,7 @@ describe('loadPlugin', () => {
     expect((await loadError('future')).message).toContain('needs plugin contract ^2.0.0')
   })
 
-  it('rejects a file source that leaves the plugin folder', async () => {
+  it('rejects a file source that leaves the plugin directory', async () => {
     await writeFiles(root, {
       'escape/plugin.json': testManifestJson('escape', {
         files: [{ source: '../secret.txt', target: 'secret.txt' }],
@@ -104,7 +103,7 @@ describe('loadPlugin', () => {
     expect((await loadError('linked')).message).toContain('is not a regular file')
   })
 
-  it('rejects a file source reached through a symbolic link to an outside folder', async () => {
+  it('rejects a file source reached through a symbolic link to an outside directory', async () => {
     await writeFiles(root, {
       'tunnel/plugin.json': testManifestJson('tunnel', {
         files: [{ source: 'files/secret.ts', target: 'secret.ts' }],
@@ -116,7 +115,7 @@ describe('loadPlugin', () => {
     expect((await loadError('tunnel')).message).toContain('lies outside the plugin')
   })
 
-  it('accepts a file source in a folder whose name starts with two dots', async () => {
+  it('accepts a file source in a directory whose name starts with two dots', async () => {
     await writeFiles(root, {
       'dots/plugin.json': testManifestJson('dots', {
         files: [{ source: '..config/x.ts', target: 'x.ts' }],
@@ -135,28 +134,5 @@ describe('loadPlugin', () => {
     })
 
     expect((await loadError('nested')).message).toContain('does not exist')
-  })
-})
-
-describe('loadPlugins', () => {
-  it('loads every plugin folder in a directory, sorted by folder name', async () => {
-    await writeFiles(root, {
-      'plugins/zod-env/plugin.json': testManifestJson('zod-env'),
-      'plugins/auth/plugin.json': testManifestJson('auth'),
-      'plugins/notes.txt': 'not a plugin',
-    })
-
-    const plugins = await loadPlugins(join(root, 'plugins'))
-
-    expect(plugins.map((plugin) => plugin.manifest.name)).toEqual(['auth', 'zod-env'])
-  })
-
-  it('rejects two plugins with the same name', async () => {
-    await writeFiles(root, {
-      'plugins/one/plugin.json': testManifestJson('auth'),
-      'plugins/two/plugin.json': testManifestJson('auth'),
-    })
-
-    await expect(loadPlugins(join(root, 'plugins'))).rejects.toThrow('two plugins are named auth')
   })
 })

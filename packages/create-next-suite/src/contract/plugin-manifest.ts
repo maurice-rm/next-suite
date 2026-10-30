@@ -1,10 +1,17 @@
 import semver from 'semver'
 import * as z from 'zod'
 
+import {
+  allowedBuildsLocationSchema,
+  PACKAGE_JSON_FIELD_PREFIX,
+} from './allowed-builds-location.ts'
 import { conditionSchema } from './condition.ts'
 import { contributionsSchema } from './contributions.ts'
+import { dependenciesSchema } from './dependencies.ts'
 import { kebabCaseId, pluginName, scriptName } from './identifiers.ts'
+import { conflictStrategySchema, fileRootSchema } from './plugin-file.ts'
 import { pluginOptionSchema } from './plugin-option.ts'
+import { exactVersionSpec } from './version-spec.ts'
 
 /**
  * The version of the plugin contract this release of create-next-suite implements. A plugin's
@@ -15,7 +22,6 @@ export const CONTRACT_VERSION = '1.0.0'
 /** The category of the package manager plugins; each of them fills the package manager adapter. */
 export const PACKAGE_MANAGER_CATEGORY = 'package-manager'
 
-const CATALOG_PREFIX = 'catalog:'
 const CLIENT_ENV_PREFIX = 'NEXT_PUBLIC_'
 const ENV_NAME = /^[A-Z][A-Z0-9_]*$/
 
@@ -23,21 +29,6 @@ const ruleSchema = z.strictObject({
   when: conditionSchema,
   reason: z.string().min(1),
 })
-
-const isCatalogSpec = (spec: string): boolean =>
-  spec.startsWith(CATALOG_PREFIX) &&
-  kebabCaseId.safeParse(spec.slice(CATALOG_PREFIX.length)).success
-
-const isVersionSpec = (spec: string): boolean =>
-  isCatalogSpec(spec) || semver.validRange(spec) !== null
-
-const isExactVersionSpec = (spec: string): boolean =>
-  isCatalogSpec(spec) || semver.valid(spec) !== null
-
-const dependenciesSchema = z.record(
-  z.string().min(1),
-  z.string().refine(isVersionSpec, 'Use `catalog:<name>` or a semver range'),
-)
 
 const envVariableSchema = z
   .strictObject({
@@ -61,35 +52,21 @@ const envVariableSchema = z
 const pluginFileSchema = z.strictObject({
   source: z.string().min(1).meta({
     description:
-      'A path in the plugin folder; a source ending in `.hbs` is rendered as a template, any other is copied as it is.',
+      'A path in the plugin directory; a source ending in `.hbs` is rendered as a template, any other is copied as it is.',
   }),
   target: z.string().min(1),
   when: conditionSchema.optional(),
-  conflict: z.enum(['error', 'skip-if-exists', 'replace']).default('error'),
-  root: z.enum(['project', 'source']).default('project').meta({
-    description: '`source` places the target under src/ when the project uses a src folder.',
+  conflict: conflictStrategySchema,
+  root: fileRootSchema.meta({
+    description: '`source` places the target under src/ when the project uses a src directory.',
   }),
 })
 
-/** Marks `allowedBuildsIn` values that name a field of package.json, such as `package.json#allowScripts`. */
-export const PACKAGE_JSON_FIELD_PREFIX = 'package.json#'
-
-const PACKAGE_JSON_BUILD_FIELDS: ReadonlySet<string> = new Set([
-  'allowScripts',
-  'dependenciesMeta',
-  'trustedDependencies',
-])
-
-const isPackageJsonBuildField = (place: string): boolean =>
-  !place.startsWith(PACKAGE_JSON_FIELD_PREFIX) ||
-  PACKAGE_JSON_BUILD_FIELDS.has(place.slice(PACKAGE_JSON_FIELD_PREFIX.length))
-
 const packageManagerSchema = z
   .strictObject({
-    version: z
-      .string()
-      .refine(isExactVersionSpec, 'Use `catalog:<name>` or an exact version')
-      .meta({ description: 'The version written to `packageManager` in package.json.' }),
+    version: exactVersionSpec.meta({
+      description: 'The version written to `packageManager` in package.json.',
+    }),
     ciInstallArgs: z.array(z.string().min(1)).min(1).meta({
       description:
         'The arguments of a CI install that keeps the lockfile as it is, such as `["ci"]` for npm.',
@@ -102,17 +79,10 @@ const packageManagerSchema = z
       description:
         'What a project asks for when it runs with another version, through `devEngines.packageManager`.',
     }),
-    allowedBuildsIn: z
-      .string()
-      .min(1)
-      .refine(
-        isPackageJsonBuildField,
-        'Use package.json#allowScripts, package.json#dependenciesMeta or package.json#trustedDependencies',
-      )
-      .meta({
-        description:
-          'Where the allowed dependency builds go: a package.json field such as `package.json#allowScripts`, or the target of a file of this plugin that lists them itself.',
-      }),
+    allowedBuildsIn: allowedBuildsLocationSchema.meta({
+      description:
+        'Where the allowed dependency builds go: a package.json field such as `package.json#allowScripts`, or the target of a file of this plugin that lists them itself.',
+    }),
   })
   .meta({
     description:
@@ -194,7 +164,7 @@ export const pluginManifestSchema = z
         'Environment variables the plugin needs, listed in .env.example and the env schema.',
     }),
     files: z.array(pluginFileSchema).optional().meta({
-      description: 'Files from the plugin folder; a source ending in `.hbs` is a template.',
+      description: 'Files from the plugin directory; a source ending in `.hbs` is a template.',
     }),
     facts: z
       .record(kebabCaseId, conditionSchema)
@@ -209,7 +179,7 @@ export const pluginManifestSchema = z
     }),
     logic: z.string().min(1).optional().meta({
       description:
-        'The logic module in the plugin folder, such as `logic.ts`: computes files and contributions from the answers. TypeScript must run by stripping types.',
+        'The logic module in the plugin directory, such as `logic.ts`: computes files and contributions from the answers. TypeScript must run by stripping types.',
     }),
     packageManager: packageManagerSchema.optional(),
     postSteps: z.array(postStepSchema).optional().meta({

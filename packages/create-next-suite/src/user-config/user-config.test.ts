@@ -17,7 +17,7 @@ afterEach(async () => {
 })
 
 describe('the user configuration', () => {
-  it('lives in the XDG config folder', () => {
+  it('lives in the XDG config directory', () => {
     expect(userConfigPath({ XDG_CONFIG_HOME: '/x' }, '/home/me')).toBe('/x/next-suite/config.json')
     expect(userConfigPath({}, '/home/me')).toBe('/home/me/.config/next-suite/config.json')
   })

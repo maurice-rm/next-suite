@@ -5,7 +5,7 @@ import type { LoadedPlugin } from '../../loader/load-plugin.ts'
 import { collectFacts } from './collect-facts.ts'
 
 const plugin = (name: string, extra: Partial<LoadedPlugin['manifest']> = {}): LoadedPlugin => ({
-  folder: `/plugins/${name}`,
+  directory: `/plugins/${name}`,
   source: { kind: 'builtin' },
   manifest: {
     name,

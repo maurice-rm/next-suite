@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import type { RemoteEnvironment } from '../loader/fetch-remote-plugin.ts'
-import { userConfigPath } from '../trust/user-config.ts'
+import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
+import { userConfigPath } from '../user-config/user-config.ts'
 
 /** A GitHub token from the environment or the GitHub CLI; the token never leaves this process. */
 const githubToken = (): string | undefined => {
@@ -26,7 +26,7 @@ const githubToken = (): string | undefined => {
 const cacheDir = (): string =>
   join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'next-suite', 'plugins')
 
-/** How this process fetches plugins: the global fetch, the XDG cache folder and access tokens. */
+/** How this process fetches plugins: the global fetch, the XDG cache directory and access tokens. */
 export const processRemoteEnvironment = (): RemoteEnvironment => ({
   fetch,
   cacheDir: cacheDir(),

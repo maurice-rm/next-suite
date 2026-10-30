@@ -4,7 +4,7 @@ import * as z from 'zod'
 
 import { categoriesSchema } from '../src/contract/category.ts'
 import { pluginManifestSchema } from '../src/contract/plugin-manifest.ts'
-import { registryIndexSchema } from '../src/loader/registry.ts'
+import { registryIndexSchema } from '../src/contract/registry-index.ts'
 
 const OUTPUT = new URL('../generated/schemas/', import.meta.url)
 

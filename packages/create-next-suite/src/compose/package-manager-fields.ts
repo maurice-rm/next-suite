@@ -1,7 +1,5 @@
-import {
-  PACKAGE_JSON_FIELD_PREFIX,
-  type ParsedPluginManifest,
-} from '../contract/plugin-manifest.ts'
+import { PACKAGE_JSON_FIELD_PREFIX } from '../contract/allowed-builds-location.ts'
+import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import { resolveVersion } from './merge-contributions.ts'
 

@@ -7,7 +7,7 @@ const categoryFields = {
   question: z.string().min(1),
   order: z.array(pluginName).optional().meta({
     description:
-      'The plugins of the category in the order the wizard lists them; plugins not listed follow in the order they load, which is by folder name.',
+      'The plugins of the category in the order the wizard lists them; plugins not listed follow in the order they load, which is by directory name.',
   }),
 }
 
@@ -42,12 +42,12 @@ const isUnique = (values: readonly string[]): boolean => new Set(values).size ==
  */
 export const categoriesSchema = z
   .array(sectionSchema)
-  .refine((sections) => isUnique(sections.map((group) => group.section)), {
+  .refine((sections) => isUnique(sections.map(({ section }) => section)), {
     message: 'Each section appears once',
   })
   .refine(
     (sections) =>
-      isUnique(sections.flatMap((group) => group.categories.map((category) => category.id))),
+      isUnique(sections.flatMap(({ categories }) => categories.map((category) => category.id))),
     { message: 'Each category id appears once' },
   )
   .transform((sections) =>

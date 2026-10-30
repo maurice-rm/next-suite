@@ -10,14 +10,14 @@ type TestPlugin = {
   files?: Readonly<Record<string, string>>
 }
 
-/** Writes a plugin named after its folder, with its manifest and files, and loads it. */
+/** Writes a plugin named after its directory, with its manifest and files, and loads it. */
 export const writeTestPlugin = async (
-  folder: string,
+  directory: string,
   { manifest = {}, files = {} }: TestPlugin = {},
 ): Promise<LoadedPlugin> => {
-  await writeFiles(folder, {
-    'plugin.json': testManifestJson(basename(folder), manifest),
+  await writeFiles(directory, {
+    'plugin.json': testManifestJson(basename(directory), manifest),
     ...files,
   })
-  return loadPlugin(folder)
+  return loadPlugin(directory)
 }

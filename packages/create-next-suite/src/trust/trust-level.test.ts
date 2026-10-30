@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest'
 
-import { isPinned, matchesPattern, sourcePattern, trustLevelOf } from './trust-level.ts'
+import { isPinned, matchesTrustPattern, sourceOf, trustLevelOf } from './trust-level.ts'
 
 const external = (address: string) => ({ kind: 'external' as const, address, resolved: undefined })
 
 describe('trust levels', () => {
   it('leaves out refs and versions from the source of an address', () => {
-    expect(sourcePattern('github:acme/plugins/mail#v2')).toBe('github:acme/plugins/mail')
-    expect(sourcePattern('npm:@acme/mail@^1')).toBe('npm:@acme/mail')
+    expect(sourceOf('github:acme/plugins/mail#v2')).toBe('github:acme/plugins/mail')
+    expect(sourceOf('npm:@acme/mail@^1')).toBe('npm:@acme/mail')
   })
 
   it('matches patterns with * against the source', () => {
-    expect(matchesPattern('github:acme/plugins/mail#main', 'github:acme/*')).toBe(true)
-    expect(matchesPattern('npm:@acme/mail@1.0.0', 'npm:@acme/*')).toBe(true)
-    expect(matchesPattern('github:evil/plugins', 'github:acme/*')).toBe(false)
+    expect(matchesTrustPattern('github:acme/plugins/mail#main', 'github:acme/*')).toBe(true)
+    expect(matchesTrustPattern('npm:@acme/mail@1.0.0', 'npm:@acme/*')).toBe(true)
+    expect(matchesTrustPattern('github:evil/plugins', 'github:acme/*')).toBe(false)
   })
 
-  it('trusts built-in plugins, local folders and sources on the trust list', () => {
+  it('trusts built-in plugins, local directories and sources on the trust list', () => {
     expect(trustLevelOf({ kind: 'builtin' }, [])).toBe('builtin')
     expect(trustLevelOf(external('./mail'), [])).toBe('trusted')
     expect(trustLevelOf(external('github:acme/mail'), ['github:acme/*'])).toBe('trusted')

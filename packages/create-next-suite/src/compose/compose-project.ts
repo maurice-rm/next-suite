@@ -88,7 +88,7 @@ type PluginFile = NonNullable<ParsedPluginManifest['files']>[number]
 /** Values about the project itself that templates read under `project`. */
 type ProjectValues = {
   name: string
-  /** The import alias, such as `@/*`, and the folder it points to, such as `./src/*`. */
+  /** The import alias, such as `@/*`, and the directory it points to, such as `./src/*`. */
   importAlias: string
   importAliasTarget: string
   /** What an import through the alias starts with, such as `@/`. */
@@ -144,7 +144,7 @@ const readPluginFile = async ({
   context,
   allowedBlocks,
 }: FileToRender): Promise<string> => {
-  const source = await readFile(join(plugin.folder, file.source), 'utf8')
+  const source = await readFile(join(plugin.directory, file.source), 'utf8')
   if (!file.source.endsWith(TEMPLATE_EXTENSION)) {
     return source
   }

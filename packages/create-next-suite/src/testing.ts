@@ -27,7 +27,7 @@ import { runCreate } from './cli/run-create.ts'
 import { loadAssets } from './loader/load-assets.ts'
 import { runCommand } from './post-steps/run-command.ts'
 import { collectOutput } from './test-support/collect-output.ts'
-import { sourcePattern } from './trust/trust-level.ts'
+import { sourceOf } from './trust/trust-level.ts'
 
 const PROJECT_NAME = 'test-app'
 const DEFAULT_PACKAGE_MANAGER = 'pnpm'
@@ -42,13 +42,13 @@ export type TestProjectOptions = {
   packageManager?: string
   /** Whether to install the dependencies, which a script run needs; off by default. */
   install?: boolean
-  /** The folder the project is created in; a fresh temporary folder by default. */
+  /** The directory the project is created in; a fresh temporary directory by default. */
   parent?: string
 }
 
 /** A generated test project. */
 export type TestProject = {
-  /** The project folder. */
+  /** The project directory. */
   directory: string
   /** What the run printed. */
   output: string
@@ -78,12 +78,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
       packageManager,
       '--no-git',
       ...(options.install === true ? [] : ['--no-install']),
-      ...options.plugins.flatMap((address) => [
-        '--plugin',
-        address,
-        '--trust',
-        sourcePattern(address),
-      ]),
+      ...options.plugins.flatMap((address) => ['--plugin', address, '--trust', sourceOf(address)]),
     ],
     assets: await loadAssets(join(import.meta.dirname, '..')),
     cliVersion: packageJson.version,

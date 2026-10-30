@@ -1,6 +1,7 @@
 import * as z from 'zod'
 
 import { contributionsSchema } from './contributions.ts'
+import { conflictStrategySchema, fileRootSchema } from './plugin-file.ts'
 
 type Value = string | number | boolean | readonly string[]
 
@@ -27,8 +28,8 @@ export type LogicContext = {
 const fileSchema = z.strictObject({
   target: z.string().min(1),
   content: z.string(),
-  root: z.enum(['project', 'source']).default('project'),
-  conflict: z.enum(['error', 'skip-if-exists', 'replace']).default('error'),
+  root: fileRootSchema,
+  conflict: conflictStrategySchema,
 })
 
 /** What a logic module answers: files with computed content and contributions like the manifest's. */

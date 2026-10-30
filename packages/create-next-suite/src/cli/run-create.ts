@@ -5,11 +5,11 @@ import { CommanderError } from 'commander'
 import type { TargetAction } from '../answers/target-action.ts'
 import { composeProject } from '../compose/compose-project.ts'
 import { InputError } from '../input-error.ts'
-import type { RemoteEnvironment } from '../loader/fetch-remote-plugin.ts'
+import { assertUniqueNames } from '../loader/assert-unique-names.ts'
 import type { Assets } from '../loader/load-assets.ts'
 import { loadExternalPlugins } from '../loader/load-external-plugins.ts'
 import { loadLogic } from '../loader/load-logic.ts'
-import { assertUniqueNames } from '../loader/load-plugins.ts'
+import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
@@ -19,9 +19,9 @@ import { findProjectDirectoryProblem, projectNameOf } from '../questions/project
 import { buildQuestions, type Question } from '../questions/questions.ts'
 import { recordAnswers } from '../questions/record-answers.ts'
 import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
-import { readUserConfig } from '../trust/user-config.ts'
 import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
 import type { Streams } from '../ui/prompts.ts'
+import { readUserConfig } from '../user-config/user-config.ts'
 import { describePlan, diffPlan } from '../write/describe-plan.ts'
 import { findEmptyingProblem } from '../write/empty-target.ts'
 import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
@@ -71,7 +71,7 @@ export type CreateEnvironment = {
   now: () => Date
   userAgent: string | undefined
   runCommand: CommandRunner
-  /** How external plugins are fetched: network, cache folder and tokens. */
+  /** How external plugins are fetched: network, cache directory and tokens. */
   remote: RemoteEnvironment
   /** Where the user configuration with trusted sources and registries lives. */
   userConfigPath: string

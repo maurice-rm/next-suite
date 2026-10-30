@@ -26,7 +26,7 @@ afterEach(async () => {
 })
 
 describe('loadAssets', () => {
-  it('loads the plugins of every category folder and of extras/', async () => {
+  it('loads the plugins of every category directory and of extras/', async () => {
     await writePlugin('plugins/orm/drizzle', { category: 'orm' })
     await writePlugin('plugins/extras/seo')
 
@@ -36,7 +36,24 @@ describe('loadAssets', () => {
     expect(assets.base).toBeUndefined()
   })
 
-  it('rejects a plugin in the folder of another category', async () => {
+  it('loads the plugin directories of a category sorted by name, skipping files', async () => {
+    await writePlugin('plugins/extras/zod-env')
+    await writePlugin('plugins/extras/auth')
+    await writeFiles(root, { 'plugins/extras/notes.txt': 'not a plugin' })
+
+    const assets = await loadAssets(root)
+
+    expect(assets.plugins.map((plugin) => plugin.manifest.name)).toEqual(['auth', 'zod-env'])
+  })
+
+  it('rejects two plugins with one name in the same directory', async () => {
+    await writePlugin('plugins/extras/one', { name: 'auth' })
+    await writePlugin('plugins/extras/two', { name: 'auth' })
+
+    await expect(loadAssets(root)).rejects.toThrow('two plugins are named auth')
+  })
+
+  it('rejects a plugin in the directory of another category', async () => {
     await writePlugin('plugins/styling/drizzle', { category: 'orm' })
 
     await expect(loadAssets(root)).rejects.toThrow(`it belongs in ${join(root, 'plugins', 'orm')}`)
@@ -50,7 +67,7 @@ describe('loadAssets', () => {
     )
   })
 
-  it('rejects two plugins with one name in different folders', async () => {
+  it('rejects two plugins with one name in different directories', async () => {
     await writePlugin('plugins/orm/seo', { category: 'orm' })
     await writePlugin('plugins/extras/seo')
 
