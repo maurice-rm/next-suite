@@ -2,11 +2,13 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
+import { fileURLToPath } from 'node:url'
 
 import ansis from 'ansis'
 import * as tar from 'tar'
 import { afterEach, beforeEach } from 'vitest'
 
+import { loadEngineV2Assets } from '../cli/engine-v2/engine-v2-assets.ts'
 import { type CreateEnvironment, runCreate } from '../cli/run-create.ts'
 import { loadAssets } from '../loader/load-assets.ts'
 import { collectOutput } from './collect-output.ts'
@@ -18,6 +20,8 @@ const CLI_VERSION = '2.0.0'
 const COLUMNS = 80
 const NOW = new Date('2026-11-01T10:00:00Z')
 const OUTSIDE_REPOSITORY = 'git rev-parse --is-inside-work-tree'
+const PACKAGE_ROOT = fileURLToPath(new URL('../..', import.meta.url))
+const PLUGIN_ENTRY = fileURLToPath(new URL('../plugin.ts', import.meta.url))
 /** Every prompt shows this key under it while it waits for input. */
 const PROMPT_FOOTER = 'ctrl+c cancel'
 
@@ -87,6 +91,8 @@ type RunOptions = {
   routes?: Routes
   /** Replaces the fake runner, which succeeds for every command but the git repository check. */
   runCommand?: CreateEnvironment['runCommand']
+  /** `NEXT_SUITE_ENGINE`; with one, the run takes the assets of the package, not the test's. */
+  engine?: string
 }
 
 /** What a run printed, answered and ran, with colours stripped. */
@@ -109,7 +115,7 @@ const createKeyFeeder = (input: PassThrough, keys: readonly string[]) => {
 const runIn = async (
   root: string,
   argv: string[],
-  { isInteractive = false, keys = [], userAgent, routes = {}, runCommand }: RunOptions,
+  { isInteractive = false, keys = [], userAgent, routes = {}, runCommand, engine }: RunOptions,
 ): Promise<CreateRun> => {
   const commands: string[] = []
   const input = new PassThrough()
@@ -117,7 +123,7 @@ const runIn = async (
   const error = collectOutput()
   const exitCode = await runCreate({
     argv,
-    loadAssets: () => loadAssets(join(root, 'assets')),
+    loadAssets: () => loadAssets(engine === undefined ? join(root, 'assets') : PACKAGE_ROOT),
     cliVersion: CLI_VERSION,
     cwd: root,
     streams: { input, output: output.stream, error: error.stream },
@@ -135,6 +141,8 @@ const runIn = async (
     remote: stubRemote(root, routes),
     userConfigPath: join(root, 'config.json'),
     fetchLatestVersion: async () => undefined,
+    engine,
+    loadEngineV2Assets: () => loadEngineV2Assets(PACKAGE_ROOT, PLUGIN_ENTRY),
   })
   return {
     exitCode,

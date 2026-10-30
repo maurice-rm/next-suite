@@ -18,10 +18,11 @@
  */
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { extname, join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import packageJson from '../package.json' with { type: 'json' }
+import { loadEngineV2Assets } from './cli/engine-v2/engine-v2-assets.ts'
 import { processRemoteEnvironment, processUserConfigPath } from './cli/process-environment.ts'
 import { runCreate } from './cli/run-create.ts'
 import { loadAssets } from './loader/load-assets.ts'
@@ -118,6 +119,12 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
     remote: processRemoteEnvironment(),
     userConfigPath: processUserConfigPath(),
     fetchLatestVersion: async () => undefined,
+    engine: undefined,
+    loadEngineV2Assets: () =>
+      loadEngineV2Assets(
+        join(import.meta.dirname, '..'),
+        join(import.meta.dirname, `plugin${extname(import.meta.filename)}`),
+      ),
   })
   if (exitCode !== 0) {
     throw new Error(`create-next-suite could not generate the test project:\n${output.text()}`)

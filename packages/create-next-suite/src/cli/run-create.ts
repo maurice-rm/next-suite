@@ -5,6 +5,7 @@ import { CommanderError } from 'commander'
 import type { Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
 import { composeProject, type ProjectPlan } from '../compose/compose-project.ts'
+import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import { InputError } from '../input-error.ts'
 import { assertUniqueNames } from '../loader/assert-unique-names.ts'
 import type { Assets } from '../loader/load-assets.ts'
@@ -17,6 +18,7 @@ import {
   findUsablePackageManager,
 } from '../package-manager/detect-package-manager.ts'
 import { preferPackageManager } from '../package-manager/prefer-package-manager.ts'
+import { CATEGORIES } from '../plugin-definition/categories.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
@@ -45,6 +47,10 @@ import { CREATE_COMMAND } from './command-name.ts'
 import { confirmTrust } from './confirm-trust.ts'
 import { describeError } from './describe-error.ts'
 import { describePlan, diffPlan } from './describe-plan.ts'
+import type { EngineV2Assets } from './engine-v2/engine-v2-assets.ts'
+import { planV2Project } from './engine-v2/plan-v2-project.ts'
+import { questionPlugins } from './engine-v2/question-plugins.ts'
+import { ENGINE_VARIABLE, selectEngine } from './engine-v2/select-engine.ts'
 import { EXIT_CANCELLED, EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
 import { listNextSteps } from './list-next-steps.ts'
 import {
@@ -79,6 +85,10 @@ export type CreateEnvironment = {
   userConfigPath: string
   /** The latest published version for the banner; answers nothing when unknown. */
   fetchLatestVersion: () => Promise<string | undefined>
+  /** The value of `NEXT_SUITE_ENGINE`, which selects the engine; `v2` assembles from `plugin.ts`. */
+  engine: string | undefined
+  /** Loads the base project and the built-in plugins written as `plugin.ts`, for engine `v2`. */
+  loadEngineV2Assets: () => Promise<EngineV2Assets>
 }
 
 /** Everything one run knows once the command line is read. */
@@ -86,6 +96,10 @@ type Run = {
   environment: CreateEnvironment
   /** The assets of the package, with the external plugins among its plugins. */
   assets: Assets
+  /** The assets of engine `v2`, when it is selected. */
+  engineV2: EngineV2Assets | undefined
+  /** The plugins the questions offer. */
+  plugins: ParsedPluginManifest[]
   invocation: Invocation
   given: GivenAnswers
   questions: Question[]
@@ -103,16 +117,44 @@ type Project = {
   selected: LoadedPlugin[]
 }
 
+/** The plugins the questions offer: with engine `v2`, each in its `plugin.ts` form where it has one. */
+const offeredPlugins = (
+  assets: Assets,
+  engineV2: EngineV2Assets | undefined,
+): ParsedPluginManifest[] => {
+  const manifests = assets.plugins.map((plugin) => plugin.manifest)
+  return engineV2 === undefined
+    ? manifests
+    : questionPlugins(
+        manifests,
+        engineV2.plugins.map(({ plugin }) => plugin),
+      )
+}
+
 /**
- * The questions this run can ask: those of the loaded plugins, and the settings only when a base
+ * The questions this run can ask: those of the offered plugins, and the settings only when a base
  * project exists to apply them to. The package manager that started the run becomes the default.
+ * Engine `v2` takes its categories from the core.
  */
-const prepareQuestions = (assets: Assets, userAgent: string | undefined) => {
-  const plugins = assets.plugins.map((plugin) => plugin.manifest)
+const prepareQuestions = (
+  assets: Assets,
+  {
+    plugins,
+    engineV2,
+    userAgent,
+  }: {
+    plugins: readonly ParsedPluginManifest[]
+    engineV2: EngineV2Assets | undefined
+    userAgent: string | undefined
+  },
+) => {
   const canGenerate = assets.base !== undefined
   const detectedPackageManager = findUsablePackageManager(plugins, detectPackageManager(userAgent))
   const questions = buildQuestions({
-    categories: preferPackageManager(assets.categories, detectedPackageManager),
+    categories: preferPackageManager(
+      engineV2 === undefined ? assets.categories : CATEGORIES,
+      detectedPackageManager,
+    ),
     plugins,
     settings: canGenerate ? BASE_SETTINGS : [],
     runSettings: canGenerate ? RUN_SETTINGS : [],
@@ -152,7 +194,7 @@ const assertUsableDirectory = (directory: string, check: DirectoryCheck): void =
 /** The project directory and the answers, in the wizard or from flags and the file. */
 const askQuestions = ({
   environment,
-  assets,
+  plugins,
   invocation,
   given,
   questions,
@@ -169,7 +211,7 @@ const askQuestions = ({
     action: check.action,
     hasExistingFiles: (directory) => inspectTarget(resolve(cwd, directory)) === 'not-empty',
     questions,
-    plugins: assets.plugins.map((plugin) => plugin.manifest),
+    plugins,
     ...given,
     mode: presenter.isFramed
       ? {
@@ -184,12 +226,23 @@ const askQuestions = ({
   })
 }
 
-/** Composes the project in memory, once its plugins are trusted. */
+/** Composes the project in memory, once its plugins are trusted; engine `v2` assembles it. */
 const composePlan = async (
-  { environment, assets, invocation, questions, presenter }: Run,
+  { environment, assets, engineV2, invocation, questions, presenter }: Run,
   { projectName, answers, selected }: Project,
   base: LoadedPlugin,
 ): Promise<ProjectPlan> => {
+  const recordedAnswers = recordAnswers(questions, answers)
+  if (engineV2 !== undefined) {
+    return planV2Project({
+      assets: engineV2,
+      projectName,
+      answers,
+      recordedAnswers,
+      cliVersion: environment.cliVersion,
+      createdAt: environment.now(),
+    })
+  }
   await confirmTrust({
     plugins: selected,
     isDryRun: invocation.flags.dryRun === true,
@@ -204,7 +257,7 @@ const composePlan = async (
     selected,
     answers,
     logic: await loadLogic([base, ...selected]),
-    recordedAnswers: recordAnswers(questions, answers),
+    recordedAnswers,
     catalog: assets.catalog,
     cliVersion: environment.cliVersion,
     createdAt: environment.now(),
@@ -298,6 +351,25 @@ const loadRunAssets = async (environment: CreateEnvironment): Promise<Assets> =>
 }
 
 /**
+ * The assets of engine `v2` when `NEXT_SUITE_ENGINE` selects it, which runs built-in plugins only.
+ *
+ * @throws InputError for another value than `v1` or `v2`, or `--plugin` with engine `v2`.
+ */
+const loadEngineV2 = async (
+  environment: CreateEnvironment,
+): Promise<EngineV2Assets | undefined> => {
+  if (selectEngine(environment.engine) === 'v1') {
+    return undefined
+  }
+  if (readPluginAddresses(environment.argv).length > 0) {
+    throw new InputError(
+      `--plugin needs the default engine; unset ${ENGINE_VARIABLE} to load other plugins`,
+    )
+  }
+  return environment.loadEngineV2Assets()
+}
+
+/**
  * Runs `create-next-suite` and answers its exit code. A failure prints one message to the error
  * stream: an expected one, such as invalid answers or conflicting plugins, says what is wrong;
  * any other asks to be reported.
@@ -307,8 +379,14 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
   const plain: Presenter = { output: streams.output, error: streams.error, isFramed: false }
   let presenter = plain
   try {
+    const engineV2 = await loadEngineV2(environment)
     const assets = await loadRunAssets(environment)
-    const { questions, detectedPackageManager } = prepareQuestions(assets, environment.userAgent)
+    const plugins = offeredPlugins(assets, engineV2)
+    const { questions, detectedPackageManager } = prepareQuestions(assets, {
+      plugins,
+      engineV2,
+      userAgent: environment.userAgent,
+    })
     const questionFlags = createFlags(questions, RESERVED_NAMES)
     const invocation = await parseCommandLine(
       { argv: environment.argv, cliVersion: environment.cliVersion, ...streams },
@@ -319,6 +397,8 @@ export const runCreate = async (environment: CreateEnvironment): Promise<number>
     await create({
       environment,
       assets,
+      engineV2,
+      plugins,
       invocation,
       given,
       questions,
