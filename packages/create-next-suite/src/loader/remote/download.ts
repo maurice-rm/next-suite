@@ -48,7 +48,7 @@ const readLimitedBody = async (response: Response, url: string): Promise<Buffer>
   return Buffer.concat(chunks)
 }
 
-/** The URL a redirect leads to; only https is followed, so no answer arrives unencrypted. */
+/** The URL a redirect leads to; a redirect to anything but https fails. */
 const redirectTarget = (location: string, current: string, url: string): URL => {
   const next = new URL(location, current)
   if (next.protocol !== SECURE_PROTOCOL) {
