@@ -24,7 +24,7 @@ describe('the user configuration', () => {
 
   it('is empty when missing, and keeps keys other tools wrote', async () => {
     const path = join(root, 'config.json')
-    expect(await readUserConfig(path)).toEqual({ trust: [], registries: {} })
+    expect(await readUserConfig(path)).toEqual({ trust: [], registries: {}, trustedContent: {} })
 
     await writeFile(path, JSON.stringify({ host: 'server.example' }))
     const config = await readUserConfig(path)
@@ -35,6 +35,7 @@ describe('the user configuration', () => {
       host: 'server.example',
       trust: ['github:acme/*'],
       registries: {},
+      trustedContent: {},
     })
   })
 })

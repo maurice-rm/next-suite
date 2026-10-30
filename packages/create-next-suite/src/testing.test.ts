@@ -28,9 +28,9 @@ describe('createTestProject', () => {
     expect(project.output).toContain('test-app is ready')
   })
 
-  it('names the reason when the project cannot be generated, such as a plugin address', async () => {
+  it('names the reason when the project cannot be generated, such as a missing plugin', async () => {
     await expect(createTestProject({ plugins: ['./greet'], parent: root })).rejects.toThrow(
-      /could not generate the test project:\n.*--plugin cannot be used/,
+      /could not generate the test project:\n.*cannot load the plugin \.\/greet: .* does not exist/,
     )
   })
 })

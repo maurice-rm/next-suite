@@ -17,3 +17,12 @@ export const removeTrustedPattern = (path: string, pattern: string): Promise<voi
     }
     config.trust = config.trust.filter((trusted) => trusted !== pattern)
   })
+
+/** Keeps the content hash of the plugin at an address as the one the user trusts. */
+export const recordTrustedContent = (
+  path: string,
+  { address, contentHash }: { address: string; contentHash: string },
+): Promise<void> =>
+  updateUserConfig(path, (config) => {
+    config.trustedContent[address] = contentHash
+  })

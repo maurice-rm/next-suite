@@ -72,6 +72,7 @@ says what next-suite does; this file says how code is written here.
   | `user-config/`       | `contract/`, `file-system/`, the error files                                                                    |
   | `loader/`            | `contract/`, `file-system/`, `plugin-definition/`, the error files                                              |
   | `loader/remote/`     | as `loader/`, and of `loader/` only `plugin-address.ts` and `plugin-load-error.ts`                              |
+  | `trust/`             | `contract/`, `file-system/`, `loader/`, the error files                                                         |
   | `questions/`         | `contract/`, `answers/`, `loader/`, `plugin-definition/`, `ui/`, `file-system/`, the error files                |
   | `write/`             | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                                             |
   | `test-support/`      | `contract/`, `answers/`, `loader/`, `questions/`, `cli/`, `file-system/`, `plugin-definition/`, the error files |

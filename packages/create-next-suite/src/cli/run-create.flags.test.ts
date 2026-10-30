@@ -196,15 +196,6 @@ describe('runCreate with flags and answer files', () => {
     )
   })
 
-  it('refuses plugins from addresses in this version', async () => {
-    const result = await run(['my-app', '--yes', '--dry-run', '--plugin', './mail'])
-
-    expect(result.exitCode).toBe(1)
-    expect(result.error).toContain(
-      'create-next-suite: --plugin cannot be used: plugins from outside create-next-suite are moving to the plugin.ts form',
-    )
-  })
-
   it('creates the project in a path, named after its last directory', async () => {
     expect((await run(['apps/web-shop', '--yes', '--no-git', '--no-install'])).exitCode).toBe(0)
 

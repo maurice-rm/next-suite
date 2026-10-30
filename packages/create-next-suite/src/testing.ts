@@ -24,12 +24,16 @@ import { Readable } from 'node:stream'
 
 import packageJson from '../package.json' with { type: 'json' }
 import { loadBuiltInAssets } from './cli/built-in-assets.ts'
+import { processRemoteEnvironment } from './cli/process-environment.ts'
 import { runCreate } from './cli/run-create.ts'
 import { type CommandResult, runCommand } from './post-steps/run-command.ts'
 import { collectOutput } from './test-support/collect-output.ts'
 
 const PROJECT_NAME = 'test-app'
 const DEFAULT_PACKAGE_MANAGER = 'pnpm'
+/** The cache and user configuration of a test run live in its parent, apart from the user's. */
+const CACHE_DIRECTORY = '.next-suite-cache'
+const USER_CONFIG_FILE = 'next-suite-config.json'
 
 /** What to generate: the plugins under test and the answers for them and any other question. */
 export type TestProjectOptions = {
@@ -96,6 +100,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
   const answersFile = join(parent, 'answers.json')
   await writeFile(answersFile, JSON.stringify(options.answers ?? {}))
   const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER
+  const pluginEntry = join(import.meta.dirname, `plugin${extname(import.meta.filename)}`)
   const output = collectOutput()
   const exitCode = await runCreate({
     argv: [
@@ -109,11 +114,10 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
       ...(options.install === true ? [] : ['--no-install']),
       ...options.plugins.flatMap((address) => ['--plugin', address]),
     ],
-    loadAssets: () =>
-      loadBuiltInAssets(
-        join(import.meta.dirname, '..'),
-        join(import.meta.dirname, `plugin${extname(import.meta.filename)}`),
-      ),
+    loadAssets: () => loadBuiltInAssets(join(import.meta.dirname, '..'), pluginEntry),
+    pluginEntry,
+    remote: { ...processRemoteEnvironment(), cacheDir: join(parent, CACHE_DIRECTORY) },
+    userConfigPath: join(parent, USER_CONFIG_FILE),
     cliVersion: packageJson.version,
     cwd: parent,
     streams: { input: Readable.from([]), output: output.stream, error: output.stream },

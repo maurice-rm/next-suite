@@ -50,14 +50,18 @@ describe('next-suite registry', () => {
       'Added @acme with 1 plugin, trusted\n',
     )
     const registry = join(root, 'registry')
-    expect(await config()).toEqual({ trust: ['@acme/*'], registries: { '@acme': registry } })
+    expect(await config()).toEqual({
+      trust: ['@acme/*'],
+      registries: { '@acme': registry },
+      trustedContent: {},
+    })
     expect((await run(['registry', 'list'])).output).toBe(`@acme  ${registry}\n`)
     expect((await run(['registry', 'add', '@acme', './registry'])).error).toContain(
       'pass --replace to point it elsewhere',
     )
     expect((await run(['registry', 'list', '@acme'])).output).toBe('@acme/mail  Sends mail.\n')
     expect((await run(['registry', 'remove', '@acme'])).output).toBe('Removed @acme\n')
-    expect(await config()).toEqual({ trust: [], registries: {} })
+    expect(await config()).toEqual({ trust: [], registries: {}, trustedContent: {} })
   })
 
   it('rejects a registry name without a scope', async () => {

@@ -8,6 +8,9 @@ import { isMissingFileError } from '../file-system/error-code.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
 import { UserConfigError } from './user-config-error.ts'
 
+/** The content hash of a plugin's files, such as `sha256-` and 64 hex digits. */
+const CONTENT_HASH = /^sha256-[0-9a-f]{64}$/
+
 /**
  * Keys other tools keep in the same file, such as the server settings of `next-suite provision`,
  * stay.
@@ -15,9 +18,13 @@ import { UserConfigError } from './user-config-error.ts'
 const userConfigSchema = z.looseObject({
   trust: z.array(z.string().min(1)).default([]),
   registries: z.record(registryName, z.string().min(1)).default({}),
+  trustedContent: z.record(z.string().min(1), z.string().regex(CONTENT_HASH)).default({}),
 })
 
-/** What a user configured for next-suite: trusted sources and registry short names. */
+/**
+ * What a user configured for next-suite: trusted sources, registry short names and the content
+ * hash last trusted for each plugin address.
+ */
 export type UserConfig = z.output<typeof userConfigSchema>
 
 /** Where the user configuration lives, following the XDG convention. */
