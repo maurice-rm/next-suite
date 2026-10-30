@@ -21,7 +21,7 @@ const addRegistry = async (
   { name, source, isTrusted, isReplacing }: RegistryToAdd,
 ): Promise<string> => {
   if (!registryName.safeParse(name).success) {
-    throw new InputError(`"${name}" is no registry name; use a scoped name such as @acme`)
+    throw new InputError(`"${name}" is not a registry name; use a scoped name such as @acme`)
   }
   const { registries } = await readUserConfig(environment.userConfigPath)
   if (registries[name] !== undefined && !isReplacing) {

@@ -62,6 +62,14 @@ describe('next-suite registry', () => {
     expect(await config()).toEqual({ trust: [], registries: {} })
   })
 
+  it('rejects a registry name without a scope', async () => {
+    const result = await run(['registry', 'add', 'acme', './registry'])
+
+    expect(result.error).toBe(
+      'next-suite: "acme" is not a registry name; use a scoped name such as @acme\n',
+    )
+  })
+
   it('rejects a registry whose index has another name', async () => {
     const result = await run(['registry', 'add', '@other', './registry'])
 
