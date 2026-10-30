@@ -209,8 +209,9 @@ describe('assembleProject', () => {
     expect(fileOf(files, 'app/layout.tsx')).toBe(
       source(
         'import type { Metadata } from "next";',
-        'import { ThemeProvider } from "@/components/theme-provider";',
         'import { Analytics } from "@vercel/analytics/next";',
+        '',
+        'import { ThemeProvider } from "@/components/theme-provider";',
         'import "./globals.css";',
         '',
         'export const metadata: Metadata = {',

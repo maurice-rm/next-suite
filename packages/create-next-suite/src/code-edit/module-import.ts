@@ -16,6 +16,8 @@ const OPENING_BRACE = '{'
 const IMPORT_KEYWORD = 'import'
 const TYPE_KEYWORD = 'type'
 const WHITESPACE = /\s/
+/** How a project path of the source root begins; its imports form a group below the others. */
+const SOURCE_PREFIX = '@/'
 
 /**
  * An import to add: named ones (`names`), a default one (`defaultName`), both, or neither for a
@@ -169,15 +171,51 @@ const startOfFirstStatement = (context: RawEditContext, statement: Statement): n
 const isDirective = (statement: Statement): boolean =>
   statement.type === 'ExpressionStatement' && statement.directive != null
 
-/** Places a new import among the imports, after the directives, or before the first statement. */
-const insertImport = (context: RawEditContext, rendered: string, isBare: boolean): void => {
+const isSourceImport = (declaration: ImportDeclaration): boolean =>
+  declaration.source.value.startsWith(SOURCE_PREFIX)
+
+const bindsAnyName = (declaration: ImportDeclaration): boolean => declaration.specifiers.length > 0
+
+/**
+ * Places a named import among the named imports, in its group: source paths (`@/…`) form a group
+ * below the others, apart by a blank line. Answers whether the file had a named import to go by.
+ */
+const insertNamedImport = (context: RawEditContext, rendered: string, from: string): boolean => {
   const { code, text, program } = context
+  const named = importsOf(program).filter(bindsAnyName)
+  const isSource = from.startsWith(SOURCE_PREFIX)
+  const group = named.filter((declaration) => isSourceImport(declaration) === isSource)
+  const lastOfGroup = group.at(-1)
+  const lastNamed = named.at(-1)
+  const [firstNamed] = named
+  if (lastOfGroup !== undefined) {
+    code.appendLeft(lineEndOf(text, lastOfGroup.end), `\n${rendered}`)
+  } else if (isSource && lastNamed !== undefined) {
+    code.appendLeft(lineEndOf(text, lastNamed.end), `\n\n${rendered}`)
+  } else if (firstNamed !== undefined) {
+    code.prependRight(firstNamed.start, `${rendered}\n\n`)
+  }
+  return named.length > 0
+}
+
+/**
+ * Places a new import among the imports, after the directives, or before the first statement. A
+ * named import goes after the last named import of its group, so bare imports such as a
+ * stylesheet stay last; a bare import goes after the last import.
+ */
+const insertImport = (
+  context: RawEditContext,
+  rendered: string,
+  { isBare, from }: { isBare: boolean; from: string },
+): void => {
+  const { code, text, program } = context
+  if (!isBare && insertNamedImport(context, rendered, from)) {
+    return
+  }
   const imports = importsOf(program)
-  const anchor = isBare
-    ? imports.at(-1)
-    : imports.filter(({ specifiers }) => specifiers.length > 0).at(-1)
-  if (anchor !== undefined) {
-    code.appendLeft(lineEndOf(text, anchor.end), `\n${rendered}`)
+  const lastImport = imports.at(-1)
+  if (isBare && lastImport !== undefined) {
+    code.appendLeft(lineEndOf(text, lastImport.end), `\n${rendered}`)
     return
   }
   const [firstImport] = imports
@@ -267,7 +305,7 @@ const addMissingBindings = (context: RawEditContext, moduleImport: ModuleImport)
   const rendered = renderImport(moduleImport, missing, detectCodeStyle(text, program))
   const target = findMergeTarget(declarations, moduleImport.isTypeOnly === true)
   if (target === undefined) {
-    insertImport(context, rendered, isBare)
+    insertImport(context, rendered, { isBare, from: moduleImport.from })
   } else if (target.specifiers.length === 0) {
     code.overwrite(target.start, target.end, rendered)
   } else {
@@ -278,8 +316,9 @@ const addMissingBindings = (context: RawEditContext, moduleImport: ModuleImport)
 /**
  * Adds an import, merging it into an import of the same module and kind; names imported already
  * are skipped, and a name imported as a type only becomes a value import. A new import goes after
- * the last import that binds a name, so bare imports such as a stylesheet stay last, and copies
- * the quotes and semicolons of the file.
+ * the last import that binds a name, so bare imports such as a stylesheet stay last; one of a
+ * source path (`@/…`) goes after the last such import, or in a group of its own below every other
+ * import. It copies the quotes and semicolons of the file.
  */
 export const addModuleImport = (document: SourceDocument, moduleImport: ModuleImport): void => {
   document.edit((context) => promoteTypeBindings(context, moduleImport))

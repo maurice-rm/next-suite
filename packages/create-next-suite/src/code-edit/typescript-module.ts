@@ -20,7 +20,8 @@ const insideParentheses = (expression: Expression): Expression =>
 export type TypescriptModule = {
   /**
    * Adds an import, merged into an import of the same module where one exists; names imported
-   * already are skipped.
+   * already are skipped. An import of a source path (`@/…`) joins the imports of source paths, or
+   * starts a group of its own below the other imports.
    */
   addImport: (moduleImport: ModuleImport) => void
   /** The object literal the top-level variable holds, directly, through `satisfies`/`as` or as a call's argument. */

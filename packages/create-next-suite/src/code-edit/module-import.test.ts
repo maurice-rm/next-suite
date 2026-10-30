@@ -96,6 +96,57 @@ describe('addImport', () => {
     )
   })
 
+  it('starts a group of source paths after a blank line below the other named imports', () => {
+    const text = source(
+      'import type { Metadata } from "next";',
+      'import "./globals.css";',
+      '',
+      'export const metadata: Metadata = {};',
+    )
+
+    expect(addImport(text, { from: '@/components/theme', names: ['Theme'] })).toBe(
+      source(
+        'import type { Metadata } from "next";',
+        '',
+        'import { Theme } from "@/components/theme";',
+        'import "./globals.css";',
+        '',
+        'export const metadata: Metadata = {};',
+      ),
+    )
+  })
+
+  it('puts a package import above the source paths when the file imports only those', () => {
+    const text = source('import { db } from "@/db";', '', 'db();')
+
+    expect(addImport(text, { from: 'pino', defaultName: 'pino' })).toBe(
+      source('import pino from "pino";', '', 'import { db } from "@/db";', '', 'db();'),
+    )
+  })
+
+  it('adds an import of a source path after the last import of a source path', () => {
+    const text = source(
+      'import pino from "pino";',
+      '',
+      'import { db } from "@/db";',
+      'import "./theme.css";',
+      '',
+      'pino();',
+    )
+
+    expect(addImport(text, { from: '@/env', names: ['env'] })).toBe(
+      source(
+        'import pino from "pino";',
+        '',
+        'import { db } from "@/db";',
+        'import { env } from "@/env";',
+        'import "./theme.css";',
+        '',
+        'pino();',
+      ),
+    )
+  })
+
   it('leaves the file untouched for a bare import of a module imported already', () => {
     const text = source('import { a } from "x";')
 
@@ -241,8 +292,8 @@ describe('addImport', () => {
   it('copies single quotes and missing semicolons from the first import', () => {
     const text = source("import { a } from 'a'", '', 'a()')
 
-    expect(addImport(text, { from: '@/env', names: ['env'] })).toBe(
-      source("import { a } from 'a'", "import { env } from '@/env'", '', 'a()'),
+    expect(addImport(text, { from: 'pino', names: ['pino'] })).toBe(
+      source("import { a } from 'a'", "import { pino } from 'pino'", '', 'a()'),
     )
   })
 

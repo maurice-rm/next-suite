@@ -61,7 +61,7 @@ semicolons.
 
 | Operation | What it does |
 | --- | --- |
-| `addImport({ names?, defaultName?, from, isTypeOnly? })` | adds an import, merged into one of the same module |
+| `addImport({ names?, defaultName?, from, isTypeOnly? })` | adds an import, merged into one of the same module; imports of source paths (`@/…`) form a group below the others |
 | `object(variableName)` | the object literal a top-level variable holds, also through `satisfies`, `as` or a call |
 | `defaultExportObject()` | the object literal behind `export default` |
 | `wrapDefaultExport(wrapper)` | `export default x` becomes `export default wrapper(x)` |
