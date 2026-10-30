@@ -823,6 +823,38 @@ describe('assembleProject', () => {
     })
   })
 
+  it('ignores generated directories after every plugin and hands them to finish', () => {
+    let finished: readonly string[] = []
+    const orm = definePlugin({
+      name: 'prisma',
+      title: 'Prisma',
+      category: 'logging',
+      generatedDirectories: ['@/generated', 'prisma/client'],
+      gitignore: ['/prisma/dev.db'],
+      collects: {
+        builtDependencies: {
+          create: createBuiltDependencies,
+          finish: (_builds, { generatedDirectories }) => {
+            finished = generatedDirectories
+          },
+        },
+      },
+    })
+    const later = definePlugin({
+      name: 'later',
+      title: 'Later',
+      category: 'agents',
+      generatedDirectories: () => ['@/generated'],
+      gitignore: ['/later'],
+    })
+
+    const { files } = assemble([withFiles(later), withFiles(orm)], { isSrcDirectory: true })
+    expect(fileOf(files, '.gitignore')).toBe(
+      '/node_modules\n/prisma/dev.db\n/later\n/src/generated\n/prisma/client\n',
+    )
+    expect(finished).toEqual(['src/generated', 'prisma/client'])
+  })
+
   it('collects the stack, next steps and post-steps in plugin order', () => {
     const linter = definePlugin({
       name: 'eslint',

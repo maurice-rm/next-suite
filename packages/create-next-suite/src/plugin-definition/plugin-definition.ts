@@ -161,6 +161,11 @@ type PluginFields<Uses, Options, Context, Finish> = {
   readonly css?: ValueOrFunction<{ readonly imports: readonly string[] }, Context>
   /** Lines `.gitignore` gets. */
   readonly gitignore?: ValueOrFunction<readonly string[], Context>
+  /**
+   * Directories of generated code by project path, such as `@/generated`: `.gitignore` gets them
+   * after every plugin's lines, and edits and `finish` read them as `generatedDirectories`.
+   */
+  readonly generatedDirectories?: ValueOrFunction<readonly string[], Context>
   /** README sections by title. */
   readonly readme?: ValueOrFunction<Readonly<Record<string, string>>, Context>
   readonly instrumentation?: ValueOrFunction<InstrumentationContribution, Context>

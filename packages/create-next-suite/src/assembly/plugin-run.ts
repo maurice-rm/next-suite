@@ -35,6 +35,8 @@ type RunInput = {
   /** The names of the plugins that run, for `has`. */
   running: ReadonlySet<string>
   answers: PluginAnswers | undefined
+  /** The directories of generated code on disk, which every plugin adds to while it collects. */
+  generatedDirectories: string[]
 }
 
 /** One plugin's way through the phases of an assembly, each run once in plugin order. */
@@ -81,7 +83,7 @@ const inStep = <Result>(plugin: string, step: string, run: () => Result): Result
 
 export const createPluginRun = (
   { plugin, readFile }: LoadedPlugin,
-  { project, points, running, answers }: RunInput,
+  { project, points, running, answers, generatedDirectories }: RunInput,
 ): PluginRun => {
   const { name } = plugin
   const ownEdits: [string, FileEdit<AnyFinishContext>][] = []
@@ -138,6 +140,7 @@ export const createPluginRun = (
   const finishContext = (step: string): AnyFinishContext => ({
     ...contextOf(),
     env: project.environment.variables(),
+    generatedDirectories,
     module: (path: string): TypescriptModule => {
       record(path, `${step}: module`, kindOf(path))
       return project.module(path)
@@ -206,6 +209,17 @@ export const createPluginRun = (
     for (const line of fieldValue<readonly string[]>('gitignore', plugin.gitignore) ?? []) {
       project.gitignore().add(line)
       record(PROJECT_FILES.gitignore, `gitignore ${line}`, 'extend')
+    }
+    const generated = fieldValue<readonly string[]>(
+      'generatedDirectories',
+      plugin.generatedDirectories,
+    )
+    for (const directory of generated ?? []) {
+      const disk = project.diskPath(directory)
+      if (!generatedDirectories.includes(disk)) {
+        generatedDirectories.push(disk)
+      }
+      record(PROJECT_FILES.gitignore, `generatedDirectories ${directory}`, 'extend')
     }
     const css = fieldValue<{ imports: readonly string[] }>('css', plugin.css)
     for (const specifier of css?.imports ?? []) {

@@ -33,8 +33,9 @@ export type AssembledProject = {
 
 /**
  * Assembles the project from the selected plugins. The plugins are resolved first (replacements,
- * conflicts, providers, order) and the base settings applied; then every phase runs for all plugins in order before the next
- * one: collect, extend, own file edits, finishing the collector points, direct edits. The scripts
+ * conflicts, providers, order) and the base settings applied; then every phase runs for all
+ * plugins in order before the next one, `.gitignore` getting the generated directories after
+ * collecting: collect, extend, own file edits, finishing the collector points, direct edits. The scripts
  * the plugins' next steps and post-steps name are checked, and the project is printed last.
  *
  * @throws AssemblyError when the plugins cannot run together, a plugin's step fails, or a next
@@ -63,8 +64,15 @@ export const assembleProject = ({
     const categories = resolved.plugins.flatMap(({ plugin }) => plugin.category ?? [])
     applyBaseSettings(project, baseSettings, new Set(categories))
   }
+  const generatedDirectories: string[] = []
   const runs = resolved.plugins.map((loaded) =>
-    createPluginRun(loaded, { project, points, running, answers: answers[loaded.plugin.name] }),
+    createPluginRun(loaded, {
+      project,
+      points,
+      running,
+      answers: answers[loaded.plugin.name],
+      generatedDirectories,
+    }),
   )
   const runPhase = (phase: (run: PluginRun) => void): void => {
     for (const run of runs) {
@@ -73,6 +81,9 @@ export const assembleProject = ({
   }
 
   runPhase((run) => run.collect())
+  for (const directory of generatedDirectories) {
+    project.gitignore().add(`/${directory}`)
+  }
   const wrappers = runs.flatMap((run) => run.layoutWrapper() ?? [])
   if (wrappers.length > 0) {
     project.layout().wrapChildren(wrappers)
