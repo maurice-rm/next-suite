@@ -133,6 +133,42 @@ describe('removing trust', () => {
 
     expect((await config()).trustedContent).toEqual({ '@other/mail': [Hash] })
   })
+
+  it('forgets the trust and content hashes of a registry replaced by another source', async () => {
+    await writeFiles(root, {
+      'config.json': JSON.stringify({
+        trust: ['@acme/*'],
+        registries: { '@acme': join(root, 'old-registry') },
+        trustedContent: { '@acme/mail': [Hash], '@other/mail': [Hash] },
+      }),
+    })
+
+    await run(['registry', 'add', '@acme', './registry', '--replace'])
+
+    expect(await config()).toEqual({
+      trust: [],
+      registries: { '@acme': join(root, 'registry') },
+      trustedContent: { '@other/mail': [Hash] },
+    })
+  })
+
+  it('keeps no content hash of the old source when the replaced registry is trusted again', async () => {
+    await writeFiles(root, {
+      'config.json': JSON.stringify({
+        trust: ['@acme/*'],
+        registries: { '@acme': join(root, 'old-registry') },
+        trustedContent: { '@acme/mail': [Hash] },
+      }),
+    })
+
+    await run(['registry', 'add', '@acme', './registry', '--replace', '--trust'])
+
+    expect(await config()).toEqual({
+      trust: ['@acme/*'],
+      registries: { '@acme': join(root, 'registry') },
+      trustedContent: {},
+    })
+  })
 })
 
 describe('next-suite plugin validate', () => {

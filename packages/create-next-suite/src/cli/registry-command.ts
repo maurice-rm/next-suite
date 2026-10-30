@@ -34,11 +34,11 @@ const addRegistry = async (
   if (registry.index.name !== name) {
     throw new InputError(`${source} is the registry ${registry.index.name}, not ${name}`)
   }
-  await saveRegistry(environment.userConfigPath, {
-    name,
-    source: storedSource(source, environment.cwd),
-    isTrusted,
-  })
+  await saveRegistry(
+    environment.userConfigPath,
+    { name, source: storedSource(source, environment.cwd), isTrusted },
+    matchesTrustPattern,
+  )
   const count = registry.index.plugins.length
   const trusted = isTrusted ? ', trusted' : ''
   return `Added ${name} with ${count} ${count === 1 ? 'plugin' : 'plugins'}${trusted}`

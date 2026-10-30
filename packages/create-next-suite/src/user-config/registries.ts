@@ -8,14 +8,21 @@ export type RegistryEntry = { name: string; source: string; isTrusted: boolean }
 /** The trust pattern that covers every plugin of a registry, such as `@acme/*`. */
 const registryTrustPattern = (name: string): string => `${name}/*`
 
-/** Keeps a registry under its short name, replacing an earlier source of the same name. */
+/**
+ * Keeps a registry under its short name. An earlier source of the same name is replaced, and the
+ * trust in its plugins forgotten with their content hashes, as removing the registry would.
+ */
 export const saveRegistry = (
   path: string,
   { name, source, isTrusted }: RegistryEntry,
+  matches: TrustMatcher,
 ): Promise<void> =>
   updateUserConfig(path, (config) => {
-    config.registries[name] = source
     const pattern = registryTrustPattern(name)
+    if (config.registries[name] !== undefined) {
+      dropTrustedPattern(config, pattern, matches)
+    }
+    config.registries[name] = source
     if (isTrusted && !config.trust.includes(pattern)) {
       config.trust.push(pattern)
     }
