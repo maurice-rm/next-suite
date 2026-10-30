@@ -13,6 +13,11 @@
     {
       "matchFileNames": ["packages/create-next-suite/catalog.json"],
       "groupName": "version catalog"
+    },
+    {
+      "description": "The Bun version CI installs follows the one generated projects pin",
+      "matchDepNames": ["bun"],
+      "groupName": "bun"
     }
   ],
   "customManagers": [
@@ -24,6 +29,15 @@
       "matchStrings": [
         "($packageNames := {\"yarn\": \"@yarnpkg/cli-dist\", \"types-node\": \"@types/node\", \"types-react\": \"@types/react\", \"types-react-dom\": \"@types/react-dom\", \"biome\": \"@biomejs/biome\", \"tailwindcss-postcss\": \"@tailwindcss/postcss\", \"vitejs-plugin-react\": \"@vitejs/plugin-react\", \"testing-library-react\": \"@testing-library/react\", \"testing-library-dom\": \"@testing-library/dom\", \"t3-oss-env-nextjs\": \"@t3-oss/env-nextjs\"}; $each($, function($version, $entry) { {\"depName\": $entry, \"packageName\": $exists($lookup($packageNames, $entry)) ? $lookup($packageNames, $entry) : $entry, \"currentValue\": $version} }))"
       ],
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
+      "description": "The Bun version the workflows install",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.yml$/"],
+      "matchStrings": ["bun-version: (?<currentValue>\\S+)"],
+      "depNameTemplate": "bun",
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
     }
