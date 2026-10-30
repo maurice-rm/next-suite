@@ -28,6 +28,30 @@ const LOCAL_PREFIXES = ['./', '../', '.\\', '..\\']
 /** The npm dist-tag an address without a version range takes. */
 const LATEST_TAG = 'latest'
 
+/** Separates path segments of a URL: a WHATWG URL reads a backslash as a slash too. */
+const URL_SEGMENT_SEPARATOR = /[/\\]/
+const DOT_SEGMENTS: ReadonlySet<string> = new Set(['.', '..'])
+
+const decodeOnce = (text: string): string => {
+  try {
+    return decodeURIComponent(text)
+  } catch (error) {
+    if (error instanceof URIError) {
+      return text
+    }
+    throw error
+  }
+}
+
+/**
+ * Whether a URL holds a `.` or `..` segment, also percent-encoded: fetch and Git resolve it to
+ * another path than the one a trust pattern matched, such as from `acme/` to `mallory/`.
+ */
+const hasDotSegment = (url: string): boolean =>
+  decodeOnce(url)
+    .split(URL_SEGMENT_SEPARATOR)
+    .some((segment) => DOT_SEGMENTS.has(segment))
+
 const isLocal = (address: string): boolean =>
   address === '.' ||
   address === '..' ||
@@ -60,7 +84,8 @@ const parseHosted = (address: string): PluginAddress | undefined => {
 
 /**
  * Parses a plugin address; an address of no known form answers nothing, and so does one with a
- * `*`, which would turn into a wildcard once trusted, or a repository path with `..`.
+ * `*`, which would turn into a wildcard once trusted, a repository path with `..`, or a URL or Git
+ * address with a dot segment.
  */
 export const parsePluginAddress = (address: string): PluginAddress | undefined => {
   if (address.includes('*')) {
@@ -79,10 +104,10 @@ export const parsePluginAddress = (address: string): PluginAddress | undefined =
   }
   const git = GIT.exec(address)
   if (git?.[1] !== undefined) {
-    return { kind: 'git', url: git[1], ref: git[2] }
+    return hasDotSegment(git[1]) ? undefined : { kind: 'git', url: git[1], ref: git[2] }
   }
   if (URL_ADDRESS.test(address)) {
-    return { kind: 'url', url: address }
+    return hasDotSegment(address) ? undefined : { kind: 'url', url: address }
   }
   const registry = REGISTRY_PLUGIN_ADDRESS.exec(address)
   if (registry?.[1] !== undefined && registry[2] !== undefined) {
