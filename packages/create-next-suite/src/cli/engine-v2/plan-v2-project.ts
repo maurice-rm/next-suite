@@ -51,7 +51,7 @@ const selectPlugins = ({
     const loaded = assets.plugins.find(({ plugin }) => plugin.name === name)
     if (loaded === undefined) {
       throw new InputError(
-        `${name} has no plugin.ts form yet, so it does not run with ${ENGINE_VARIABLE}=v2; unset ${ENGINE_VARIABLE} to use it`,
+        `${name} comes from --plugin, which ${ENGINE_VARIABLE}=v2 does not run yet; unset ${ENGINE_VARIABLE} to use it`,
       )
     }
     return loaded
@@ -108,7 +108,8 @@ const dependenciesOf = (files: ReadonlyMap<string, string>): Required<PackageJso
  * The plan has the form the manifest engine gives it, so writing and the steps after it stay the
  * same.
  *
- * @throws InputError when a selected plugin has no `plugin.ts` form yet.
+ * @throws InputError when a selected plugin is none of the built-in plugins, such as one from
+ * `--plugin`.
  */
 export const planV2Project = (input: PlanInput): ProjectPlan => {
   const { assets, answers, projectName } = input

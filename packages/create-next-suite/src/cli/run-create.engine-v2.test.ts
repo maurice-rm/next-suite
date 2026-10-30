@@ -61,13 +61,8 @@ describe('runCreate with NEXT_SUITE_ENGINE=v2', () => {
     [['--agents', 'agents-md', '--no-cache-components']],
   ])('applies the base settings %j as the manifest engine does', async (settings) => {
     const flags = ['--package-manager', 'pnpm', ...settings]
-    const v1 = await dryRun('v1', flags)
 
-    if (settings.includes('agents-md')) {
-      expect((await dryRun('v2', flags)).error).toContain('agents-md has no plugin.ts form yet')
-      return
-    }
-    expect(await dryRun('v2', flags)).toEqual(v1)
+    expect(await dryRun('v2', flags)).toEqual(await dryRun('v1', flags))
   })
 
   it.each(
@@ -92,12 +87,36 @@ describe('runCreate with NEXT_SUITE_ENGINE=v2', () => {
     },
   )
 
-  it('refuses a plugin that has no plugin.ts form yet', async () => {
-    const result = await run(['my-app', '--yes', '--dry-run'], { engine: 'v2' })
+  it.each(['--git', '--no-git'])(
+    'creates the quick start with %s as the manifest engine does',
+    async (git) => {
+      const create = (engine: string) => run(['my-app', '--yes', '--overwrite', git], { engine })
+
+      const v2 = await create('v2')
+
+      expect(v2.error).toBe('')
+      expect(v2.output).toContain('my-app is ready')
+      expect(v2).toEqual(await create('v1'))
+    },
+  )
+
+  it('refuses lint-staged without a linter or a formatter', async () => {
+    const result = await run(
+      [
+        'my-app',
+        '--yes',
+        '--dry-run',
+        '--no-linter',
+        '--no-formatter',
+        '--git-hooks',
+        'lint-staged',
+      ],
+      { engine: 'v2' },
+    )
 
     expect(result.exitCode).toBe(1)
     expect(result.error).toContain(
-      'has no plugin.ts form yet, so it does not run with NEXT_SUITE_ENGINE=v2; unset NEXT_SUITE_ENGINE to use it',
+      'lint-staged (finish lintStaged): it needs a linter or a formatter to run on the staged files',
     )
   })
 

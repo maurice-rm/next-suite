@@ -63,14 +63,22 @@ describe('the built-in plugins written as plugin.ts', () => {
     const plugins = await loadGroupedPluginModules(directory, PLUGIN_ENTRY)
 
     expect(plugins.map(({ plugin }) => plugin.name)).toEqual([
+      'agents-md',
+      'github-actions',
+      't3-env',
       'prettier',
       'lint-staged',
       'biome',
       'eslint',
+      'pino',
       'bun',
       'npm',
       'pnpm',
       'yarn',
+      'static-csp',
+      'seo',
+      'tailwind',
+      'vitest',
       'knip',
     ])
   })
