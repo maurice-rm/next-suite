@@ -6,8 +6,9 @@ const SCENARIO_DIRECTORY = fileURLToPath(new URL('../scenarios/', import.meta.ur
 const SCENARIO_EXTENSION = '.json'
 
 /**
- * The scenarios whose snapshots are frozen with every package manager, so the engine of plugins
- * written as plugin.ts can be held to them byte for byte.
+ * The scenarios whose snapshots are frozen with every package manager; every other scenario has a
+ * snapshot with the snapshot package manager only. The engine of plugins written as plugin.ts is
+ * held to all of them byte for byte.
  */
 export const FROZEN_SCENARIOS = ['bare', 'tooling', 'biome-tooling']
 

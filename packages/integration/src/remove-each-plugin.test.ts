@@ -14,6 +14,8 @@ const CATEGORIES_URL = new URL(
 )
 /** Starts the CLI once per category; generous for a slow CI runner. */
 const TIMEOUT_MS = 120_000
+/** `NEXT_SUITE_ENGINE`: the manifest engine, and the engine of plugins written as plugin.ts. */
+const ENGINES = ['v1', 'v2']
 
 let cwd: string
 let removableCategories: ListedCategory[]
@@ -33,7 +35,7 @@ afterAll(async () => {
   await rm(cwd, { recursive: true, force: true })
 })
 
-describe('the quick start without one plugin', () => {
+describe.each(ENGINES)('the quick start without one plugin with NEXT_SUITE_ENGINE=%s', (engine) => {
   it('composes for every category left empty', {
     timeout: TIMEOUT_MS,
   }, async () => {
@@ -44,7 +46,7 @@ describe('the quick start without one plugin', () => {
       const result = await runCli(
         'create-next-suite',
         [PROJECT_NAME, '--answers', answers, '--yes', '--dry-run'],
-        { cwd },
+        { cwd, environment: { NEXT_SUITE_ENGINE: engine } },
       )
 
       expect({ category: category.id, ...result }).toMatchObject({
