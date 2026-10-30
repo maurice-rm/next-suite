@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { listNextSteps } from './next-steps.ts'
+import { listNextSteps } from './list-next-steps.ts'
 
 const commandsOf = (input: Parameters<typeof listNextSteps>[0]) =>
   listNextSteps(input).map((step) => step.command)

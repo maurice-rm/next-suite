@@ -46,7 +46,7 @@ import { confirmTrust } from './confirm-trust.ts'
 import { describeError } from './describe-error.ts'
 import { describePlan, diffPlan } from './describe-plan.ts'
 import { EXIT_CANCELLED, EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
-import { listNextSteps } from './next-steps.ts'
+import { listNextSteps } from './list-next-steps.ts'
 import {
   openFrame,
   type Presenter,

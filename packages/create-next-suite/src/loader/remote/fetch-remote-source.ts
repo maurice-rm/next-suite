@@ -12,7 +12,7 @@ import { fillCacheOnce } from './cache.ts'
 import { COMMIT_ID } from './commit-id.ts'
 import { download, downloadJson, invalidAnswerError } from './download.ts'
 import { extractTarball } from './extract-tarball.ts'
-import { fetchGitSource } from './git.ts'
+import { fetchGitSource } from './fetch-git-source.ts'
 import type { FetchedSource, RemoteAddress, RemoteEnvironment } from './remote-source.ts'
 
 const DEFAULT_NPM_REGISTRY = 'https://registry.npmjs.org'

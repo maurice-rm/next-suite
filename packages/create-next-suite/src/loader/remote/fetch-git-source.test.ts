@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { stubRemote } from '../../test-support/stub-remote.ts'
 import { PluginLoadError } from '../plugin-load-error.ts'
-import { fetchGitSource } from './git.ts'
+import { fetchGitSource } from './fetch-git-source.ts'
 
 let root: string
 
