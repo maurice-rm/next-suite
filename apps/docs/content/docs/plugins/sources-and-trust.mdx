@@ -27,7 +27,8 @@ A URL or Git address with a `.` or `..` segment, also percent-encoded, is refuse
 would lead elsewhere than the address a trust pattern matched.
 Downloads follow redirects to https only. A download may hold at most 50 MiB and unpack to at most
 200 MiB. Git never asks for a password: an SSH source needs a key that works without a prompt, such
-as one held by an SSH agent.
+as one held by an SSH agent. A clone runs no hook and no filter of your Git configuration, such as
+Git LFS, does not follow submodules, and writes links as plain files.
 
 ## Read before it runs
 

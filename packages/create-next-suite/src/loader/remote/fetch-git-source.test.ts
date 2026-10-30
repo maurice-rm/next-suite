@@ -1,4 +1,6 @@
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -54,5 +56,52 @@ describe('fetchGitSource', () => {
 
     await expect(fetchGitSource(stubRemote(root), SSH_ADDRESS)).rejects.toThrow(PluginLoadError)
     expect(await ssh.recorded()).toContain('-o BatchMode=yes')
+  })
+
+  it.each([
+    ['a branch', (_commit: string) => 'main'],
+    ['a commit', (commit: string) => commit],
+  ])('clones %s without running a filter or hook of the git configuration', async (_, refOf) => {
+    const marker = (name: string) => join(root, `${name}-ran`)
+    const repository = join(root, 'repo')
+    await mkdir(repository)
+    await writeFile(join(repository, '.gitattributes'), '*.txt filter=custom\n*.bin filter=lfs\n')
+    await writeFile(join(repository, 'note.txt'), 'note\n')
+    await writeFile(join(repository, 'data.bin'), 'data\n')
+    const git = (...args: string[]) =>
+      execFileSync('git', ['-C', repository, ...args], { encoding: 'utf8' }).trim()
+    git('init', '--quiet', '--initial-branch', 'main')
+    git('add', '.')
+    git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'init')
+    const hooks = join(root, 'hooks')
+    await mkdir(hooks)
+    await writeFile(join(hooks, 'post-checkout'), `#!/bin/sh\ntouch "${marker('hook')}"\n`)
+    await chmod(join(hooks, 'post-checkout'), 0o755)
+    const globalConfig = join(root, 'gitconfig')
+    await writeFile(
+      globalConfig,
+      [
+        '[core]',
+        `\thooksPath = ${hooks}`,
+        '[filter "custom"]',
+        `\tsmudge = touch "${marker('custom')}" && cat`,
+        '\trequired = true',
+        '[filter "lfs"]',
+        `\tprocess = touch "${marker('lfs')}"`,
+        `\tsmudge = touch "${marker('lfs')}" && cat`,
+        '\trequired = true',
+        '',
+      ].join('\n'),
+    )
+    vi.stubEnv('GIT_CONFIG_GLOBAL', globalConfig)
+
+    const fetched = await fetchGitSource(stubRemote(root), {
+      kind: 'git',
+      url: `file://${repository}`,
+      ref: refOf(git('rev-parse', 'HEAD')),
+    })
+
+    expect(await readFile(join(fetched.directory, 'note.txt'), 'utf8')).toBe('note\n')
+    expect(['hook', 'custom', 'lfs'].filter((name) => existsSync(marker(name)))).toEqual([])
   })
 })

@@ -9,10 +9,17 @@ import { fillCacheOnce } from './cache.ts'
 import { COMMIT_ID } from './commit-id.ts'
 import type { FetchedSource, RemoteAddress, RemoteEnvironment } from './remote-source.ts'
 
-/** Git options that keep a clone from running anything or asking for a password. */
+/**
+ * Git options that keep a clone from leaving the transports below or writing links. Commands of
+ * the git configuration are switched off apart: see `commandsSwitchedOff`.
+ */
 const GIT_HARDENING = [
   '-c',
   'core.symlinks=false',
+  '-c',
+  'core.protectNTFS=true',
+  '-c',
+  'core.protectHFS=true',
   '-c',
   'protocol.allow=never',
   '-c',
@@ -21,7 +28,19 @@ const GIT_HARDENING = [
   'protocol.ssh.allow=always',
   '-c',
   'protocol.file.allow=always',
+  '-c',
+  'core.fsmonitor=false',
+  '-c',
+  'submodule.recurse=false',
+  '-c',
+  'fetch.recurseSubmodules=false',
 ]
+/** Installed by git-lfs into the global configuration; switched off even where it is not listed. */
+const LFS_FILTER = 'lfs'
+/** The commands of a filter driver, set empty so none runs; a required filter would then fail. */
+const FILTER_COMMANDS = ['smudge', 'clean', 'process']
+const FILTER_KEY = /^filter\.(.+)\.[^.]+$/
+const NO_HOOKS = 'no-hooks'
 
 /** Makes ssh fail instead of asking for a password or to accept an unknown host key. */
 const SSH_BATCH_MODE = '-o BatchMode=yes'
@@ -34,24 +53,52 @@ type Git = (args: string[]) => Promise<{ stdout: string }>
 
 const execFileAsync = promisify(execFile)
 
-const configuredSshCommand = async (cwd: string): Promise<string> => {
+/** What `git config` prints for its arguments, or nothing for a key that is not set. */
+const readGitConfig = async (args: readonly string[], cwd: string): Promise<string> => {
   try {
-    const { stdout } = await execFileAsync('git', ['config', '--get', 'core.sshCommand'], { cwd })
+    const { stdout } = await execFileAsync('git', ['config', ...args], { cwd })
     return stdout.trim()
   } catch (error) {
     if (errorCodeOf(error) === CONFIG_KEY_MISSING) {
-      return DEFAULT_SSH_COMMAND
+      return ''
     }
     throw error
   }
 }
 
+const configuredSshCommand = async (cwd: string): Promise<string> =>
+  (await readGitConfig(['--get', 'core.sshCommand'], cwd)) || DEFAULT_SSH_COMMAND
+
+/** The filter drivers the git configuration defines, which a `.gitattributes` may name. */
+const configuredFilterDrivers = async (cwd: string): Promise<Set<string>> => {
+  const keys = (await readGitConfig(['--name-only', '--get-regexp', '^filter\\.'], cwd)).split('\n')
+  const drivers = keys.flatMap((key) => FILTER_KEY.exec(key)?.[1] ?? [])
+  return new Set([LFS_FILTER, ...drivers])
+}
+
 /**
- * The environment git runs in: it never prompts, and ssh runs in batch mode on top of the user's
- * own ssh command. `GIT_SSH` names a program without arguments, so it is left as it is.
+ * Options that switch off what the git configuration would run while cloning and checking out:
+ * hooks, through an empty hooks directory, and every filter driver, by emptying its commands and
+ * making it optional. A repository picks filters through its `.gitattributes`, so its content
+ * could otherwise reach programs such as git-lfs before it is trusted (git-scm.com/docs/gitattributes).
+ */
+const commandsSwitchedOff = async (scratch: string): Promise<string[]> => {
+  const hooks = join(scratch, NO_HOOKS)
+  await mkdir(hooks)
+  const filters = [...(await configuredFilterDrivers(scratch))].flatMap((driver) => [
+    ...FILTER_COMMANDS.flatMap((command) => ['-c', `filter.${driver}.${command}=`]),
+    '-c',
+    `filter.${driver}.required=false`,
+  ])
+  return ['-c', `core.hooksPath=${hooks}`, ...filters]
+}
+
+/**
+ * The environment git runs in: it never prompts, git-lfs skips its smudge filter even when run,
+ * and ssh runs in batch mode on top of the user's own ssh command. `GIT_SSH` names a program without arguments, so it is left as it is.
  */
 const gitEnvironment = async (cwd: string): Promise<NodeJS.ProcessEnv> => {
-  const environment = { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+  const environment = { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_LFS_SKIP_SMUDGE: '1' }
   if (process.env.GIT_SSH_COMMAND === undefined && process.env.GIT_SSH !== undefined) {
     return environment
   }
@@ -60,9 +107,9 @@ const gitEnvironment = async (cwd: string): Promise<NodeJS.ProcessEnv> => {
 }
 
 const gitWith =
-  (env: NodeJS.ProcessEnv): Git =>
+  (env: NodeJS.ProcessEnv, switchedOff: readonly string[]): Git =>
   (args) =>
-    execFileAsync('git', [...GIT_HARDENING, ...args], { env })
+    execFileAsync('git', [...GIT_HARDENING, ...switchedOff, ...args], { env })
 
 /**
  * Clones the ref of a repository into a directory: a branch or tag directly, a commit by fetching
@@ -96,7 +143,7 @@ export const fetchGitSource = async (
   await mkdir(environment.cacheDir, { recursive: true })
   const scratch = await mkdtemp(join(environment.cacheDir, '.clone-'))
   try {
-    const git = gitWith(await gitEnvironment(scratch))
+    const git = gitWith(await gitEnvironment(scratch), await commandsSwitchedOff(scratch))
     const clone = join(scratch, 'clone')
     await cloneInto(git, address, clone)
     const { stdout } = await git(['-C', clone, 'rev-parse', 'HEAD'])
