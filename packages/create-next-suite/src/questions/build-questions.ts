@@ -2,8 +2,8 @@ import type { Category } from '../contract/category.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from '../input-error.ts'
-import { BASE_SETTINGS_SECTION, type BaseSetting } from './base-settings.ts'
-import { RUN_SETTINGS_SECTION } from './run-settings.ts'
+import { PROJECT_SECTION, type Setting } from './base-settings.ts'
+import { SETUP_SECTION } from './run-settings.ts'
 
 type QuestionPlace = {
   key: string
@@ -16,10 +16,13 @@ type QuestionPlace = {
 export type Question = QuestionPlace &
   (
     | { kind: 'category'; category: Category; choices: ParsedPluginManifest[] }
-    | { kind: 'addon'; plugin: ParsedPluginManifest }
-    | { kind: 'option'; plugin: ParsedPluginManifest; option: PluginOption }
-    | { kind: 'setting'; option: PluginOption; scope: 'project' | 'run' }
+    | { kind: 'extra'; plugin: ParsedPluginManifest }
+    | { kind: 'option'; plugin: ParsedPluginManifest; optionKey: string; option: PluginOption }
+    | { kind: 'setting'; option: PluginOption; scope: SettingScope }
   )
+
+/** Whether a setting belongs to the project, recorded in next-suite.json, or only to the run. */
+export type SettingScope = 'project' | 'run'
 
 /** A question that picks the plugins of a category. */
 export type CategoryQuestion = Extract<Question, { kind: 'category' }>
@@ -27,18 +30,19 @@ export type CategoryQuestion = Extract<Question, { kind: 'category' }>
 type QuestionSources = {
   categories: readonly Category[]
   plugins: readonly ParsedPluginManifest[]
-  settings: readonly BaseSetting[]
-  runSettings: readonly BaseSetting[]
+  settings: readonly Setting[]
+  runSettings: readonly Setting[]
 }
 
 const optionQuestions = (
   plugin: ParsedPluginManifest,
   place: Omit<QuestionPlace, 'key'>,
 ): Question[] =>
-  Object.entries(plugin.options ?? {}).map(([key, option]) => ({
+  Object.entries(plugin.options ?? {}).map(([optionKey, option]) => ({
     kind: 'option',
-    key: `${plugin.name}.${key}`,
+    key: `${plugin.name}.${optionKey}`,
     plugin,
+    optionKey,
     option,
     ...place,
   }))
@@ -78,7 +82,7 @@ const categoryQuestion = (
   for (const name of defaultNames(category)) {
     if (!choices.some((plugin) => plugin.name === name)) {
       throw new InputError(
-        `the default ${name} of the category ${category.id} is no plugin of that category`,
+        `the default ${name} of the category ${category.id} is not a plugin of that category`,
       )
     }
   }
@@ -116,8 +120,8 @@ const assertKnownCategories = (
 }
 
 const settingQuestion = (
-  setting: BaseSetting,
-  place: { section: string; scope: 'project' | 'run' },
+  setting: Setting,
+  place: { section: string; scope: SettingScope },
 ): Question => ({
   kind: 'setting',
   key: setting.key,
@@ -128,9 +132,9 @@ const settingQuestion = (
 
 /**
  * Orders every question of a run: the categories that need exactly one plugin, then the base
- * settings, then the other categories, each with the options of its plugins, then the plugins
- * without a category with their options, then the settings of the run. Each question carries the
- * section of the wizard it belongs to.
+ * settings, then the other categories, each with the options of its plugins, then the extras
+ * (plugins without a category) with their options, then the settings of the run. Each question
+ * carries the section of the wizard it belongs to.
  */
 export const buildQuestions = ({
   categories,
@@ -147,16 +151,16 @@ export const buildQuestions = ({
     .flatMap(withOptions)
   const others = categoryQuestions.filter((question) => !question.isEssential).flatMap(withOptions)
   const settingQuestions = settings.map((setting) =>
-    settingQuestion(setting, { section: BASE_SETTINGS_SECTION, scope: 'project' }),
+    settingQuestion(setting, { section: PROJECT_SECTION, scope: 'project' }),
   )
   const runQuestions = runSettings.map((setting) =>
-    settingQuestion(setting, { section: RUN_SETTINGS_SECTION, scope: 'run' }),
+    settingQuestion(setting, { section: SETUP_SECTION, scope: 'run' }),
   )
-  const addons = plugins
+  const extras = plugins
     .filter((plugin) => plugin.category === undefined)
     .flatMap((plugin): Question[] => [
-      { kind: 'addon', key: plugin.name, section: plugin.section, isEssential: false, plugin },
+      { kind: 'extra', key: plugin.name, section: plugin.section, isEssential: false, plugin },
       ...optionQuestions(plugin, { section: plugin.section, isEssential: false }),
     ])
-  return [...essential, ...settingQuestions, ...others, ...addons, ...runQuestions]
+  return [...essential, ...settingQuestions, ...others, ...extras, ...runQuestions]
 }

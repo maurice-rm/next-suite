@@ -1,5 +1,5 @@
 import { type Answers, isSelected } from '../answers/answers.ts'
-import type { Question } from './questions.ts'
+import type { Question } from './build-questions.ts'
 
 const selectedIn = (answers: Answers, category: string): string[] =>
   answers.plugins.filter((plugin) => plugin.category === category).map((plugin) => plugin.name)
@@ -13,7 +13,7 @@ const recordOne = (question: Question, answers: Answers): unknown => {
       }
       return names[0] ?? null
     }
-    case 'addon':
+    case 'extra':
       return isSelected(answers, question.key)
     case 'option':
       return answers.options[question.key]
@@ -24,10 +24,9 @@ const recordOne = (question: Question, answers: Answers): unknown => {
 
 /**
  * Writes answers in the format answer files take: every category with its plugin, a list for
- * categories of many plugins and null for none; every plugin without a category as true or
- * false; every project setting and every option that was asked. Settings of the run, such as
- * whether to install, stay out. Reading the result back gives the same
- * answers.
+ * categories of many plugins and null for none; every extra as true or false; every project
+ * setting and every option that was asked. Settings of the run, such as whether to install, stay
+ * out. Reading the result back gives the same answers.
  */
 export const recordAnswers = (
   questions: readonly Question[],

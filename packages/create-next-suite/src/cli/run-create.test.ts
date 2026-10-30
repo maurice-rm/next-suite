@@ -349,15 +349,13 @@ describe('runCreate', () => {
     )
   })
 
-  it('asks for --overwrite or --empty for a folder with files without a terminal', async () => {
+  it('asks for --overwrite or --empty for a directory with files without a terminal', async () => {
     await writeFiles(root, { 'shop/notes.txt': 'mine' })
 
     const result = await run(['shop', '--yes'])
 
     expect(result.exitCode).toBe(1)
-    expect(result.error).toContain(
-      '"shop" already has conflicting files — pass --overwrite or --empty to proceed.',
-    )
+    expect(result.error).toContain('"shop" is not empty — pass --overwrite or --empty to proceed')
     expect(result.commands).toEqual([])
   })
 
@@ -378,7 +376,7 @@ describe('runCreate', () => {
     expect(result.error).toContain("option '--overwrite' cannot be used with option '--empty'")
   })
 
-  it('asks in the wizard what to do with a folder that has files', async () => {
+  it('asks in the wizard what to do with a directory that has files', async () => {
     await writeFiles(root, { 'shop/notes.txt': 'mine' })
 
     const result = await run(['shop', '--dry-run'], { isInteractive: true, keys: ['\u0003'] })
@@ -394,15 +392,15 @@ describe('runCreate', () => {
     const result = await run(['My App', '--yes', '--dry-run'])
 
     expect(result.exitCode).toBe(1)
-    expect(result.error).toContain('"My App" is no valid package name')
+    expect(result.error).toContain('"My App" is not a valid package name')
   })
 
   it('needs a project name without a terminal, also with --yes', async () => {
     expect((await run(['--dry-run'])).error).toContain(
-      'A project name is required without a terminal',
+      'a project name is required without a terminal',
     )
     expect((await run(['--yes', '--dry-run'])).error).toContain(
-      'A project name is required in --yes mode — pass it as the argument.',
+      'a project name is required in --yes mode — pass it as the argument',
     )
   })
 
@@ -588,7 +586,7 @@ describe('runCreate', () => {
     const result = await run(['My App', '--dry-run'], { isInteractive: true })
 
     expect(result.exitCode).toBe(1)
-    expect(result.error).toContain('└  create-next-suite: "My App" is no valid package name')
+    expect(result.error).toContain('└  create-next-suite: "My App" is not a valid package name')
   })
 
   it('opens the wizard with the intro and the Project section, and ends a cancelled run cleanly', async () => {

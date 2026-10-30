@@ -1,9 +1,12 @@
 import { InvalidArgumentError, Option } from 'commander'
 
+import type { AnswerInput } from '../answers/answers.ts'
 import type { PluginOption } from '../contract/plugin-option.ts'
 import { InputError } from '../input-error.ts'
-import type { CategoryQuestion, Question } from './questions.ts'
-import type { AnswerInput } from './resolve-answers.ts'
+import type { CategoryQuestion, Question } from './build-questions.ts'
+import { isNumberText } from './value-guards.ts'
+
+const NOT_A_NUMBER = 'not a number'
 
 /** A command-line option derived from a question, with how its value becomes an answer. */
 export type QuestionFlag = {
@@ -20,26 +23,24 @@ const splitList = (value: string): string[] =>
     .filter((item) => item !== '')
 
 const parseNumber = (value: string): number => {
-  const number = Number(value)
-  if (value.trim() === '' || !Number.isFinite(number)) {
-    throw new InvalidArgumentError('Not a number.')
+  if (!isNumberText(value)) {
+    throw new InvalidArgumentError(NOT_A_NUMBER)
   }
-  return number
+  return Number(value)
 }
 
 const flagNameOf = (question: Question): string => {
   if (question.kind !== 'option') {
     return question.key
   }
-  const [, option] = question.key.split(/\.(?=[^.]+$)/)
-  return `${question.plugin.name.replace(/^@/, '').replace('/', '-')}-${option}`
+  return `${question.plugin.name.replace(/^@/, '').replace('/', '-')}-${question.optionKey}`
 }
 
-const describeOption = (question: Question): string => {
+const flagDescriptionOf = (question: Question): string => {
   switch (question.kind) {
     case 'category':
       return question.category.question
-    case 'addon':
+    case 'extra':
       return question.plugin.description
     case 'option':
     case 'setting':
@@ -68,7 +69,11 @@ const valueOptions = (name: string, description: string, option: PluginOption): 
   }
 }
 
-const categoryOptions = (question: CategoryQuestion, name: string, description: string) => {
+const categoryOptions = (
+  question: CategoryQuestion,
+  name: string,
+  description: string,
+): Option[] => {
   const names = question.choices.map((plugin) => plugin.name)
   switch (question.category.cardinality) {
     case 'one':
@@ -89,45 +94,47 @@ const categoryOptions = (question: CategoryQuestion, name: string, description: 
   }
 }
 
-const toCategoryAnswer = (question: CategoryQuestion) => (value: unknown) => {
-  if (value !== false) {
-    return value
+const toCategoryAnswer =
+  (question: CategoryQuestion) =>
+  (value: unknown): unknown => {
+    if (value !== false) {
+      return value
+    }
+    return question.category.cardinality === 'many' ? [] : null
   }
-  return question.category.cardinality === 'many' ? [] : null
+
+const keepValue = (value: unknown): unknown => value
+
+const commanderOptionsOf = (question: Question, name: string, description: string): Option[] => {
+  switch (question.kind) {
+    case 'category':
+      return categoryOptions(question, name, description)
+    case 'extra':
+      return [
+        new Option(`--${name}`, description),
+        new Option(`--no-${name}`, `skip ${question.plugin.title}`),
+      ]
+    case 'option':
+    case 'setting':
+      return valueOptions(name, description, question.option)
+  }
 }
 
 const flagFor = (question: Question): QuestionFlag => {
   const name = flagNameOf(question)
-  const description = describeOption(question)
-  if (question.kind === 'category') {
-    const options = categoryOptions(question, name, description)
-    return {
-      options,
-      attribute: options[0]?.attributeName() ?? name,
-      question,
-      toAnswer: toCategoryAnswer(question),
-    }
-  }
-  const options =
-    question.kind === 'addon'
-      ? [
-          new Option(`--${name}`, description),
-          new Option(`--no-${name}`, `skip ${question.plugin.title}`),
-        ]
-      : valueOptions(name, description, question.option)
+  const options = commanderOptionsOf(question, name, flagDescriptionOf(question))
   return {
     options,
     attribute: options[0]?.attributeName() ?? name,
     question,
-    toAnswer: (value) => value,
+    toAnswer: question.kind === 'category' ? toCategoryAnswer(question) : keepValue,
   }
 }
 
 /**
  * Derives one command-line flag per question: `--<category> <plugin>`, `--<plugin>` and
- * `--no-<plugin>` for plugins without a category, `--<plugin>-<option>` for plugin options and
- * `--<setting>` for base settings. Two questions with the same flag, or a flag the core reserves,
- * fail.
+ * `--no-<plugin>` for extras, `--<plugin>-<option>` for plugin options and `--<setting>` for
+ * base settings. Two questions with the same flag, or a flag the core reserves, fail.
  */
 export const createFlags = (
   questions: readonly Question[],

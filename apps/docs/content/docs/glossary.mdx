@@ -12,6 +12,7 @@ Code, messages and these pages use each word below for one concept only.
 | plugin contract | the format of the manifest and the types of `create-next-suite/plugin`, versioned; a plugin names the range it works with in `contract` |
 | base project | the files every app gets, which plugins add to |
 | category | a group of plugins answering one question, such as `linter`; it takes exactly one, at most one or any number of plugins |
+| extra | a plugin without a category, asked with yes or no and selected with `--<plugin>`; the built-in ones live in `plugins/extras/` |
 | section | a part of the wizard that asks its questions together, such as "Project" |
 | option | a further question of one plugin, with a flag `--<plugin>-<option>` |
 | base setting | a value the core and the base project read, such as `src-dir`; set by flag or answer file, never asked |

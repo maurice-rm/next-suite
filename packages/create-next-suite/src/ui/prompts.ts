@@ -6,6 +6,7 @@ import {
   MultiSelectPrompt,
   type Prompt,
   SelectPrompt,
+  type State,
   TextPrompt,
 } from '@clack/core'
 import ansis from 'ansis'
@@ -29,12 +30,16 @@ export const GO_BACK: unique symbol = Symbol('go-back')
 
 export type Choice<Value> = { value: Value; label: string; hint?: string; disabled?: boolean }
 
-type PromptBase = Streams & { message: string; canGoBack: boolean }
+export type PromptBase = Streams & { message: string; canGoBack: boolean }
 
 type RunMode = { isTyping: boolean; canGoBack: boolean }
 
 const BACK_KEY = 'b'
 const ESCAPE = 'escape'
+const ESCAPE_HINT = 'esc'
+const YES_LABEL = 'Yes'
+const NO_LABEL = 'No'
+const NONE_LABEL = 'none'
 
 const LIST_KEYS: [string, string][] = [
   ['↑/↓', 'navigate'],
@@ -59,6 +64,20 @@ const renderPlaceholder = (placeholder: string): string =>
     : ansis.inverse(placeholder.slice(0, 1)) + ansis.dim(placeholder.slice(1))
 
 const isDone = (state: string): boolean => state === 'submit' || state === 'cancel'
+
+type OpenPrompt = {
+  state: State
+  options: PromptBase
+  body: string
+  keys: [string, string][]
+  backKey: string
+}
+
+/** A prompt waiting for input: its title, its body and the keys it takes under it. */
+const renderOpenPrompt = ({ state, options, body, keys, backKey }: OpenPrompt): string => {
+  const footer = renderFooter(keys, { key: backKey, isPossible: options.canGoBack })
+  return `${renderPromptTitle(state, options.message)}${body}\n${renderEnd(footer)}`
+}
 
 /**
  * Runs a prompt. Where going back is possible, `b` (unless typing) or Esc goes back; Ctrl+C
@@ -118,8 +137,13 @@ export const select = async <Value>(
           index === this.cursor,
         ),
       )
-      const footer = renderFooter(LIST_KEYS, { key: BACK_KEY, isPossible: options.canGoBack })
-      return `${renderPromptTitle(this.state, options.message)}${lines.join('\n')}\n${renderEnd(footer)}`
+      return renderOpenPrompt({
+        state: this.state,
+        options,
+        body: lines.join('\n'),
+        keys: LIST_KEYS,
+        backKey: BACK_KEY,
+      })
     },
   })
   return run(prompt, { isTyping: false, canGoBack: options.canGoBack })
@@ -143,7 +167,7 @@ export const multiselect = async <Value>(
         return renderResolved(
           this.state,
           options.message,
-          labels.length > 0 ? labels.join(', ') : 'none',
+          labels.length > 0 ? labels.join(', ') : NONE_LABEL,
         )
       }
       const lines = options.choices.map((choice, index) =>
@@ -155,11 +179,13 @@ export const multiselect = async <Value>(
           index === this.cursor,
         ),
       )
-      const footer = renderFooter(MULTISELECT_KEYS, {
-        key: BACK_KEY,
-        isPossible: options.canGoBack,
+      return renderOpenPrompt({
+        state: this.state,
+        options,
+        body: lines.join('\n'),
+        keys: MULTISELECT_KEYS,
+        backKey: BACK_KEY,
       })
-      return `${renderPromptTitle(this.state, options.message)}${lines.join('\n')}\n${renderEnd(footer)}`
     },
   })
   return run(prompt, { isTyping: false, canGoBack: options.canGoBack })
@@ -169,19 +195,26 @@ export const confirm = async (
   options: PromptBase & { initialValue: boolean },
 ): Promise<boolean | typeof GO_BACK> => {
   const prompt = new ConfirmPrompt({
-    active: 'Yes',
-    inactive: 'No',
+    active: YES_LABEL,
+    inactive: NO_LABEL,
     initialValue: options.initialValue,
     input: options.input,
     output: options.output,
     render() {
       if (isDone(this.state)) {
-        return renderResolved(this.state, options.message, this.value ? 'Yes' : 'No')
+        return renderResolved(this.state, options.message, this.value ? YES_LABEL : NO_LABEL)
       }
-      const yes = this.value ? `${pick(SYMBOLS.radioOn)} Yes` : ansis.dim(`${SYMBOLS.radioOff} Yes`)
-      const no = this.value ? ansis.dim(`${SYMBOLS.radioOff} No`) : `${pick(SYMBOLS.radioOn)} No`
-      const footer = renderFooter(CONFIRM_KEYS, { key: BACK_KEY, isPossible: options.canGoBack })
-      return `${renderPromptTitle(this.state, options.message)}${renderLine(`${yes} ${ansis.dim('/')} ${no}`)}\n${renderEnd(footer)}`
+      const on = `${pick(SYMBOLS.radioOn)} `
+      const off = `${SYMBOLS.radioOff} `
+      const yes = this.value ? `${on}${YES_LABEL}` : ansis.dim(`${off}${YES_LABEL}`)
+      const no = this.value ? ansis.dim(`${off}${NO_LABEL}`) : `${on}${NO_LABEL}`
+      return renderOpenPrompt({
+        state: this.state,
+        options,
+        body: renderLine(`${yes} ${ansis.dim('/')} ${no}`),
+        keys: CONFIRM_KEYS,
+        backKey: BACK_KEY,
+      })
     },
   })
   return run(prompt, { isTyping: false, canGoBack: options.canGoBack })
@@ -214,8 +247,13 @@ export const text = async (options: TextOptions): Promise<string | typeof GO_BAC
       const value =
         this.userInput === '' ? renderPlaceholder(placeholder) : this.userInputWithCursor
       const error = this.state === 'error' ? `\n${renderLine(ansis.yellow(this.error))}` : ''
-      const footer = renderFooter(TEXT_KEYS, { key: 'esc', isPossible: options.canGoBack })
-      return `${renderPromptTitle(this.state, options.message)}${renderLine(value)}${error}\n${renderEnd(footer)}`
+      return renderOpenPrompt({
+        state: this.state,
+        options,
+        body: `${renderLine(value)}${error}`,
+        keys: TEXT_KEYS,
+        backKey: ESCAPE_HINT,
+      })
     },
   })
   const result = await run(prompt, { isTyping: true, canGoBack: options.canGoBack })

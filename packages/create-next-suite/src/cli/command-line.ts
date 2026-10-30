@@ -2,11 +2,10 @@ import { resolve } from 'node:path'
 import type { Writable } from 'node:stream'
 
 import { Command, Option } from 'commander'
-
+import type { AnswerInput } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
 import { answersFromFlags, type QuestionFlag } from '../questions/flags.ts'
 import { readAnswerFile } from '../questions/read-answer-file.ts'
-import type { AnswerInput } from '../questions/resolve-answers.ts'
 import { CREATE_COMMAND } from './command-name.ts'
 
 type CoreFlags = {

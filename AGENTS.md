@@ -70,8 +70,8 @@ says what next-suite does; this file says how code is written here.
   | `write/`            | `contract/`, `answers/`, `loader/`, `compose/`     |
   | `cli/`              | every module, never the package entries            |
 - **Plugins:** a built-in plugin is one directory under
-  `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` without a
-  category, and changes no other file; a plugin that needs another file changed is missing a
+  `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` for an extra (a
+  plugin without a category), and changes no other file; a plugin that needs another file changed is missing a
   composition point, which is a change to the core of its own. Built-in plugins import only the public plugin
   contract (`create-next-suite/plugin`), like any external plugin.
 - **Templates:** a plugin file whose source ends in `.hbs` is a Handlebars template; its target

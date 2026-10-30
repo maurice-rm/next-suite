@@ -1,7 +1,7 @@
-import type { BaseSetting } from './base-settings.ts'
+import type { Setting } from './base-settings.ts'
 
 /** The section of the wizard that asks what happens after the files are written. */
-export const RUN_SETTINGS_SECTION = 'Setup'
+export const SETUP_SECTION = 'Setup'
 
 /** The setting whether the run installs the dependencies. */
 export const INSTALL_SETTING = 'install'
@@ -13,7 +13,7 @@ export const GIT_SETTING = 'git'
  * The settings of a run rather than of the project: asked last in the wizard, never recorded in
  * next-suite.json, and without the wizard they take their default.
  */
-export const RUN_SETTINGS: readonly BaseSetting[] = [
+export const RUN_SETTINGS: readonly Setting[] = [
   {
     key: GIT_SETTING,
     option: { type: 'boolean', question: 'Initialize a git repository?', default: true },

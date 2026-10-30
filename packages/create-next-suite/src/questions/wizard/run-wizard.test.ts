@@ -33,7 +33,7 @@ const wizard = (ask: Ask, input: Record<string, unknown> = {}, shown: string[][]
     showProblems: (problems) => shown.push(problems),
     directory: 'my-app',
     action: undefined,
-    hasConflict: () => false,
+    hasExistingFiles: () => false,
   })
 
 const pluginNames = (result: Awaited<ReturnType<typeof wizard>>): string[] =>
@@ -67,7 +67,7 @@ describe('runWizard', () => {
       showProblems: () => undefined,
       directory: undefined,
       action: undefined,
-      hasConflict: () => false,
+      hasExistingFiles: () => false,
     })
 
     expect(asked).toEqual([
@@ -140,7 +140,7 @@ describe('runWizard', () => {
       showProblems: () => undefined,
       directory: undefined,
       action: undefined,
-      hasConflict: () => false,
+      hasExistingFiles: () => false,
     })
 
     expect(sections).toEqual([
@@ -227,12 +227,12 @@ describe('runWizard', () => {
         showProblems: () => undefined,
         directory: undefined,
         action: undefined,
-        hasConflict: () => false,
+        hasExistingFiles: () => false,
       }),
     ).rejects.toThrow('better-auth: Stores sessions in the database.')
   })
 
-  it('asks what to do with a folder that has files, right after the name, and returns it', async () => {
+  it('asks what to do with a directory that has files, right after the name, and returns it', async () => {
     const { ask, asked } = scripted(['shop', 'overwrite', 'pnpm', true])
 
     const result = await runWizard({
@@ -240,13 +240,13 @@ describe('runWizard', () => {
       input: SETTINGS,
       directory: undefined,
       action: undefined,
-      hasConflict: (directory) => directory === 'shop',
+      hasExistingFiles: (directory) => directory === 'shop',
       ask,
       findProblems: () => [],
       showProblems: () => undefined,
     })
 
-    expect(asked.slice(0, 2)).toEqual(['project-name', 'conflict'])
+    expect(asked.slice(0, 2)).toEqual(['project-name', 'target-action'])
     expect(result.action).toBe('overwrite')
   })
 
@@ -256,7 +256,7 @@ describe('runWizard', () => {
       input: SETTINGS,
       directory: 'shop',
       action: 'empty',
-      hasConflict: () => true,
+      hasExistingFiles: () => true,
       ask: scripted(['pnpm', true]).ask,
       findProblems: () => [],
       showProblems: () => undefined,

@@ -2,9 +2,9 @@ import { readFile } from 'node:fs/promises'
 
 import * as z from 'zod'
 
+import type { AnswerInput } from '../answers/answers.ts'
 import { parseJsonWith } from '../file-system/read-json-file.ts'
 import { InputError } from '../input-error.ts'
-import type { AnswerInput } from './resolve-answers.ts'
 
 const answerFileSchema = z.record(z.string(), z.unknown(), { error: 'must hold a JSON object' })
 

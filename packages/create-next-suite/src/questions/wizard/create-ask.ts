@@ -1,40 +1,53 @@
 import type { Answers } from '../../answers/answers.ts'
-import { evaluateCondition } from '../../answers/evaluate-condition.ts'
+import type { TargetAction } from '../../answers/target-action.ts'
 import {
   PACKAGE_MANAGER_CATEGORY,
   type ParsedPluginManifest,
 } from '../../contract/plugin-manifest.ts'
 import type { PluginOption } from '../../contract/plugin-option.ts'
 import { PromptCancelledError } from '../../ui/prompt-cancelled-error.ts'
-import { type Choice, confirm, multiselect, type Streams, select, text } from '../../ui/prompts.ts'
+import {
+  type Choice,
+  confirm,
+  type GO_BACK,
+  multiselect,
+  type PromptBase,
+  type Streams,
+  select,
+  text,
+} from '../../ui/prompts.ts'
 import { renderSectionBadge } from '../../ui/theme.ts'
-import { DEFAULT_PROJECT_DIRECTORY } from '../project-name.ts'
-import type { CategoryQuestion } from '../questions.ts'
+import type { CategoryQuestion } from '../build-questions.ts'
+import { findPluginProblems } from '../find-incompatibilities.ts'
+import { DEFAULT_PROJECT_DIRECTORY } from '../project-directory.ts'
 import { defaultAnswer } from '../resolve-answers.ts'
+import { isNumberText, isStringList } from '../value-guards.ts'
 import type { Ask, WizardStep } from './run-wizard.ts'
 
 const NONE_LABEL = 'None'
 const DETECTED_HINT = 'detected'
 const PROJECT_NAME_QUESTION = 'Enter your project name or path ("." = current directory)'
 const QUICK_START_QUESTION = 'Quick start with recommended defaults?'
+const NOT_A_NUMBER = 'enter a number'
+const CANCEL = 'cancel'
+const EMPTY_LABEL = 'Empty the directory — delete everything except .git'
+const OVERWRITE_LABEL = 'Continue (keep existing files)'
+const CANCEL_LABEL = 'Cancel'
 
-type PromptOptions = Streams & { canGoBack: boolean }
+type PromptOptions = Omit<PromptBase, 'message'>
+
+type TargetActionReply = Exclude<TargetAction, 'create'> | typeof CANCEL
 
 /**
  * What the wizard knows about the run beyond the answers: what is wrong with a project directory,
  * and the package manager that started it.
  */
-type AskContext = {
+export type AskContext = {
   findDirectoryProblem: (directory: string) => string | undefined
-  /** Whether a folder may be emptied; never the current directory, a root or the home folder. */
+  /** Whether a directory may be emptied; never the current directory, a root or the home directory. */
   canEmpty: (directory: string) => boolean
   detectedPackageManager: string | undefined
 }
-
-const withPlugin = (answers: Answers, plugin: ParsedPluginManifest): Answers => ({
-  ...answers,
-  plugins: [...answers.plugins, { name: plugin.name, category: plugin.category }],
-})
 
 /**
  * The hint beside a plugin: a package manager shows only whether it started the run, any other
@@ -53,8 +66,8 @@ const pluginChoice = (
   answers: Answers,
   context: AskContext,
 ): Choice<string> => {
-  const conflict = (plugin.conflicts ?? []).find((rule) =>
-    evaluateCondition(rule.when, withPlugin(answers, plugin)),
+  const conflict = findPluginProblems(plugin, answers).find(
+    (problem) => problem.kind === 'conflict',
   )
   if (conflict !== undefined) {
     return { value: plugin.name, label: plugin.title, hint: conflict.reason, disabled: true }
@@ -65,15 +78,12 @@ const pluginChoice = (
     : { value: plugin.name, label: plugin.title, hint }
 }
 
-const isNumberText = (value: string): boolean =>
-  value.trim() !== '' && Number.isFinite(Number(value))
-
 const isString = (value: unknown): value is string => typeof value === 'string'
 const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
 const isNumber = (value: unknown): value is number => typeof value === 'number'
-const isStringList = (value: unknown): value is string[] =>
-  Array.isArray(value) && value.every(isString)
 const isNameOrNone = (value: unknown): value is string | null => value === null || isString(value)
+const isTargetActionReply = (value: unknown): value is TargetActionReply =>
+  value === 'empty' || value === 'overwrite' || value === CANCEL
 
 /** The answer given before going back when it fits the question, otherwise the default. */
 const previousOr = <Value>(
@@ -107,7 +117,7 @@ const askOption = async (
         message,
         defaultValue: String(option.default),
         initialValue: isNumber(previous) ? String(previous) : undefined,
-        validate: (value) => (isNumberText(value) ? undefined : 'Enter a number'),
+        validate: (value) => (isNumberText(value) ? undefined : NOT_A_NUMBER),
       })
       return typeof answer === 'string' ? Number(answer) : answer
     }
@@ -168,22 +178,22 @@ const askCategory = async (
   }
 }
 
-const CANCEL = 'cancel'
-
-/** Asks what to do with a folder that has files; cancelling ends the run. */
-const askConflict = async (directory: string, { base, previous, context }: StepAsk) => {
-  const choices: Choice<string>[] = [
-    ...(context.canEmpty(directory)
-      ? [{ value: 'empty', label: 'Empty the directory — delete everything except .git' }]
-      : []),
-    { value: 'overwrite', label: 'Continue (keep existing files)' },
-    { value: CANCEL, label: 'Cancel' },
+/** Asks what to do with a directory that has files; cancelling ends the run. */
+const askTargetAction = async (
+  directory: string,
+  { base, previous, context }: StepAsk,
+): Promise<Exclude<TargetActionReply, typeof CANCEL> | typeof GO_BACK> => {
+  const emptyChoice: Choice<TargetActionReply> = { value: 'empty', label: EMPTY_LABEL }
+  const choices: Choice<TargetActionReply>[] = [
+    ...(context.canEmpty(directory) ? [emptyChoice] : []),
+    { value: 'overwrite', label: OVERWRITE_LABEL },
+    { value: CANCEL, label: CANCEL_LABEL },
   ]
   const reply = await select({
     ...base,
     message: `"${directory}" exists and is not empty. How would you like to proceed?`,
     choices,
-    initialValue: previousOr(previous, choices[0]?.value ?? CANCEL, isString),
+    initialValue: previousOr(previous, choices[0]?.value ?? CANCEL, isTargetActionReply),
   })
   if (reply === CANCEL) {
     throw new PromptCancelledError()
@@ -191,11 +201,11 @@ const askConflict = async (directory: string, { base, previous, context }: StepA
   return reply
 }
 
-const askStep = async (step: WizardStep, ask: StepAsk) => {
+const askStep = async (step: WizardStep, ask: StepAsk): Promise<unknown> => {
   const { base, previous, context } = ask
   switch (step.kind) {
-    case 'conflict':
-      return askConflict(step.directory, ask)
+    case 'target-action':
+      return askTargetAction(step.directory, ask)
     case 'project-name':
       return text({
         ...base,
@@ -212,7 +222,7 @@ const askStep = async (step: WizardStep, ask: StepAsk) => {
       })
     case 'category':
       return askCategory(step, ask)
-    case 'addon':
+    case 'extra':
       return confirm({
         ...base,
         message: `Add ${step.plugin.title}?`,

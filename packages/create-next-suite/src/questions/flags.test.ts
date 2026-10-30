@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 
 import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
 import { TEST_CATEGORIES, TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
+import { buildQuestions } from './build-questions.ts'
 import { answersFromFlags, createFlags } from './flags.ts'
-import { buildQuestions } from './questions.ts'
 
 const parse = (args: string[]) => {
   const flags = createFlags(TEST_QUESTIONS, new Set(['yes', 'help']))

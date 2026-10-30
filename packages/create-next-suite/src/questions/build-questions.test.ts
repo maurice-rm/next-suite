@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { categoriesSchema } from '../contract/category.ts'
 import { pluginManifestSchema } from '../contract/plugin-manifest.ts'
 import { TEST_CATEGORIES, TEST_PLUGINS, TEST_QUESTIONS } from '../test-support/questions.ts'
-import { buildQuestions } from './questions.ts'
+import { buildQuestions } from './build-questions.ts'
 import { RUN_SETTINGS } from './run-settings.ts'
 
 describe('buildQuestions', () => {
-  it('asks the categories that need one plugin, then the settings, then the other categories, then plugins without a category', () => {
+  it('asks the categories that need one plugin, then the settings, then the other categories, then the extras', () => {
     expect(TEST_QUESTIONS.map((question) => question.key)).toEqual([
       'package-manager',
       'src-dir',
@@ -120,7 +120,7 @@ describe('buildQuestions', () => {
     ).toThrow('the plugin x belongs to the unknown category cms')
   })
 
-  it('rejects a category default that is no plugin of the category', () => {
+  it('rejects a category default that is not a plugin of the category', () => {
     const categories = categoriesSchema.parse([
       {
         section: 'Data',
@@ -138,6 +138,6 @@ describe('buildQuestions', () => {
 
     expect(() =>
       buildQuestions({ categories, plugins: [plugin], settings: [], runSettings: [] }),
-    ).toThrow('the default drizzle of the category orm is no plugin of that category')
+    ).toThrow('the default drizzle of the category orm is not a plugin of that category')
   })
 })

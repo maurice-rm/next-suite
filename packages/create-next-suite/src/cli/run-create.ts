@@ -13,10 +13,10 @@ import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { BASE_SETTINGS } from '../questions/base-settings.ts'
+import { buildQuestions, type Question } from '../questions/build-questions.ts'
 import { collectAnswers } from '../questions/collect-answers.ts'
 import { createFlags } from '../questions/flags.ts'
-import { findProjectDirectoryProblem, projectNameOf } from '../questions/project-name.ts'
-import { buildQuestions, type Question } from '../questions/questions.ts'
+import { findProjectDirectoryProblem, projectNameOf } from '../questions/project-directory.ts'
 import { recordAnswers } from '../questions/record-answers.ts'
 import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
 import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
@@ -145,7 +145,7 @@ const askQuestions = ({
   return collectAnswers({
     directory: invocation.directory,
     action: check.action,
-    hasConflict: (directory) => inspectTarget(resolve(cwd, directory)) === 'not-empty',
+    hasExistingFiles: (directory) => inspectTarget(resolve(cwd, directory)) === 'not-empty',
     questions,
     plugins: environment.assets.plugins.map((plugin) => plugin.manifest),
     ...given,

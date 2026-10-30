@@ -1,7 +1,7 @@
 const TARGET_ACTIONS = ['create', 'empty', 'overwrite'] as const
 
 /**
- * What a run does with a target folder that already has files: `create` writes into a missing or
+ * What a run does with a target directory that already has files: `create` writes into a missing or
  * empty one, `empty` deletes everything but `.git` first, `overwrite` keeps the existing files and
  * writes the generated ones over them.
  */
