@@ -70,15 +70,21 @@ const resolveField = <Value>(field: unknown, context: AnyContext): Value | undef
 const entriesOf = <Value>(record: object | undefined): [string, Value][] =>
   Object.entries(record ?? {}) as [string, Value][]
 
+/** What a plugin's `fail` throws: its message is the whole failure, there is no cause to show. */
+class PluginFailure extends ExpectedError {
+  override name = 'PluginFailure'
+}
+
 /** Runs a step of a plugin; an error the user can act on gets the plugin and step in front. */
 const inStep = <Result>(plugin: string, step: string, run: () => Result): Result => {
   try {
     return run()
   } catch (error) {
     if (error instanceof ExpectedError) {
-      throw new AssemblyError(`${plugin} (${step}): ${error.message}`, {
-        cause: error,
-      })
+      throw new AssemblyError(
+        `${plugin} (${step}): ${error.message}`,
+        error instanceof PluginFailure ? {} : { cause: error },
+      )
     }
     throw error
   }
@@ -138,6 +144,9 @@ export const createPluginRun = (
       diskPath: (path: string) => project.diskPath(path),
       readFile,
       versionOf: (dependency: string) => project.packageJson().versionOf(dependency),
+      fail: (message: string): never => {
+        throw new PluginFailure(message)
+      },
     }
   }
 

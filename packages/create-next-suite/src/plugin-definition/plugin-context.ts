@@ -41,6 +41,13 @@ export type CoreContext<OptionAnswers> = {
    * @throws ProjectError when the project has no such dependency.
    */
   versionOf: (dependency: string) => string
+  /**
+   * Stops the run with a message the user can act on, such as a selection the plugin cannot work
+   * with; the run names the plugin and its step in front.
+   *
+   * @throws AssemblyError always, as `<plugin> (<step>): <message>`.
+   */
+  fail: (message: string) => never
 }
 
 /** What edits and `finish` get on top, once every plugin has contributed. */

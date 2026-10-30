@@ -6,6 +6,7 @@ import { createBuiltDependencies } from '../points/built-dependencies.ts'
 import { createProject } from '../project-model/project.ts'
 import { createCspSources, csp, orm } from '../test-support/fixture-points.ts'
 import { type AssemblyInput, assembleProject } from './assemble-project.ts'
+import { AssemblyError } from './assembly-error.ts'
 
 const source = (...lines: string[]): string => `${lines.join('\n')}\n`
 
@@ -838,6 +839,32 @@ describe('assembleProject', () => {
       { name: 'npm', run: 'npm run', ciInstall: 'npm ci' },
       { dev: 'next dev', lint: 'eslint' },
     ])
+  })
+
+  it('stops with the message a plugin fails with, after the plugin and its step', () => {
+    const hooks = definePlugin({
+      name: 'hooks',
+      title: 'Hooks',
+      collects: {
+        ciChecks: {
+          create: () => ({ run: () => undefined, scripts: () => [] }),
+          finish: (_checks, { fail }) => fail('it needs a linter'),
+        },
+      },
+    })
+
+    const failure = (() => {
+      try {
+        assemble([withFiles(hooks)])
+      } catch (error) {
+        return error
+      }
+      return undefined
+    })()
+
+    expect(failure).toBeInstanceOf(AssemblyError)
+    expect(failure).toHaveProperty('message', 'hooks (finish ciChecks): it needs a linter')
+    expect(failure).not.toHaveProperty('cause')
   })
 
   it('lets setup write files, edit modules and add tsconfig entries, recorded as setup', () => {
