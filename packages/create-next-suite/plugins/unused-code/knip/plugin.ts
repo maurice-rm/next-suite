@@ -70,9 +70,12 @@ export default definePlugin({
   collects: {
     knip: {
       create: createKnipOptions,
-      finish: (knip, { module, generatedDirectories }) => {
+      finish: (knip, { module, generatedDirectories, projectInputDirectory }) => {
         knip.entry(SUITE_CONFIG_FILE)
         knip.ignore(...generatedDirectories.map((directory) => `${directory}/**`))
+        if (projectInputDirectory !== undefined) {
+          knip.ignore(`${projectInputDirectory}/**`)
+        }
         const config = module(CONFIG_FILE).object(CONFIG_OBJECT)
         for (const [key, values] of knip.options()) {
           config.set(key, stringList(values))

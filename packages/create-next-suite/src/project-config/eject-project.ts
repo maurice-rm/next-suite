@@ -99,12 +99,16 @@ const applyJsonEdit = async (root: string, edit: JsonEdit, ejection: Ejection): 
   }
 }
 
-const noteKnipEntry = async (root: string, ejection: Ejection): Promise<void> => {
+const noteKnipEntries = async (root: string, ejection: Ejection): Promise<void> => {
   const knipConfig = await readTextIfPresent(join(root, KNIP_CONFIG))
+  const inputPattern = `${PROJECT_PATHS.inputDirectory}/**`
   if (knipConfig?.includes(PROJECT_PATHS.config)) {
     ejection.notes.push(
       `${KNIP_CONFIG} still names ${PROJECT_PATHS.config} as an entry; remove it there`,
     )
+  }
+  if (knipConfig?.includes(inputPattern)) {
+    ejection.notes.push(`${KNIP_CONFIG} still skips ${inputPattern} under ignore; remove it there`)
   }
 }
 
@@ -146,6 +150,6 @@ export const ejectProject = async (
   for (const edit of JSON_EDITS) {
     await applyJsonEdit(root, edit, ejection)
   }
-  await noteKnipEntry(root, ejection)
+  await noteKnipEntries(root, ejection)
   return ejection
 }

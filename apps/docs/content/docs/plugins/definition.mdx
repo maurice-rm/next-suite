@@ -109,6 +109,7 @@ File edits and `finish` run once every plugin has contributed, and get more:
 | --- | --- |
 | `env` | every environment variable of the project |
 | `generatedDirectories` | every directory of generated code, as a path on disk |
+| `projectInputDirectory` | `next-suite`, the directory of the project's plugins and overrides, when it has any; nothing imports its files |
 | `scripts` | every script of `package.json` |
 | `module(path)` | the [module](./files-and-edits#code-operations) of a TypeScript file, also one another plugin wrote |
 | `write(path, content)` | adds a file the plugin owns |
