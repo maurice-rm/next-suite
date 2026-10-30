@@ -69,6 +69,13 @@ describe('openReadme', () => {
     expect(readme.print({})).toBe('# my-app\n\n```bash\npnpm run dev\n```\n')
   })
 
+  it('ends a README whose last section lists the scripts with one line break', () => {
+    const text =
+      '# app\n\n## Scripts\n\n| Script | Command |\n| --- | --- |\n| `dev` | `next dev` |\n'
+
+    expect(openReadme(text).print({ dev: 'next dev' })).toBe(text)
+  })
+
   it('names both origins of a section title', () => {
     const readme = openReadme(BASE)
     readme.addSection('Logging', 'pino logs.', 'pino')

@@ -36,8 +36,8 @@ const withScripts = (text: string, scripts: Readonly<Record<string, string>>): s
     return text
   }
   const next = text.indexOf(NEXT_HEADING, start)
-  const end = next === -1 ? text.trimEnd().length : next
-  return `${text.slice(0, start)}${renderScripts(scripts)}\n${text.slice(end)}`
+  const rest = next === -1 ? '' : text.slice(next)
+  return `${text.slice(0, start)}${renderScripts(scripts)}\n${rest}`
 }
 
 const withTitle = (text: string, title: string): string => {
