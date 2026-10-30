@@ -16,19 +16,11 @@ const cacheDirectoryOf = (cacheDir: string, [kind, ...parts]: CacheKey): string 
     createHash('sha256').update(JSON.stringify(parts)).digest('hex').slice(0, CACHE_NAME_LENGTH),
   )
 
-/**
- * Answers the cache directory of a key, filling it first unless it is cached already: `fill`
- * writes into a fresh directory that moves into place only once it is complete.
- */
-export const fillCacheOnce = async (
-  cacheDir: string,
-  key: CacheKey,
+/** Fills a fresh directory and moves it into place once it is complete. */
+const fillInto = async (
+  directory: string,
   fill: (directory: string) => Promise<void>,
 ): Promise<string> => {
-  const directory = cacheDirectoryOf(cacheDir, key)
-  if (existsSync(directory)) {
-    return directory
-  }
   const scratch = `${directory}.partial-${process.pid}`
   await rm(scratch, { recursive: true, force: true })
   await mkdir(dirname(directory), { recursive: true })
@@ -43,4 +35,28 @@ export const fillCacheOnce = async (
     throw error
   }
   return directory
+}
+
+/**
+ * Answers the cache directory of a key, filling it first unless it is cached already: `fill`
+ * writes into a fresh directory that moves into place only once it is complete.
+ */
+export const fillCacheOnce = async (
+  cacheDir: string,
+  key: CacheKey,
+  fill: (directory: string) => Promise<void>,
+): Promise<string> => {
+  const directory = cacheDirectoryOf(cacheDir, key)
+  return existsSync(directory) ? directory : fillInto(directory, fill)
+}
+
+/** Fills the cache directory of a key anew, replacing whatever it held. */
+export const refillCache = async (
+  cacheDir: string,
+  key: CacheKey,
+  fill: (directory: string) => Promise<void>,
+): Promise<string> => {
+  const directory = cacheDirectoryOf(cacheDir, key)
+  await rm(directory, { recursive: true, force: true })
+  return fillInto(directory, fill)
 }

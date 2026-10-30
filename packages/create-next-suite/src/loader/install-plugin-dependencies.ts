@@ -6,7 +6,7 @@ import * as z from 'zod'
 
 import { readJsonFile } from '../file-system/read-json-file.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
-import { fillCacheOnce } from './remote/cache.ts'
+import { refillCache } from './remote/cache.ts'
 
 const PACKAGE_FILE = 'package.json'
 const LOCKFILE = 'package-lock.json'
@@ -101,7 +101,8 @@ const install = async (
 
 /**
  * The directory a trusted plugin runs from. A plugin whose `package.json` names dependencies gets
- * a copy of its snapshot in the cache with them installed by npm, one directory per content hash:
+ * a copy of its snapshot in the cache with them installed by npm, one directory per content hash,
+ * installed anew on every run:
  * with `npm ci` from the `package-lock.json` the plugin ships, whose integrity npm checks, or with
  * `npm install` from the ranges otherwise. Only `dependencies` and `optionalDependencies` are
  * installed, no install script runs, and the plugin's `.npmrc` is left out. A plugin without
@@ -117,12 +118,8 @@ export const installPluginDependencies = async (
   if (!hasAny(dependencies)) {
     return snapshot.directory
   }
-  return fillCacheOnce(
-    context.cacheDir,
-    [INSTALLED_CACHE, snapshot.contentHash],
-    async (target) => {
-      await cp(snapshot.directory, target, { recursive: true })
-      await install(target, dependencies, context)
-    },
-  )
+  return refillCache(context.cacheDir, [INSTALLED_CACHE, snapshot.contentHash], async (target) => {
+    await cp(snapshot.directory, target, { recursive: true })
+    await install(target, dependencies, context)
+  })
 }

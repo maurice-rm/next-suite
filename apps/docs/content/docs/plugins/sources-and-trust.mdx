@@ -34,7 +34,8 @@ as one held by an SSH agent.
 create-next-suite fetches a plugin into its cache and copies its files into a snapshot named by
 their content hash; everything later reads that snapshot, so the files cannot change between the
 trust question and the run. Links and other entries that are no regular files are refused, and
-`node_modules` and `.git` are left out.
+`node_modules` and `.git` are left out. A snapshot already in the cache is hashed again before it is
+used, and written anew when its files differ from its name.
 
 Then it reads the [metadata](./definition#metadata) from `plugin.ts` without running it. That is
 why metadata are written as fixed values: the plugin's questions and flags, and `--help`, show
@@ -70,8 +71,8 @@ owner can therefore come from someone else's fork; pin tags or branches of repos
 
 A plugin may import npm packages while it runs, such as a library that builds a config. It names
 them under `dependencies` in a `package.json` beside its `plugin.ts`. Once the plugin is trusted,
-create-next-suite installs them with npm into a copy of the plugin in its cache, one per content
-hash, and the plugin imports them from there:
+create-next-suite installs them with npm into a copy of the plugin in its cache, anew on every
+run, and the plugin imports them from there:
 
 - with `npm ci` when the plugin ships a `package-lock.json`, so the versions are fixed and npm
   checks each package against the integrity the lockfile records; with `npm install` from the
