@@ -9,8 +9,9 @@ says what next-suite does; this file says how code is written here.
   reported to the maintainer — never folded in.
 - The maintainer decides which options next-suite ships as built-in plugins and what the files
   of the base project and of every built-in plugin look like. Files under
-  `packages/create-next-suite/base/` and `packages/create-next-suite/plugins/*/*/files/` change
-  only on the maintainer's instruction or approval.
+  `packages/create-next-suite/base/`, `packages/create-next-suite/plugins/*/*/files/` and
+  `packages/create-next-suite/plugins-v2/*/*/files/` change only on the maintainer's instruction
+  or approval.
 - The public surface — the CLI's commands and flags, the plugin contract and the vocabulary — is
   decided by the maintainer. A change or a review finding that would alter it is raised as a
   question, not made.

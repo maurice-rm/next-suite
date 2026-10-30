@@ -27,6 +27,7 @@
     "dist",
     "base",
     "plugins",
+    "plugins-v2",
     "categories.json",
     "catalog.json"
   ],

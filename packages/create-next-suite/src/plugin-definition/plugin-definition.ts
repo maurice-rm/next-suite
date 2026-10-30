@@ -85,7 +85,7 @@ export type InstrumentationContribution = {
  * The package manager a project runs with, stated by a plugin of the `package-manager` category;
  * the plugin's name is the command.
  */
-export type PackageManagerSection = Omit<PackageManagerUse, 'name'> & {
+type PackageManagerSection = Omit<PackageManagerUse, 'name'> & {
   /**
    * The arguments of the first install, such as `['install', '--no-immutable']` for Yarn, which
    * refuses to create a lockfile in CI otherwise; `['install']` by default.

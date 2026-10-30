@@ -1,6 +1,7 @@
 /**
  * The plugin contract of create-next-suite: the types a plugin's manifest, its categories file and
- * its logic module follow. Plugins import types only.
+ * its logic module follow, and for a plugin written as `plugin.ts`, `definePlugin` and the
+ * collector of the built dependencies its package manager plugin provides.
  *
  * @example
  * ```ts
@@ -40,3 +41,5 @@ export type {
 } from './contract/plugin-manifest.ts'
 export type { OptionChoice, PluginOption } from './contract/plugin-option.ts'
 export type { PostStep } from './contract/post-step.ts'
+export { createBuiltDependencies } from './plugin-definition/built-dependencies.ts'
+export { definePlugin } from './plugin-definition/define-plugin.ts'
