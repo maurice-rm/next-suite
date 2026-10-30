@@ -24,9 +24,19 @@ test('the project builds with Biome', async () => {
 Every question you leave out takes its default; git stays off. Run the checks of the generated
 project, such as `typecheck`, `lint` and `test`.
 
+## Check a plugin
+
+```bash
+npx -p create-next-suite next-suite plugin validate ./my-plugin
+```
+
+`plugin validate` loads a plugin the way create-next-suite does: it reads its files and its
+metadata without running it, checks its category, installs the npm packages of its `package.json`
+and runs its `plugin.ts` on its own. It prints the plugin's options and points, and hints where
+`create-next-suite` belongs in its `package.json` so `plugin.ts` can be type-checked. It does not
+run a type check itself; run `tsc` in the plugin for that.
+
 ## In this version
 
-Plugins from outside create-next-suite cannot be loaded yet, so a test project holds built-in
-plugins only: an address in `plugins` makes `createTestProject` fail, and
-`next-suite plugin validate` stops with a message. Both return for plugins written as `plugin.ts`,
-together with the helpers to test a plugin of your own.
+A test project takes a plugin from a local directory; an address from any other source fails,
+since the test cannot ask for trust.

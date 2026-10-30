@@ -83,7 +83,7 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | ------------------------------------------------ | --------------------------------------------------------- |
 | `registry add <name> <source>`, `list`, `remove` | manages the registries `--plugin @name/plugin` loads from |
 | `trust add <pattern>`, `list`, `remove`          | manages the sources whose plugins may run code            |
-| `plugin validate <directory>`                    | checks a plugin; not available in this version            |
+| `plugin validate <directory>`                    | checks a plugin and runs its `plugin.ts` on its own       |
 
 ## For plugin authors
 

@@ -21,7 +21,7 @@ const createProgram = (environment: NextSuiteEnvironment, report: Report): Comma
     })
   addRegistryCommand(program, environment, report)
   addTrustCommand(program, environment, report)
-  addPluginCommand(program)
+  addPluginCommand(program, environment, report)
   return program
 }
 
