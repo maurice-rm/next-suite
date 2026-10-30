@@ -1,5 +1,5 @@
 import type { Command } from 'commander'
-
+import { matchesTrustPattern } from '../trust/trust-pattern.ts'
 import { addTrustedPattern, removeTrustedPattern } from '../user-config/trust-list.ts'
 import { readUserConfig } from '../user-config/user-config.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
@@ -10,7 +10,7 @@ const trustPattern = async (environment: NextSuiteEnvironment, pattern: string) 
 }
 
 const distrustPattern = async (environment: NextSuiteEnvironment, pattern: string) => {
-  await removeTrustedPattern(environment.userConfigPath, pattern)
+  await removeTrustedPattern(environment.userConfigPath, pattern, matchesTrustPattern)
   return `No longer trusted: ${pattern}`
 }
 

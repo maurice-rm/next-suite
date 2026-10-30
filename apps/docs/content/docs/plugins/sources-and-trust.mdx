@@ -57,7 +57,9 @@ Patterns match the address without its ref or version, and `*` stands for anythi
 The user configuration also keeps the content hash of each trusted address, recorded the first
 time it runs. When the content behind an address changes, such as a branch with new commits,
 create-next-suite asks again: run it once, trust the new content, or cancel. Without a terminal
-the run stops; `--trust` runs the changed plugin for that run without recording it.
+the run stops; `--trust` runs the changed plugin for that run without recording it. Removing a pattern,
+with `next-suite trust remove` or `next-suite registry remove`, forgets the content hashes only it
+covered.
 
 GitHub serves commits of forks through the original repository too. A commit pinned under a trusted
 owner can therefore come from someone else's fork; pin tags or branches of repositories you trust.

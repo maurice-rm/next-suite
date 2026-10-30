@@ -97,6 +97,44 @@ describe('next-suite trust', () => {
   })
 })
 
+describe('removing trust', () => {
+  const Hash = `sha256-${'a'.repeat(64)}`
+
+  it('forgets the content hashes only the removed pattern covered', async () => {
+    await writeFiles(root, {
+      'config.json': JSON.stringify({
+        trust: ['github:acme/*', 'github:acme/plugins/mail', 'npm:@acme/*'],
+        trustedContent: {
+          'github:acme/plugins/mail#v1': Hash,
+          'github:acme/plugins/sms': Hash,
+          'npm:@acme/mail@1.0.0': Hash,
+        },
+      }),
+    })
+
+    await run(['trust', 'remove', 'github:acme/*'])
+
+    expect((await config()).trustedContent).toEqual({
+      'github:acme/plugins/mail#v1': Hash,
+      'npm:@acme/mail@1.0.0': Hash,
+    })
+  })
+
+  it('forgets the content hashes of a removed registry', async () => {
+    await writeFiles(root, {
+      'config.json': JSON.stringify({
+        trust: ['@acme/*'],
+        registries: { '@acme': join(root, 'registry') },
+        trustedContent: { '@acme/mail': Hash, '@other/mail': Hash },
+      }),
+    })
+
+    await run(['registry', 'remove', '@acme'])
+
+    expect((await config()).trustedContent).toEqual({ '@other/mail': Hash })
+  })
+})
+
 describe('next-suite plugin validate', () => {
   const pluginTs = (fields: string, before = '') =>
     `import { definePlugin } from 'create-next-suite/plugin'\n${before}\nexport default definePlugin({ ${fields} })\n`

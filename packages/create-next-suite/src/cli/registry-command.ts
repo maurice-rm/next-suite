@@ -6,6 +6,7 @@ import { registryName } from '../contract/identifiers.ts'
 import { InputError } from '../input-error.ts'
 import { parsePluginAddress } from '../loader/plugin-address.ts'
 import { fetchRegistry } from '../loader/registry.ts'
+import { matchesTrustPattern } from '../trust/trust-pattern.ts'
 import { removeRegistry, saveRegistry } from '../user-config/registries.ts'
 import { readUserConfig } from '../user-config/user-config.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
@@ -63,7 +64,7 @@ const listRegistryPlugins = async (
 }
 
 const forgetRegistry = async (environment: NextSuiteEnvironment, name: string): Promise<string> => {
-  await removeRegistry(environment.userConfigPath, name)
+  await removeRegistry(environment.userConfigPath, name, matchesTrustPattern)
   return `Removed ${name}`
 }
 
