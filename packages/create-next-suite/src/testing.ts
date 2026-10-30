@@ -1,15 +1,14 @@
 /**
  * Test helpers for plugin authors: generate a project with the plugins under test, then run its
- * scripts, the way the CI of create-next-suite checks its own plugins. Plugins from addresses
- * cannot be loaded in this version, so a test project holds built-in plugins only.
+ * scripts, the way the CI of create-next-suite checks its own plugins.
  *
  * @example
  * ```ts
  * import { createTestProject } from 'create-next-suite/testing'
  *
  * const project = await createTestProject({
- *   plugins: [],
- *   answers: { linter: 'biome' },
+ *   plugins: ['./my-plugin'],
+ *   answers: { 'my-plugin': true },
  *   install: true,
  * })
  * expect((await project.run('build')).isSuccess).toBe(true)
@@ -28,6 +27,7 @@ import { processRemoteEnvironment } from './cli/process-environment.ts'
 import { runCreate } from './cli/run-create.ts'
 import { type CommandResult, runCommand } from './post-steps/run-command.ts'
 import { collectOutput } from './test-support/collect-output.ts'
+import { sourceOf } from './trust/trust-pattern.ts'
 
 const PROJECT_NAME = 'test-app'
 const DEFAULT_PACKAGE_MANAGER = 'pnpm'
@@ -38,8 +38,8 @@ const USER_CONFIG_FILE = 'next-suite-config.json'
 /** What to generate: the plugins under test and the answers for them and any other question. */
 export type TestProjectOptions = {
   /**
-   * Addresses of the plugins under test, such as `./my-plugin`. Plugins from addresses cannot be
-   * loaded in this version: any address makes the run fail.
+   * Addresses of the plugins under test, such as `./my-plugin` or `github:acme/plugins/mail`; they
+   * are trusted for the test without asking, and nothing is recorded in the user configuration.
    */
   plugins: readonly string[]
   /** Answers in the format of `answers` in next-suite.json; every other question takes its default. */
@@ -72,22 +72,24 @@ export type TestProject = {
 
 /**
  * Generates a project with the plugins under test, without a terminal: every question takes the
- * answer given or its default, git stays off.
+ * answer given or its default, git stays off. A plugin without a category is selected by its name
+ * in `answers`. The run keeps its cache and user configuration in `parent`, apart from the
+ * user's; plugins from npm, GitHub, GitLab or URLs are still fetched over the network.
  *
  * @param options - The plugins under test, the answers and how to generate.
  * @returns The generated project, ready to run its scripts.
- * @throws Error with the output of the run when the project cannot be generated, such as for any
- * plugin address in this version.
+ * @throws Error with the output of the run when the project cannot be generated, such as for a
+ * plugin that does not load.
  *
  * @example
  * ```ts
  * import { createTestProject } from 'create-next-suite/testing'
  * import { expect, test } from 'vitest'
  *
- * test('the project builds with Biome', async () => {
+ * test('the project builds with my plugin and Biome', async () => {
  *   const project = await createTestProject({
- *     plugins: [],
- *     answers: { linter: 'biome' },
+ *     plugins: ['./my-plugin'],
+ *     answers: { 'my-plugin': true, linter: 'biome' },
  *     install: true,
  *   })
  *
@@ -112,7 +114,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
       packageManager,
       '--no-git',
       ...(options.install === true ? [] : ['--no-install']),
-      ...options.plugins.flatMap((address) => ['--plugin', address]),
+      ...options.plugins.flatMap((address) => ['--plugin', address, '--trust', sourceOf(address)]),
     ],
     loadAssets: () => loadBuiltInAssets(join(import.meta.dirname, '..'), pluginEntry),
     pluginEntry,
