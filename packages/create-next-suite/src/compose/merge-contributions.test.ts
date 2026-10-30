@@ -277,7 +277,7 @@ describe('mergeContributions', () => {
     })
   })
 
-  it('ignores generated folders in the linter and Knip', () => {
+  it('ignores generated directories in the linter and Knip', () => {
     const values = mergeContributions(
       [contributing('orm', { generatedDirs: ['src/generated'], knip: { entry: ['seed.ts'] } })],
       CATALOG,

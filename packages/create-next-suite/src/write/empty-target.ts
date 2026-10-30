@@ -22,7 +22,10 @@ const realPathOf = (path: string): string => {
   }
 }
 
-/** Answers why a folder must never be emptied: a root, the home folder, or the folder of the run. */
+/**
+ * Answers why a directory must never be emptied: a root, the home directory, or the directory of
+ * the run.
+ */
 export const findEmptyingProblem = (directory: string, cwd: string): string | undefined => {
   const path = realPathOf(directory)
   const isRefused =
@@ -34,7 +37,7 @@ export const findEmptyingProblem = (directory: string, cwd: string): string | un
     : undefined
 }
 
-/** Deletes everything in a folder except `.git`, after checking it may be emptied at all. */
+/** Deletes everything in a directory except `.git`, after checking it may be emptied at all. */
 export const emptyTarget = async (directory: string, cwd: string): Promise<void> => {
   const problem = findEmptyingProblem(directory, cwd)
   if (problem !== undefined) {

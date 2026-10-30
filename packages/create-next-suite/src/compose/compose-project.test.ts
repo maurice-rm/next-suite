@@ -255,7 +255,7 @@ describe('composeProject', () => {
     )
   })
 
-  it('writes instrumentation.ts in the source folder once a plugin contributes a hook', async () => {
+  it('writes instrumentation.ts in the source directory once a plugin contributes a hook', async () => {
     const env = await writePlugin('env', {
       contributes: { instrumentation: { register: [{ module: '#src/env' }] } },
     })
@@ -298,7 +298,7 @@ describe('composeProject', () => {
     })
   })
 
-  it('places source files under src/ when the project uses a src folder', async () => {
+  it('places source files under src/ when the project uses a src directory', async () => {
     const plan = await compose(await writeBase(), [], answersWith([], { 'src-dir': true }))
 
     expect(plan.files.map((file) => file.path)).toContain('src/app/page.tsx')

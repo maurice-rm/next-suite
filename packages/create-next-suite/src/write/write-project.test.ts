@@ -89,7 +89,7 @@ describe('writeProject', () => {
     expect(await readdir(join(root, 'empty'), { recursive: true })).toEqual([])
   })
 
-  it('writes over harmless files such as .gitignore in a folder that counts as empty', async () => {
+  it('writes over harmless files such as .gitignore in a directory that counts as empty', async () => {
     await mkdir(join(root, 'repo/.git'), { recursive: true })
     await writeFile(join(root, 'repo/.gitignore'), 'old')
 
@@ -98,7 +98,7 @@ describe('writeProject', () => {
     expect(await readFile(join(root, 'repo/.gitignore'), 'utf8')).toBe('new')
   })
 
-  it('empties a folder but .git before writing', async () => {
+  it('empties a directory but .git before writing', async () => {
     await mkdir(join(root, 'used/.git'), { recursive: true })
     await writeFile(join(root, 'used/old.txt'), 'old')
 
@@ -133,7 +133,7 @@ describe('writeProject', () => {
     expect(await readFile(join(root, 'outside.txt'), 'utf8')).toBe('outside')
   })
 
-  it('never writes through a linked folder inside the target', async () => {
+  it('never writes through a linked directory inside the target', async () => {
     await mkdir(join(root, 'used'))
     await mkdir(join(root, 'outside'))
     await symlink(join(root, 'outside'), join(root, 'used/app'))

@@ -17,13 +17,13 @@ afterEach(async () => {
 })
 
 describe('findEmptyingProblem', () => {
-  it('allows a folder inside the current directory', async () => {
+  it('allows a directory inside the current directory', async () => {
     await mkdir(join(root, 'shop'))
 
     expect(findEmptyingProblem(join(root, 'shop'), root)).toBeUndefined()
   })
 
-  it('refuses a root, the home folder, the current directory and its parents', () => {
+  it('refuses a root, the home directory, the current directory and its parents', () => {
     const cwd = join(root, 'work')
 
     expect(findEmptyingProblem(parse(root).root, cwd)).toMatch(/^refusing to empty/)

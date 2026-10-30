@@ -17,7 +17,7 @@ export type WriteTarget = { directory: string; action: TargetAction; cwd: string
 
 /** Fails when what is at the target does not fit the action. */
 const assertTargetFits = (state: TargetState, { directory, action }: WriteTarget): void => {
-  if (state === 'not-a-folder') {
+  if (state === 'not-a-directory') {
     throw new WriteError(`${directory} exists and is not a directory`)
   }
   if (state === 'not-empty' && action === 'create') {
