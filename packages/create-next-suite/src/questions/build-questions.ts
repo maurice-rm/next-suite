@@ -21,8 +21,8 @@ export type Question = QuestionPlace &
     | { kind: 'setting'; option: PluginOption; scope: SettingScope }
   )
 
-/** Whether a setting belongs to the project, recorded in next-suite.json, or only to the run. */
-export type SettingScope = 'project' | 'run'
+/** Whether a setting is a base setting, recorded in next-suite.json, or a run setting. */
+export type SettingScope = 'base' | 'run'
 
 export type CategoryQuestion = Extract<Question, { kind: 'category' }>
 
@@ -150,7 +150,7 @@ export const buildQuestions = ({
     .flatMap(withOptions)
   const others = categoryQuestions.filter((question) => !question.isEssential).flatMap(withOptions)
   const settingQuestions = settings.map((setting) =>
-    settingQuestion(setting, { section: PROJECT_SECTION, scope: 'project' }),
+    settingQuestion(setting, { section: PROJECT_SECTION, scope: 'base' }),
   )
   const runQuestions = runSettings.map((setting) =>
     settingQuestion(setting, { section: SETUP_SECTION, scope: 'run' }),

@@ -41,7 +41,7 @@ describe('buildQuestions', () => {
     })
   })
 
-  it('asks the settings of the run last, in Setup, apart from the project settings', () => {
+  it('asks the settings of the run last, in Setup, apart from the base settings', () => {
     const questions = buildQuestions({
       categories: TEST_CATEGORIES,
       plugins: TEST_PLUGINS,

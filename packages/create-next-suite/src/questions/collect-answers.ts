@@ -35,7 +35,7 @@ const listMissing = (questions: readonly Question[]): string =>
   questions.map((question) => `  ${question.key}`).join('\n')
 
 /**
- * The defaults of the settings in the given scopes, answered without asking: project settings are
+ * The defaults of the settings in the given scopes, answered without asking: base settings are
  * never asked, only set by flag; run settings are asked in the wizard only.
  */
 const settingDefaults = (
@@ -76,7 +76,7 @@ const askInWizard = async (
   { streams, ...context }: Extract<AnswerMode, { kind: 'wizard' }>,
 ): Promise<CollectedAnswers> => {
   const { questions, plugins } = sources
-  const input = { ...settingDefaults(questions, ['project']), ...sources.input }
+  const input = { ...settingDefaults(questions, ['base']), ...sources.input }
   assertInputHasNoConflicts(sources, input)
   const result = await runWizard({
     questions,
@@ -128,7 +128,7 @@ const resolveFromInput = (
   const { questions, input, plugins } = sources
   const resolution = resolveAnswers({
     questions,
-    input: { ...settingDefaults(questions, ['project', 'run']), ...input },
+    input: { ...settingDefaults(questions, ['base', 'run']), ...input },
     useDefaults,
   })
   assertNoUnused(resolution.unused, sources)
