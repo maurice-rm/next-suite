@@ -1,12 +1,13 @@
 /**
  * How an operation reached a file: `own` on a file the plugin writes itself, `extend` through what
  * the file's owner offers (a section such as `dependencies` or `layout`), `direct` as an edit of a
- * file someone else owns, which can break when that file changes.
+ * file someone else owns, which can break when that file changes, `override` as the project's own
+ * file under `next-suite/overrides/` that replaces the generated one.
  */
-export type OperationKind = 'own' | 'extend' | 'direct'
+export type OperationKind = 'own' | 'extend' | 'direct' | 'override'
 
 /** One thing a plugin did to a file, such as `copy files/auth.ts` or `dependencies pino`. */
-type FileOperation = { plugin: string; operation: string; kind: OperationKind }
+export type FileOperation = { plugin: string; operation: string; kind: OperationKind }
 
 type PointRecord = { provider: string; users: string[]; contributors: string[] }
 

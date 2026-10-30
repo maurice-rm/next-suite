@@ -28,7 +28,8 @@ Requires Node.js 24.12 or newer.
 | ---------------------------- | ---------------------------------------------------------------------------- |
 | `[directory]`                | the project name or path, `.` for the current directory                      |
 | `-y, --yes`                  | answers every open question with its default; needs a directory              |
-| `--answers <file>`           | reads answers from a JSON file in the format of `answers` in next-suite.json |
+| `--answers <file>`           | reads answers from a JSON file keyed by question, such as `"linter"`         |
+| `--config <file>`            | creates the project a `next-suite.config.ts` describes; see below            |
 | `--dry-run`                  | shows what would be created and writes nothing; `--diff` adds file contents  |
 | `--overwrite`, `--empty`     | writes into a directory that has files, keeping or removing them             |
 | `--plugin <address>`         | adds a plugin from a directory, npm, GitHub, GitLab, Git or a URL; see below |
@@ -69,9 +70,23 @@ Or keep the answers in a file, such as `answers.json`:
 npx create-next-suite@latest my-app --answers answers.json --yes
 ```
 
+## Your project
+
+Every project gets a `next-suite.config.ts` with its settings, plugins and answers, typed against
+the plugins in `.next-suite/types.d.ts`, and a lock in `.next-suite/lock.json` that records what ran
+and a hash of every generated file. `create-next-suite` becomes a devDependency, pinned to the
+version that created the project.
+
+```bash
+npx create-next-suite@latest --config my-app/next-suite.config.ts my-app-again
+```
+
+`--config` creates the same project again, with the plugins under `next-suite/plugins/` and the
+files under `next-suite/overrides/`, which replace the generated files at their paths.
+
 ## The `next-suite` command
 
-The package ships a second command for plugin registries, trust and plugin authors:
+The package ships a second command for plugin registries, trust, plugin authors and projects:
 
 ```bash
 npx -p create-next-suite next-suite registry add @acme github:acme/next-suite-plugins
@@ -84,11 +99,14 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | `registry add <name> <source>`, `list`, `remove` | manages the registries `--plugin @name/plugin` loads from |
 | `trust add <pattern>`, `list`, `remove`          | manages the sources whose plugins may run code            |
 | `plugin validate <directory>`                    | checks a plugin and runs its `plugin.ts` on its own       |
+| `explain <file>`                                 | shows who wrote a file of the project and what each did   |
+| `eject [--force]`                                | removes next-suite from the project                       |
 
-## For plugin authors
+## Imports
 
 | Import                                    | What it holds                                                                    |
 | ----------------------------------------- | -------------------------------------------------------------------------------- |
+| `create-next-suite/config`                | `defineSuiteConfig` and `definePlugin` for a project's `next-suite.config.ts`    |
 | `create-next-suite/plugin`                | `definePlugin`, the points and the types of a plugin                             |
 | `create-next-suite/testing`               | `createTestProject`, which generates a project and runs its scripts              |
 | `create-next-suite/schemas/registry.json` | the JSON schema of `registry.json`                                               |

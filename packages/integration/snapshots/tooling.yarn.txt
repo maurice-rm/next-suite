@@ -3,7 +3,9 @@ Files:
   .env.example (1 line, base)
   .gitignore (19 lines, base)
   .husky/pre-commit (1 line, lint-staged)
-  .prettierignore (5 lines, prettier)
+  .next-suite/lock.json (336 lines, create-next-suite)
+  .next-suite/types.d.ts (25 lines, create-next-suite)
+  .prettierignore (6 lines, prettier)
   .yarnrc.yml (2 lines, yarn)
   README.md (26 lines, base)
   app/error.tsx (18 lines, base)
@@ -13,14 +15,14 @@ Files:
   app/layout.tsx (20 lines, base)
   app/not-found.tsx (11 lines, base)
   app/page.tsx (10 lines, base)
-  eslint.config.mjs (16 lines, eslint)
-  knip.config.ts (6 lines, knip)
+  eslint.config.mjs (17 lines, eslint)
+  knip.config.ts (9 lines, knip)
   lint-staged.config.mjs (7 lines, lint-staged)
-  next-suite.json (51 lines, create-next-suite)
+  next-suite.config.ts (17 lines, create-next-suite)
   next.config.ts (9 lines, base)
-  package.json (46 lines, create-next-suite)
+  package.json (47 lines, create-next-suite)
   prettier.config.mjs (6 lines, prettier)
-  tsconfig.json (30 lines, base)
+  tsconfig.json (31 lines, base)
 Dependencies:
   next 16.4.3
   react 19.3.1
@@ -29,6 +31,7 @@ Dev dependencies:
   @types/node 24.19.2
   @types/react 19.3.0
   @types/react-dom 19.3.0
+  create-next-suite 0.0.0
   eslint 9.39.5
   eslint-config-next 16.4.3
   husky 9.1.7
@@ -92,13 +95,385 @@ Dev dependencies:
 
 ===================================================================
 --- /dev/null
++++ .next-suite/lock.json
+@@ -0,0 +1,336 @@
++{
++  "generator": {
++    "name": "create-next-suite",
++    "version": "0.0.0"
++  },
++  "project": {
++    "name": "my-app",
++    "srcDir": false,
++    "importAlias": "@/*",
++    "reactCompiler": false,
++    "cacheComponents": true
++  },
++  "plugins": [
++    {
++      "name": "yarn",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "eslint",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "prettier",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "knip",
++      "source": "builtin",
++      "version": "0.0.0"
++    },
++    {
++      "name": "lint-staged",
++      "source": "builtin",
++      "version": "0.0.0"
++    }
++  ],
++  "disable": [],
++  "answers": {},
++  "files": {
++    ".editorconfig": "sha256-6d6796f174b736bcd7a68999e30d2f19a3719ad92355dcc0cfdfce8a66864553",
++    ".env.example": "sha256-b8e7efe14729058db687cbae343414278da37ebedcf02b36b951a3d87591d944",
++    ".gitignore": "sha256-896c65a56b714006b17a65112a7a92fde75c593d9f7fe9afcd867931fe92a68f",
++    ".husky/pre-commit": "sha256-ff36f3e1f21e52c7bc535117e13602107197ae3df2ea0b381f2575332b3bbe44",
++    ".prettierignore": "sha256-23c96a3b6d8cdf1160de4f0be2144f9bb659a81b01dd377be4c0e862ee7fa484",
++    ".yarnrc.yml": "sha256-7eb759e441da6de6077403a33f43f68ab71b2341a731d32183598c9f4eb8135d",
++    "README.md": "sha256-291767232272b018f6230f0189c72d8b438d81b0fcdf3bf3ca5b92d94837c46d",
++    "app/error.tsx": "sha256-6a323cd2bc2c9a5195ea51833242a5150bcec0d11febdc7bf5fd5c8353d855ab",
++    "app/global-error.tsx": "sha256-e3d3db0aeb29c2791d9c9ceef8b46decc9d2956b939ecc635ee3bdefc276192d",
++    "app/globals.css": "sha256-bb0523e84f2e6114bc2479a6a5d932aa1071976102ffc54681e37760cfd344e5",
++    "app/icon.svg": "sha256-cf827ce37400d34fc68faff5d1e3fe9484d38f7837a99b610423808febbd8b2b",
++    "app/layout.tsx": "sha256-1cab758708fb58c7a07258678867b2e1b27de40876bd357e95228edc6bd7aa1c",
++    "app/not-found.tsx": "sha256-c157bd59c798b324547146f928b98dd23f16fb6f20c4df4d41a58fce40c49590",
++    "app/page.tsx": "sha256-f008c5e87953f418248316b3daaaf10c01092e1cb66cf64cac9d6fa33bb88a71",
++    "eslint.config.mjs": "sha256-41d55929911ccd0294fa972dde380d0486e37468af921bc4201443ef43c28919",
++    "knip.config.ts": "sha256-4d5a9d23c0a689d0639ae26343e8e42a6d6675f3c3bfdd0f40042bb314d0beea",
++    "lint-staged.config.mjs": "sha256-2ec3ca5cf5a5d6c67072a805865791d769e255cc4073767d43de30e27421a11a",
++    "next.config.ts": "sha256-9d534ce2be9b35f6eca0f24b94c86de876b97268b3a5052ea17bf0425dc18439",
++    "package.json": "sha256-e7dadface0fa739eaf8bc96ea468d7b3e3dfd498c3dd0696103ba86e0818ec88",
++    "prettier.config.mjs": "sha256-318598a217f90568989d3be0a79e4b75deda3f64c94ac4063a00808e72b75015",
++    "tsconfig.json": "sha256-524164b0a636e55c294a34d6ad79aaeaa01705e72d1357726bff2c5c832e2919"
++  },
++  "provenance": {
++    "order": ["yarn", "eslint", "prettier", "knip", "lint-staged"],
++    "points": {
++      "builtDependencies": {
++        "provider": "yarn",
++        "users": [],
++        "contributors": ["eslint"]
++      },
++      "lintIgnores": {
++        "provider": "eslint",
++        "users": [],
++        "contributors": []
++      },
++      "prettierPlugins": {
++        "provider": "prettier",
++        "users": [],
++        "contributors": []
++      },
++      "knip": {
++        "provider": "knip",
++        "users": [],
++        "contributors": []
++      },
++      "lintStaged": {
++        "provider": "lint-staged",
++        "users": [],
++        "contributors": ["eslint", "prettier"]
++      }
++    },
++    "files": {
++      ".editorconfig": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      ".env.example": [{ "plugin": "base", "operation": "base", "kind": "own" }],
++      ".gitignore": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "gitignore .yarn/*",
++          "kind": "extend"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "gitignore !.yarn/patches",
++          "kind": "extend"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "gitignore !.yarn/plugins",
++          "kind": "extend"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "gitignore !.yarn/releases",
++          "kind": "extend"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "gitignore !.yarn/sdks",
++          "kind": "extend"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "gitignore !.yarn/versions",
++          "kind": "extend"
++        }
++      ],
++      ".husky/pre-commit": [
++        {
++          "plugin": "lint-staged",
++          "operation": "copy files/husky/pre-commit",
++          "kind": "own"
++        }
++      ],
++      ".prettierignore": [
++        {
++          "plugin": "prettier",
++          "operation": "copy files/prettierignore",
++          "kind": "own"
++        }
++      ],
++      ".yarnrc.yml": [
++        {
++          "plugin": "yarn",
++          "operation": "copy files/yarnrc.yml",
++          "kind": "own"
++        }
++      ],
++      "README.md": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "packageManager yarn",
++          "kind": "extend"
++        }
++      ],
++      "app/error.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/global-error.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/globals.css": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/icon.svg": [{ "plugin": "base", "operation": "base", "kind": "own" }],
++      "app/layout.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/not-found.tsx": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "app/page.tsx": [{ "plugin": "base", "operation": "base", "kind": "own" }],
++      "eslint.config.mjs": [
++        {
++          "plugin": "eslint",
++          "operation": "finish lintIgnores: write",
++          "kind": "own"
++        }
++      ],
++      "knip.config.ts": [
++        {
++          "plugin": "knip",
++          "operation": "copy files/knip.config.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "knip",
++          "operation": "finish knip: module",
++          "kind": "own"
++        }
++      ],
++      "lint-staged.config.mjs": [
++        {
++          "plugin": "lint-staged",
++          "operation": "copy files/lint-staged.config.mjs",
++          "kind": "own"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "finish lintStaged: module",
++          "kind": "own"
++        }
++      ],
++      "next.config.ts": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ],
++      "package.json": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "packageManager yarn",
++          "kind": "extend"
++        },
++        {
++          "plugin": "eslint",
++          "operation": "devDependencies eslint",
++          "kind": "extend"
++        },
++        {
++          "plugin": "eslint",
++          "operation": "devDependencies eslint-config-next",
++          "kind": "extend"
++        },
++        {
++          "plugin": "eslint",
++          "operation": "scripts lint",
++          "kind": "extend"
++        },
++        {
++          "plugin": "prettier",
++          "operation": "devDependencies prettier",
++          "kind": "extend"
++        },
++        {
++          "plugin": "prettier",
++          "operation": "scripts format",
++          "kind": "extend"
++        },
++        {
++          "plugin": "prettier",
++          "operation": "scripts format:check",
++          "kind": "extend"
++        },
++        {
++          "plugin": "knip",
++          "operation": "devDependencies knip",
++          "kind": "extend"
++        },
++        {
++          "plugin": "knip",
++          "operation": "scripts knip",
++          "kind": "extend"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "devDependencies husky",
++          "kind": "extend"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "devDependencies lint-staged",
++          "kind": "extend"
++        },
++        {
++          "plugin": "lint-staged",
++          "operation": "scripts prepare",
++          "kind": "extend"
++        },
++        {
++          "plugin": "yarn",
++          "operation": "finish builtDependencies: field dependenciesMeta",
++          "kind": "extend"
++        }
++      ],
++      "prettier.config.mjs": [
++        {
++          "plugin": "prettier",
++          "operation": "copy files/prettier.config.mjs",
++          "kind": "own"
++        }
++      ],
++      "tsconfig.json": [
++        {
++          "plugin": "base",
++          "operation": "base",
++          "kind": "own"
++        }
++      ]
++    }
++  }
++}
+
+===================================================================
+--- /dev/null
++++ .next-suite/types.d.ts
+@@ -0,0 +1,25 @@
++// Generated by create-next-suite: the plugins next-suite.config.ts can name. Do not edit;
++// it is written anew whenever the project is generated.
++export {};
++
++declare module "create-next-suite/config" {
++  interface PluginRegistry {
++    "agents-md": Record<never, never>;
++    biome: Record<never, never>;
++    bun: Record<never, never>;
++    eslint: Record<never, never>;
++    "github-actions": Record<never, never>;
++    knip: Record<never, never>;
++    "lint-staged": Record<never, never>;
++    npm: Record<never, never>;
++    pino: Record<never, never>;
++    pnpm: Record<never, never>;
++    prettier: Record<never, never>;
++    seo: Record<never, never>;
++    "static-csp": Record<never, never>;
++    "t3-env": Record<never, never>;
++    tailwind: Record<never, never>;
++    vitest: Record<never, never>;
++    yarn: Record<never, never>;
++  }
++}
+
+===================================================================
+--- /dev/null
 +++ .prettierignore
-@@ -0,0 +1,5 @@
+@@ -0,0 +1,6 @@
 +pnpm-lock.yaml
 +package-lock.json
 +yarn.lock
 +bun.lock
 +.yarn
++.next-suite
 
 ===================================================================
 --- /dev/null
@@ -262,7 +637,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ eslint.config.mjs
-@@ -0,0 +1,16 @@
+@@ -0,0 +1,17 @@
 +import { defineConfig, globalIgnores } from "eslint/config";
 +import nextVitals from "eslint-config-next/core-web-vitals";
 +import nextTs from "eslint-config-next/typescript";
@@ -275,6 +650,7 @@ Dev dependencies:
 +    "out/**",
 +    "build/**",
 +    "next-env.d.ts",
++    ".next-suite/**",
 +  ]),
 +]);
 +
@@ -283,10 +659,13 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ knip.config.ts
-@@ -0,0 +1,6 @@
+@@ -0,0 +1,9 @@
 +import type { KnipConfig } from "knip";
 +
 +const config: KnipConfig = {
++  entry: [
++    "next-suite.config.ts",
++  ],
 +};
 +
 +export default config;
@@ -305,59 +684,25 @@ Dev dependencies:
 
 ===================================================================
 --- /dev/null
-+++ next-suite.json
-@@ -0,0 +1,51 @@
-+{
-+  "cli": "0.0.0",
-+  "contract": "1.0.0",
-+  "createdAt": "<now>",
-+  "plugins": [
-+    {
-+      "name": "yarn",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "eslint",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "prettier",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "knip",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    },
-+    {
-+      "name": "lint-staged",
-+      "source": "builtin",
-+      "version": "1.0.0"
-+    }
-+  ],
-+  "answers": {
-+    "package-manager": "yarn",
-+    "src-dir": false,
-+    "import-alias": "@/*",
-+    "react-compiler": false,
-+    "cache-components": true,
-+    "styling": [],
-+    "linter": "eslint",
-+    "formatter": "prettier",
-+    "unused-code": "knip",
-+    "git-hooks": "lint-staged",
-+    "unit-tests": null,
-+    "env-validation": null,
-+    "logging": null,
-+    "security-headers": null,
-+    "seo": null,
-+    "ci": null,
-+    "agents": null
-+  }
-+}
++++ next-suite.config.ts
+@@ -0,0 +1,17 @@
++import { defineSuiteConfig } from "create-next-suite/config";
++
++export default defineSuiteConfig({
++  project: {
++    name: "my-app",
++    srcDir: false,
++    importAlias: "@/*",
++    reactCompiler: false,
++    cacheComponents: true,
++  },
++  // Your own plugins join these: "./next-suite/plugins/<name>", an address such as
++  // "github:acme/plugins/mail#v1", or definePlugin({ … }) in place.
++  plugins: ["yarn", "eslint", "prettier", "knip", "lint-staged"],
++  disable: [],
++  answers: {},
++  // extends: a shared config to start from; not supported yet.
++});
 
 ===================================================================
 --- /dev/null
@@ -376,7 +721,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ package.json
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,47 @@
 +{
 +  "name": "my-app",
 +  "private": true,
@@ -402,6 +747,7 @@ Dev dependencies:
 +    "@types/node": "24.19.2",
 +    "@types/react": "19.3.0",
 +    "@types/react-dom": "19.3.0",
++    "create-next-suite": "0.0.0",
 +    "eslint": "9.39.5",
 +    "eslint-config-next": "16.4.3",
 +    "husky": "9.1.7",
@@ -438,7 +784,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ tsconfig.json
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,31 @@
 +{
 +  "compilerOptions": {
 +    "target": "ES2022",
@@ -460,6 +806,7 @@ Dev dependencies:
 +    }
 +  },
 +  "include": [
++    ".next-suite/types.d.ts",
 +    "next-env.d.ts",
 +    "**/*.ts",
 +    "**/*.tsx",

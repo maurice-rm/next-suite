@@ -11,7 +11,7 @@ export const GIT_SETTING = 'git'
 
 /**
  * The settings of a run rather than of the project: asked last in the wizard, never recorded in
- * next-suite.json, and without the wizard they take their default.
+ * the project's config, and without the wizard they take their default.
  */
 export const RUN_SETTINGS: readonly Setting[] = [
   {

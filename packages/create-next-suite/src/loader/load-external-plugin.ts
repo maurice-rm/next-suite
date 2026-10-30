@@ -6,12 +6,13 @@ import { type InstallRunner, installPluginDependencies } from './install-plugin-
 import { type LoadedPluginModule, loadPluginModule } from './load-plugin-module.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
 
-/** An external plugin that has run: its module, and where it came from for next-suite.json. */
+/**
+ * An external plugin that has run: its module, and where it came from for the lock: its address,
+ * what the address resolved to, the content hash of its files and whether it is a local directory.
+ */
 export type LoadedExternalPlugin = {
   module: LoadedPluginModule
-  address: string
-  resolved: string | undefined
-}
+} & Pick<FetchedPlugin, 'address' | 'resolved' | 'contentHash' | 'isLocal'>
 
 /** How a trusted plugin runs: the entry it imports, the cache and how npm runs. */
 type LoadContext = { pluginEntry: string; cacheDir: string; runCommand: InstallRunner }
@@ -47,5 +48,6 @@ export const loadExternalPlugin = async (
       'the metadata its plugin.ts exports differs from the fixed values written in it',
     )
   }
-  return { module, address: fetched.address, resolved: fetched.resolved }
+  const { address, resolved, contentHash, isLocal } = fetched
+  return { module, address, resolved, contentHash, isLocal }
 }

@@ -6,18 +6,27 @@ import { InputError } from '../input-error.ts'
 import type { LoadedExternalPlugin } from '../loader/load-external-plugin.ts'
 import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
 import { CATEGORIES } from '../plugin-definition/categories.ts'
+import { applyOverrides } from '../project-config/apply-overrides.ts'
+import { describeGeneration } from '../project-config/describe-generation.ts'
+import {
+  BUILT_IN_SOURCE,
+  INLINE_SOURCE,
+  type LockedPlugin,
+  type LockedProject,
+} from '../project-config/lock-file.ts'
+import { CLI_PACKAGE, PROJECT_PATHS } from '../project-config/project-paths.ts'
+import { renderSuiteConfig } from '../project-config/render-suite-config.ts'
 import { CORE_OWNER, createProject, PROJECT_FILES } from '../project-model/project.ts'
 import { GIT_SETTING } from '../questions/run-settings.ts'
 import type { BuiltInAssets } from './built-in-assets.ts'
-import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
 import type { ProjectPlan } from './project-plan.ts'
 
 /** How the plan names the core. */
 const CORE_ORIGIN = 'create-next-suite'
 const BASE_OWNER = 'base'
-const BUILT_IN_SOURCE = 'builtin'
-/** The version next-suite.json records for a built-in plugin. */
-const BUILT_IN_PLUGIN_VERSION = '1.0.0'
+/** How the plan names the files of the project's own: its config and what lies under next-suite/. */
+const PROJECT_ORIGIN = 'project'
+const OVERRIDE_ORIGIN = 'override'
 const SRC_DIR_SETTING = 'src-dir'
 const IMPORT_ALIAS_SETTING = 'import-alias'
 const REACT_COMPILER_SETTING = 'react-compiler'
@@ -32,16 +41,35 @@ const BASE_SUMMARY: ProjectPlan['summary'] = {
   nextSteps: [{ script: 'dev' }],
 }
 
+/** An external plugin of the run, with the entry the project's config names it by. */
+export type ExternalRunPlugin = LoadedExternalPlugin & {
+  /** The address, or the path of a local directory relative to the project. */
+  entry: string
+}
+
+/** The config a project is created from, and the project's own files beside it. */
+export type ConfigSource = {
+  /** The config's text, which the project gets unchanged. */
+  text: string
+  /** The project's files under `next-suite/` by project path: its plugins and overrides. */
+  inputs: ReadonlyMap<string, string>
+  /** The plugins the config disables. */
+  disable: readonly string[]
+}
+
 type PlanInput = {
   assets: BuiltInAssets
   /** The selected external plugins, trusted and run. */
-  externalPlugins: readonly LoadedExternalPlugin[]
+  externalPlugins: readonly ExternalRunPlugin[]
+  /** The plugins the project's config defines in place. */
+  inlinePlugins: readonly LoadedPluginModule[]
   projectName: string
   answers: Answers
-  /** The answers as next-suite.json records them. */
-  recordedAnswers: Readonly<Record<string, unknown>>
   cliVersion: string
-  createdAt: Date
+  /** What the project's devDependency on create-next-suite names: the running version by default. */
+  cliSpecifier: string
+  /** The config the project is created from; without one, a new config is written. */
+  configSource: ConfigSource | undefined
 }
 
 type PackageJsonDependencies = {
@@ -65,24 +93,45 @@ const importAliasOf = (answers: Answers): string => {
   return importAlias
 }
 
-/** A plugin of the run with what next-suite.json records about its source. */
-type RunPlugin = { module: LoadedPluginModule; source: string; resolved: string | undefined }
+/** A plugin of the run, the entry the project's config names it by and what the lock records. */
+type RunPlugin = { module: LoadedPluginModule; entry: string | undefined; locked: LockedPlugin }
 
-/** The selected plugins, built-in and external, in the order the answers name them. */
-const selectPlugins = ({
-  assets,
-  externalPlugins,
-  answers,
-}: Pick<PlanInput, 'assets' | 'externalPlugins' | 'answers'>): RunPlugin[] => {
+const externalRunPlugin = ({
+  module,
+  entry,
+  resolved,
+  contentHash,
+}: ExternalRunPlugin): RunPlugin => ({
+  module,
+  entry,
+  locked: {
+    name: module.plugin.name,
+    source: entry,
+    ...(resolved === undefined ? {} : { resolved }),
+    contentHash,
+  },
+})
+
+/** The selected plugins, built-in, external and inline, in the order the answers name them. */
+const selectPlugins = (input: PlanInput): RunPlugin[] => {
   const available: RunPlugin[] = [
-    ...assets.plugins.map((module) => ({ module, source: BUILT_IN_SOURCE, resolved: undefined })),
-    ...externalPlugins.map(({ module, address, resolved }) => ({
-      module,
-      source: address,
-      resolved,
-    })),
+    ...input.assets.plugins.map(
+      (module): RunPlugin => ({
+        module,
+        entry: module.plugin.name,
+        locked: { name: module.plugin.name, source: BUILT_IN_SOURCE, version: input.cliVersion },
+      }),
+    ),
+    ...input.externalPlugins.map(externalRunPlugin),
+    ...input.inlinePlugins.map(
+      (module): RunPlugin => ({
+        module,
+        entry: undefined,
+        locked: { name: module.plugin.name, source: INLINE_SOURCE },
+      }),
+    ),
   ]
-  return answers.plugins.flatMap(({ name }) =>
+  return input.answers.plugins.flatMap(({ name }) =>
     available.filter(({ module }) => module.plugin.name === name),
   )
 }
@@ -122,43 +171,51 @@ const dependenciesOf = (files: ReadonlyMap<string, string>): Required<PackageJso
   }
 }
 
+const lockedProjectOf = (input: PlanInput, importAlias: string): LockedProject => ({
+  name: input.projectName,
+  srcDir: input.answers.settings[SRC_DIR_SETTING] === true,
+  importAlias,
+  reactCompiler: input.answers.settings[REACT_COMPILER_SETTING] === true,
+  cacheComponents: input.answers.settings[CACHE_COMPONENTS_SETTING] === true,
+})
+
+/** The project's config as given, or a new one naming every selected plugin and answer. */
+const configTextOf = (
+  input: PlanInput,
+  { project, plugins }: { project: LockedProject; plugins: readonly RunPlugin[] },
+): string =>
+  input.configSource?.text ??
+  renderSuiteConfig({
+    project,
+    plugins: plugins.flatMap(({ entry }) => entry ?? []),
+    answers: answersOf(
+      plugins.map(({ module }) => module),
+      input.answers,
+    ),
+  })
+
 /**
- * Plans a project: the base project as real files, the base settings and the selected built-in
- * and external plugins, assembled in memory, with next-suite.json. Nothing is written.
+ * Plans a project: the base project as real files, the base settings and the selected built-in,
+ * external and inline plugins, assembled in memory, with the project's overrides applied. The
+ * project gets its config, its lock and registry types under `.next-suite/`, and a devDependency
+ * on create-next-suite. Nothing is written.
  *
  * @throws InputError for an invalid import alias.
+ * @throws ProjectConfigError for an override of a file the project does not generate.
  */
 export const planProject = (input: PlanInput): ProjectPlan => {
   const { assets, answers, projectName } = input
   const selected = selectPlugins(input)
   const plugins = selected.map(({ module }) => module)
-  const isSrcDirectory = answers.settings[SRC_DIR_SETTING] === true
   const importAlias = importAliasOf(answers)
+  const lockedProject = lockedProjectOf(input, importAlias)
   const project = createProject({
     files: assets.baseFiles,
-    settings: { alias: importAlias, isSrcDirectory },
+    settings: { alias: importAlias, isSrcDirectory: lockedProject.srcDir },
   })
-  project.write(
-    PROJECT_MANIFEST_FILE,
-    createProjectManifest({
-      cliVersion: input.cliVersion,
-      createdAt: input.createdAt,
-      plugins: selected.map(({ module, source, resolved }) => ({
-        name: module.plugin.name,
-        source,
-        resolved,
-        version: source === BUILT_IN_SOURCE ? BUILT_IN_PLUGIN_VERSION : undefined,
-      })),
-      answers: input.recordedAnswers,
-    }),
-    CORE_ORIGIN,
-  )
-  const {
-    files,
-    owners,
-    runSteps,
-    packageManager: projectPackageManager,
-  } = assembleProject({
+  project.packageJson().addDevDependency(CLI_PACKAGE, input.cliSpecifier, CORE_ORIGIN)
+  project.tsconfig().addInclude(PROJECT_PATHS.registryTypes)
+  const assembled = assembleProject({
     project,
     plugins,
     categoryOrder: CATEGORIES.map(({ id }) => id),
@@ -166,23 +223,52 @@ export const planProject = (input: PlanInput): ProjectPlan => {
     baseSettings: {
       projectName,
       importAlias,
-      isSrcDirectory,
-      usesReactCompiler: answers.settings[REACT_COMPILER_SETTING] === true,
-      usesCacheComponents: answers.settings[CACHE_COMPONENTS_SETTING] === true,
+      isSrcDirectory: lockedProject.srcDir,
+      usesReactCompiler: lockedProject.reactCompiler,
+      usesCacheComponents: lockedProject.cacheComponents,
     },
   })
+  const inputs = input.configSource?.inputs ?? new Map<string, string>()
+  const generated = applyOverrides(assembled, inputs)
+  const description = describeGeneration({
+    generatorVersion: input.cliVersion,
+    project: lockedProject,
+    plugins: selected.map(({ locked }) => locked),
+    disable: input.configSource?.disable ?? [],
+    answers: answersOf(plugins, answers),
+    generated,
+    availablePlugins: [
+      ...assets.plugins,
+      ...input.externalPlugins.map(({ module }) => module),
+      ...input.inlinePlugins,
+    ].map(({ plugin }) => plugin),
+  })
+  const configOrigin = input.configSource === undefined ? CORE_ORIGIN : PROJECT_ORIGIN
   const packageManager = plugins.find(({ plugin }) => plugin.packageManager !== undefined)?.plugin
-  return {
-    files: [...files].map(([path, content]) => ({
+  const files = [
+    ...[...generated.files].map(([path, content]) => ({
       path,
       content,
-      origin: originOf(path, owners.get(path) ?? CORE_OWNER),
+      origin:
+        content === assembled.files.get(path)
+          ? originOf(path, assembled.owners.get(path) ?? CORE_OWNER)
+          : OVERRIDE_ORIGIN,
     })),
-    ...dependenciesOf(files),
+    {
+      path: PROJECT_PATHS.config,
+      content: configTextOf(input, { project: lockedProject, plugins: selected }),
+      origin: configOrigin,
+    },
+    ...[...description].map(([path, content]) => ({ path, content, origin: CORE_ORIGIN })),
+    ...[...inputs].map(([path, content]) => ({ path, content, origin: PROJECT_ORIGIN })),
+  ].sort((left, right) => (left.path < right.path ? -1 : 1))
+  return {
+    files,
+    ...dependenciesOf(generated.files),
     packageManager: packageManager?.name,
-    projectPackageManager: projectPackageManager.name,
+    projectPackageManager: assembled.packageManager.name,
     installArgs: [...(packageManager?.packageManager?.installArgs ?? DEFAULT_INSTALL_ARGS)],
-    postSteps: postStepsOf(runSteps, answers),
-    summary: summaryOf(runSteps),
+    postSteps: postStepsOf(assembled.runSteps, answers),
+    summary: summaryOf(assembled.runSteps),
   }
 }

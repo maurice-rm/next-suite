@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { parse } from 'yaml'
 
@@ -20,12 +21,37 @@ const REQUIRED_STEPS = [
 ]
 const WORKFLOW = '.github/workflows/ci.yml'
 const USAGE = 'usage: node scripts/matrix.ts <scenario> <package manager>'
+const PACKAGE_ROOT = dirname(fileURLToPath(import.meta.resolve('create-next-suite/package.json')))
+/** What a generated project's devDependency on create-next-suite names instead of its version. */
+const CLI_SPECIFIER_VARIABLE = 'NEXT_SUITE_CLI_SPECIFIER'
+const TARBALL_EXTENSION = '.tgz'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-const run = (command: string, args: string[], cwd: string): string =>
-  execFileSync(command, args, { cwd, encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } })
+const run = (
+  command: string,
+  args: string[],
+  { cwd, env = {} }: { cwd: string; env?: Record<string, string> },
+): string =>
+  execFileSync(command, args, {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, NO_COLOR: '1', ...env },
+  })
+
+/**
+ * Packs the built create-next-suite into the workspace, so the generated project installs the
+ * build under test as its devDependency rather than a published version.
+ */
+const packCreateNextSuite = (workspace: string): string => {
+  run('pnpm', ['pack', '--pack-destination', workspace], { cwd: PACKAGE_ROOT })
+  const tarball = readdirSync(workspace).find((file) => file.endsWith(TARBALL_EXTENSION))
+  if (tarball === undefined) {
+    throw new Error(`pnpm pack wrote no tarball into ${workspace}`)
+  }
+  return join(workspace, tarball)
+}
 
 const parseArguments = (): { scenario: Scenario; packageManager: string } => {
   const [scenarioName, packageManager] = process.argv.slice(2)
@@ -37,6 +63,7 @@ const parseArguments = (): { scenario: Scenario; packageManager: string } => {
 }
 
 const generateProject = (workspace: string, scenario: Scenario, packageManager: string): void => {
+  const tarball = packCreateNextSuite(workspace)
   const output = run(
     process.execPath,
     [
@@ -48,7 +75,7 @@ const generateProject = (workspace: string, scenario: Scenario, packageManager: 
       packageManager,
       '--yes',
     ],
-    workspace,
+    { cwd: workspace, env: { [CLI_SPECIFIER_VARIABLE]: `file:${tarball}` } },
   )
   process.stdout.write(output)
   const missingSteps = REQUIRED_STEPS.filter((step) => !output.includes(step))
@@ -109,7 +136,7 @@ const checkWorkflow = (project: string, packageManager: string, scripts: Scripts
 }
 
 const assertNoUntrackedChanges = (project: string): void => {
-  const changes = run('git', ['status', '--porcelain'], project)
+  const changes = run('git', ['status', '--porcelain'], { cwd: project })
   if (changes !== '') {
     throw new Error(`the checks left files git does not ignore:\n${changes}`)
   }

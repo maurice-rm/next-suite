@@ -49,7 +49,8 @@ node packages/create-next-suite/dist/create-next-suite.mjs --help
 ```
 
 Generate a scenario of `packages/integration/scenarios` with a package manager, install it and run
-the generated project's checks, as CI does:
+the generated project's checks, as CI does; the project installs the packed build of
+create-next-suite as its devDependency:
 
 ```bash
 pnpm turbo build --filter=create-next-suite

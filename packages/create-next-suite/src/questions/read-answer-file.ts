@@ -8,7 +8,7 @@ import { InputError } from '../input-error.ts'
 
 const answerFileSchema = z.record(z.string(), z.unknown(), { error: 'must hold a JSON object' })
 
-/** Reads an answer file: a JSON object in the format of `answers` in next-suite.json. */
+/** Reads an answer file: a JSON object of answers keyed by question, such as `linter`. */
 export const readAnswerFile = async (path: string): Promise<AnswerInput> => {
   let text: string
   try {

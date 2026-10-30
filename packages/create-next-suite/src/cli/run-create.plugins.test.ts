@@ -63,15 +63,22 @@ describe('runCreate with external plugins', () => {
       '--no-git',
       '--no-install',
     ])
-    const recorded = await readJson(pathOf('my-app/next-suite.json'))
+    const lock = await readJson(pathOf('my-app/.next-suite/lock.json'))
+    const config = await readFile(pathOf('my-app/next-suite.config.ts'), 'utf8')
 
     expect(help.output).toContain('--mail-provider')
     expect(result.exitCode).toBe(0)
     expect(await readFile(pathOf('my-app/lib/mail.ts'), 'utf8')).toBe(
       'export const provider = "smtp"\n',
     )
-    expect(recorded.plugins).toContainEqual({ name: 'mail', source: './mail' })
-    expect(recorded.answers).toMatchObject({ mail: true, 'mail.provider': 'smtp' })
+    expect(lock.plugins).toContainEqual({
+      name: 'mail',
+      source: '../mail',
+      contentHash: expect.stringMatching(/^sha256-[0-9a-f]{64}$/),
+    })
+    expect(lock.answers).toMatchObject({ mail: { provider: 'smtp' } })
+    expect(config).toContain('    "../mail",\n')
+    expect(config).toContain('    mail: { provider: "smtp" },\n')
   })
 
   it('rejects an external plugin with the name of a built-in one, and an unknown address', async () => {
@@ -134,7 +141,7 @@ describe('runCreate with external plugins', () => {
     expect(await hasRun()).toBe(true)
   })
 
-  it('records where a remote plugin came from in next-suite.json', async () => {
+  it('records where a remote plugin came from and its content hash in the lock', async () => {
     const routes = await githubRoutes('hello', helloFiles())
 
     const result = await run(
@@ -156,14 +163,15 @@ describe('runCreate with external plugins', () => {
       ],
       { routes },
     )
-    const recorded = await readJson(pathOf('my-app/next-suite.json'))
+    const lock = await readJson(pathOf('my-app/.next-suite/lock.json'))
 
     expect(result.exitCode).toBe(1)
     expect(created.exitCode).toBe(0)
-    expect(recorded.plugins).toContainEqual({
+    expect(lock.plugins).toContainEqual({
       name: 'hello',
       source: HELLO_ADDRESS,
       resolved: COMMIT_SHA,
+      contentHash: expect.stringMatching(/^sha256-[0-9a-f]{64}$/),
     })
   })
 
@@ -259,10 +267,14 @@ describe('runCreate with external plugins', () => {
       '@acme/mail',
       '--mail',
     ])
-    const recorded = await readJson(pathOf('my-app/next-suite.json'))
+    const lock = await readJson(pathOf('my-app/.next-suite/lock.json'))
 
     expect(result.exitCode).toBe(0)
     expect(await readFile(pathOf('my-app/mail.txt'), 'utf8')).toBe('mail\n')
-    expect(recorded.plugins).toContainEqual({ name: 'mail', source: '@acme/mail' })
+    expect(lock.plugins).toContainEqual({
+      name: 'mail',
+      source: '@acme/mail',
+      contentHash: expect.stringMatching(/^sha256-/),
+    })
   })
 })

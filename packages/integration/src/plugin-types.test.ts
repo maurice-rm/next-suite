@@ -1,15 +1,14 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-const PLUGIN_TYPES_URL = new URL(
-  'dist/plugin.d.mts',
-  import.meta.resolve('create-next-suite/package.json'),
-)
+const DIST_URL = new URL('dist/', import.meta.resolve('create-next-suite/package.json'))
+const DECLARATION_EXTENSION = '.d.mts'
 
 const ZOD_IMPORT = /\bimport\b[^;]*["']zod["']/
+const EXPORT = /^export (?:declare const (\w+)|(?:type )?\{([^}]+)\})/gm
 /** What a plugin author writes against: the function, the points and the types of a plugin. */
-const PUBLIC_NAMES = [
+const PLUGIN_NAMES = [
   'definePlugin',
   'defineValuePoint',
   'defineCollectorPoint',
@@ -22,27 +21,38 @@ const PUBLIC_NAMES = [
   'ValuePoints',
   'CollectorPoints',
 ]
+/** What a project's next-suite.config.ts writes against. */
+const CONFIG_NAMES = ['defineSuiteConfig', 'definePlugin', 'PluginRegistry', 'SuiteConfig']
 
-let declarations: string
+const readDeclarations = (file: string): Promise<string> =>
+  readFile(new URL(file, DIST_URL), 'utf8')
 
-beforeAll(async () => {
-  declarations = await readFile(PLUGIN_TYPES_URL, 'utf8')
-})
+/** The names a declaration file exports, values and types alike. */
+const exportedNames = (declarations: string): string[] =>
+  [...declarations.matchAll(EXPORT)]
+    .flatMap(([, constant, names]) =>
+      constant === undefined ? (names ?? '').split(',') : [constant],
+    )
+    .map((name) => name.trim().replace(/^type /, ''))
 
-describe('the published plugin types', () => {
-  it('import nothing from zod, so plugin authors need no zod to type their plugin', () => {
-    expect(declarations).not.toMatch(ZOD_IMPORT)
+describe('the published types', () => {
+  it('import nothing from zod, so authors and projects need no zod for their types', async () => {
+    const files = (await readdir(DIST_URL)).filter((file) => file.endsWith(DECLARATION_EXTENSION))
+
+    for (const file of files) {
+      expect(await readDeclarations(file)).not.toMatch(ZOD_IMPORT)
+    }
   })
 
-  it('export definePlugin, the points and the types of a plugin', () => {
-    const exported = [
-      ...declarations.matchAll(/^export (?:declare const (\w+)|type \{([^}]+)\})/gm),
-    ]
-      .flatMap(([, constant, types]) =>
-        constant === undefined ? (types ?? '').split(',') : [constant],
-      )
-      .map((name) => name.trim())
+  it('export definePlugin, the points and the types of a plugin', async () => {
+    expect(exportedNames(await readDeclarations('plugin.d.mts'))).toEqual(
+      expect.arrayContaining(PLUGIN_NAMES),
+    )
+  })
 
-    expect(exported).toEqual(expect.arrayContaining(PUBLIC_NAMES))
+  it('export defineSuiteConfig and the registry a project config is typed against', async () => {
+    expect(exportedNames(await readDeclarations('config.d.mts'))).toEqual(
+      expect.arrayContaining(CONFIG_NAMES),
+    )
   })
 })

@@ -18,7 +18,8 @@ Each address points to a directory with a `plugin.ts`. A plugin of a GitHub or G
 or of a registry may sit in a subdirectory; an npm package or a tarball has it at its root.
 
 npm tarballs are checked against their integrity and never run install scripts. GitHub and GitLab
-refs resolve to a commit; next-suite.json records what each source resolved to. Tokens come from
+refs resolve to a commit; the project's [lock](../project#the-lock) records what each source
+resolved to and the content hash of its files. Tokens come from
 `GH_TOKEN`, `GITHUB_TOKEN`, the GitHub CLI or `GITLAB_TOKEN` and are sent to their own host only.
 
 A tarball URL or Git address over plain http is refused before anything is downloaded:
@@ -68,6 +69,12 @@ runs it for that run without recording it. Removing a pattern, with `next-suite 
 `next-suite registry remove`, forgets the content hashes only it covered. Pointing a registry to
 another source with `next-suite registry add --replace` does the same: its plugins are trusted
 again only with `--trust`.
+
+The lock of a project records the content hash each of its plugins ran with, but trusts nothing: a
+project config is no trust declaration. When you create a project from someone else's
+`next-suite.config.ts`, its external plugins go through your trust like any other; its
+[project plugins and inline plugins](../project#project-plugins) are the project's own code and run
+without asking, as its scripts would.
 
 GitHub serves commits of forks through the original repository too. A commit pinned under a trusted
 owner can therefore come from someone else's fork; pin tags or branches of repositories you trust.

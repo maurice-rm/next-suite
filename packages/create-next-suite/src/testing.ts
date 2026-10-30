@@ -49,7 +49,7 @@ export type TestProjectOptions = {
    * the test's own configuration.
    */
   plugins: readonly string[]
-  /** Answers in the format of `answers` in next-suite.json; every other question takes its default. */
+  /** Answers keyed by question, such as `linter`; every other question takes its default. */
   answers?: Readonly<Record<string, unknown>>
   /** The package manager plugin to use; pnpm by default. */
   packageManager?: string
@@ -110,6 +110,7 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
   await writeFile(answersFile, JSON.stringify(options.answers ?? {}))
   const packageManager = options.packageManager ?? DEFAULT_PACKAGE_MANAGER
   const pluginEntry = join(import.meta.dirname, `plugin${extname(import.meta.filename)}`)
+  const configEntry = join(import.meta.dirname, `config${extname(import.meta.filename)}`)
   const output = collectOutput()
   const exitCode = await runCreate({
     argv: [
@@ -130,14 +131,15 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
     ],
     loadAssets: () => loadBuiltInAssets(join(import.meta.dirname, '..'), pluginEntry),
     pluginEntry,
+    configEntry,
     remote: { ...processRemoteEnvironment(), cacheDir: join(parent, CACHE_DIRECTORY) },
     userConfigPath: join(parent, USER_CONFIG_FILE),
     cliVersion: packageJson.version,
+    cliSpecifier: packageJson.version,
     cwd: parent,
     streams: { input: Readable.from([]), output: output.stream, error: output.stream },
     isInteractive: false,
     columns: 80,
-    now: () => new Date(),
     userAgent: undefined,
     runCommand,
     fetchLatestVersion: async () => undefined,
