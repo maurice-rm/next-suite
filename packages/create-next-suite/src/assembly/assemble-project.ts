@@ -1,4 +1,4 @@
-import type { Project } from '../project-model/project.ts'
+import { CORE_OWNER, type Project } from '../project-model/project.ts'
 import type { ProvenanceLog } from '../project-model/provenance.ts'
 import { applyBaseSettings, type BaseSettings } from './apply-base-settings.ts'
 import type { LoadedPlugin } from './loaded-plugin.ts'
@@ -22,6 +22,8 @@ export type AssemblyInput = {
 export type AssembledProject = {
   /** Every file by its path on disk, sorted by path. */
   files: Map<string, string>
+  /** Who wrote each file: `base`, a plugin, or `core` for a file only the core writes. */
+  owners: Map<string, string>
   /** Which plugin did what to which file and point. */
   provenance: ProvenanceLog
 }
@@ -76,5 +78,9 @@ export const assembleProject = ({
   runPhase((run) => run.finishCollectors())
   runPhase((run) => run.editOtherFiles())
 
-  return { files: project.print(), provenance: project.provenance.toJson() }
+  const files = project.print()
+  const owners = new Map(
+    [...files.keys()].map((path) => [path, project.ownerOf(path) ?? CORE_OWNER]),
+  )
+  return { files, owners, provenance: project.provenance.toJson() }
 }

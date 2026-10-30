@@ -29,7 +29,8 @@ export const PROJECT_FILES = {
 } as const
 
 const BASE_OWNER = 'base'
-const CORE_OWNER = 'core'
+/** The owner of a file the core writes without a base file, such as `instrumentation.ts`. */
+export const CORE_OWNER = 'core'
 
 type ProjectSettings = {
   /** The import alias, such as `@/*` or `~/*`; imports of `@/…` go through it when printed. */

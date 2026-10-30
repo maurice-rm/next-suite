@@ -447,6 +447,20 @@ describe('assembleProject', () => {
     })
   })
 
+  it('answers who owns each file', () => {
+    const auth = definePlugin({
+      name: 'auth',
+      title: 'Auth',
+      category: 'auth',
+      files: { '@/lib/auth.ts': 'files/auth.ts' },
+    })
+
+    const { owners } = assemble([withFiles(auth, { 'files/auth.ts': 'export {};\n' })])
+
+    expect(owners.get('lib/auth.ts')).toBe('auth')
+    expect(owners.get('package.json')).toBe('base')
+  })
+
   it('applies the base settings before the plugins, agent rules off without an agents plugin', () => {
     const headers = definePlugin({
       name: 'headers',
