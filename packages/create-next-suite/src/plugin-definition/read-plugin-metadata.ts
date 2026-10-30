@@ -22,6 +22,12 @@ const POINT_KEYS: ReadonlySet<string> = new Set(POINT_FIELDS)
 /** A plugin name, also its flag: lowercase, optionally scoped, such as `mail` or `@acme/mail`. */
 const PLUGIN_NAME = /^(?:@[a-z0-9][a-z0-9-]*\/)?[a-z0-9][a-z0-9-]*$/
 
+/**
+ * Control and format characters, such as escape sequences or bidi overrides: in a title or a
+ * question, a terminal would run them, and could hide what the trust question says.
+ */
+const CONTROL_CHARACTER = /[\p{Cc}\p{Cf}]/u
+
 const text = z.string().min(1)
 const choiceSchema = z.union([
   text,
@@ -75,15 +81,18 @@ const fail = (message: string): never => {
   throw new PluginMetadataError(message)
 }
 
+const printable = (value: string, field: string): string =>
+  CONTROL_CHARACTER.test(value) ? fail(`${field} holds a control character`) : value
+
 const keyOf = (property: ObjectExpression['properties'][number], field: string): string => {
   if (property.type === 'SpreadElement') {
     return fail(`${field} spreads another object; write its keys out`)
   }
   if (!property.computed && property.key.type === 'Identifier') {
-    return property.key.name
+    return printable(property.key.name, `${field} has a key that`)
   }
   if (property.key.type === 'Literal' && typeof property.key.value === 'string') {
-    return property.key.value
+    return printable(property.key.value, `${field} has a key that`)
   }
   return fail(`${field} has a key that is no fixed name`)
 }
@@ -98,12 +107,13 @@ const readLiteral = (start: Expression, field: string): LiteralValue => {
   const expression = unwrapExpression(start)
   switch (expression.type) {
     case 'Literal':
-      return typeof expression.value === 'string' || typeof expression.value === 'boolean'
-        ? expression.value
-        : notFixed(field, expression)
+      if (typeof expression.value === 'string') {
+        return printable(expression.value, field)
+      }
+      return typeof expression.value === 'boolean' ? expression.value : notFixed(field, expression)
     case 'TemplateLiteral':
       return expression.expressions.length === 0 && expression.quasis[0]?.value.cooked != null
-        ? expression.quasis[0].value.cooked
+        ? printable(expression.quasis[0].value.cooked, field)
         : notFixed(field, expression)
     case 'ArrayExpression':
       return expression.elements.map((element, index) =>

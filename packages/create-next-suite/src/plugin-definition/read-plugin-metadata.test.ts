@@ -149,6 +149,31 @@ describe('readPluginMetadata', () => {
     expect(() => read(plugin(body))).toThrow(message)
   })
 
+  it.each([
+    [
+      'an escape sequence in the title',
+      "  name: 'mail',\n  title: 'Mail\\u001b[8m',",
+      'title holds a control character',
+    ],
+    [
+      'a bidi override in a choice',
+      "  name: 'mail',\n  title: 'Mail',\n  options: { a: { question: 'A?', choices: ['x\\u202e'], default: 'x\\u202e' } },",
+      'options.a.choices[0] holds a control character',
+    ],
+    [
+      'a control character in a point name',
+      "  name: 'mail',\n  title: 'Mail',\n  provides: { 'm\\u0007': 1 },",
+      'provides has a key that holds a control character',
+    ],
+    [
+      'a newline in a template',
+      "  name: 'mail',\n  title: `Mail\nOfficial`,",
+      'title holds a control character',
+    ],
+  ])('fails for metadata with %s, which a terminal would run', (_kind, body, message) => {
+    expect(() => read(plugin(body))).toThrow(message)
+  })
+
   it('fails for a file without definePlugin as its default export', () => {
     expect(() => read("export const plugin = { name: 'mail' }\n")).toThrow(
       'it has no export default definePlugin({…})',
