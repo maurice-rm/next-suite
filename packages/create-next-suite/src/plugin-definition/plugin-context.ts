@@ -32,6 +32,11 @@ export type CoreContext<OptionAnswers> = {
 export type FinishHelpers = {
   /** Every environment variable of the project, from all plugins. */
   env: readonly EnvVariable[]
+  /**
+   * Every directory of generated code, from all plugins, as a path on disk such as
+   * `src/generated`, for the tools that skip it.
+   */
+  generatedDirectories: readonly string[]
   /** The module of a TypeScript file of the project, also one another plugin wrote. */
   module: (path: string) => TypescriptModule
   /** Adds a file the plugin owns, such as one built from what a collector point collected. */

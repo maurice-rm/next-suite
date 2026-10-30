@@ -6,6 +6,7 @@ import type { EnvVariable } from '../project-model/environment.ts'
 import type { ModuleExport, NamedModuleExport } from '../project-model/instrumentation.ts'
 import type { PackageManagerUse } from '../project-model/package-json.ts'
 import type { CollectorPointName, CollectorPoints } from './collector-point.ts'
+import type { NextStep } from './next-step.ts'
 import type {
   CoreContext,
   FinishContext,
@@ -16,6 +17,7 @@ import type {
 } from './plugin-context.ts'
 import type { Answer, PluginOption } from './plugin-option.ts'
 import type { PluginProject } from './plugin-project.ts'
+import type { PostStep } from './post-step.ts'
 import type { ValuePointName, ValuePoints } from './value-point.ts'
 
 /**
@@ -159,9 +161,20 @@ type PluginFields<Uses, Options, Context, Finish> = {
   readonly css?: ValueOrFunction<{ readonly imports: readonly string[] }, Context>
   /** Lines `.gitignore` gets. */
   readonly gitignore?: ValueOrFunction<readonly string[], Context>
+  /**
+   * Directories of generated code by project path, such as `@/generated`: `.gitignore` gets them
+   * after every plugin's lines, and edits and `finish` read them as `generatedDirectories`.
+   */
+  readonly generatedDirectories?: ValueOrFunction<readonly string[], Context>
   /** README sections by title. */
   readonly readme?: ValueOrFunction<Readonly<Record<string, string>>, Context>
   readonly instrumentation?: ValueOrFunction<InstrumentationContribution, Context>
+  /** What the end of a run lists as the project's stack, such as `ESLint`. */
+  readonly stack?: ValueOrFunction<readonly string[], Context>
+  /** Commands the end of a run suggests, before those of the base project. */
+  readonly nextSteps?: ValueOrFunction<readonly NextStep[], Context>
+  /** Scripts that run after the install, in plugin order. */
+  readonly postSteps?: ValueOrFunction<readonly PostStep[], Context>
   /**
    * Edits of files other plugins or the base write, by project path. They are recorded as direct
    * edits and break when those files change.

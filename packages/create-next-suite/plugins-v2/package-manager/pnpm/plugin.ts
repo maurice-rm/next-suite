@@ -1,5 +1,6 @@
 import { createBuiltDependencies, definePlugin } from 'create-next-suite/plugin'
 
+const VERSIONS = { pnpm: '12.16.1' }
 const WORKSPACE_FILE = 'pnpm-workspace.yaml'
 
 const decision = (name: string, isAllowed: boolean): string => `  "${name}": ${isAllowed}`
@@ -11,7 +12,7 @@ export default definePlugin({
     'Installs with pnpm, takes new releases after a day and runs only allowed dependency builds.',
   category: 'package-manager',
   packageManager: {
-    version: '12.16.1',
+    version: VERSIONS.pnpm,
     ciInstallArgs: ['install', '--frozen-lockfile'],
     whenVersionDiffers: 'download',
   },

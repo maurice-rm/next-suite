@@ -62,6 +62,16 @@ describe('the built-in plugins written as plugin.ts', () => {
 
     const plugins = await loadGroupedPluginModules(directory, PLUGIN_ENTRY)
 
-    expect(plugins.map(({ plugin }) => plugin.name)).toEqual(['bun', 'npm', 'pnpm', 'yarn'])
+    expect(plugins.map(({ plugin }) => plugin.name)).toEqual([
+      'prettier',
+      'lint-staged',
+      'biome',
+      'eslint',
+      'bun',
+      'npm',
+      'pnpm',
+      'yarn',
+      'knip',
+    ])
   })
 })

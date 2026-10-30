@@ -64,9 +64,10 @@ says what next-suite does; this file says how code is written here.
   | `file-system/`       | no other module                                                                                                 |
   | `ui/`                | `expected-error.ts`                                                                                             |
   | `code-edit/`         | `expected-error.ts`                                                                                             |
+  | `points/`            | no other module                                                                                                 |
   | `project-model/`     | `code-edit/`, `file-system/`, `expected-error.ts`                                                               |
-  | `plugin-definition/` | `code-edit/`, `project-model/`, `expected-error.ts`                                                             |
-  | `assembly/`          | `plugin-definition/`, `project-model/`, `code-edit/`, `expected-error.ts`                                       |
+  | `plugin-definition/` | `code-edit/`, `project-model/`, `points/`, `expected-error.ts`                                                  |
+  | `assembly/`          | `plugin-definition/`, `points/`, `project-model/`, `code-edit/`, `expected-error.ts`                            |
   | `answers/`           | `contract/`                                                                                                     |
   | `package-manager/`   | `contract/`, the error files                                                                                    |
   | `post-steps/`        | `contract/`, `package-manager/`, the error files                                                                |
@@ -92,6 +93,15 @@ says what next-suite does; this file says how code is written here.
   path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript
   sources end in `.hbs` even without placeholders, so the repository's own tools never check them
   as code; JSX double braces in such a file are written `\{{`.
+- **Plugin files:** the files under `plugins-v2/*/*/files/` are real files of a generated
+  project. Where they import the packages the plugin installs, a `package.json` with only
+  `"private": true` sits beside them, so `turbo boundaries` takes them for a project of their own;
+  the plugin never copies it.
+- **Versions:** a built-in plugin written as `plugin.ts` names the exact version of each package
+  it installs once, in a constant `VERSIONS` at the top of `plugin.ts` keyed by npm package
+  (`{ eslint: '9.39.5' }`); Renovate and `use-newest-catalog` find them there. Until
+  `catalog.json` goes, a version a manifest plugin shares lives in both, and the equality tests
+  of `NEXT_SUITE_ENGINE=v2` fail when they drift apart.
 - **The core owns every side effect:** plugins compute, the core writes files, runs processes
   and fetches.
 

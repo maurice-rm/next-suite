@@ -1,5 +1,7 @@
 import { createBuiltDependencies, definePlugin } from 'create-next-suite/plugin'
 
+const VERSIONS = { npm: '12.2.1' }
+
 export default definePlugin({
   name: 'npm',
   title: 'npm',
@@ -7,7 +9,7 @@ export default definePlugin({
     'Installs with npm, takes new releases after a day and fails on dependency builds that are not allowed.',
   category: 'package-manager',
   packageManager: {
-    version: '12.2.1',
+    version: VERSIONS.npm,
     ciInstallArgs: ['ci'],
     whenVersionDiffers: 'warn',
   },

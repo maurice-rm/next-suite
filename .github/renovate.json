@@ -11,13 +11,23 @@
       "groupName": "github actions"
     },
     {
-      "matchFileNames": ["packages/create-next-suite/catalog.json"],
+      "matchFileNames": [
+        "packages/create-next-suite/catalog.json",
+        "packages/create-next-suite/plugins-v2/*/*/plugin.ts",
+        "packages/create-next-suite/base-project/package.json"
+      ],
       "groupName": "version catalog"
     },
     {
       "description": "@types/node of generated projects stays on the Node.js major their CI runs, the one create-next-suite's engines name",
       "matchFileNames": ["packages/create-next-suite/catalog.json"],
       "matchDepNames": ["types-node"],
+      "allowedVersions": "24.x"
+    },
+    {
+      "description": "The same holds for @types/node of the base project the plugins written as plugin.ts build on",
+      "matchFileNames": ["packages/create-next-suite/base-project/package.json"],
+      "matchDepNames": ["@types/node"],
       "allowedVersions": "24.x"
     },
     {
@@ -34,6 +44,18 @@
       "managerFilePatterns": ["/^packages/create-next-suite/catalog\\.json$/"],
       "matchStrings": [
         "($packageNames := {\"yarn\": \"@yarnpkg/cli-dist\", \"types-node\": \"@types/node\", \"types-react\": \"@types/react\", \"types-react-dom\": \"@types/react-dom\", \"biome\": \"@biomejs/biome\", \"tailwindcss-postcss\": \"@tailwindcss/postcss\", \"vitejs-plugin-react\": \"@vitejs/plugin-react\", \"testing-library-react\": \"@testing-library/react\", \"testing-library-dom\": \"@testing-library/dom\", \"t3-oss-env-nextjs\": \"@t3-oss/env-nextjs\"}; $each($, function($version, $entry) { {\"depName\": $entry, \"packageName\": $exists($lookup($packageNames, $entry)) ? $lookup($packageNames, $entry) : $entry, \"currentValue\": $version} }))"
+      ],
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
+      "description": "The versions of the built-in plugins written as plugin.ts: each entry of their VERSIONS constant, keyed by its npm package",
+      "customType": "regex",
+      "managerFilePatterns": ["/^packages/create-next-suite/plugins-v2/[^/]+/[^/]+/plugin\\.ts$/"],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        "const VERSIONS = \\{[^}]*\\}",
+        "'?(?<depName>[@a-z0-9][\\w@./-]*)'?: '(?<currentValue>[^']+)'"
       ],
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"

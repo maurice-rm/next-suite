@@ -5,13 +5,13 @@ import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { dryRunScenario } from './dry-run-scenario.ts'
-import { listScenarios, snapshotOf } from './scenarios.ts'
+import { FROZEN_SCENARIOS, listScenarios, snapshotOf } from './scenarios.ts'
 
-/** The scenario with only the base project and a package manager. */
-const BARE_SCENARIO = 'bare'
 const OTHER_PACKAGE_MANAGERS = ['npm', 'yarn', 'bun']
 
-const bare = listScenarios().find((scenario) => scenario.name === BARE_SCENARIO)
+const cases = FROZEN_SCENARIOS.flatMap((name) =>
+  OTHER_PACKAGE_MANAGERS.map((packageManager) => ({ name, packageManager })),
+)
 
 let cwd: string
 
@@ -23,15 +23,16 @@ afterAll(async () => {
   await rm(cwd, { recursive: true, force: true })
 })
 
-describe.each(OTHER_PACKAGE_MANAGERS)('the scenario bare with %s', (packageManager) => {
+describe.each(cases)('the scenario $name with $packageManager', ({ name, packageManager }) => {
   it('generates the files of its snapshot', async () => {
-    if (bare === undefined) {
-      throw new Error(`the scenario ${BARE_SCENARIO} is missing`)
+    const scenario = listScenarios().find((candidate) => candidate.name === name)
+    if (scenario === undefined) {
+      throw new Error(`the scenario ${name} is missing`)
     }
 
-    const result = await dryRunScenario({ scenario: bare, packageManager, cwd })
+    const result = await dryRunScenario({ scenario, packageManager, cwd })
 
     expect(result.stderr).toBe('')
-    await expect(result.stdout).toMatchFileSnapshot(snapshotOf(BARE_SCENARIO, packageManager))
+    await expect(result.stdout).toMatchFileSnapshot(snapshotOf(name, packageManager))
   })
 })

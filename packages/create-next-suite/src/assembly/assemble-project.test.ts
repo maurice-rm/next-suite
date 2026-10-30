@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-
-import { createBuiltDependencies } from '../plugin-definition/built-dependencies.ts'
 import { definePlugin } from '../plugin-definition/define-plugin.ts'
 import { optional } from '../plugin-definition/optional.ts'
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
+import { createBuiltDependencies } from '../points/built-dependencies.ts'
 import { createProject } from '../project-model/project.ts'
 import { createCspSources, csp, orm } from '../test-support/fixture-points.ts'
 import { type AssemblyInput, assembleProject } from './assemble-project.ts'
@@ -821,6 +820,94 @@ describe('assembleProject', () => {
       operation: 'setup: module',
       kind: 'direct',
     })
+  })
+
+  it('ignores generated directories after every plugin and hands them to finish', () => {
+    let finished: readonly string[] = []
+    const orm = definePlugin({
+      name: 'prisma',
+      title: 'Prisma',
+      category: 'logging',
+      generatedDirectories: ['@/generated', 'prisma/client'],
+      gitignore: ['/prisma/dev.db'],
+      collects: {
+        builtDependencies: {
+          create: createBuiltDependencies,
+          finish: (_builds, { generatedDirectories }) => {
+            finished = generatedDirectories
+          },
+        },
+      },
+    })
+    const later = definePlugin({
+      name: 'later',
+      title: 'Later',
+      category: 'agents',
+      generatedDirectories: () => ['@/generated'],
+      gitignore: ['/later'],
+    })
+
+    const { files } = assemble([withFiles(later), withFiles(orm)], { isSrcDirectory: true })
+    expect(fileOf(files, '.gitignore')).toBe(
+      '/node_modules\n/prisma/dev.db\n/later\n/src/generated\n/prisma/client\n',
+    )
+    expect(finished).toEqual(['src/generated', 'prisma/client'])
+  })
+
+  it('collects the stack, next steps and post-steps in plugin order', () => {
+    const linter = definePlugin({
+      name: 'eslint',
+      title: 'ESLint',
+      category: 'logging',
+      scripts: { lint: 'eslint' },
+      stack: ['ESLint'],
+      nextSteps: [{ script: 'lint' }, { command: 'docker compose up -d' }],
+    })
+    const hooks = definePlugin({
+      name: 'hooks',
+      title: 'Hooks',
+      category: 'agents',
+      scripts: { prepare: 'husky' },
+      stack: () => ['Husky', 'ESLint'],
+      postSteps: [
+        { script: 'prepare', running: 'Setting up Git hooks', when: (run) => run.initializesGit },
+        { script: 'dev' },
+      ],
+    })
+
+    const { runSteps } = assemble([withFiles(hooks), withFiles(linter)])
+    expect(runSteps.stack).toEqual(['ESLint', 'Husky'])
+    expect(runSteps.nextSteps).toEqual([{ script: 'lint' }, { command: 'docker compose up -d' }])
+    expect(
+      runSteps.postSteps.map(({ script, running, done }) => ({ script, running, done })),
+    ).toEqual([
+      { script: 'prepare', running: 'Setting up Git hooks', done: 'Ran prepare' },
+      { script: 'dev', running: 'Running dev', done: 'Ran dev' },
+    ])
+    const [prepare, dev] = runSteps.postSteps
+    expect(prepare?.runsFor({ initializesGit: false })).toBe(false)
+    expect(prepare?.runsFor({ initializesGit: true })).toBe(true)
+    expect(dev?.runsFor({ initializesGit: false })).toBe(true)
+  })
+
+  it('refuses a next step or post-step that names a missing script', () => {
+    const suggesting = definePlugin({
+      name: 'suggesting',
+      title: 'Suggesting',
+      nextSteps: [{ script: 'db:migrate' }],
+    })
+    const running = definePlugin({
+      name: 'running',
+      title: 'Running',
+      postSteps: [{ script: 'format' }],
+    })
+
+    expect(() => assemble([withFiles(suggesting)])).toThrow(
+      'suggesting suggests the script "db:migrate", but no plugin defines it',
+    )
+    expect(() => assemble([withFiles(running)])).toThrow(
+      'running runs the script after the install: "format", but no plugin defines it',
+    )
   })
 
   it('writes the same output for the same input', () => {

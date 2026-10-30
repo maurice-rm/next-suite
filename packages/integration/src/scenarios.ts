@@ -5,6 +5,12 @@ import { fileURLToPath } from 'node:url'
 const SCENARIO_DIRECTORY = fileURLToPath(new URL('../scenarios/', import.meta.url))
 const SCENARIO_EXTENSION = '.json'
 
+/**
+ * The scenarios whose snapshots are frozen with every package manager, so the engine of plugins
+ * written as plugin.ts can be held to them byte for byte.
+ */
+export const FROZEN_SCENARIOS = ['bare', 'tooling', 'biome-tooling']
+
 /** The package manager every scenario is snapshotted with. */
 export const SNAPSHOT_PACKAGE_MANAGER = 'pnpm'
 

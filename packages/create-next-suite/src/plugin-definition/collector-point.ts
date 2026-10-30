@@ -1,4 +1,6 @@
-import type { BuiltDependencies } from './built-dependencies.ts'
+import type { BuiltDependencies } from '../points/built-dependencies.ts'
+import type { CiChecks } from '../points/ci-checks.ts'
+import type { LintIgnores } from '../points/lint-ignores.ts'
 
 /**
  * The collector points by name, each with the type of what its provider collects. A point module
@@ -19,6 +21,10 @@ export interface CollectorPoints {
    * it, and every plugin with such a dependency contributes.
    */
   builtDependencies: BuiltDependencies
+  /** The globs the linter skips; the selected linter plugin provides it. */
+  lintIgnores: LintIgnores
+  /** The scripts CI runs; the selected CI plugin provides it. */
+  ciChecks: CiChecks
 }
 
 export type CollectorPointName = keyof CollectorPoints

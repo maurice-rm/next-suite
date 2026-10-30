@@ -58,7 +58,8 @@ pnpm --filter @next-suite/integration matrix base pnpm
 
 `NEXT_SUITE_ENGINE=v2` in front of either command assembles the project from
 `packages/create-next-suite/base-project` and the plugins written as `plugin.ts`; so far these are
-the package managers, enough for the scenario `bare`.
+the package managers and the tooling plugins (ESLint, Biome, Prettier, Knip, lint-staged), enough
+for the scenarios `bare`, `tooling` and `biome-tooling`.
 
 ## Contributing
 
