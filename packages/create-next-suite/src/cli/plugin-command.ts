@@ -91,7 +91,7 @@ const validatePlugin = async (
     remote: environment.remote,
     registries: {},
   })
-  assertKnownCategory(fetched.summary, directory)
+  assertKnownCategory(fetched.summary, path)
   await loadExternalPlugin(fetched, {
     pluginEntry: environment.pluginEntry,
     cacheDir: environment.remote.cacheDir,
