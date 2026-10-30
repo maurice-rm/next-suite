@@ -9,6 +9,10 @@ export type OptionChoice =
       readonly description?: string
     }
 
+/** The value of a choice, written as the value or with a label. */
+export const choiceValue = (choice: OptionChoice): string =>
+  typeof choice === 'string' ? choice : choice.value
+
 type ChoiceValue<Choice> = Choice extends string
   ? Choice
   : Choice extends { readonly value: infer Value extends string }

@@ -1,12 +1,9 @@
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
-import type { Answer, OptionChoice, PluginOption } from '../plugin-definition/plugin-option.ts'
+import { type Answer, choiceValue, type PluginOption } from '../plugin-definition/plugin-option.ts'
 import { AssemblyError } from './assembly-error.ts'
 
 /** Answers by option name, as given for one plugin. */
 export type PluginAnswers = Readonly<Record<string, Answer>>
-
-const choiceValue = (choice: OptionChoice): string =>
-  typeof choice === 'string' ? choice : choice.value
 
 /** What an answer to `option` has to be, or nothing when `answer` is one. */
 const describeExpected = (option: PluginOption, answer: Answer): string | undefined => {
