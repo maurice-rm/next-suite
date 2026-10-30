@@ -82,7 +82,7 @@ beforeAll(async () => {
   baseFiles = await loadBaseProject(fileURLToPath(new URL('base-project', PACKAGE_ROOT)))
 })
 
-describe('the app plugins written as plugin.ts', () => {
+describe('the app plugins', () => {
   it('write what other plugins contribute into their files', () => {
     const files = assembleWith([
       'bun',

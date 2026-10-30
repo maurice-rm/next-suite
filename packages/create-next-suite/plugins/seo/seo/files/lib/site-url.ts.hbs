@@ -1,8 +1,0 @@
-{{#if (has "plugin:t3-env")}}
-import { env } from "{{project.importPrefix}}env";
-
-export const siteUrl = env.NEXT_PUBLIC_SITE_URL;
-{{/if}}
-{{#unless (has "plugin:t3-env")}}
-export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-{{/unless}}

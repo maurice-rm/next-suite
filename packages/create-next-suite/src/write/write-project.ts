@@ -99,7 +99,7 @@ const removeCreated = async (created: CreatedPaths): Promise<void> => {
 }
 
 /**
- * Writes a composed project into its target. `create` needs a missing or empty directory, `empty`
+ * Writes a planned project into its target. `create` needs a missing or empty directory, `empty`
  * deletes everything but `.git` first, `overwrite` writes over existing files. A file is never
  * written through a link or over a directory. If writing fails, every file and directory this run
  * created is removed again; files it replaced stay replaced.

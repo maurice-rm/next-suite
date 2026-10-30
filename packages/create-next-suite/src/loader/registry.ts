@@ -2,7 +2,6 @@ import { lstat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 import { type RegistryIndex, registryIndexSchema } from '../contract/registry-index.ts'
-import { isInside } from '../file-system/is-inside.ts'
 import { readJsonFile } from '../file-system/read-json-file.ts'
 import { parsePluginAddress } from './plugin-address.ts'
 import { PluginLoadError } from './plugin-load-error.ts'
@@ -46,24 +45,4 @@ export const fetchRegistry = async (
       ? { directory: resolve(cwd, parsed.path), resolved: undefined }
       : await fetchRemoteSource(remote, parsed)
   return { ...fetched, index: await readIndex(fetched.directory, source) }
-}
-
-/** The directory of a plugin a registry lists; it fails for an unlisted name or a path outside. */
-export const registryPluginDirectory = (
-  registry: FetchedRegistry,
-  name: string,
-  address: string,
-): string => {
-  const entry = registry.index.plugins.find((plugin) => plugin.name === name)
-  if (entry === undefined) {
-    throw new PluginLoadError(
-      address,
-      `the registry ${registry.index.name} lists no plugin ${name}`,
-    )
-  }
-  const directory = resolve(registry.directory, entry.path)
-  if (!isInside(registry.directory, directory)) {
-    throw new PluginLoadError(address, `the registry places ${name} outside itself`)
-  }
-  return directory
 }

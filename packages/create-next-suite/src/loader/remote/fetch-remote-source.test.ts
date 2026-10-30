@@ -23,7 +23,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-const PLUGIN = '{"name":"mail"}'
+const PLUGIN = 'export default {}\n'
 
 /** A gzipped tarball of files under one top directory, as npm and GitHub serve them. */
 const tarball = async (top: string, files: Record<string, string>): Promise<Buffer> => {
@@ -40,7 +40,7 @@ const respond = (body: Buffer | string, status = 200) =>
 
 describe('fetchRemoteSource', () => {
   it('fetches an npm package, picks the version of the range and checks its integrity', async () => {
-    const archive = await tarball('package', { 'plugin.json': PLUGIN })
+    const archive = await tarball('package', { 'plugin.ts': PLUGIN })
     const integrity = `sha512-${createHash('sha512').update(archive).digest('base64')}`
     const environment = stubRemote(root, {
       'https://registry.npmjs.org/@acme%2fmail': () =>
@@ -63,11 +63,11 @@ describe('fetchRemoteSource', () => {
     })
 
     expect(fetched.resolved).toBe(`1.2.0 ${integrity}`)
-    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.ts'), 'utf8')).toBe(PLUGIN)
   })
 
   it('accepts an integrity with several hashes when the sha512 one matches', async () => {
-    const archive = await tarball('package', { 'plugin.json': PLUGIN })
+    const archive = await tarball('package', { 'plugin.ts': PLUGIN })
     const sha512 = createHash('sha512').update(archive).digest('base64')
     const integrity = `sha512-${sha512} sha1-AAAA`
     const environment = stubRemote(root, {
@@ -87,7 +87,7 @@ describe('fetchRemoteSource', () => {
       range: 'latest',
     })
 
-    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.ts'), 'utf8')).toBe(PLUGIN)
   })
 
   it('rejects an npm tarball that does not match its integrity', async () => {
@@ -110,7 +110,7 @@ describe('fetchRemoteSource', () => {
   })
 
   it('fetches a directory of a GitHub repository at the commit its ref resolves to', async () => {
-    const archive = await tarball('acme-plugins-top', { 'mail/plugin.json': PLUGIN })
+    const archive = await tarball('acme-plugins-top', { 'mail/plugin.ts': PLUGIN })
     const environment = stubRemote(root, {
       'https://api.github.com/repos/acme/plugins/commits/v2': () => respond(`${COMMIT_SHA}\n`),
       [`https://api.github.com/repos/acme/plugins/tarball/${COMMIT_SHA}`]: () => respond(archive),
@@ -125,7 +125,7 @@ describe('fetchRemoteSource', () => {
     })
 
     expect(fetched.resolved).toBe(COMMIT_SHA)
-    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.ts'), 'utf8')).toBe(PLUGIN)
   })
 
   it('rejects a GitLab answer that names no commit', async () => {
@@ -164,7 +164,7 @@ describe('fetchRemoteSource', () => {
   })
 
   it('fetches a tarball URL and names it by its digest', async () => {
-    const archive = await tarball('mail', { 'plugin.json': PLUGIN })
+    const archive = await tarball('mail', { 'plugin.ts': PLUGIN })
     const environment = stubRemote(root, { 'https://host/mail.tgz': () => respond(archive) })
 
     const fetched = await fetchRemoteSource(environment, {
@@ -173,7 +173,7 @@ describe('fetchRemoteSource', () => {
     })
 
     expect(fetched.resolved).toMatch(/^sha256-[0-9a-f]{64}$/)
-    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.ts'), 'utf8')).toBe(PLUGIN)
   })
 
   it('refuses a URL or Git address over plain http before any download', async () => {
@@ -206,7 +206,7 @@ describe('fetchRemoteSource', () => {
   it('clones a Git repository and resolves its commit', async () => {
     const repository = join(root, 'repo')
     await mkdir(repository)
-    await writeFile(join(repository, 'plugin.json'), PLUGIN)
+    await writeFile(join(repository, 'plugin.ts'), PLUGIN)
     const git = (...args: string[]) =>
       execFileSync('git', ['-C', repository, ...args], { encoding: 'utf8' }).trim()
     git('init', '--quiet', '--initial-branch', 'main')
@@ -220,11 +220,11 @@ describe('fetchRemoteSource', () => {
     })
 
     expect(fetched.resolved).toBe(git('rev-parse', 'HEAD'))
-    expect(await readFile(join(fetched.directory, 'plugin.json'), 'utf8')).toBe(PLUGIN)
+    expect(await readFile(join(fetched.directory, 'plugin.ts'), 'utf8')).toBe(PLUGIN)
   })
 
   it('sends a token only to the origin it was meant for, not after a redirect elsewhere', async () => {
-    const archive = await tarball('top', { 'plugin.json': PLUGIN })
+    const archive = await tarball('top', { 'plugin.ts': PLUGIN })
     const seen: Record<string, string | null> = {}
     const environment: RemoteEnvironment = {
       ...stubRemote(root),
@@ -260,7 +260,7 @@ describe('fetchRemoteSource', () => {
   it('clones a Git repository at a commit', async () => {
     const repository = join(root, 'repo')
     await mkdir(repository)
-    await writeFile(join(repository, 'plugin.json'), PLUGIN)
+    await writeFile(join(repository, 'plugin.ts'), PLUGIN)
     const git = (...args: string[]) =>
       execFileSync('git', ['-C', repository, ...args], { encoding: 'utf8' }).trim()
     git('init', '--quiet', '--initial-branch', 'main')

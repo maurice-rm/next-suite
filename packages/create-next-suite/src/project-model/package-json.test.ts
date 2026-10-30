@@ -141,7 +141,7 @@ describe('openPackageJson', () => {
     })
   })
 
-  it('puts the fields of plugins before the package manager and its own fields last, as v1', () => {
+  it('puts the fields of plugins before the package manager and its own fields last', () => {
     const packageJson = openPackageJson(BASE)
     packageJson.setField('engines', { node: '>=24' }, 'node-engines')
     packageJson.usePackageManager({ name: 'npm', version: '12.2.1', whenVersionDiffers: 'warn' })

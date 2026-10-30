@@ -64,7 +64,7 @@ const DEV_DEPENDENCIES: EntryGroup = {
 }
 const SCRIPTS: EntryGroup = { field: 'scripts', entry: 'script', difference: 'commands' }
 
-/** The fields in the middle of the file, in this order, as the manifest engine writes them. */
+/** The fields in the middle of the file, in this order. */
 const MIDDLE_FIELDS = [
   PACKAGE_MANAGER_FIELD,
   SCRIPTS.field,

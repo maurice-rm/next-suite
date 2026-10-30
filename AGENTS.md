@@ -9,10 +9,8 @@ says what next-suite does; this file says how code is written here.
   reported to the maintainer — never folded in.
 - The maintainer decides which options next-suite ships as built-in plugins and what the files
   of the base project and of every built-in plugin look like. Files under
-  `packages/create-next-suite/base/`, `packages/create-next-suite/base-project/`,
-  `packages/create-next-suite/plugins/*/*/files/` and
-  `packages/create-next-suite/plugins-v2/*/*/files/` change only on the maintainer's instruction
-  or approval.
+  `packages/create-next-suite/base-project/` and `packages/create-next-suite/plugins-v2/*/*/files/`
+  change only on the maintainer's instruction or approval.
 - The public surface — the CLI's commands and flags, the plugin contract and the vocabulary — is
   decided by the maintainer. A change or a review finding that would alter it is raised as a
   question, not made.
@@ -69,39 +67,29 @@ says what next-suite does; this file says how code is written here.
   | `plugin-definition/` | `code-edit/`, `project-model/`, `points/`, `expected-error.ts`                                                  |
   | `assembly/`          | `plugin-definition/`, `points/`, `project-model/`, `code-edit/`, `expected-error.ts`                            |
   | `answers/`           | `contract/`                                                                                                     |
-  | `package-manager/`   | `contract/`, the error files                                                                                    |
+  | `package-manager/`   | `contract/`, `plugin-definition/`, the error files                                                              |
   | `post-steps/`        | `contract/`, `package-manager/`, the error files                                                                |
   | `user-config/`       | `contract/`, `file-system/`, the error files                                                                    |
   | `loader/`            | `contract/`, `file-system/`, `plugin-definition/`, the error files                                              |
   | `loader/remote/`     | as `loader/`, and of `loader/` only `plugin-address.ts` and `plugin-load-error.ts`                              |
-  | `trust/`             | `contract/`, `file-system/`, `loader/`, the error files                                                         |
-  | `compose/`           | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                                             |
-  | `compose/template/`  | as `compose/`, but not `compose/` itself                                                                        |
-  | `questions/`         | `contract/`, `answers/`, `loader/`, `ui/`, `file-system/`, the error files                                      |
-  | `write/`             | `contract/`, `answers/`, `loader/`, `compose/`, `file-system/`, the error files                                 |
+  | `questions/`         | `contract/`, `answers/`, `loader/`, `plugin-definition/`, `ui/`, `file-system/`, the error files                |
+  | `write/`             | `contract/`, `answers/`, `loader/`, `file-system/`, the error files                                             |
   | `test-support/`      | `contract/`, `answers/`, `loader/`, `questions/`, `cli/`, `file-system/`, `plugin-definition/`, the error files |
   | `cli/`               | every module, never the package entries                                                                         |
 
   The error files are `expected-error.ts` and `input-error.ts` at the root of `src/`.
 - **Plugins:** a built-in plugin is one directory under
-  `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` for an extra (a
-  plugin without a category), and changes no other file; a plugin that needs another file
-  changed is missing a composition point, which is a change to the core of its own. Built-in
-  plugins import only the public plugin contract (`create-next-suite/plugin`), like any external
-  plugin.
-- **Templates:** a plugin file whose source ends in `.hbs` is a Handlebars template; its target
-  path comes from the manifest. Every other file is copied as it is. TypeScript and JavaScript
-  sources end in `.hbs` even without placeholders, so the repository's own tools never check them
-  as code; JSX double braces in such a file are written `\{{`.
+  `packages/create-next-suite/plugins-v2/<category>/`, or under `plugins-v2/extras/` for an extra
+  (a plugin without a category), and changes no other file; a plugin that needs another file
+  changed is missing a point, which is a change to the core of its own. Built-in plugins import
+  only the public plugin contract (`create-next-suite/plugin`), like any external plugin.
 - **Plugin files:** the files under `plugins-v2/*/*/files/` are real files of a generated
   project. Where they import the packages the plugin installs, a `package.json` with only
   `"private": true` sits beside them, so `turbo boundaries` takes them for a project of their own;
   the plugin never copies it.
-- **Versions:** a built-in plugin written as `plugin.ts` names the exact version of each package
-  it installs once, in a constant `VERSIONS` at the top of `plugin.ts` keyed by npm package
-  (`{ eslint: '9.39.5' }`); Renovate and `use-newest-catalog` find them there. Until
-  `catalog.json` goes, a version a manifest plugin shares lives in both, and the equality tests
-  of `NEXT_SUITE_ENGINE=v2` fail when they drift apart.
+- **Versions:** a built-in plugin names the exact version of each package it installs once, in a
+  constant `VERSIONS` at the top of `plugin.ts` keyed by npm package (`{ eslint: '9.39.5' }`);
+  Renovate and `use-newest-catalog` find them there.
 - **The core owns every side effect:** plugins compute, the core writes files, runs processes
   and fetches.
 

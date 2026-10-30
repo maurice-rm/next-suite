@@ -79,7 +79,7 @@ beforeAll(async () => {
   baseFiles = await loadBaseProject(fileURLToPath(new URL('base-project', PACKAGE_ROOT)))
 })
 
-describe('the tooling plugins written as plugin.ts', () => {
+describe('the tooling plugins', () => {
   it('write what other plugins contribute into their configs, as the templates did', () => {
     const files = assembleWith(['pnpm', 'eslint', 'prettier', 'knip', 'lint-staged'])
 
