@@ -1,3 +1,4 @@
+import type { PostStep } from '../contract/post-step.ts'
 import type { CommandResult, CommandRunner } from './run-command.ts'
 import { findUnsupportedVersion } from './supported-versions.ts'
 
@@ -20,15 +21,12 @@ export type StepReporter = {
   note: (message: string) => void
 }
 
-/** A plugin script that runs after the install, with what the run says about it. */
-type PostStepScript = { script: string; running: string; done: string }
-
 /** What runs after the files are written, and where. */
 export type PostStepsInput = {
   directory: string
   packageManager: string | undefined
   installArgs: readonly string[]
-  scripts: readonly PostStepScript[]
+  scripts: readonly PostStep[]
   shouldInstall: boolean
   shouldInitializeGit: boolean
   runCommand: CommandRunner

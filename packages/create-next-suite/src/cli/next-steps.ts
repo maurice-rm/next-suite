@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 
-import type { NextStep } from '../compose/compose-project.ts'
+import type { NextStep } from '../compose/run-summary.ts'
 
 const WHITESPACE = /\s/
 const FALLBACK_PACKAGE_MANAGER = 'npm'

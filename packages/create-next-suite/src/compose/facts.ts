@@ -1,8 +1,11 @@
-import type { Answers } from '../../answers/answers.ts'
-import { evaluateCondition } from '../../answers/evaluate-condition.ts'
-import type { LoadedPlugin } from '../../loader/load-plugin.ts'
-import type { Facts } from './render-template.ts'
-import { TemplateError } from './template-error.ts'
+import type { Answers } from '../answers/answers.ts'
+import { evaluateCondition } from '../answers/evaluate-condition.ts'
+import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { ComposeError } from './compose-error.ts'
+import { TemplateError } from './template/template-error.ts'
+
+/** Every named fact templates and logic modules may ask through `has`, with whether it holds. */
+export type Facts = ReadonlyMap<string, boolean>
 
 /**
  * Collects every fact templates may ask: `plugin:<name>` for each available plugin,
@@ -31,4 +34,13 @@ export const collectFacts = (plugins: readonly LoadedPlugin[], answers: Answers)
     }
   }
   return facts
+}
+
+/** Answers whether a fact holds; `asker`, such as `the template`, asking an unknown fact fails. */
+export const askFact = (facts: Facts, name: string, asker: string): boolean => {
+  const holds = facts.get(name)
+  if (holds === undefined) {
+    throw new ComposeError(`${asker} asks the unknown fact "${name}"`)
+  }
+  return holds
 }

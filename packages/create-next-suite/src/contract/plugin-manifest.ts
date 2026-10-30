@@ -8,9 +8,10 @@ import {
 import { conditionSchema } from './condition.ts'
 import { contributionsSchema } from './contributions.ts'
 import { dependenciesSchema } from './dependencies.ts'
-import { kebabCaseId, pluginName, scriptName } from './identifiers.ts'
+import { kebabCaseId, pluginName } from './identifiers.ts'
 import { conflictStrategySchema, fileRootSchema } from './plugin-file.ts'
 import { pluginOptionSchema } from './plugin-option.ts'
+import { postStepSchema } from './post-step.ts'
 import { exactVersionSpec } from './version-spec.ts'
 
 /**
@@ -98,17 +99,6 @@ const conditionalDependenciesSchema = z.strictObject({
 const conditionalContributionsSchema = z.strictObject({
   when: conditionSchema,
   contributes: contributionsSchema,
-})
-
-const postStepSchema = z.strictObject({
-  script: scriptName,
-  when: conditionSchema.optional(),
-  running: z.string().min(1).optional().meta({
-    description: 'What the run shows while the script runs, such as "Fixing files".',
-  }),
-  done: z.string().min(1).optional().meta({
-    description: 'What the run shows when the script succeeded, such as "Fixed files".',
-  }),
 })
 
 /** The manifest of a plugin, read from its `plugin.json`. */

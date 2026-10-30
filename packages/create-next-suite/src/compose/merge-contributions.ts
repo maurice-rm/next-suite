@@ -1,31 +1,27 @@
+import type { ModuleExport, NamedModuleExport } from '../contract/contributions.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
-import { type ExtendedValues, mergeExtendedPoints } from './merge-extended-points.ts'
+import { collect, define, keyValuePairs, unique, uniqueBy } from './merge-entries.ts'
+import { type EnvValues, mergeEnv } from './merge-env.ts'
+import { assertUniqueExports, mergeModuleExports } from './merge-module-exports.ts'
+import { resolveVersion } from './resolve-version.ts'
 
-const CATALOG_PREFIX = 'catalog:'
-
-type EnvVariable = NonNullable<ParsedPluginManifest['env']>[number]
-type PackageFields = NonNullable<
-  NonNullable<NonNullable<ParsedPluginManifest['contributes']>['package']>['fields']
->
-type FieldValue = PackageFields[string]
+type Manifests = readonly ParsedPluginManifest[]
+type Contributions = NonNullable<ParsedPluginManifest['contributes']>
+type FieldValue = NonNullable<NonNullable<Contributions['package']>['fields']>[string]
+type Service = NonNullable<NonNullable<Contributions['container']>['services']>[number]
 type ReadmeSection = { section: string; text: string }
 type RootProvider = { import: string; component: string }
 
-/** The merged contributions of all plugins, as the templates of shared files read them. */
-export type CompositionValues = ExtendedValues & {
+/** The merged contributions of all plugins. */
+export type CompositionValues = {
   scripts: Record<string, string>
   fields: Record<string, FieldValue>
   dependencies: Record<string, string>
   devDependencies: Record<string, string>
-  env: {
-    groups: { title: string; variables: EnvVariable[] }[]
-    /** The variables by scope, each with its Zod schema as code, for an env schema file. */
-    server: EnvSchemaEntry[]
-    client: EnvSchemaEntry[]
-  }
+  env: EnvValues
   layoutMetadata: { key: string; value: string }[]
   allowedBuilds: string[]
   deniedBuilds: string[]
@@ -37,284 +33,270 @@ export type CompositionValues = ExtendedValues & {
   lintStaged: { glob: string; commands: string[] }[]
   gitignore: string[]
   readme: { sections: ReadmeSection[] }
-  nextConfig: { imports: string[]; options: { key: string; value: string }[]; exported: string }
-  rootProviders: { opening: RootProvider[]; closing: string[] }
-}
-
-type EnvSchemaEntry = { name: string; schema: string }
-
-type Definition<Value> = { name: string; value: Value; origin: string }
-
-/** Named definitions where a second, different definition of a name is an error. */
-type Definitions<Value> = Map<string, Definition<Value>>
-
-type Accumulator = {
-  scripts: Definitions<string>
-  fields: Definitions<FieldValue>
-  dependencies: Definitions<string>
-  devDependencies: Definitions<string>
-  envVariables: Definitions<EnvVariable>
-  nextConfigOptions: Definitions<string>
-  layoutMetadata: Definitions<string>
-  envGroups: CompositionValues['env']['groups']
-  allowedBuilds: string[]
-  deniedBuilds: string[]
-  cssImports: string[]
-  prettierPlugins: string[]
-  ciChecks: string[]
-  agents: ReadmeSection[]
-  lintStaged: { glob: string; commands: string[] }[]
-  gitignore: string[]
-  imports: string[]
-  wrapperCalls: string[]
-  readme: ReadmeSection[]
-  providers: RootProvider[]
-}
-
-const createAccumulator = (): Accumulator => ({
-  scripts: new Map(),
-  fields: new Map(),
-  dependencies: new Map(),
-  devDependencies: new Map(),
-  envVariables: new Map(),
-  nextConfigOptions: new Map(),
-  layoutMetadata: new Map(),
-  envGroups: [],
-  allowedBuilds: [],
-  deniedBuilds: [],
-  cssImports: [],
-  prettierPlugins: [],
-  ciChecks: [],
-  agents: [],
-  lintStaged: [],
-  gitignore: [],
-  imports: [],
-  wrapperCalls: [],
-  readme: [],
-  providers: [],
-})
-
-const isSame = (first: unknown, second: unknown): boolean =>
-  JSON.stringify(first) === JSON.stringify(second)
-
-const define = <Value>(
-  definitions: Definitions<Value>,
-  definition: Definition<Value>,
-  kind: string,
-): void => {
-  const existing = definitions.get(definition.name)
-  if (existing === undefined) {
-    definitions.set(definition.name, definition)
-    return
-  }
-  if (!isSame(existing.value, definition.value)) {
-    throw new ComposeError(
-      `${existing.origin} and ${definition.origin} define ${kind} "${definition.name}" differently`,
-    )
-  }
-}
-
-const valuesOf = <Value>(definitions: Definitions<Value>): Record<string, Value> =>
-  Object.fromEntries(
-    [...definitions.values()].map((definition) => [definition.name, definition.value]),
-  )
-
-const sortedValuesOf = <Value>(definitions: Definitions<Value>): Record<string, Value> =>
-  Object.fromEntries(
-    Object.entries(valuesOf(definitions)).sort(([first], [second]) => compareNames(first, second)),
-  )
-
-/** Resolves a `catalog:<name>` version from the catalog; any other version stays as it is. */
-export const resolveVersion = (spec: string, catalog: VersionCatalog, origin: string): string => {
-  if (!spec.startsWith(CATALOG_PREFIX)) {
-    return spec
-  }
-  const version = catalog[spec.slice(CATALOG_PREFIX.length)]
-  if (version === undefined) {
-    throw new ComposeError(`${origin} asks for ${spec}, which the version catalog does not list`)
-  }
-  return version
-}
-
-const addPackage = (
-  accumulator: Accumulator,
-  manifest: ParsedPluginManifest,
-  catalog: VersionCatalog,
-): void => {
-  const origin = manifest.name
-  const contribution = manifest.contributes?.package
-  for (const [name, value] of Object.entries(contribution?.scripts ?? {})) {
-    define(accumulator.scripts, { name, value, origin }, 'the script')
-  }
-  for (const [name, value] of Object.entries(contribution?.fields ?? {})) {
-    define(accumulator.fields, { name, value, origin }, 'the package.json field')
-  }
-  for (const [name, spec] of Object.entries(manifest.dependencies ?? {})) {
-    define(
-      accumulator.dependencies,
-      { name, value: resolveVersion(spec, catalog, origin), origin },
-      'the dependency',
-    )
-  }
-  for (const [name, spec] of Object.entries(manifest.devDependencies ?? {})) {
-    const value = resolveVersion(spec, catalog, origin)
-    define(accumulator.devDependencies, { name, value, origin }, 'the dev dependency')
-  }
-}
-
-const addEnv = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
-  const variables: EnvVariable[] = []
-  for (const variable of manifest.env ?? []) {
-    const isNew = !accumulator.envVariables.has(variable.name)
-    define(
-      accumulator.envVariables,
-      { name: variable.name, value: variable, origin: manifest.name },
-      'the environment variable',
-    )
-    if (isNew) {
-      variables.push(variable)
-    }
-  }
-  if (variables.length > 0) {
-    accumulator.envGroups.push({ title: manifest.title, variables })
-  }
-}
-
-const addNextConfig = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
-  const contribution = manifest.contributes?.nextConfig
-  for (const option of contribution?.options ?? []) {
-    define(
-      accumulator.nextConfigOptions,
-      { name: option.key, value: option.value, origin: manifest.name },
-      'the next.config option',
-    )
-  }
-  accumulator.imports.push(...(contribution?.imports ?? []))
-  for (const wrapper of contribution?.wrappers ?? []) {
-    accumulator.imports.push(wrapper.import)
-    accumulator.wrapperCalls.push(wrapper.call)
-  }
-}
-
-const addLayoutMetadata = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
-  for (const field of manifest.contributes?.layoutMetadata ?? []) {
-    define(
-      accumulator.layoutMetadata,
-      { name: field.key, value: field.value, origin: manifest.name },
-      'the layout metadata field',
-    )
-  }
-}
-
-/** The Zod schema of a variable as code: a string, with its default when it has one. */
-const envSchemaOf = (variable: EnvVariable): EnvSchemaEntry => ({
-  name: variable.name,
-  schema:
-    variable.default === undefined
-      ? 'z.string()'
-      : `z.string().default(${JSON.stringify(variable.default)})`,
-})
-
-const envOfScope = (accumulator: Accumulator, scope: EnvVariable['scope']): EnvSchemaEntry[] =>
-  [...accumulator.envVariables.values()]
-    .map((definition) => definition.value)
-    .filter((variable) => variable.scope === scope)
-    .map(envSchemaOf)
-
-const addLists = (accumulator: Accumulator, manifest: ParsedPluginManifest): void => {
-  accumulator.allowedBuilds.push(...(manifest.contributes?.allowedBuilds ?? []))
-  accumulator.deniedBuilds.push(...(manifest.contributes?.deniedBuilds ?? []))
-  accumulator.cssImports.push(...(manifest.contributes?.cssImports ?? []))
-  accumulator.prettierPlugins.push(...(manifest.contributes?.prettierPlugins ?? []))
-  accumulator.ciChecks.push(...(manifest.contributes?.ciChecks ?? []))
-  accumulator.agents.push(...(manifest.contributes?.agents ?? []))
-  for (const { glob, command } of manifest.contributes?.lintStaged ?? []) {
-    const entry = accumulator.lintStaged.find((existing) => existing.glob === glob)
-    if (entry === undefined) {
-      accumulator.lintStaged.push({ glob, commands: [command] })
-    } else if (!entry.commands.includes(command)) {
-      entry.commands.push(command)
-    }
-  }
-  accumulator.gitignore.push(...(manifest.contributes?.gitignore ?? []))
-  accumulator.readme.push(...(manifest.contributes?.readme ?? []))
-  accumulator.providers.push(...(manifest.contributes?.rootProviders ?? []))
-}
-
-const assertNoDoubleDependencies = (accumulator: Accumulator): void => {
-  for (const name of accumulator.dependencies.keys()) {
-    if (accumulator.devDependencies.has(name)) {
-      throw new ComposeError(`"${name}" is both a dependency and a dev dependency`)
-    }
-  }
-}
-
-const unique = (values: string[]): string[] => [...new Set(values)]
-
-const toValues = (accumulator: Accumulator): Omit<CompositionValues, keyof ExtendedValues> => ({
-  scripts: valuesOf(accumulator.scripts),
-  fields: valuesOf(accumulator.fields),
-  dependencies: sortedValuesOf(accumulator.dependencies),
-  devDependencies: sortedValuesOf(accumulator.devDependencies),
-  env: {
-    groups: accumulator.envGroups,
-    server: envOfScope(accumulator, 'server'),
-    client: envOfScope(accumulator, 'client'),
-  },
-  layoutMetadata: [...accumulator.layoutMetadata.values()].map(({ name, value }) => ({
-    key: name,
-    value,
-  })),
-  allowedBuilds: unique(accumulator.allowedBuilds).sort(compareNames),
-  deniedBuilds: unique(accumulator.deniedBuilds)
-    .filter((name) => !accumulator.allowedBuilds.includes(name))
-    .sort(compareNames),
-  cssImports: unique(accumulator.cssImports),
-  prettierPlugins: unique(accumulator.prettierPlugins),
-  ciChecks: unique(accumulator.ciChecks),
-  agents: { sections: accumulator.agents },
-  lintStaged: accumulator.lintStaged,
-  gitignore: unique(accumulator.gitignore),
-  readme: { sections: accumulator.readme },
   nextConfig: {
-    imports: unique(accumulator.imports),
-    options: [...accumulator.nextConfigOptions.values()].map(({ name, value }) => ({
-      key: name,
-      value,
-    })),
-    exported: accumulator.wrapperCalls.reduce((config, call) => `${call}(${config})`, 'nextConfig'),
-  },
-  rootProviders: {
-    opening: accumulator.providers,
-    closing: accumulator.providers.map((provider) => provider.component).reverse(),
-  },
+    imports: string[]
+    options: { key: string; value: string }[]
+    exported: string
+  }
+  rootProviders: { opening: RootProvider[]; closing: string[] }
+  instrumentation: {
+    register: ModuleExport[]
+    onRequestError: NamedModuleExport[]
+  }
+  instrumentationClient: ModuleExport[]
+  bodyEnd: NamedModuleExport[]
+  /** Each path's targets are a JSON array, ready for tsconfig.json. */
+  tsconfig: { paths: { alias: string; targets: string }[]; include: string[] }
+  generatedDirs: string[]
+  lint: { ignores: string[] }
+  /** The Knip options that have values, such as `entry`, in the order Knip documents them. */
+  knip: { key: string; values: string[] }[]
+  container: {
+    buildArgs: { name: string; description: string }[]
+    env: { name: string; value: string }[]
+    services: Service[]
+  }
+  csp: { directive: string; sources: string[] }[]
+  health: { name: string; module: string; export: string }[]
+  testSetup: string[]
+  logRedact: string[]
+}
+
+const sortedByName = <Value>(values: ReadonlyMap<string, Value>): Record<string, Value> =>
+  Object.fromEntries([...values].sort(([first], [second]) => compareNames(first, second)))
+
+const mergeDependencies = (
+  manifests: Manifests,
+  catalog: VersionCatalog,
+): Pick<CompositionValues, 'dependencies' | 'devDependencies'> => {
+  const resolved = (manifest: ParsedPluginManifest, dependencies: Record<string, string> = {}) =>
+    Object.entries(dependencies).map(
+      ([name, spec]) => [name, resolveVersion(spec, catalog, manifest.name)] as const,
+    )
+  const dependencies = define(manifests, 'the dependency', (manifest) =>
+    resolved(manifest, manifest.dependencies),
+  )
+  const devDependencies = define(manifests, 'the dev dependency', (manifest) =>
+    resolved(manifest, manifest.devDependencies),
+  )
+  const both = [...dependencies.keys()].find((name) => devDependencies.has(name))
+  if (both !== undefined) {
+    throw new ComposeError(`"${both}" is both a dependency and a dev dependency`)
+  }
+  return {
+    dependencies: sortedByName(dependencies),
+    devDependencies: sortedByName(devDependencies),
+  }
+}
+
+const mergeBuilds = (
+  manifests: Manifests,
+): Pick<CompositionValues, 'allowedBuilds' | 'deniedBuilds'> => {
+  const allowed = unique(collect(manifests, ({ contributes }) => contributes?.allowedBuilds))
+  return {
+    allowedBuilds: allowed.sort(compareNames),
+    deniedBuilds: unique(collect(manifests, ({ contributes }) => contributes?.deniedBuilds))
+      .filter((name) => !allowed.includes(name))
+      .sort(compareNames),
+  }
+}
+
+const mergeNextConfig = (manifests: Manifests): CompositionValues['nextConfig'] => {
+  const options = define(manifests, 'the next.config option', ({ contributes }) =>
+    contributes?.nextConfig?.options?.map(({ key, value }) => [key, value]),
+  )
+  const wrappers = collect(manifests, ({ contributes }) => contributes?.nextConfig?.wrappers)
+  return {
+    imports: unique(
+      collect(manifests, ({ contributes }) => [
+        ...(contributes?.nextConfig?.imports ?? []),
+        ...(contributes?.nextConfig?.wrappers ?? []).map((wrapper) => wrapper.import),
+      ]),
+    ),
+    options: keyValuePairs(options),
+    exported: wrappers.reduce((config, { call }) => `${call}(${config})`, 'nextConfig'),
+  }
+}
+
+const mergeLintStaged = (manifests: Manifests): CompositionValues['lintStaged'] => {
+  const entries = collect(manifests, ({ contributes }) => contributes?.lintStaged)
+  return unique(entries.map(({ glob }) => glob)).map((glob) => ({
+    glob,
+    commands: unique(entries.filter((entry) => entry.glob === glob).map(({ command }) => command)),
+  }))
+}
+
+const mergeRootProviders = (manifests: Manifests): CompositionValues['rootProviders'] => {
+  const opening = collect(manifests, ({ contributes }) => contributes?.rootProviders)
+  return {
+    opening,
+    closing: opening.map(({ component }) => component).reverse(),
+  }
+}
+
+const mergePaths = (manifests: Manifests): CompositionValues['tsconfig']['paths'] => {
+  const paths = new Map<string, { targets: string[]; origin: string }>()
+  for (const manifest of manifests) {
+    for (const [alias, targets] of Object.entries(manifest.contributes?.tsconfig?.paths ?? {})) {
+      const existing = paths.get(alias)
+      if (existing !== undefined && JSON.stringify(existing.targets) !== JSON.stringify(targets)) {
+        throw new ComposeError(
+          `${existing.origin} and ${manifest.name} point the tsconfig path "${alias}" to different targets`,
+        )
+      }
+      paths.set(alias, { targets, origin: manifest.name })
+    }
+  }
+  return [...paths.entries()].map(([alias, { targets }]) => ({
+    alias,
+    targets: JSON.stringify(targets),
+  }))
+}
+
+const mergeCsp = (manifests: Manifests): CompositionValues['csp'] => {
+  const directives = collect(manifests, ({ contributes }) => Object.entries(contributes?.csp ?? {}))
+  return unique(directives.map(([directive]) => directive)).map((directive) => ({
+    directive,
+    sources: unique(
+      directives.filter(([name]) => name === directive).flatMap(([, sources]) => sources),
+    ),
+  }))
+}
+
+/**
+ * The generated directories, and the patterns that make git, the linter and Knip ignore them on
+ * top of what the plugins list.
+ */
+const mergeGeneratedDirs = (
+  manifests: Manifests,
+): Pick<CompositionValues, 'generatedDirs' | 'gitignore' | 'lint'> & {
+  knipIgnore: string[]
+} => {
+  const generatedDirs = unique(collect(manifests, ({ contributes }) => contributes?.generatedDirs))
+  const globs = generatedDirs.map((directory) => `${directory}/**`)
+  return {
+    generatedDirs,
+    gitignore: unique([
+      ...collect(manifests, ({ contributes }) => contributes?.gitignore),
+      ...generatedDirs.map((directory) => `/${directory}`),
+    ]),
+    lint: {
+      ignores: unique([
+        ...collect(manifests, ({ contributes }) => contributes?.lint?.ignores),
+        ...globs,
+      ]),
+    },
+    knipIgnore: unique([
+      ...collect(manifests, ({ contributes }) => contributes?.knip?.ignore),
+      ...globs,
+    ]),
+  }
+}
+
+const mergeKnip = (manifests: Manifests, ignore: string[]): CompositionValues['knip'] =>
+  [
+    {
+      key: 'entry',
+      values: unique(collect(manifests, ({ contributes }) => contributes?.knip?.entry)),
+    },
+    { key: 'ignore', values: ignore },
+    {
+      key: 'ignoreDependencies',
+      values: unique(
+        collect(manifests, ({ contributes }) => contributes?.knip?.ignoreDependencies),
+      ),
+    },
+  ].filter(({ values }) => values.length > 0)
+
+const mergeContainer = (manifests: Manifests): CompositionValues['container'] => ({
+  buildArgs: uniqueBy(
+    collect(manifests, ({ contributes }) => contributes?.container?.buildArgs),
+    ({ name }) => name,
+  ),
+  env: uniqueBy(
+    collect(manifests, ({ contributes }) => contributes?.container?.env),
+    ({ name }) => name,
+  ),
+  services: [
+    ...define(manifests, 'the compose service', ({ contributes }) =>
+      contributes?.container?.services?.map((service) => [service.name, service]),
+    ).values(),
+  ],
 })
 
 /**
- * Merges the contributions of plugins in their order. A script, package field, dependency,
- * environment variable or next.config option that two plugins define differently is an error;
- * identical definitions merge.
+ * Merges the contributions of plugins in their order, by a fixed rule per composition point: lists
+ * keep plugin order without duplicates; a named entry, such as a script, a dependency or an
+ * environment variable, that two plugins define differently is an error, identical definitions
+ * merge.
  */
 export const mergeContributions = (
-  manifests: readonly ParsedPluginManifest[],
+  manifests: Manifests,
   catalog: VersionCatalog,
 ): CompositionValues => {
-  const accumulator = createAccumulator()
-  for (const manifest of manifests) {
-    addPackage(accumulator, manifest, catalog)
-    addEnv(accumulator, manifest)
-    addNextConfig(accumulator, manifest)
-    addLayoutMetadata(accumulator, manifest)
-    addLists(accumulator, manifest)
-  }
-  assertNoDoubleDependencies(accumulator)
-  const extended = mergeExtendedPoints(manifests)
-  const values = toValues(accumulator)
+  const { knipIgnore, ...generated } = mergeGeneratedDirs(manifests)
   return {
-    ...values,
-    ...extended,
-    gitignore: [
-      ...new Set([...values.gitignore, ...extended.generatedDirs.map((folder) => `/${folder}`)]),
-    ],
+    scripts: Object.fromEntries(
+      define(manifests, 'the script', ({ contributes }) =>
+        Object.entries(contributes?.package?.scripts ?? {}),
+      ),
+    ),
+    fields: Object.fromEntries(
+      define(manifests, 'the package.json field', ({ contributes }) =>
+        Object.entries(contributes?.package?.fields ?? {}),
+      ),
+    ),
+    ...mergeDependencies(manifests, catalog),
+    env: mergeEnv(manifests),
+    layoutMetadata: keyValuePairs(
+      define(manifests, 'the layout metadata field', ({ contributes }) =>
+        contributes?.layoutMetadata?.map(({ key, value }) => [key, value]),
+      ),
+    ),
+    ...mergeBuilds(manifests),
+    cssImports: unique(collect(manifests, ({ contributes }) => contributes?.cssImports)),
+    prettierPlugins: unique(collect(manifests, ({ contributes }) => contributes?.prettierPlugins)),
+    ciChecks: unique(collect(manifests, ({ contributes }) => contributes?.ciChecks)),
+    agents: {
+      sections: collect(manifests, ({ contributes }) => contributes?.agents),
+    },
+    lintStaged: mergeLintStaged(manifests),
+    readme: {
+      sections: collect(manifests, ({ contributes }) => contributes?.readme),
+    },
+    nextConfig: mergeNextConfig(manifests),
+    rootProviders: mergeRootProviders(manifests),
+    instrumentation: {
+      register: mergeModuleExports(
+        manifests,
+        (contributes) => contributes.instrumentation?.register,
+      ),
+      onRequestError: mergeModuleExports(
+        manifests,
+        (contributes) => contributes.instrumentation?.onRequestError,
+      ),
+    },
+    instrumentationClient: assertUniqueExports(
+      'instrumentation-client.ts',
+      mergeModuleExports(manifests, (contributes) => contributes.instrumentationClient),
+    ),
+    bodyEnd: assertUniqueExports(
+      'the end of the body',
+      mergeModuleExports(manifests, (contributes) => contributes.bodyEnd),
+    ),
+    tsconfig: {
+      paths: mergePaths(manifests),
+      include: unique(collect(manifests, ({ contributes }) => contributes?.tsconfig?.include)),
+    },
+    ...generated,
+    knip: mergeKnip(manifests, knipIgnore),
+    container: mergeContainer(manifests),
+    csp: mergeCsp(manifests),
+    health: uniqueBy(
+      collect(manifests, ({ contributes }) => contributes?.health),
+      ({ name }) => name,
+    ),
+    testSetup: unique(collect(manifests, ({ contributes }) => contributes?.testSetup)),
+    logRedact: unique(collect(manifests, ({ contributes }) => contributes?.logRedact)),
   }
 }

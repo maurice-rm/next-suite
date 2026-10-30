@@ -47,24 +47,3 @@ export const applyConditionalDependencies = (
     ),
   }
 }
-
-/**
- * The manifest and, for each conditional contribution whose condition holds, a manifest of the
- * same plugin with just that contribution, so they merge like any other.
- */
-export const expandConditionalContributions = (
-  manifest: ParsedPluginManifest,
-  answers: Answers,
-): ParsedPluginManifest[] => [
-  manifest,
-  ...(manifest.conditionalContributions ?? [])
-    .filter((group) => evaluateCondition(group.when, answers))
-    .map((group) => ({
-      name: manifest.name,
-      version: manifest.version,
-      contract: manifest.contract,
-      title: manifest.title,
-      description: manifest.description,
-      contributes: group.contributes,
-    })),
-]

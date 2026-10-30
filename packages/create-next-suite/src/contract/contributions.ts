@@ -17,12 +17,17 @@ const RESERVED_PACKAGE_FIELDS: ReadonlySet<string> = new Set([
 const nonEmpty = z.string().min(1)
 
 /** A module and one of its exports; a module starting with `#src/` is imported through the project's alias. */
-const moduleExport = z.strictObject({
+const moduleExportSchema = z.strictObject({
   module: nonEmpty.meta({
     description: 'Such as `#src/lib/logger`, imported through the project alias.',
   }),
   export: nonEmpty.optional(),
 })
+
+const namedModuleExportSchema = moduleExportSchema.required({ export: true })
+
+export type ModuleExport = z.output<typeof moduleExportSchema>
+export type NamedModuleExport = z.output<typeof namedModuleExportSchema>
 
 /** A section of a Markdown file several plugins write, such as README.md. */
 const sectionTextSchema = z.strictObject({ section: nonEmpty, text: nonEmpty })
@@ -110,23 +115,20 @@ export const contributionsSchema = z.strictObject({
   }),
   instrumentation: z
     .strictObject({
-      register: z.array(moduleExport).optional(),
-      onRequestError: z.array(moduleExport.required({ export: true })).optional(),
+      register: z.array(moduleExportSchema).optional(),
+      onRequestError: z.array(namedModuleExportSchema).optional(),
     })
     .optional()
     .meta({
       description:
         'Functions instrumentation.ts runs: at startup (`register`, the export is called without arguments, or the module is just loaded) and for every server error (`onRequestError`). Node.js runtime only.',
     }),
-  instrumentationClient: z.array(moduleExport).optional().meta({
+  instrumentationClient: z.array(moduleExportSchema).optional().meta({
     description: 'Functions instrumentation-client.ts calls in the browser before the app starts.',
   }),
-  bodyEnd: z
-    .array(moduleExport.required({ export: true }))
-    .optional()
-    .meta({
-      description: 'Components the root layout renders at the end of `body`, such as analytics.',
-    }),
+  bodyEnd: z.array(namedModuleExportSchema).optional().meta({
+    description: 'Components the root layout renders at the end of `body`, such as analytics.',
+  }),
   tsconfig: z
     .strictObject({
       paths: z.record(nonEmpty, z.array(nonEmpty)).optional(),

@@ -22,7 +22,6 @@ import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-set
 import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
 import type { Streams } from '../ui/prompts.ts'
 import { readUserConfig } from '../user-config/user-config.ts'
-import { describePlan, diffPlan } from '../write/describe-plan.ts'
 import { findEmptyingProblem } from '../write/empty-target.ts'
 import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
 import { writeProject } from '../write/write-project.ts'
@@ -37,6 +36,7 @@ import {
 } from './command-line.ts'
 import { CREATE_COMMAND } from './command-name.ts'
 import { confirmTrust } from './confirm-trust.ts'
+import { describePlan, diffPlan } from './describe-plan.ts'
 import {
   detectPackageManager,
   findUsablePackageManager,

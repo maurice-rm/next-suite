@@ -1,52 +1,34 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-
-import type { Answers, AnswerValue } from '../answers/answers.ts'
-import { holdsFor } from '../answers/evaluate-condition.ts'
+import type { Answers } from '../answers/answers.ts'
 import type { Logic } from '../contract/logic.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
+import type { PostStep } from '../contract/post-step.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
-import {
-  applyConditionalDependencies,
-  expandConditionalContributions,
-} from './apply-conditional-dependencies.ts'
+import { applyConditionalDependencies } from './apply-conditional-dependencies.ts'
 import { assertNoPathCollisions } from './assert-no-path-collisions.ts'
-import { assertSafeTarget } from './assert-safe-target.ts'
+import { assertScript } from './assert-script.ts'
 import { compareNames } from './compare-names.ts'
 import { ComposeError } from './compose-error.ts'
+import { expandConditionalContributions } from './expand-conditional-contributions.ts'
+import { collectFacts } from './facts.ts'
+import { type CompositionValues, mergeContributions } from './merge-contributions.ts'
+import { createPackageJson, PACKAGE_FILE } from './package-json.ts'
+import { findPackageManager } from './package-manager-fields.ts'
 import {
-  instrumentationClientFile,
-  instrumentationFile,
-  resolveModule,
-} from './instrumentation-files.ts'
-import {
-  type CompositionValues,
-  mergeContributions,
-  resolveVersion,
-} from './merge-contributions.ts'
-import { packageManagerFields } from './package-manager-fields.ts'
+  addCoreFile,
+  addInstrumentationFiles,
+  addLogicFiles,
+  addPluginFiles,
+} from './project-files.ts'
 import { createProjectManifest, PROJECT_MANIFEST_FILE } from './project-manifest.ts'
+import { type ProjectValues, projectValues } from './project-values.ts'
+import { resolveModules } from './resolve-modules.ts'
 import { runLogic } from './run-logic.ts'
+import { collectPostSteps, collectSummary, type RunSummary } from './run-summary.ts'
 import { settingContributions } from './setting-contributions.ts'
-import {
-  BASE_TEMPLATE_BLOCKS,
-  type BlockHelper,
-  PLUGIN_TEMPLATE_BLOCKS,
-} from './template/check-template.ts'
-import { collectFacts } from './template/collect-facts.ts'
-import { type Facts, renderTemplate } from './template/render-template.ts'
-import { addFile, type VirtualFile, type VirtualFiles } from './virtual-files.ts'
+import type { VirtualFile, VirtualFiles } from './virtual-files.ts'
 
-const CORE_ORIGIN = 'create-next-suite'
-const SOURCE_DIRECTORY = 'src'
-const SRC_DIR_SETTING = 'src-dir'
-const IMPORT_ALIAS_SETTING = 'import-alias'
-const DEFAULT_IMPORT_ALIAS = '@/*'
-/** An alias such as `@/*` or `~/*`: no spaces or quotes, ending in `/*` like create-next-app. */
-const IMPORT_ALIAS = /^[^\s"'\\]+\/\*$/
-const FALLBACK_PACKAGE_MANAGER = 'npm'
-const PACKAGE_FILE = 'package.json'
+const DEFAULT_INSTALL_ARGS = ['install']
 
 type ComposeInput = {
   projectName: string
@@ -72,315 +54,21 @@ export type ProjectPlan = {
   /** The arguments its first install runs with. */
   installArgs: string[]
   /** The scripts to run after the install, in plugin order, with what the run shows for them. */
-  postSteps: PostStepScript[]
-  /** What the end of the run shows: the stack line and the suggested next commands. */
-  summary: { stack: string[]; nextSteps: NextStep[] }
+  postSteps: PostStep[]
+  summary: RunSummary
 }
 
-/** A plugin script that runs after the install, with what the run says while and after it runs. */
-type PostStepScript = { script: string; running: string; done: string }
-
-/** A command the end of a run suggests: plain, or a script run with the package manager. */
-export type NextStep = { command: string } | { script: string }
-
-type PluginFile = NonNullable<ParsedPluginManifest['files']>[number]
-
-/** Values about the project itself that templates read under `project`. */
-type ProjectValues = {
-  name: string
-  /** The import alias, such as `@/*`, and the directory it points to, such as `./src/*`. */
-  importAlias: string
-  importAliasTarget: string
-  /** What an import through the alias starts with, such as `@/`. */
-  importPrefix: string
-  packageManager: string
-  /** The exact version of the package manager, such as `12.16.1`. */
-  packageManagerVersion: string
-  /** How a script runs with the package manager, such as `pnpm run`. */
-  run: string
-  /** The install command for CI that keeps the lockfile, such as `npm ci`. */
-  ciInstall: string
-}
-
-type RenderContext = {
-  project: ProjectValues
-  answers: Answers
-  values: CompositionValues
-  facts: Facts
-}
-
-const optionsOf = (pluginName: string, answers: Answers): Record<string, AnswerValue> => {
-  const prefix = `${pluginName}.`
-  return Object.fromEntries(
-    Object.entries(answers.options)
-      .filter(([key]) => key.startsWith(prefix))
-      .map(([key, value]) => [key.slice(prefix.length), value]),
-  )
-}
-
-const requiredPlugins = (manifest: ParsedPluginManifest): ReadonlySet<string> =>
-  new Set(
-    (manifest.requires ?? []).flatMap((rule) => ('plugin' in rule.when ? [rule.when.plugin] : [])),
-  )
-
-const targetPath = (file: Pick<PluginFile, 'root' | 'target'>, answers: Answers): string =>
-  file.root === 'source' && answers.settings[SRC_DIR_SETTING] === true
-    ? `${SOURCE_DIRECTORY}/${file.target}`
-    : file.target
-
-type FileToRender = {
-  plugin: LoadedPlugin
-  file: PluginFile
-  context: RenderContext
-  allowedBlocks: readonly BlockHelper[]
-}
-
-/** Plugin sources with this extension are templates; every other source is copied as it is. */
-const TEMPLATE_EXTENSION = '.hbs'
-
-const readPluginFile = async ({
-  plugin,
-  file,
-  context,
-  allowedBlocks,
-}: FileToRender): Promise<string> => {
-  const source = await readFile(join(plugin.directory, file.source), 'utf8')
-  if (!file.source.endsWith(TEMPLATE_EXTENSION)) {
-    return source
-  }
-  const values = {
-    project: context.project,
-    settings: context.answers.settings,
-    options: optionsOf(plugin.manifest.name, context.answers),
-    ...context.values,
-  }
-  try {
-    return renderTemplate({
-      source,
-      values,
-      facts: context.facts,
-      allowedBlocks,
-    })
-  } catch (error) {
-    throw new ComposeError(`${plugin.manifest.name}: ${file.source} does not render`, {
-      cause: error,
-    })
-  }
-}
-
-const addPluginFiles = async (
-  files: VirtualFiles,
-  plugins: readonly LoadedPlugin[],
-  context: RenderContext,
-): Promise<void> => {
-  const [base] = plugins
-  const contributions = plugins.flatMap((plugin) =>
-    (plugin.manifest.files ?? [])
-      .filter((file) => holdsFor(file.when, context.answers))
-      .map((file) => ({ plugin, file })),
-  )
-  const ordered = [
-    ...contributions.filter(({ file }) => file.conflict !== 'replace'),
-    ...contributions.filter(({ file }) => file.conflict === 'replace'),
+/** The manifests whose contributions merge: the base project, the base settings, the plugins. */
+const contributingManifests = ({ base, selected, answers }: ComposeInput): ParsedPluginManifest[] =>
+  [
+    base.manifest,
+    settingContributions(answers.settings),
+    ...selected.map(({ manifest }) => manifest),
   ]
-  for (const { plugin, file } of ordered) {
-    const path = targetPath(file, context.answers)
-    assertSafeTarget(path, plugin.manifest.name)
-    addFile(files, {
-      path,
-      content: await readPluginFile({
-        plugin,
-        file,
-        context,
-        allowedBlocks: plugin === base ? BASE_TEMPLATE_BLOCKS : PLUGIN_TEMPLATE_BLOCKS,
-      }),
-      origin: plugin.manifest.name,
-      conflict: file.conflict,
-      replaceable: requiredPlugins(plugin.manifest),
-    })
-  }
-}
+    .map((manifest) => applyConditionalDependencies(manifest, answers))
+    .flatMap((manifest) => expandConditionalContributions(manifest, answers))
 
-type PackageJsonInput = {
-  projectName: string
-  values: CompositionValues
-  selected: readonly LoadedPlugin[]
-  catalog: VersionCatalog
-}
-
-const findPackageManager = (selected: readonly LoadedPlugin[]) =>
-  selected.flatMap(({ manifest }) =>
-    manifest.packageManager === undefined
-      ? []
-      : [{ name: manifest.name, packageManager: manifest.packageManager }],
-  )[0]
-
-const createPackageJson = ({
-  projectName,
-  values,
-  selected,
-  catalog,
-}: PackageJsonInput): string => {
-  const packageManager = findPackageManager(selected)
-  const managerFields =
-    packageManager === undefined
-      ? undefined
-      : packageManagerFields({
-          ...packageManager,
-          builds: { allowed: values.allowedBuilds, denied: values.deniedBuilds },
-          catalog,
-        })
-  const packageJson = {
-    name: projectName,
-    ...values.fields,
-    packageManager: managerFields?.packageManager,
-    scripts: values.scripts,
-    dependencies: values.dependencies,
-    devDependencies: values.devDependencies,
-    ...managerFields?.fields,
-  }
-  return `${JSON.stringify(packageJson, null, 2)}\n`
-}
-
-const assertScript = (
-  scripts: Readonly<Record<string, string>>,
-  script: string,
-  detail: string,
-) => {
-  if (!Object.hasOwn(scripts, script)) {
-    throw new ComposeError(`${detail} "${script}", but no plugin defines it`)
-  }
-}
-
-const collectPostSteps = (
-  plugins: readonly LoadedPlugin[],
-  answers: Answers,
-  scripts: Readonly<Record<string, string>>,
-): PostStepScript[] =>
-  plugins.flatMap(({ manifest }) =>
-    (manifest.postSteps ?? [])
-      .filter((step) => holdsFor(step.when, answers))
-      .map((step) => {
-        assertScript(scripts, step.script, `${manifest.name} runs the script after the install:`)
-        return {
-          script: step.script,
-          running: step.running ?? `Running ${step.script}`,
-          done: step.done ?? `Ran ${step.script}`,
-        }
-      }),
-  )
-
-/** The stack in plugin order, and the next steps with those of the base project, such as `dev`, last. */
-const uniqueSteps = (steps: NextStep[]): NextStep[] => {
-  const seen = new Set<string>()
-  return steps.filter((step) => {
-    const key = JSON.stringify(step)
-    const isNew = !seen.has(key)
-    seen.add(key)
-    return isNew
-  })
-}
-
-type SummaryInput = {
-  manifests: readonly ParsedPluginManifest[]
-  baseName: string
-  answers: Answers
-  scripts: Readonly<Record<string, string>>
-}
-
-const collectSummary = ({
-  manifests,
-  baseName,
-  answers,
-  scripts,
-}: SummaryInput): ProjectPlan['summary'] => ({
-  stack: [...new Set(manifests.flatMap((manifest) => manifest.contributes?.stack ?? []))],
-  nextSteps: uniqueSteps(
-    [
-      ...manifests.filter((manifest) => manifest.name !== baseName),
-      ...manifests.filter((manifest) => manifest.name === baseName),
-    ].flatMap((manifest) =>
-      (manifest.contributes?.nextSteps ?? [])
-        .filter((step) => holdsFor(step.when, answers))
-        .map((step): NextStep => {
-          if ('command' in step) {
-            return { command: step.command }
-          }
-          assertScript(scripts, step.script, `${manifest.name} suggests the script`)
-          return { script: step.script }
-        }),
-    ),
-  ),
-})
-
-const addCoreFile = (files: VirtualFiles, path: string, content: string): void =>
-  addFile(files, { path, content, origin: CORE_ORIGIN, conflict: 'error', replaceable: new Set() })
-
-const projectValues = ({
-  projectName,
-  answers,
-  selected,
-  catalog,
-}: ComposeInput): ProjectValues => {
-  const alias = answers.settings[IMPORT_ALIAS_SETTING]
-  const importAlias = typeof alias === 'string' ? alias : DEFAULT_IMPORT_ALIAS
-  if (!IMPORT_ALIAS.test(importAlias)) {
-    throw new ComposeError(
-      `the import alias "${importAlias}" is invalid; use a pattern such as "@/*" or "~/*"`,
-    )
-  }
-  const manager = findPackageManager(selected)
-  const packageManager = manager?.name ?? FALLBACK_PACKAGE_MANAGER
-  const sourceRoot = answers.settings[SRC_DIR_SETTING] === true ? `./${SOURCE_DIRECTORY}/` : './'
-  return {
-    name: projectName,
-    importAlias,
-    importAliasTarget: `${sourceRoot}*`,
-    importPrefix: importAlias.slice(0, -1),
-    packageManager,
-    packageManagerVersion:
-      manager === undefined
-        ? ''
-        : resolveVersion(manager.packageManager.version, catalog, manager.name),
-    run: `${packageManager} run`,
-    ciInstall: [packageManager, ...(manager?.packageManager.ciInstallArgs ?? ['ci'])].join(' '),
-  }
-}
-
-/**
- * Composes the project in memory: merges the contributions of the base project and the selected
- * plugins, renders their files, and adds package.json and next-suite.json. Nothing is written.
- */
-export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> => {
-  const plugins = [input.base, ...input.selected]
-  const manifests = [
-    input.base.manifest,
-    settingContributions(input.answers.settings),
-    ...input.selected.map((plugin) => plugin.manifest),
-  ]
-    .map((manifest) => applyConditionalDependencies(manifest, input.answers))
-    .flatMap((manifest) => expandConditionalContributions(manifest, input.answers))
-  const project = projectValues(input)
-  const facts = collectFacts([input.base, ...input.available], input.answers)
-  const computed = await runLogic({
-    manifests: plugins.map((plugin) => plugin.manifest),
-    logic: input.logic,
-    answers: input.answers,
-    project,
-    facts,
-  })
-  const merged = mergeContributions([...manifests, ...computed.extraManifests], input.catalog)
-  const values = {
-    ...merged,
-    bodyEnd: merged.bodyEnd.map((entry) => ({
-      ...entry,
-      module: resolveModule(entry.module, project.importPrefix),
-    })),
-    health: merged.health.map((check) => ({
-      ...check,
-      module: resolveModule(check.module, project.importPrefix),
-    })),
-  }
+const assertValuesFit = (values: CompositionValues, project: ProjectValues): void => {
   for (const check of values.ciChecks) {
     assertScript(values.scripts, check, 'a plugin runs in CI the script')
   }
@@ -389,41 +77,46 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
       `a plugin redefines the tsconfig path "${project.importAlias}", the project's import alias`,
     )
   }
-  const context: RenderContext = { project, answers: input.answers, values, facts }
+}
+
+/**
+ * Composes the project in memory: merges the contributions of the base project and the selected
+ * plugins, renders their files, and adds package.json and next-suite.json. Nothing is written.
+ */
+export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> => {
+  const { answers, catalog } = input
+  const plugins = [input.base, ...input.selected]
+  const packageManager = findPackageManager(input.selected)
+  const project = projectValues({
+    projectName: input.projectName,
+    answers,
+    packageManager,
+    catalog,
+  })
+  const facts = collectFacts([input.base, ...input.available], answers)
+  const { logicManifests, files: logicFiles } = await runLogic({
+    manifests: plugins.map(({ manifest }) => manifest),
+    logic: input.logic,
+    answers,
+    project,
+    facts,
+  })
+  const manifests = [...contributingManifests(input), ...logicManifests]
+  const values = resolveModules(mergeContributions(manifests, catalog), project.importPrefix)
+  assertValuesFit(values, project)
+
   const files: VirtualFiles = new Map()
-  await addPluginFiles(files, plugins, context)
-  const manifestOf = new Map(plugins.map((plugin) => [plugin.manifest.name, plugin.manifest]))
-  for (const file of computed.files) {
-    const path = targetPath(file, input.answers)
-    const manifest = manifestOf.get(file.origin)
-    assertSafeTarget(path, file.origin)
-    addFile(files, {
-      path,
-      content: file.content,
-      origin: file.origin,
-      conflict: file.conflict,
-      replaceable: manifest === undefined ? new Set() : requiredPlugins(manifest),
-    })
-  }
-  for (const [target, content] of [
-    ['instrumentation.ts', instrumentationFile(values.instrumentation, project.importPrefix)],
-    [
-      'instrumentation-client.ts',
-      instrumentationClientFile(values.instrumentationClient, project.importPrefix),
-    ],
-  ] as const) {
-    if (content !== undefined) {
-      addCoreFile(files, targetPath({ target, root: 'source' }, input.answers), content)
-    }
-  }
+  await addPluginFiles(files, plugins, { project, answers, values, facts })
+  addLogicFiles(files, { logicFiles, plugins, answers })
+  addInstrumentationFiles(files, values, answers)
   addCoreFile(
     files,
     PACKAGE_FILE,
     createPackageJson({
       projectName: input.projectName,
       values,
-      selected: input.selected,
-      catalog: input.catalog,
+      packageManager,
+      catalog,
     }),
   )
   addCoreFile(
@@ -437,17 +130,22 @@ export const composeProject = async (input: ComposeInput): Promise<ProjectPlan> 
     }),
   )
   assertNoPathCollisions(files)
+
   return {
     files: [...files.values()].sort((first, second) => compareNames(first.path, second.path)),
     dependencies: values.dependencies,
     devDependencies: values.devDependencies,
-    packageManager: findPackageManager(input.selected)?.name,
-    installArgs: findPackageManager(input.selected)?.packageManager.installArgs ?? ['install'],
-    postSteps: collectPostSteps(plugins, input.answers, values.scripts),
+    packageManager: packageManager?.name,
+    installArgs: packageManager?.packageManager.installArgs ?? DEFAULT_INSTALL_ARGS,
+    postSteps: collectPostSteps(
+      plugins.map(({ manifest }) => manifest),
+      answers,
+      values.scripts,
+    ),
     summary: collectSummary({
-      manifests: [...manifests, ...computed.extraManifests],
+      manifests,
       baseName: input.base.manifest.name,
-      answers: input.answers,
+      answers,
       scripts: values.scripts,
     }),
   }

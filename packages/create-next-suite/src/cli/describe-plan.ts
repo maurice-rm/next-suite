@@ -3,6 +3,7 @@ import { createTwoFilesPatch } from 'diff'
 import type { ProjectPlan } from '../compose/compose-project.ts'
 
 const NEW_FILE = '/dev/null'
+const EMPTY_SOURCE = ''
 
 const countLines = (content: string): number => {
   if (content === '') {
@@ -34,4 +35,6 @@ export const describePlan = (plan: ProjectPlan): string =>
 
 /** Shows every file a run would create as a unified diff against an empty file. */
 export const diffPlan = (plan: ProjectPlan): string =>
-  plan.files.map((file) => createTwoFilesPatch(NEW_FILE, file.path, '', file.content)).join('\n')
+  plan.files
+    .map((file) => createTwoFilesPatch(NEW_FILE, file.path, EMPTY_SOURCE, file.content))
+    .join('\n')

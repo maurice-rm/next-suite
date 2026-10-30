@@ -1,7 +1,8 @@
 import Handlebars from 'handlebars'
 import { describe, expect, it } from 'vitest'
 
-import { BASE_TEMPLATE_BLOCKS, PLUGIN_TEMPLATE_BLOCKS } from './check-template.ts'
+import { ExpectedError } from '../../expected-error.ts'
+import { BASE_TEMPLATE_BLOCKS, PLUGIN_TEMPLATE_BLOCKS } from './block-helpers.ts'
 import { renderTemplate } from './render-template.ts'
 
 const FACTS = new Map([
@@ -15,8 +16,16 @@ const VALUES = {
   items: ['a', 'b'],
 }
 
+const has = (fact: string): boolean => {
+  const holds = FACTS.get(fact)
+  if (holds === undefined) {
+    throw new ExpectedError(`unknown fact "${fact}"`)
+  }
+  return holds
+}
+
 const render = (source: string, allowedBlocks = PLUGIN_TEMPLATE_BLOCKS): string =>
-  renderTemplate({ source, values: VALUES, facts: FACTS, allowedBlocks })
+  renderTemplate({ source, values: VALUES, has, allowedBlocks })
 
 describe('renderTemplate', () => {
   it('fills in values without escaping them', () => {
@@ -46,7 +55,7 @@ describe('renderTemplate', () => {
     )
   })
 
-  it('rejects an unknown fact', () => {
+  it('passes on the error of a fact it cannot answer', () => {
     expect(() => render('{{#if (has "plugin:drizle")}}x{{/if}}')).toThrow(
       'unknown fact "plugin:drizle"',
     )

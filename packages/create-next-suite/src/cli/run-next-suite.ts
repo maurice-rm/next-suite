@@ -4,7 +4,8 @@ import type { Writable } from 'node:stream'
 
 import { Command, CommanderError } from 'commander'
 
-import { checkTemplate, PLUGIN_TEMPLATE_BLOCKS } from '../compose/template/check-template.ts'
+import { PLUGIN_TEMPLATE_BLOCKS } from '../compose/template/block-helpers.ts'
+import { checkTemplate } from '../compose/template/check-template.ts'
 import { registryName } from '../contract/identifiers.ts'
 import { InputError } from '../input-error.ts'
 import { loadPlugin } from '../loader/load-plugin.ts'

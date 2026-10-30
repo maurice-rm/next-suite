@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Answers } from '../../answers/answers.ts'
-import type { LoadedPlugin } from '../../loader/load-plugin.ts'
-import { collectFacts } from './collect-facts.ts'
+import type { Answers } from '../answers/answers.ts'
+import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { askFact, collectFacts } from './facts.ts'
 
 const plugin = (name: string, extra: Partial<LoadedPlugin['manifest']> = {}): LoadedPlugin => ({
   directory: `/plugins/${name}`,
@@ -56,6 +56,17 @@ describe('collectFacts', () => {
 
     expect(() => collectFacts([plugin('one', fact), plugin('two', fact)], ANSWERS)).toThrow(
       'two plugins define the fact "shared"',
+    )
+  })
+})
+
+describe('askFact', () => {
+  it('answers a known fact and names the asker of an unknown one', () => {
+    const facts = new Map([['plugin:drizzle', true]])
+
+    expect(askFact(facts, 'plugin:drizzle', 'the template')).toBe(true)
+    expect(() => askFact(facts, 'plugin:drizle', 'the template')).toThrow(
+      'the template asks the unknown fact "plugin:drizle"',
     )
   })
 })

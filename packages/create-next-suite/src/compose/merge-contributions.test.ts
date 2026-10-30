@@ -4,6 +4,9 @@ import type { PluginManifest } from '../contract/plugin-manifest.ts'
 import { parseTestManifest } from '../test-support/test-manifest.ts'
 import { mergeContributions } from './merge-contributions.ts'
 
+const contributing = (name: string, contributes: PluginManifest['contributes']) =>
+  parseTestManifest(name, { contributes })
+
 const CATALOG = { next: '16.4.3', react: '19.3.1' }
 
 type EnvVariable = NonNullable<PluginManifest['env']>[number]
@@ -252,5 +255,104 @@ describe('mergeContributions', () => {
 
     expect(values.rootProviders.opening.map((entry) => entry.component)).toEqual(['Theme', 'Query'])
     expect(values.rootProviders.closing).toEqual(['Query', 'Theme'])
+  })
+
+  it('keeps plugin order and drops duplicate instrumentation hooks', () => {
+    const values = mergeContributions(
+      [
+        contributing('env', { instrumentation: { register: [{ module: '#src/env' }] } }),
+        contributing('logger', {
+          instrumentation: {
+            register: [{ module: '#src/env' }],
+            onRequestError: [{ module: '#src/lib/logger', export: 'reportRequestError' }],
+          },
+        }),
+      ],
+      CATALOG,
+    )
+
+    expect(values.instrumentation).toEqual({
+      register: [{ module: '#src/env' }],
+      onRequestError: [{ module: '#src/lib/logger', export: 'reportRequestError' }],
+    })
+  })
+
+  it('ignores generated folders in the linter and Knip', () => {
+    const values = mergeContributions(
+      [contributing('orm', { generatedDirs: ['src/generated'], knip: { entry: ['seed.ts'] } })],
+      CATALOG,
+    )
+
+    expect(values.generatedDirs).toEqual(['src/generated'])
+    expect(values.lint.ignores).toEqual(['src/generated/**'])
+    expect(values.knip).toEqual([
+      { key: 'entry', values: ['seed.ts'] },
+      { key: 'ignore', values: ['src/generated/**'] },
+    ])
+  })
+
+  it('leaves out Knip options without values', () => {
+    expect(mergeContributions([], CATALOG).knip).toEqual([])
+  })
+
+  it('accepts the same tsconfig path twice and renders its targets as JSON', () => {
+    const paths = { '~/content/*': ['./content/*'] }
+    const values = mergeContributions(
+      [contributing('a', { tsconfig: { paths } }), contributing('b', { tsconfig: { paths } })],
+      CATALOG,
+    )
+
+    expect(values.tsconfig.paths).toEqual([{ alias: '~/content/*', targets: '["./content/*"]' }])
+  })
+
+  it('rejects one tsconfig path pointing to different targets', () => {
+    expect(() =>
+      mergeContributions(
+        [
+          contributing('a', { tsconfig: { paths: { '~/x': ['./a'] } } }),
+          contributing('b', { tsconfig: { paths: { '~/x': ['./b'] } } }),
+        ],
+        CATALOG,
+      ),
+    ).toThrow('a and b point the tsconfig path "~/x" to different targets')
+  })
+
+  it('rejects one compose service defined differently', () => {
+    expect(() =>
+      mergeContributions(
+        [
+          contributing('a', { container: { services: [{ name: 'db', image: 'postgres:18' }] } }),
+          contributing('b', { container: { services: [{ name: 'db', image: 'postgres:17' }] } }),
+        ],
+        CATALOG,
+      ),
+    ).toThrow('a and b define the compose service "db" differently')
+  })
+
+  it('merges the sources of a CSP directive across plugins', () => {
+    const values = mergeContributions(
+      [
+        contributing('headers', { csp: { 'img-src': ["'self'"], 'object-src': ["'none'"] } }),
+        contributing('cdn', { csp: { 'img-src': ["'self'", 'https://cdn.example.com'] } }),
+      ],
+      CATALOG,
+    )
+
+    expect(values.csp).toEqual([
+      { directive: 'img-src', sources: ["'self'", 'https://cdn.example.com'] },
+      { directive: 'object-src', sources: ["'none'"] },
+    ])
+  })
+
+  it('rejects two modules exporting the same name at the end of the body', () => {
+    expect(() =>
+      mergeContributions(
+        [
+          contributing('a', { bodyEnd: [{ module: 'a-analytics', export: 'Analytics' }] }),
+          contributing('b', { bodyEnd: [{ module: 'b-analytics', export: 'Analytics' }] }),
+        ],
+        CATALOG,
+      ),
+    ).toThrow('a-analytics and b-analytics both export "Analytics" for the end of the body')
   })
 })

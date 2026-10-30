@@ -1,9 +1,13 @@
 import { PACKAGE_JSON_FIELD_PREFIX } from '../contract/allowed-builds-location.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
-import { resolveVersion } from './merge-contributions.ts'
+import type { LoadedPlugin } from '../loader/load-plugin.ts'
+import { resolveVersion } from './resolve-version.ts'
 
 type PackageManager = NonNullable<ParsedPluginManifest['packageManager']>
+
+/** The selected package manager plugin: its name, which is the command, and how the core uses it. */
+export type SelectedPackageManager = { name: string; packageManager: PackageManager }
 
 /** The dependencies whose install scripts may run, and those known to need none. */
 type Builds = { allowed: readonly string[]; denied: readonly string[] }
@@ -30,12 +34,20 @@ const allowedBuildsFields = (place: string, builds: Builds): Record<string, unkn
   }
 }
 
-type PackageManagerFieldsInput = {
-  name: string
-  packageManager: PackageManager
+type PackageManagerFieldsInput = SelectedPackageManager & {
   builds: Builds
   catalog: VersionCatalog
 }
+
+/** The first selected plugin that describes a package manager, if any. */
+export const findPackageManager = (
+  selected: readonly LoadedPlugin[],
+): SelectedPackageManager | undefined =>
+  selected.flatMap(({ manifest }) =>
+    manifest.packageManager === undefined
+      ? []
+      : [{ name: manifest.name, packageManager: manifest.packageManager }],
+  )[0]
 
 /**
  * The package.json fields of the selected package manager: `packageManager` with its exact
