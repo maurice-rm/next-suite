@@ -18,13 +18,14 @@
  */
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { extname, join } from 'node:path'
+import { extname, join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
 
 import packageJson from '../package.json' with { type: 'json' }
 import { loadBuiltInAssets } from './cli/built-in-assets.ts'
 import { processRemoteEnvironment } from './cli/process-environment.ts'
 import { runCreate } from './cli/run-create.ts'
+import { parsePluginAddress } from './loader/plugin-address.ts'
 import { type CommandResult, runCommand } from './post-steps/run-command.ts'
 import { collectOutput } from './test-support/collect-output.ts'
 import { sourceOf } from './trust/trust-pattern.ts'
@@ -35,11 +36,17 @@ const DEFAULT_PACKAGE_MANAGER = 'pnpm'
 const CACHE_DIRECTORY = '.next-suite-cache'
 const USER_CONFIG_FILE = 'next-suite-config.json'
 
+/** A local address as an absolute path from the current directory; any other address as it is. */
+const fromCurrentDirectory = (address: string): string =>
+  parsePluginAddress(address)?.kind === 'local' ? resolve(address) : address
+
 /** What to generate: the plugins under test and the answers for them and any other question. */
 export type TestProjectOptions = {
   /**
-   * Addresses of the plugins under test, such as `./my-plugin` or `github:acme/plugins/mail`; they
-   * are trusted for the test without asking, and nothing is recorded in the user configuration.
+   * Addresses of the plugins under test, such as `./my-plugin`, relative to the current directory,
+   * or `github:acme/plugins/mail`; they are trusted for the test without asking, and nothing is
+   * recorded in the user configuration. Registry short names such as `@acme/mail` are unknown to
+   * the test's own configuration.
    */
   plugins: readonly string[]
   /** Answers in the format of `answers` in next-suite.json; every other question takes its default. */
@@ -114,7 +121,12 @@ export const createTestProject = async (options: TestProjectOptions): Promise<Te
       packageManager,
       '--no-git',
       ...(options.install === true ? [] : ['--no-install']),
-      ...options.plugins.flatMap((address) => ['--plugin', address, '--trust', sourceOf(address)]),
+      ...options.plugins.flatMap((address) => [
+        '--plugin',
+        fromCurrentDirectory(address),
+        '--trust',
+        sourceOf(address),
+      ]),
     ],
     loadAssets: () => loadBuiltInAssets(join(import.meta.dirname, '..'), pluginEntry),
     pluginEntry,

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -56,9 +56,30 @@ describe('createTestProject', () => {
     expect(existsSync(join(root, 'next-suite-config.json'))).toBe(false)
   })
 
+  it('finds a plugin in a local directory relative to the current directory', async () => {
+    await writeFiles(join(root, 'greet'), {
+      'plugin.ts': [
+        "import { definePlugin } from 'create-next-suite/plugin'",
+        "export default definePlugin({ name: 'greet', title: 'Greet', readme: { Greet: 'Hello.' } })",
+        '',
+      ].join('\n'),
+    })
+    await mkdir(join(root, 'parent'))
+
+    const previous = process.cwd()
+    process.chdir(root)
+    const project = await createTestProject({
+      plugins: ['./greet'],
+      answers: { greet: true },
+      parent: join(root, 'parent'),
+    }).finally(() => process.chdir(previous))
+
+    expect(await readFile(join(project.directory, 'README.md'), 'utf8')).toContain('Hello.')
+  })
+
   it('names the reason when the project cannot be generated, such as a missing plugin', async () => {
     await expect(createTestProject({ plugins: ['./greet'], parent: root })).rejects.toThrow(
-      /could not generate the test project:\n.*cannot load the plugin \.\/greet: .* does not exist/,
+      /could not generate the test project:\n.*cannot load the plugin \S*greet: .* does not exist/,
     )
   })
 })

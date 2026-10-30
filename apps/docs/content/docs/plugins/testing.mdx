@@ -21,8 +21,9 @@ test('the project builds with my plugin and Biome', async () => {
 })
 ```
 
-`plugins` takes the addresses of the plugins under test, from any source. They are trusted for
-the test without a question, and nothing is recorded in your user configuration: the run keeps its
+`plugins` takes the addresses of the plugins under test: a local directory, relative to the
+current directory, npm, GitHub, GitLab, Git or a URL. A registry short name is unknown to the
+test's own configuration. The plugins are trusted for the test without a question, and nothing is recorded in your user configuration: the run keeps its
 cache and configuration in the directory it creates the project in. A plugin without a category is
 selected by its name in `answers`, as `--<name>` selects it on the command line.
 
