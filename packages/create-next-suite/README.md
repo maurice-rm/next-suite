@@ -86,7 +86,7 @@ files under `next-suite/overrides/`, which replace the generated files at their 
 
 ## The `next-suite` command
 
-The package ships a second command for plugin registries, trust and plugin authors:
+The package ships a second command for plugin registries, trust, plugin authors and projects:
 
 ```bash
 npx -p create-next-suite next-suite registry add @acme github:acme/next-suite-plugins
@@ -99,6 +99,7 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | `registry add <name> <source>`, `list`, `remove` | manages the registries `--plugin @name/plugin` loads from |
 | `trust add <pattern>`, `list`, `remove`          | manages the sources whose plugins may run code            |
 | `plugin validate <directory>`                    | checks a plugin and runs its `plugin.ts` on its own       |
+| `explain <file>`                                 | shows who wrote a file of the project and what each did   |
 
 ## Imports
 

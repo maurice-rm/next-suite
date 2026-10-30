@@ -47,7 +47,7 @@ Code, messages and these pages use each word below for one concept only.
 | project config | `next-suite.config.ts` in a generated project: its settings, plugins, disabled plugins and answers; written once, then only read, and enough to create the project again with `--config` |
 | lock | `.next-suite/lock.json` in a generated project: the generator, every plugin with its source and version or content hash, every answer, a hash of every generated file and the provenance; written on every generation |
 | registry types | `.next-suite/types.d.ts` in a generated project: every plugin its project config can name, with the types of their answers, added to `PluginRegistry` of `create-next-suite/config` |
-| provenance | which plugin did what to each generated file, in order, with the kind of each operation: `own`, `extend`, `direct` or `override`; the lock records it |
+| provenance | which plugin did what to each generated file, in order, with the kind of each operation: `own`, `extend`, `direct` or `override`; the lock records it and `next-suite explain` shows it |
 | project plugin | a plugin directory of the project under `next-suite/plugins/`, named in the project config by its path; it runs without a trust question |
 | inline plugin | a plugin defined in the project config with `definePlugin`; it runs without a trust question |
 | override | a file under `next-suite/overrides/<path>` that replaces the generated file at `<path>` completely, after every plugin ran |

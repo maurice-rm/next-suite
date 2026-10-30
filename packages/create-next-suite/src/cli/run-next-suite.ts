@@ -4,6 +4,7 @@ import { failure } from '../ui/theme.ts'
 import { NEXT_SUITE_COMMAND } from './command-name.ts'
 import { describeError } from './describe-error.ts'
 import { EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
+import { addExplainCommand } from './explain-command.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
 import { addPluginCommand } from './plugin-command.ts'
 import { addRegistryCommand } from './registry-command.ts'
@@ -12,7 +13,7 @@ import { addTrustCommand } from './trust-command.ts'
 const createProgram = (environment: NextSuiteEnvironment, report: Report): Command => {
   const program = new Command()
     .name(NEXT_SUITE_COMMAND)
-    .description('Manage plugin registries and trust for create-next-suite.')
+    .description('Manage plugin registries and trust for create-next-suite, and explain a project.')
     .version(environment.cliVersion)
     .exitOverride()
     .configureOutput({
@@ -22,6 +23,7 @@ const createProgram = (environment: NextSuiteEnvironment, report: Report): Comma
   addRegistryCommand(program, environment, report)
   addTrustCommand(program, environment, report)
   addPluginCommand(program, environment, report)
+  addExplainCommand(program, environment, report)
   return program
 }
 

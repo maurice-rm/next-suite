@@ -1,6 +1,6 @@
 ---
 title: Your project after create
-description: The config, lock and registry types every project gets, and how to create it again or replace a file.
+description: The config, lock and registry types every project gets, and how to create it again, replace a file or explain a file.
 ---
 
 A generated project is yours. Besides the app, create-next-suite writes what describes it:
@@ -14,7 +14,8 @@ A generated project is yours. Besides the app, create-next-suite writes what des
 | `next-suite/overrides/`  | you               | [overrides](#overrides): files that replace generated ones                     |
 
 `package.json` gets `create-next-suite` as a devDependency, pinned to the version that created the
-project, so the config is typed and `next-suite` runs from the project. `tsconfig.json` includes `.next-suite/types.d.ts`,
+project, so the config is typed and `next-suite` runs from the project:
+`pnpm exec next-suite explain app/layout.tsx`. `tsconfig.json` includes `.next-suite/types.d.ts`,
 which its `**/*.ts` pattern skips, since that leaves out directories starting with a dot. The
 linter and formatter plugins leave `.next-suite/` alone, and Knip takes `next-suite.config.ts` as
 an entry.
@@ -105,9 +106,8 @@ config does not select stop the run with a message.
 - `files`: a hash of every file the generation wrote, as the run left it: after the project's own
   post-steps such as its formatter, so a file you have not touched matches it. The config and
   everything under `next-suite/` are yours and not listed.
-- `provenance`: which plugin did what to each file, in order, with the kind of each operation:
-  `own` on a file the plugin writes, `extend` through what the file's owner offers, `direct` for
-  an edit of someone else's file, `override` for an [override](#overrides).
+- `provenance`: which plugin did what to each file, in order; [`next-suite explain`](#explain)
+  reads it.
 
 The lock records what ran; it trusts nothing. Which sources and contents you trust stays in your
 user configuration, so a project someone else wrote never runs a plugin you have not trusted.
@@ -164,3 +164,22 @@ text only.
 An override is a normal file of the project, type-checked and linted where it lies. Knip reports it
 as unused, as nothing imports it; add `"next-suite/**"` to `ignore` in `knip.config.ts` once the
 project has overrides or project plugins.
+
+## Explain
+
+`next-suite explain <file>` shows who wrote a file, whether it is still as generated, and every
+operation on it in order, with its plugin and kind: `own` on a file the plugin writes, `extend`
+through what the file's owner offers, `direct` for an edit of someone else's file, `override` for
+an override.
+
+```text
+$ pnpm exec next-suite explain next.config.ts
+next.config.ts: written by base, unchanged since it was generated
+  1. base        base                                   own
+  2. static-csp  nextConfig.imports ./security-headers  extend
+  3. static-csp  nextConfig.options headers             extend
+```
+
+A direct edit names where its plugin came from and warns that it may break when the file's writer
+changes. For a file next-suite never wrote, explain says it is entirely yours. It works from any
+directory of the project.
