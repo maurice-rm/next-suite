@@ -49,7 +49,7 @@ afterEach(async () => {
 describe('next-suite registry', () => {
   it('adds a registry, optionally trusted, lists it and its plugins, and removes it', async () => {
     expect((await run(['registry', 'add', '@acme', './registry', '--trust'])).output).toBe(
-      'Added @acme with 1 plugins, trusted\n',
+      'Added @acme with 1 plugin, trusted\n',
     )
     const registry = join(root, 'registry')
     expect(await config()).toEqual({ trust: ['@acme/*'], registries: { '@acme': registry } })

@@ -38,8 +38,9 @@ const addRegistry = async (
     source: storedSource(source, environment.cwd),
     isTrusted,
   })
+  const count = registry.index.plugins.length
   const trusted = isTrusted ? ', trusted' : ''
-  return `Added ${name} with ${registry.index.plugins.length} plugins${trusted}`
+  return `Added ${name} with ${count} ${count === 1 ? 'plugin' : 'plugins'}${trusted}`
 }
 
 const listRegistries = async (environment: NextSuiteEnvironment): Promise<string> => {
