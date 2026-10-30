@@ -1,6 +1,5 @@
+import type { ConflictStrategy } from '../contract/plugin-file.ts'
 import { ComposeError } from './compose-error.ts'
-
-export type ConflictStrategy = 'error' | 'skip-if-exists' | 'replace'
 
 export type VirtualFile = {
   path: string

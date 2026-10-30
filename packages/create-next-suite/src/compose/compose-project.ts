@@ -1,7 +1,7 @@
 import type { Answers } from '../answers/answers.ts'
 import type { Logic } from '../contract/logic.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import type { PostStep } from '../contract/post-step.ts'
+import type { ResolvedPostStep } from '../contract/post-step.ts'
 import type { VersionCatalog } from '../contract/version-catalog.ts'
 import type { LoadedPlugin } from '../loader/load-plugin.ts'
 import { applyConditionalDependencies } from './apply-conditional-dependencies.ts'
@@ -57,7 +57,7 @@ export type ProjectPlan = {
   /** The arguments its first install runs with. */
   installArgs: string[]
   /** The scripts to run after the install, in plugin order, with what the run shows for them. */
-  postSteps: PostStep[]
+  postSteps: ResolvedPostStep[]
   summary: RunSummary
 }
 

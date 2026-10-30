@@ -1,6 +1,6 @@
 /**
- * The plugin contract of create-next-suite: the types a plugin's manifest follows. Plugins import
- * types only.
+ * The plugin contract of create-next-suite: the types a plugin's manifest, its categories file and
+ * its logic module follow. Plugins import types only.
  *
  * @example
  * ```ts
@@ -17,8 +17,31 @@
  *
  * @packageDocumentation
  */
-export type { Category } from './contract/category.ts'
+export type {
+  CategoriesFile,
+  Category,
+  CategorySection,
+  ListedCategory,
+} from './contract/category.ts'
 export type { Condition } from './contract/condition.ts'
-export type { Logic, LogicContext, LogicResult } from './contract/logic.ts'
-export type { PluginManifest } from './contract/plugin-manifest.ts'
-export type { PluginOption } from './contract/plugin-option.ts'
+export type {
+  CodeEntry,
+  Contributions,
+  ModuleExport,
+  NamedModuleExport,
+  NextStep,
+  SectionText,
+} from './contract/contributions.ts'
+export type { Dependencies } from './contract/dependencies.ts'
+export type { Logic, LogicContext, LogicResult, LogicResultFile } from './contract/logic.ts'
+export type { ConflictStrategy, FileRoot, PluginFile } from './contract/plugin-file.ts'
+export type {
+  ConditionalContributions,
+  ConditionalDependencies,
+  EnvVariable,
+  PackageManagerAdapter,
+  PluginManifest,
+  PluginRule,
+} from './contract/plugin-manifest.ts'
+export type { OptionChoice, PluginOption } from './contract/plugin-option.ts'
+export type { PostStep } from './contract/post-step.ts'

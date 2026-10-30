@@ -2,15 +2,11 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import type { Category } from 'create-next-suite/plugin'
+import type { CategoriesFile, ListedCategory } from 'create-next-suite/plugin'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { PROJECT_NAME } from './project-name.ts'
 import { runCli } from './run-cli.ts'
-
-/** A category as categories.json lists it, inside its section. */
-type ListedCategory = Omit<Category, 'section'>
-type CategoriesFile = { section: string; categories: ListedCategory[] }[]
 
 const CATEGORIES_URL = new URL(
   'categories.json',

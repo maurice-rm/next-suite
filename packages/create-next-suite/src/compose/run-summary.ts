@@ -1,7 +1,7 @@
 import type { Answers } from '../answers/answers.ts'
 import { holdsFor } from '../answers/evaluate-condition.ts'
 import type { ParsedPluginManifest } from '../contract/plugin-manifest.ts'
-import type { PostStep } from '../contract/post-step.ts'
+import type { ResolvedPostStep } from '../contract/post-step.ts'
 import { assertScript } from './assert-script.ts'
 import { unique, uniqueBy } from './merge-entries.ts'
 
@@ -18,7 +18,7 @@ export const collectPostSteps = (
   manifests: readonly ParsedPluginManifest[],
   answers: Answers,
   scripts: Scripts,
-): PostStep[] =>
+): ResolvedPostStep[] =>
   manifests.flatMap(({ name, postSteps }) =>
     (postSteps ?? [])
       .filter((step) => holdsFor(step.when, answers))

@@ -1,4 +1,4 @@
-import type { PostStep } from '../contract/post-step.ts'
+import type { ResolvedPostStep } from '../contract/post-step.ts'
 import { findUnsupportedVersion } from '../package-manager/supported-versions.ts'
 import type { CommandResult, CommandRunner } from './run-command.ts'
 
@@ -26,7 +26,7 @@ export type PostStepsInput = {
   directory: string
   packageManager: string | undefined
   installArgs: readonly string[]
-  scripts: readonly PostStep[]
+  scripts: readonly ResolvedPostStep[]
   shouldInstall: boolean
   shouldInitializeGit: boolean
   runCommand: CommandRunner

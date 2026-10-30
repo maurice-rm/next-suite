@@ -1,13 +1,20 @@
 import * as z from 'zod'
 
-import { contributionsSchema } from './contributions.ts'
-import { dependenciesSchema } from './dependencies.ts'
-import { conflictStrategySchema, fileRootSchema } from './plugin-file.ts'
+import { type Contributions, contributionsSchema } from './contributions.ts'
+import { type Dependencies, dependenciesSchema } from './dependencies.ts'
+import {
+  type ConflictStrategy,
+  conflictStrategySchema,
+  type FileRoot,
+  fileRootSchema,
+} from './plugin-file.ts'
 
-type Value = string | number | boolean | readonly string[]
+/** A value a base setting or a plugin option can have. */
+type AnswerValue = string | number | boolean | readonly string[]
 
 /** What a logic module knows about the run it computes for. */
 export type LogicContext = {
+  /** The project being generated. */
   project: {
     /** The package name, such as `my-app`. */
     name: string
@@ -17,35 +24,87 @@ export type LogicContext = {
     importPrefix: string
   }
   /** The answers to this plugin's options, by option name. */
-  options: Readonly<Record<string, Value>>
+  options: Readonly<Record<string, AnswerValue>>
   /** The base settings, such as `src-dir`. */
-  settings: Readonly<Record<string, Value>>
+  settings: Readonly<Record<string, AnswerValue>>
   /** The names of the selected plugins. */
   plugins: readonly string[]
-  /** Whether a named fact holds, such as `plugin:prettier`, `category:orm` or a plugin's own fact. */
+  /**
+   * Whether a named fact holds: `plugin:<name>`, `category:<id>`, or `fact:<name>` for a fact a
+   * plugin declares in `facts`.
+   *
+   * @throws Error when the fact is unknown, which stops the run.
+   */
   has: (fact: string) => boolean
 }
 
-const fileSchema = z.strictObject({
+/** A file a logic module computed. */
+export type LogicResultFile = {
+  /** The path in the project, relative to `root`. */
+  target: string
+  /** The content of the file. */
+  content: string
+  /** Where `target` starts; `project` by default. */
+  root?: FileRoot | undefined
+  /**
+   * What happens when the base project or another plugin already writes the same target; `error`
+   * by default.
+   */
+  conflict?: ConflictStrategy | undefined
+}
+
+/**
+ * What a logic module answers: files with computed content, and contributions and dependencies
+ * like the manifest's. Its files get the same path checks and conflict rules as the plugin's files.
+ */
+export type LogicResult = {
+  /** Files with computed content. */
+  files?: LogicResultFile[] | undefined
+  /** Entries for the files several plugins share, the composition points. */
+  contributes?: Contributions | undefined
+  /** Dependencies of the project. */
+  dependencies?: Dependencies | undefined
+  /** Dev dependencies of the project. */
+  devDependencies?: Dependencies | undefined
+}
+
+/**
+ * The default export of a plugin's logic module: computes files and contributions from the
+ * context. It must not write files, start processes or use the network; the core does that.
+ *
+ * @param context - The project, the answers and the facts of the run.
+ * @returns The files and contributions to add, also as a promise.
+ *
+ * @example
+ * ```ts
+ * import type { Logic } from 'create-next-suite/plugin'
+ *
+ * const logic: Logic = (context) => ({
+ *   files: [
+ *     {
+ *       target: 'lib/site.ts',
+ *       content: `export const site = ${JSON.stringify(context.project.name)}\n`,
+ *       root: 'source',
+ *     },
+ *   ],
+ *   contributes: { gitignore: context.has('plugin:prettier') ? ['/.cache'] : [] },
+ * })
+ *
+ * export default logic
+ * ```
+ */
+export type Logic = (context: LogicContext) => LogicResult | Promise<LogicResult>
+
+const logicResultFileSchema = z.strictObject({
   target: z.string().min(1),
   content: z.string(),
   root: fileRootSchema,
   conflict: conflictStrategySchema,
 })
 
-/** What a logic module answers: files with computed content and contributions like the manifest's. */
 export const logicResultSchema = z.strictObject({
-  files: z.array(fileSchema).optional(),
+  files: z.array(logicResultFileSchema).optional(),
   contributes: contributionsSchema.optional(),
   dependencies: dependenciesSchema.optional(),
   devDependencies: dependenciesSchema.optional(),
 })
-
-/** What a logic module answers, as its author writes it. */
-export type LogicResult = z.input<typeof logicResultSchema>
-
-/**
- * The default export of a plugin's logic module: computes files and contributions from the
- * context. It must not write files, start processes or use the network; the core does that.
- */
-export type Logic = (context: LogicContext) => LogicResult | Promise<LogicResult>

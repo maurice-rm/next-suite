@@ -1,6 +1,29 @@
 import { describe, expectTypeOf, it } from 'vitest'
+import type * as z from 'zod'
 
-import type { Condition, Logic, PluginManifest } from './plugin.ts'
+import type { categoriesSchema } from './contract/category.ts'
+import type { conditionSchema } from './contract/condition.ts'
+import type { contributionsSchema } from './contract/contributions.ts'
+import type { logicResultSchema } from './contract/logic.ts'
+import type { pluginManifestSchema } from './contract/plugin-manifest.ts'
+import type { pluginOptionSchema } from './contract/plugin-option.ts'
+import type {
+  CategoriesFile,
+  Category,
+  Condition,
+  Contributions,
+  Logic,
+  LogicResult,
+  PluginManifest,
+  PluginOption,
+} from './plugin.ts'
+
+/** Flattens intersections such as zod's `X & {}`, so identical shapes compare as equal. */
+type Normalized<Type> = Type extends readonly (infer Item)[]
+  ? Normalized<Item>[]
+  : Type extends object
+    ? { [Key in keyof Type]: Normalized<Type[Key]> }
+    : Type
 
 const MINIMAL = {
   name: 'acme-auth',
@@ -9,6 +32,35 @@ const MINIMAL = {
   title: 'Acme Auth',
   description: 'Sign-in through Acme.',
 }
+
+describe('the public types', () => {
+  it('equal what the schemas accept', () => {
+    expectTypeOf<Normalized<PluginManifest>>().toEqualTypeOf<
+      Normalized<z.input<typeof pluginManifestSchema>>
+    >()
+    expectTypeOf<Normalized<PluginOption>>().toEqualTypeOf<
+      Normalized<z.input<typeof pluginOptionSchema>>
+    >()
+    expectTypeOf<Normalized<Condition>>().toEqualTypeOf<
+      Normalized<z.input<typeof conditionSchema>>
+    >()
+    expectTypeOf<Normalized<Contributions>>().toEqualTypeOf<
+      Normalized<z.input<typeof contributionsSchema>>
+    >()
+    expectTypeOf<Normalized<LogicResult>>().toEqualTypeOf<
+      Normalized<z.input<typeof logicResultSchema>>
+    >()
+    expectTypeOf<Normalized<CategoriesFile>>().toEqualTypeOf<
+      Normalized<z.input<typeof categoriesSchema>>
+    >()
+  })
+
+  it('equal what parsing the categories file gives for a category', () => {
+    expectTypeOf<Normalized<Category>>().toEqualTypeOf<
+      Normalized<z.output<typeof categoriesSchema>[number]>
+    >()
+  })
+})
 
 describe('PluginManifest', () => {
   it('accepts a file without a conflict strategy, since the strategy has a default', () => {
