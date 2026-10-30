@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { COMMIT_SHA, type Routes, stubRemote } from '../test-support/stub-remote.ts'
 import { writeFiles } from '../test-support/write-files.ts'
-import { type ExternalSources, fetchExternalPlugin } from './fetch-external-plugin.ts'
+import { type FetchContext, fetchExternalPlugin } from './fetch-external-plugin.ts'
 
 const PLUGIN = [
   "import { definePlugin } from 'create-next-suite/plugin'",
@@ -29,7 +29,7 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-const sources = (routes: Routes = {}, registries = {}): ExternalSources => ({
+const context = (routes: Routes = {}, registries = {}): FetchContext => ({
   cwd: root,
   remote: stubRemote(root, routes),
   registries,
@@ -50,7 +50,7 @@ describe('fetchExternalPlugin', () => {
   it('reads a local directory without running it and snapshots its files by content hash', async () => {
     await writeFiles(join(root, 'mail'), { ...MAIL_FILES, 'node_modules/x/index.js': '' })
 
-    const fetched = await fetchExternalPlugin('./mail', sources())
+    const fetched = await fetchExternalPlugin('./mail', context())
 
     expect(fetched).toMatchObject({
       address: './mail',
@@ -67,10 +67,10 @@ describe('fetchExternalPlugin', () => {
   it('gives the same files the same content hash and changed files another one', async () => {
     await writeFiles(join(root, 'a'), MAIL_FILES)
     await writeFiles(join(root, 'b'), MAIL_FILES)
-    const first = await fetchExternalPlugin('./a', sources())
-    const same = await fetchExternalPlugin('./b', sources())
+    const first = await fetchExternalPlugin('./a', context())
+    const same = await fetchExternalPlugin('./b', context())
     await writeFiles(join(root, 'b'), { 'files/mail.txt': 'changed\n' })
-    const changed = await fetchExternalPlugin('./b', sources())
+    const changed = await fetchExternalPlugin('./b', context())
 
     expect(same.contentHash).toBe(first.contentHash)
     expect(changed.contentHash).not.toBe(first.contentHash)
@@ -86,7 +86,7 @@ describe('fetchExternalPlugin', () => {
 
     const fetched = await fetchExternalPlugin(
       'npm:next-suite-mail',
-      sources({
+      context({
         'https://registry.npmjs.org/next-suite-mail': respond(JSON.stringify(packument)),
         'https://t/mail-1.0.0.tgz': respond(archive),
       }),
@@ -101,7 +101,7 @@ describe('fetchExternalPlugin', () => {
 
     const fetched = await fetchExternalPlugin(
       'github:acme/plugins/mail#v1',
-      sources({
+      context({
         'https://api.github.com/repos/acme/plugins/commits/v1': respond(COMMIT_SHA),
         [`https://api.github.com/repos/acme/plugins/tarball/${COMMIT_SHA}`]: respond(archive),
       }),
@@ -116,7 +116,7 @@ describe('fetchExternalPlugin', () => {
 
     const fetched = await fetchExternalPlugin(
       'gitlab:acme/plugins/mail#main',
-      sources({
+      context({
         [`${project}/repository/commits/main`]: respond(JSON.stringify({ id: COMMIT_SHA })),
         [`${project}/repository/archive.tar.gz?sha=${COMMIT_SHA}`]: respond(archive),
       }),
@@ -130,12 +130,12 @@ describe('fetchExternalPlugin', () => {
 
     const fetched = await fetchExternalPlugin(
       'https://host/mail.tgz',
-      sources({ 'https://host/mail.tgz': respond(archive) }),
+      context({ 'https://host/mail.tgz': respond(archive) }),
     )
 
     expect(fetched.resolved).toMatch(/^sha256-/)
     expect(fetched.summary.metadata.name).toBe('mail')
-    await expect(fetchExternalPlugin('http://host/mail.tgz', sources())).rejects.toThrow(
+    await expect(fetchExternalPlugin('http://host/mail.tgz', context())).rejects.toThrow(
       'plugin addresses must use https',
     )
   })
@@ -149,7 +149,7 @@ describe('fetchExternalPlugin', () => {
     git('add', '.')
     git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'init')
 
-    const fetched = await fetchExternalPlugin(`git+file://${repository}#main`, sources())
+    const fetched = await fetchExternalPlugin(`git+file://${repository}#main`, context())
 
     expect(fetched).toMatchObject({ resolved: git('rev-parse', 'HEAD') })
     expect(fetched.summary.metadata.name).toBe('mail')
@@ -166,7 +166,7 @@ describe('fetchExternalPlugin', () => {
 
     const fetched = await fetchExternalPlugin(
       '@acme/mail',
-      sources({}, { '@acme': join(root, 'registry') }),
+      context({}, { '@acme': join(root, 'registry') }),
     )
 
     expect(fetched).toMatchObject({ address: '@acme/mail', isLocal: false })
@@ -187,16 +187,16 @@ describe('fetchExternalPlugin', () => {
     await symlink(join(root, 'outside'), join(root, 'registry', 'linked'))
     const registries = { '@acme': join(root, 'registry') }
 
-    await expect(fetchExternalPlugin('@acme/up', sources({}, registries))).rejects.toThrow(
+    await expect(fetchExternalPlugin('@acme/up', context({}, registries))).rejects.toThrow(
       'the registry places up outside itself',
     )
-    await expect(fetchExternalPlugin('@acme/linked', sources({}, registries))).rejects.toThrow(
+    await expect(fetchExternalPlugin('@acme/linked', context({}, registries))).rejects.toThrow(
       'the registry places linked outside itself',
     )
-    await expect(fetchExternalPlugin('@acme/none', sources({}, registries))).rejects.toThrow(
+    await expect(fetchExternalPlugin('@acme/none', context({}, registries))).rejects.toThrow(
       'the registry @acme lists no plugin none',
     )
-    await expect(fetchExternalPlugin('@other/mail', sources({}, registries))).rejects.toThrow(
+    await expect(fetchExternalPlugin('@other/mail', context({}, registries))).rejects.toThrow(
       'the registry @other is unknown',
     )
   })
@@ -207,7 +207,7 @@ describe('fetchExternalPlugin', () => {
     ['github:acme/*', 'the address has no known form'],
     ['./missing', 'does not exist'],
   ])('refuses the address %s', async (address, message) => {
-    await expect(fetchExternalPlugin(address, sources())).rejects.toThrow(message)
+    await expect(fetchExternalPlugin(address, context())).rejects.toThrow(message)
   })
 
   it('refuses a directory without plugin.ts, with a link, or with metadata that needs running', async () => {
@@ -219,16 +219,16 @@ describe('fetchExternalPlugin', () => {
     })
     await symlink('/etc/passwd', join(root, 'linked', 'passwd'))
 
-    await expect(fetchExternalPlugin('./empty', sources())).rejects.toThrow(
+    await expect(fetchExternalPlugin('./empty', context())).rejects.toThrow(
       'cannot load the plugin ./empty: no plugin.ts',
     )
-    await expect(fetchExternalPlugin('./linked', sources())).rejects.toThrow(
+    await expect(fetchExternalPlugin('./linked', context())).rejects.toThrow(
       'passwd is a link or no regular file',
     )
-    await expect(fetchExternalPlugin('./computed', sources())).rejects.toThrow(
+    await expect(fetchExternalPlugin('./computed', context())).rejects.toThrow(
       'cannot load the plugin ./computed: plugin.ts: title is no fixed value (found Identifier)',
     )
-    await expect(fetchExternalPlugin('./plain', sources())).rejects.toThrow(
+    await expect(fetchExternalPlugin('./plain', context())).rejects.toThrow(
       'plugin.ts: its default export is no export default definePlugin',
     )
   })

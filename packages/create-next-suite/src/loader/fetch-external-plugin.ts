@@ -11,8 +11,8 @@ import { fetchRemoteSource } from './remote/fetch-remote-source.ts'
 import type { RemoteEnvironment } from './remote/remote-source.ts'
 import { snapshotPlugin } from './snapshot-plugin.ts'
 
-/** Where external plugins come from: the working directory, the network and the registries. */
-export type ExternalSources = {
+/** What fetching an external plugin needs: the working directory, the network and the registries. */
+export type FetchContext = {
   cwd: string
   remote: RemoteEnvironment
   /** The source of each registry short name, such as `github:acme/plugins` for `@acme`. */
@@ -37,30 +37,30 @@ export type FetchedPlugin = {
 
 type SourceDirectory = { directory: string; resolved: string | undefined; isLocal: boolean }
 
-const locate = async (address: string, sources: ExternalSources): Promise<SourceDirectory> => {
+const locate = async (address: string, context: FetchContext): Promise<SourceDirectory> => {
   const parsed = parsePluginAddress(address)
   if (parsed === undefined) {
     throw new PluginLoadError(address, 'the address has no known form')
   }
   if (parsed.kind === 'local') {
-    return { directory: resolve(sources.cwd, parsed.path), resolved: undefined, isLocal: true }
+    return { directory: resolve(context.cwd, parsed.path), resolved: undefined, isLocal: true }
   }
   if (parsed.kind === 'registry') {
-    const source = sources.registries[parsed.registry]
+    const source = context.registries[parsed.registry]
     if (source === undefined) {
       throw new PluginLoadError(
         address,
         `the registry ${parsed.registry} is unknown; add it with \`next-suite registry add\``,
       )
     }
-    const registry = await fetchRegistry(source, sources)
+    const registry = await fetchRegistry(source, context)
     return {
       directory: await registryPluginDirectory(registry, parsed.name, address),
       resolved: registry.resolved,
       isLocal: false,
     }
   }
-  const fetched = await fetchRemoteSource(sources.remote, parsed)
+  const fetched = await fetchRemoteSource(context.remote, parsed)
   return { ...fetched, isLocal: false }
 }
 
@@ -89,11 +89,11 @@ const readSummary = async (directory: string, address: string): Promise<PluginSu
  */
 export const fetchExternalPlugin = async (
   address: string,
-  sources: ExternalSources,
+  context: FetchContext,
 ): Promise<FetchedPlugin> => {
-  const { directory, resolved, isLocal } = await locate(address, sources)
+  const { directory, resolved, isLocal } = await locate(address, context)
   const snapshot = await snapshotPlugin(directory, {
-    cacheDir: sources.remote.cacheDir,
+    cacheDir: context.remote.cacheDir,
     location: address,
   })
   return {
