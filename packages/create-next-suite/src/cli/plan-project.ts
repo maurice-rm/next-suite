@@ -1,7 +1,6 @@
-import type { Answers, AnswerValue } from '../answers/answers.ts'
+import type { Answers } from '../answers/answers.ts'
 import { optionsOf } from '../answers/plugin-options.ts'
 import { assembleProject } from '../assembly/assemble-project.ts'
-import type { PluginAnswers } from '../assembly/resolve-answers.ts'
 import type { RunSteps } from '../assembly/run-steps.ts'
 import { InputError } from '../input-error.ts'
 import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
@@ -70,18 +69,8 @@ const selectPlugins = ({
 }: Pick<PlanInput, 'assets' | 'answers'>): LoadedPluginModule[] =>
   answers.plugins.flatMap(({ name }) => assets.plugins.filter(({ plugin }) => plugin.name === name))
 
-/** The answers to a plugin's options; a question of a plugin's option never takes a number. */
-const pluginAnswersOf = (name: string, answers: Answers): PluginAnswers =>
-  Object.fromEntries(
-    Object.entries(optionsOf(name, answers)).flatMap(([key, value]: [string, AnswerValue]) =>
-      typeof value === 'number' ? [] : [[key, value]],
-    ),
-  )
-
 const answersOf = (plugins: readonly LoadedPluginModule[], answers: Answers) =>
-  Object.fromEntries(
-    plugins.map(({ plugin }) => [plugin.name, pluginAnswersOf(plugin.name, answers)]),
-  )
+  Object.fromEntries(plugins.map(({ plugin }) => [plugin.name, optionsOf(plugin.name, answers)]))
 
 /** The plan names the core for package.json, which it writes from the base project's. */
 const originOf = (path: string, owner: string): string =>
