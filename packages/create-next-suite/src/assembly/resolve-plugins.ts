@@ -34,9 +34,16 @@ const assertNoConflicts = (plugins: readonly LoadedPlugin[]): void => {
   }
 }
 
-const assertPreconditions = (plugins: readonly LoadedPlugin[]): void => {
-  const selection = plugins.map(({ plugin }) => plugin)
-  for (const { plugin } of plugins) {
+/**
+ * Fails for a plugin that runs whose precondition the selection does not meet; the selection
+ * holds the replaced plugins too, as the questions see it.
+ */
+const assertPreconditions = (
+  running: readonly LoadedPlugin[],
+  selected: readonly LoadedPlugin[],
+): void => {
+  const selection = selected.map(({ plugin }) => plugin)
+  for (const { plugin } of running) {
     const reason = findUnmetPrecondition(plugin.precondition, selection)
     if (reason !== undefined) {
       throw new AssemblyError(`${plugin.name} cannot run: ${reason}`)
@@ -146,7 +153,7 @@ const orderPlugins = (
 export const resolvePlugins = ({ plugins, categoryOrder }: ResolveInput): ResolvedPlugins => {
   const running = dropReplaced(plugins)
   assertNoConflicts(running)
-  assertPreconditions(running)
+  assertPreconditions(running, plugins)
   const providers = findProviders(running)
   return { plugins: orderPlugins(running, { providers, categoryOrder }), providers }
 }

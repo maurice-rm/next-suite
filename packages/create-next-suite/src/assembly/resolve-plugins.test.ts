@@ -183,4 +183,16 @@ describe('resolvePlugins', () => {
       new AssemblyError('lint-staged cannot run: it needs a linter'),
     )
   })
+
+  it('asks a precondition with the selected plugins, a replaced one included', () => {
+    const header = definePlugin({
+      name: 'header',
+      title: 'Header',
+      precondition: ({ has }) => has('static-csp') || 'it needs static-csp',
+    })
+    const staticCsp = definePlugin({ name: 'static-csp', title: 'S' })
+    const myCsp = definePlugin({ name: 'my-csp', title: 'M', replaces: 'static-csp' })
+
+    expect(order(header, staticCsp, myCsp)).toEqual(['header', 'my-csp'])
+  })
 })
