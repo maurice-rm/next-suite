@@ -130,6 +130,29 @@ describe('object', () => {
   })
 })
 
+describe('setVariable', () => {
+  it('replaces the value of a top-level variable, exported or not', () => {
+    const module = openTypescriptModule(
+      'db/index.ts',
+      source('const url = process.env.DATABASE_URL!;', 'export const db = drizzle(url);'),
+    )
+    module.setVariable('url', 'env.DATABASE_URL')
+    module.setVariable('db', 'drizzle(url, { schema })')
+
+    expect(module.print()).toBe(
+      source('const url = env.DATABASE_URL;', 'export const db = drizzle(url, { schema });'),
+    )
+  })
+
+  it('refuses a variable without a value and names file and variable', () => {
+    const module = openTypescriptModule('db/index.ts', source('let url;'))
+
+    expect(() => module.setVariable('url', '""')).toThrow(
+      'db/index.ts: found no top-level variable "url" with a value',
+    )
+  })
+})
+
 describe('defaultExportObject', () => {
   it('finds an object exported directly', () => {
     const module = openTypescriptModule('a.ts', source('export default {', '  a: 1,', '};'))

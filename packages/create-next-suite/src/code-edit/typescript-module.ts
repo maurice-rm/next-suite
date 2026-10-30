@@ -26,6 +26,8 @@ export type TypescriptModule = {
   addImport: (moduleImport: ModuleImport) => void
   /** The object literal the top-level variable holds, directly, through `satisfies`/`as` or as a call's argument. */
   object: (variableName: string) => ObjectLiteral
+  /** Sets the value of the top-level variable `variableName` to `code`, exported or not. */
+  setVariable: (variableName: string, code: string) => void
   /** The object literal behind `export default`, through variables and wrapper calls. */
   defaultExportObject: () => ObjectLiteral
   /** `export default x` becomes `export default wrapper(x)`; later wrappers go outside. */
@@ -53,6 +55,13 @@ export const createTypescriptModule = (document: SourceDocument): TypescriptModu
       target,
       locate: (program) =>
         findObjectBehind(program, findVariableValue(program, variableName), target),
+    })
+  },
+
+  setVariable: (variableName, value) => {
+    document.edit(({ code, program }) => {
+      const current = findVariableValue(program, variableName)
+      code.overwrite(current.start, current.end, value)
     })
   },
 
