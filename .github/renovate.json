@@ -9,6 +9,23 @@
       "matchManagers": ["github-actions"],
       "semanticCommitType": "ci",
       "groupName": "github actions"
+    },
+    {
+      "matchFileNames": ["packages/create-next-suite/catalog.json"],
+      "groupName": "version catalog"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "The version catalog of generated projects: entries named differently from their npm package map to it",
+      "customType": "jsonata",
+      "fileFormat": "json",
+      "managerFilePatterns": ["/^packages/create-next-suite/catalog\\.json$/"],
+      "matchStrings": [
+        "($packageNames := {\"yarn\": \"@yarnpkg/cli-dist\", \"types-node\": \"@types/node\", \"types-react\": \"@types/react\", \"types-react-dom\": \"@types/react-dom\", \"biome\": \"@biomejs/biome\", \"tailwindcss-postcss\": \"@tailwindcss/postcss\", \"vitejs-plugin-react\": \"@vitejs/plugin-react\", \"testing-library-react\": \"@testing-library/react\", \"testing-library-dom\": \"@testing-library/dom\", \"t3-oss-env-nextjs\": \"@t3-oss/env-nextjs\"}; $each($, function($version, $entry) { {\"depName\": $entry, \"packageName\": $exists($lookup($packageNames, $entry)) ? $lookup($packageNames, $entry) : $entry, \"currentValue\": $version} }))"
+      ],
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
     }
   ]
 }
