@@ -7,10 +7,25 @@ import type { UsedPoint, UsedValue } from './used-point.ts'
 /** The points a plugin uses, by the name its functions read them under. */
 export type UsesShape = Readonly<Record<string, UsedPoint>>
 
+/** The package manager the project runs with, as the core knows it from its plugin. */
+export type ProjectPackageManager = {
+  /** The command, such as `pnpm`; `npm` when no plugin states a package manager. */
+  name: string
+  /** The exact version the project pins, such as `12.16.1`; none without a package manager plugin. */
+  version?: string
+  /** How a script runs, such as `pnpm run`. */
+  run: string
+  /** The install in CI that keeps the lockfile as it is, such as `pnpm install --frozen-lockfile`. */
+  ciInstall: string
+}
+
 /** What every function of a plugin gets besides the values of the points it uses. */
 export type CoreContext<OptionAnswers> = {
   /** The answers to the plugin's options. */
   options: OptionAnswers
+  /** The project's name, also the name of its directory, such as `my-app`. */
+  projectName: string
+  packageManager: ProjectPackageManager
   /**
    * Whether a plugin of that name runs; `false` for a plugin another one replaces. Branch on the
    * values of points instead where a point exists.
@@ -37,6 +52,8 @@ export type FinishHelpers = {
    * `src/generated`, for the tools that skip it.
    */
   generatedDirectories: readonly string[]
+  /** Every script of `package.json` by name, from the base project and all plugins. */
+  scripts: Readonly<Record<string, string>>
   /** The module of a TypeScript file of the project, also one another plugin wrote. */
   module: (path: string) => TypescriptModule
   /** Adds a file the plugin owns, such as one built from what a collector point collected. */

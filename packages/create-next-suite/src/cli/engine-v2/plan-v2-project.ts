@@ -22,8 +22,6 @@ const BUILT_IN_SOURCE = 'builtin'
 const REACT_COMPILER_SETTING = 'react-compiler'
 const CACHE_COMPONENTS_SETTING = 'cache-components'
 const DEFAULT_INSTALL_ARGS = ['install']
-/** The package manager the commands of a project without a package manager plugin use. */
-const FALLBACK_PACKAGE_MANAGER = 'npm'
 /** What the end of a run shows for the base project. */
 const BASE_SUMMARY: ProjectPlan['summary'] = {
   stack: ['Next.js', 'TypeScript'],
@@ -135,7 +133,12 @@ export const planV2Project = (input: PlanInput): ProjectPlan => {
     }),
     CORE_ORIGIN,
   )
-  const { files, owners, runSteps } = assembleProject({
+  const {
+    files,
+    owners,
+    runSteps,
+    packageManager: projectPackageManager,
+  } = assembleProject({
     project,
     plugins,
     categoryOrder: CATEGORIES.map(({ id }) => id),
@@ -157,7 +160,7 @@ export const planV2Project = (input: PlanInput): ProjectPlan => {
     })),
     ...dependenciesOf(files),
     packageManager: packageManager?.name,
-    projectPackageManager: packageManager?.name ?? FALLBACK_PACKAGE_MANAGER,
+    projectPackageManager: projectPackageManager.name,
     installArgs: [...(packageManager?.packageManager?.installArgs ?? DEFAULT_INSTALL_ARGS)],
     postSteps: postStepsOf(runSteps, answers),
     summary: summaryOf(runSteps),

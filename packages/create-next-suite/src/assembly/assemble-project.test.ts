@@ -793,6 +793,53 @@ describe('assembleProject', () => {
     expect(fileOf(files, 'README.md')).toContain('## Database\n\nDrizzle.')
   })
 
+  it('gives functions the project name and package manager, and finish the scripts', () => {
+    const seen: unknown[] = []
+    const pnpm = definePlugin({
+      name: 'pnpm',
+      title: 'pnpm',
+      category: 'package-manager',
+      packageManager: {
+        version: '12.16.1',
+        ciInstallArgs: ['install', '--frozen-lockfile'],
+        whenVersionDiffers: 'download',
+      },
+    })
+    const ci = definePlugin({
+      name: 'ci',
+      title: 'CI',
+      scripts: ({ projectName, packageManager }) => {
+        seen.push(projectName, packageManager)
+        return { lint: 'eslint' }
+      },
+      collects: {
+        ciChecks: {
+          create: () => ({ run: () => undefined, scripts: () => [] }),
+          finish: (_checks, { scripts }) => {
+            seen.push(scripts)
+          },
+        },
+      },
+    })
+
+    assemble([withFiles(pnpm), withFiles(ci)])
+    assemble([withFiles(ci)])
+
+    expect(seen).toEqual([
+      'next-suite-app',
+      {
+        name: 'pnpm',
+        version: '12.16.1',
+        run: 'pnpm run',
+        ciInstall: 'pnpm install --frozen-lockfile',
+      },
+      { dev: 'next dev', lint: 'eslint' },
+      'next-suite-app',
+      { name: 'npm', run: 'npm run', ciInstall: 'npm ci' },
+      { dev: 'next dev', lint: 'eslint' },
+    ])
+  })
+
   it('lets setup write files, edit modules and add tsconfig entries, recorded as setup', () => {
     const blog = definePlugin({
       name: 'blog',

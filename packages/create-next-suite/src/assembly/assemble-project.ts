@@ -1,8 +1,10 @@
+import type { ProjectPackageManager } from '../plugin-definition/plugin-context.ts'
 import { CORE_OWNER, type Project } from '../project-model/project.ts'
 import type { ProvenanceLog } from '../project-model/provenance.ts'
-import { applyBaseSettings, type BaseSettings } from './apply-base-settings.ts'
+import { applyBaseSettings, BASE_PROJECT_NAME, type BaseSettings } from './apply-base-settings.ts'
 import type { LoadedPlugin } from './loaded-plugin.ts'
 import { createPluginRun, type PluginRun, type PointState } from './plugin-run.ts'
+import { projectPackageManager } from './project-package-manager.ts'
 import type { PluginAnswers } from './resolve-answers.ts'
 import { resolvePlugins } from './resolve-plugins.ts'
 import { collectRunSteps, type RunSteps } from './run-steps.ts'
@@ -29,6 +31,8 @@ export type AssembledProject = {
   provenance: ProvenanceLog
   /** What the plugins state for the end of the run: stack, next steps and post-steps. */
   runSteps: RunSteps
+  /** The package manager the project runs with. */
+  packageManager: ProjectPackageManager
 }
 
 /**
@@ -65,6 +69,7 @@ export const assembleProject = ({
     applyBaseSettings(project, baseSettings, new Set(categories))
   }
   const generatedDirectories: string[] = []
+  const packageManager = projectPackageManager(resolved.plugins.map(({ plugin }) => plugin))
   const runs = resolved.plugins.map((loaded) =>
     createPluginRun(loaded, {
       project,
@@ -72,6 +77,8 @@ export const assembleProject = ({
       running,
       answers: answers[loaded.plugin.name],
       generatedDirectories,
+      projectName: baseSettings?.projectName ?? BASE_PROJECT_NAME,
+      packageManager,
     }),
   )
   const runPhase = (phase: (run: PluginRun) => void): void => {
@@ -101,5 +108,5 @@ export const assembleProject = ({
   const owners = new Map(
     [...files.keys()].map((path) => [path, project.ownerOf(path) ?? CORE_OWNER]),
   )
-  return { files, owners, provenance: project.provenance.toJson(), runSteps }
+  return { files, owners, provenance: project.provenance.toJson(), runSteps, packageManager }
 }
