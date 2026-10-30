@@ -284,6 +284,9 @@ importers:
       handlebars:
         specifier: 4.7.10
         version: 4.7.10
+      jiti:
+        specifier: 2.7.0
+        version: 2.7.0
       magic-string:
         specifier: 1.4.5
         version: 1.4.5
