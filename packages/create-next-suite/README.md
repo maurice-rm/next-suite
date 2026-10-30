@@ -3,9 +3,9 @@
 Create a Next.js app from plugins. Every choice, from the package manager to the linter, is a
 plugin, and plugins of your own, public or private, plug in the same way.
 
-> Under construction: the quick start covers a package manager, linting, formatting, unused code,
-> git hooks, unit tests, environment validation, logging, security headers, SEO, CI and
-> AGENTS.md; more plugins follow.
+> Under construction: the quick start covers a package manager, styling, linting, formatting,
+> unused code, git hooks, unit tests, environment validation, logging, security headers, SEO, CI
+> and AGENTS.md; more plugins follow.
 
 ## Create an app
 
