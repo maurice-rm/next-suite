@@ -615,6 +615,60 @@
       }
     },
     {
+      "includes": ["packages/create-next-suite/src/code-edit/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/trust",
+                      "**/trust/**",
+                      "**/user-config",
+                      "**/user-config/**",
+                      "**/contract",
+                      "**/contract/**",
+                      "**/answers",
+                      "**/answers/**",
+                      "**/loader",
+                      "**/loader/**",
+                      "**/compose",
+                      "**/compose/**",
+                      "**/write",
+                      "**/write/**",
+                      "**/questions",
+                      "**/questions/**",
+                      "**/post-steps",
+                      "**/post-steps/**",
+                      "**/package-manager",
+                      "**/package-manager/**",
+                      "**/ui",
+                      "**/ui/**",
+                      "**/cli",
+                      "**/cli/**",
+                      "**/file-system",
+                      "**/file-system/**",
+                      "**/test-support",
+                      "**/test-support/**",
+                      "**/input-error.ts",
+                      "**/create-next-suite.ts",
+                      "**/next-suite.ts",
+                      "**/plugin.ts",
+                      "**/testing.ts"
+                    ],
+                    "message": "create-next-suite: code-edit/ edits source text and imports no other module but expected-error.ts"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/create-next-suite/src/ui/**"],
       "linter": {
         "rules": {
