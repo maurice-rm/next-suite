@@ -1,4 +1,4 @@
-import type { BuiltDependencies } from './built-dependencies.ts'
+import type { BuiltDependencies } from '../points/built-dependencies.ts'
 
 /**
  * The collector points by name, each with the type of what its provider collects. A point module

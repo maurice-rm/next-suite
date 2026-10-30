@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
-
-import { createBuiltDependencies } from '../plugin-definition/built-dependencies.ts'
 import { definePlugin } from '../plugin-definition/define-plugin.ts'
 import { optional } from '../plugin-definition/optional.ts'
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
+import { createBuiltDependencies } from '../points/built-dependencies.ts'
 import { createProject } from '../project-model/project.ts'
 import { createCspSources, csp, orm } from '../test-support/fixture-points.ts'
 import { type AssemblyInput, assembleProject } from './assemble-project.ts'

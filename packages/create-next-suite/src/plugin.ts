@@ -41,5 +41,5 @@ export type {
 } from './contract/plugin-manifest.ts'
 export type { OptionChoice, PluginOption } from './contract/plugin-option.ts'
 export type { PostStep } from './contract/post-step.ts'
-export { createBuiltDependencies } from './plugin-definition/built-dependencies.ts'
 export { definePlugin } from './plugin-definition/define-plugin.ts'
+export { createBuiltDependencies } from './points/built-dependencies.ts'
