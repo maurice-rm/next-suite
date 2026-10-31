@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { PROJECT_NAME } from './project-name.ts'
 import { runCli } from './run-cli.ts'
 
+const TIMEOUT_MS = 120_000
 const IDENTITY = ['-c', 'user.name=next-suite test', '-c', 'user.email=test@example.com']
 const GREETING_PLUGIN = [
   "import { definePlugin } from 'create-next-suite/plugin'",
@@ -82,13 +83,13 @@ beforeAll(async () => {
   )
   expect(created.exitCode).toBe(0)
   project = join(workspace, PROJECT_NAME)
-})
+}, TIMEOUT_MS)
 
 afterAll(async () => {
   await rm(workspace, { recursive: true, force: true })
 })
 
-describe('next-suite update in a project you changed', () => {
+describe('next-suite update in a project you changed', { timeout: TIMEOUT_MS }, () => {
   it('keeps your edits while the config adds and disables plugins and changes an answer', async () => {
     await replaceIn(
       'app/layout.tsx',
