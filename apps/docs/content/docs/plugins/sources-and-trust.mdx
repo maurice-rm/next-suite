@@ -56,7 +56,8 @@ trust before its code runs, in a dry run too:
 - in a terminal, create-next-suite asks: allow a pinned version once, always trust the source, or
   cancel. The question names the plugin, its address, the commit or version it resolved to, its
   content hash, the plugin it replaces and the points it provides;
-- without one, pass `--trust "github:acme/*"` for the run;
+- without one, pass `--trust "github:acme/*"` for the run, to `create-next-suite`,
+  `next-suite update` or `next-suite add`;
 - or keep trusted patterns with `next-suite trust add "github:acme/*"`.
 
 Patterns match the address without its ref or version, and `*` stands for anything.

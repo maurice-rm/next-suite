@@ -15,8 +15,8 @@ type SelectedExternal = {
   answers: Answers
   /** The plugins that run beside them: built-in and defined in a config. */
   known: readonly LoadedPluginModule[]
-  /** Patterns from `--trust`, trusted for this run only. */
-  flagPatterns: readonly string[]
+  /** Patterns from `--trust`, trusted for this run only, or nothing for a command without it. */
+  flagPatterns: readonly string[] | undefined
   /** The terminal to ask about trust in, or nothing when the run cannot ask. */
   streams: Streams | undefined
   environment: {

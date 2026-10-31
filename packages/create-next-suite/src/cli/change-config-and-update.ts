@@ -16,6 +16,8 @@ type ConfigChange = {
   /** What the change did, reported before the update. */
   summary: string
   force: boolean
+  /** Patterns from `--trust`, trusted for this run only, or nothing for a command without it. */
+  flagPatterns: readonly string[] | undefined
 }
 
 /**
@@ -29,14 +31,14 @@ type ConfigChange = {
 export const changeConfigAndUpdate = async (
   environment: NextSuiteEnvironment,
   report: Report,
-  { root, edit, summary, force }: ConfigChange,
+  { root, edit, summary, force, flagPatterns }: ConfigChange,
 ): Promise<void> => {
   const path = join(root, PROJECT_PATHS.config)
   const original = await readFile(path, 'utf8')
   await writeFile(path, edit(original))
   report(summary)
   try {
-    await runUpdate(environment, report, { dryRun: false, force })
+    await runUpdate(environment, report, { dryRun: false, force, flagPatterns })
   } catch (error) {
     if (error instanceof UpdateMergeConflictError) {
       throw error

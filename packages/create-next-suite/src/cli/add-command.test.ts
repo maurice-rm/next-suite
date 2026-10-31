@@ -8,18 +8,24 @@ import { PROJECT_PATHS } from '../project-config/project-paths.ts'
 import { commitAll, initRepository } from '../test-support/git.ts'
 import { setUpCreateRuns } from '../test-support/run-create-harness.ts'
 import { runNextSuiteIn } from '../test-support/run-next-suite-harness.ts'
+import { type Routes, stubRemote } from '../test-support/stub-remote.ts'
 
-const { run: create, pathOf, write } = setUpCreateRuns()
+const { run: create, pathOf, write, githubRoutes } = setUpCreateRuns()
 
 const PROJECT = 'my-app'
 
 const read = (path: string) => readFile(pathOf(join(PROJECT, path)), 'utf8')
 
-const nextSuite = (argv: string[]) =>
-  runNextSuiteIn({ root: pathOf('.'), cwd: pathOf(PROJECT) }, argv)
+const nextSuite = (argv: string[], routes: Routes = {}) =>
+  runNextSuiteIn({ root: pathOf('.'), cwd: pathOf(PROJECT) }, argv, {
+    remote: stubRemote(pathOf('.'), routes),
+  })
 
-const createProject = async (flags: string[] = []) => {
-  const created = await create([PROJECT, '--yes', '--no-ci', '--no-git', '--no-install', ...flags])
+const createProject = async (flags: string[] = [], routes: Routes = {}) => {
+  const created = await create(
+    [PROJECT, '--yes', '--no-ci', '--no-git', '--no-install', ...flags],
+    { routes },
+  )
   expect(created.error).toBe('')
   initRepository(pathOf(PROJECT))
   commitAll(pathOf(PROJECT), 'chore: initial commit')
@@ -39,6 +45,19 @@ const GREETING = {
   ].join('\n'),
   'greeting/files/greeting.ts': 'export const tone = "friendly"\n',
 }
+
+const HELLO_ADDRESS = 'github:acme/plugins/hello'
+
+const helloRoutes = () =>
+  githubRoutes('hello', {
+    'plugin.ts': [
+      "import { definePlugin } from 'create-next-suite/plugin'",
+      '',
+      "export default definePlugin({ name: 'hello', title: 'Hello', files: { 'hello.txt': 'files/hello.txt' } })",
+      '',
+    ].join('\n'),
+    'files/hello.txt': 'hi\n',
+  })
 
 describe('next-suite add', () => {
   it('adds a built-in plugin to the config and updates the project', async () => {
@@ -87,6 +106,22 @@ describe('next-suite add', () => {
     expect(result.error).toContain('next-suite.config.ts is restored as it was')
     expect(await read(PROJECT_PATHS.config)).toBe(before)
   })
+
+  it('runs a plugin from an untrusted source only with --trust, without storing it', async () => {
+    const routes = await helloRoutes()
+    await createProject([], routes)
+
+    const refused = await nextSuite(['add', HELLO_ADDRESS], routes)
+    const trusted = await nextSuite(['add', HELLO_ADDRESS, '--trust', 'github:acme/*'], routes)
+
+    expect(refused.exitCode).toBe(1)
+    expect(refused.error).toContain(
+      `hello from ${HELLO_ADDRESS} comes from an untrusted source; pass --trust "${HELLO_ADDRESS}"`,
+    )
+    expect(trusted).toMatchObject({ exitCode: 0, error: '' })
+    expect(await read('hello.txt')).toBe('hi\n')
+    expect(existsSync(pathOf('config.json'))).toBe(false)
+  })
 })
 
 describe('next-suite disable', () => {
@@ -108,5 +143,18 @@ describe('next-suite disable', () => {
 
     expect(result.exitCode).toBe(1)
     expect(result.error).toContain('the project does not run pino')
+  })
+
+  it('names a remedy without --trust for a plugin from an untrusted source', async () => {
+    const routes = await helloRoutes()
+    await createProject(['--plugin', HELLO_ADDRESS, '--hello', '--trust', 'github:acme/*'], routes)
+
+    const result = await nextSuite(['disable', 'seo'], routes)
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain(
+      `hello from ${HELLO_ADDRESS} comes from an untrusted source; run the command in a terminal to be asked, or add the pattern to "trust" in ${pathOf('config.json')}`,
+    )
+    expect(result.error).not.toContain('--trust')
   })
 })

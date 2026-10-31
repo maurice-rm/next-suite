@@ -10,6 +10,8 @@ type GeneratorRequest = {
   workDirectory: string
   /** The name of the directory inside `workDirectory` the project goes into. */
   targetName: string
+  /** Patterns the run trusts with `--trust`, for this run only. */
+  trustPatterns: readonly string[]
 }
 
 /** Runs a published version of create-next-suite; answers how it ended. */
@@ -18,11 +20,12 @@ export type PublishedGeneratorRunner = (request: GeneratorRequest) => Promise<Co
 /**
  * A runner that starts a published version of create-next-suite through npm, which comes with
  * Node.js: from npm's cache when it has the version, from the registry otherwise. The project is
- * created from the config without git, install or any question.
+ * created from the config without git, install or any question, trusting what the run trusts with
+ * `--trust`.
  */
 export const createPublishedGeneratorRunner =
   (runCommand: CommandRunner): PublishedGeneratorRunner =>
-  ({ version, configPath, targetName, workDirectory }) =>
+  ({ version, configPath, targetName, workDirectory, trustPatterns }) =>
     runCommand(
       'npm',
       [
@@ -38,6 +41,7 @@ export const createPublishedGeneratorRunner =
         '--yes',
         '--no-git',
         '--no-install',
+        ...trustPatterns.flatMap((pattern) => ['--trust', pattern]),
       ],
       workDirectory,
     )

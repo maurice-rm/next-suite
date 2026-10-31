@@ -43,6 +43,7 @@ const disable = async (
     edit: (text) => disablePluginInConfig(text, name),
     summary: `Disabled ${name} in ${PROJECT_PATHS.config}.`,
     force,
+    flagPatterns: undefined,
   })
 }
 

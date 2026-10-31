@@ -51,13 +51,20 @@ const INPUT_PREFIX = `${PROJECT_PATHS.inputDirectory}/`
 const FIXED_SETTINGS = ['srcDir', 'importAlias'] as const
 
 /** What an update needs from outside: the plan environment and the published versions. */
-export type UpdateEnvironment = Omit<ConfigPlanEnvironment, 'assets'> & {
+export type UpdateEnvironment = Omit<ConfigPlanEnvironment, 'assets' | 'flagPatterns'> & {
   loadAssets: () => Promise<BuiltInAssets>
   runPublishedGenerator: PublishedGeneratorRunner
 }
 
-/** How an update runs: over uncommitted changes, and whether it writes anything. */
-export type UpdateOptions = { force: boolean; dryRun: boolean }
+/**
+ * How an update runs: over uncommitted changes, whether it writes anything, and the patterns of
+ * `--trust`, or nothing for a command without it.
+ */
+export type UpdateOptions = {
+  force: boolean
+  dryRun: boolean
+  flagPatterns: readonly string[] | undefined
+}
 
 /** What an update did, or would do in a dry run, and what to know about it. */
 export type UpdateOutcome = {
@@ -249,7 +256,12 @@ export const updateProject = async (
   const { lock, commit } = await readCommittedLock(root)
   const assets = await environment.loadAssets()
   const cliSpecifier = await cliSpecifierOf(root, environment.cliSpecifier)
-  const planEnvironment = { ...environment, assets, cliSpecifier }
+  const planEnvironment = {
+    ...environment,
+    assets,
+    cliSpecifier,
+    flagPatterns: options.flagPatterns,
+  }
   const old = await generateOldOutput({
     environment: planEnvironment,
     projectDirectory: root,

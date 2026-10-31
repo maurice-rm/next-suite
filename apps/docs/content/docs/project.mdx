@@ -135,8 +135,9 @@ The update works in these steps:
    `.next-suite/lock.json`, with the version of create-next-suite the lock names (see
    [another version](#another-version-of-create-next-suite)).
 3. It generates the **new output** from the config as it is now. External plugins need your
-   [trust](./plugins/sources-and-trust#trust) as on create, and a plugin whose content hash differs
-   from the one the lock recorded is named in a warning.
+   [trust](./plugins/sources-and-trust#trust) as on create, in the old output too; without a
+   terminal, `--trust <pattern>` trusts matching sources for this run only and stores nothing. A
+   plugin whose content hash differs from the one the lock recorded is named in a warning.
 4. It formats both outputs the way the project's post-steps, such as `prettier --write .`, did
    after create, with the formatter installed in `node_modules`, so a file you did not touch still
    matches the lock. Whether the project ran them is read from the lock's hashes.
@@ -190,7 +191,11 @@ Both edit the config through its syntax tree, so your formatting and comments st
 takes the file's quotes. When the update fails before it changed a file, such as for a plugin of a
 category that takes one plugin while another is selected, or an untrusted source without a
 terminal to ask in, the config is restored as it was. With merge conflicts the change stays, and
-`next-suite update --continue` records it. `--force` passes through to the update.
+`next-suite update --continue` records it. `--force` passes through to the update, and so does
+`--trust <pattern>` for `add`, which trusts matching sources for this run only, as on create.
+`disable` takes no `--trust`: without a terminal, a plugin from an untrusted source needs a pattern
+in your user configuration, and a plugin whose content changed is confirmed by running `disable` in
+a terminal.
 
 To stop using a plugin for good, `disable` it, or delete its entry from `plugins` by hand: today
 both have the same effect.
