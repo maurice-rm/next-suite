@@ -45,7 +45,10 @@ const CONTRIBUTOR: Plugin = {
 let builtIn: LoadedPluginModule[]
 let baseFiles: Map<string, string>
 
-const assembleWith = (names: readonly string[]): Map<string, string> => {
+const assembleWith = (
+  names: readonly string[],
+  { projectInputDirectory }: { projectInputDirectory?: string } = {},
+): Map<string, string> => {
   const plugins = [
     ...names.map((name) => {
       const found = builtIn.find(({ plugin }) => plugin.name === name)
@@ -60,6 +63,7 @@ const assembleWith = (names: readonly string[]): Map<string, string> => {
     project: createProject({ files: baseFiles, settings: { alias: '@/*', isSrcDirectory: true } }),
     plugins,
     categoryOrder: CATEGORIES.map(({ id }) => id),
+    ...(projectInputDirectory === undefined ? {} : { projectInputDirectory }),
   }).files
 }
 
@@ -121,6 +125,14 @@ describe('the tooling plugins', () => {
       ].join('\n'),
     )
     expect(fileOf(files, '.gitignore')).toMatch(/\n\/src\/generated\n$/)
+  })
+
+  it('let Knip skip the project plugins and overrides once the project has any', () => {
+    const files = assembleWith(['pnpm', 'knip'], { projectInputDirectory: 'next-suite' })
+
+    expect(fileOf(files, 'knip.config.ts')).toContain(
+      '  ignore: [\n    "src/generated/**",\n    "next-suite/**",\n  ],\n',
+    )
   })
 
   it('let Biome skip the ignored globs before its own', () => {

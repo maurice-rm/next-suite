@@ -20,11 +20,18 @@ const insideParentheses = (expression: Expression): Expression =>
 export type TypescriptModule = {
   /**
    * Adds an import, merged into an import of the same module where one exists; names imported
-   * already are skipped.
+   * already are skipped. An import of a source path (`@/…`) joins the imports of source paths, or
+   * starts a group of its own below the other imports.
    */
   addImport: (moduleImport: ModuleImport) => void
   /** The object literal the top-level variable holds, directly, through `satisfies`/`as` or as a call's argument. */
   object: (variableName: string) => ObjectLiteral
+  /**
+   * Sets the value of the top-level variable `variableName` to `code`, exported or not.
+   *
+   * @throws CodeEditError when the module has no such top-level variable with a value.
+   */
+  setVariable: (variableName: string, code: string) => void
   /** The object literal behind `export default`, through variables and wrapper calls. */
   defaultExportObject: () => ObjectLiteral
   /** `export default x` becomes `export default wrapper(x)`; later wrappers go outside. */
@@ -52,6 +59,13 @@ export const createTypescriptModule = (document: SourceDocument): TypescriptModu
       target,
       locate: (program) =>
         findObjectBehind(program, findVariableValue(program, variableName), target),
+    })
+  },
+
+  setVariable: (variableName, value) => {
+    document.edit(({ code, program }) => {
+      const current = findVariableValue(program, variableName)
+      code.overwrite(current.start, current.end, value)
     })
   },
 

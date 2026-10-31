@@ -35,6 +35,7 @@
   "exports": {
     "./config": "./dist/config.mjs",
     "./plugin": "./dist/plugin.mjs",
+    "./points": "./dist/points.mjs",
     "./testing": "./dist/testing.mjs",
     "./schemas/registry.json": "./dist/schemas/registry.json",
     "./package.json": "./package.json"

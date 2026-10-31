@@ -9,7 +9,8 @@
       }
     },
     "packages/integration": {
-      "entry": ["scripts/*.ts"]
+      "entry": ["scripts/*.ts", "fixtures/plugins/*/plugin.ts"],
+      "ignore": ["fixtures/plugins/*/files/**"]
     }
   }
 }

@@ -75,11 +75,58 @@ jobs:
           PACKAGE_MANAGER: ${{ matrix.package-manager }}
         run: pnpm --filter @next-suite/integration matrix "$SCENARIO" "$PACKAGE_MANAGER"
 
+  # Lists the combinations of the test plugins under packages/integration/fixtures/plugins, from
+  # COMBINATIONS in packages/integration/src/combinations.ts.
+  list-combinations:
+    name: List combinations
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      combinations: ${{ steps.list.outputs.combinations }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          install: "false"
+      - id: list
+        name: List combinations
+        run: echo "combinations=$(node packages/integration/scripts/list-combinations.ts)" >> "$GITHUB_OUTPUT"
+
+  # Generates each combination of ORM, database, auth and the other test plugins with pnpm,
+  # installs it, runs its checks and Better Auth's schema check, pushes the schema to SQLite and
+  # checks the container files with Docker.
+  combinations:
+    name: ${{ matrix.combination }}
+    needs: [list-combinations]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        combination: ${{ fromJSON(needs.list-combinations.outputs.combinations) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - name: Build create-next-suite
+        run: pnpm turbo build --filter=create-next-suite
+      - name: Generate the combination and run its checks
+        env:
+          COMBINATION: ${{ matrix.combination }}
+        run: pnpm --filter @next-suite/integration combinations "$COMBINATION"
+
   # The single required check for generated projects, reported even when jobs above are skipped.
   success:
     name: Generated projects succeeded
     if: always()
-    needs: [list, scenarios]
+    needs: [list, scenarios, list-combinations, combinations]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}

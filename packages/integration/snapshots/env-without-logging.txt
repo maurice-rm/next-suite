@@ -4,7 +4,7 @@ Files:
   .github/workflows/ci.yml (38 lines, github-actions)
   .gitignore (13 lines, base)
   .husky/pre-commit (1 line, lint-staged)
-  .next-suite/lock.json (580 lines, create-next-suite)
+  .next-suite/lock.json (590 lines, create-next-suite)
   .next-suite/types.d.ts (25 lines, create-next-suite)
   .prettierignore (6 lines, prettier)
   AGENTS.md (25 lines, agents-md)
@@ -161,7 +161,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ .next-suite/lock.json
-@@ -0,0 +1,580 @@
+@@ -0,0 +1,590 @@
 +{
 +  "generator": {
 +    "name": "create-next-suite",
@@ -317,6 +317,11 @@ Dev dependencies:
 +      "testSetup": {
 +        "provider": "vitest",
 +        "users": [],
++        "contributors": []
++      },
++      "validatedEnv": {
++        "provider": "t3-env",
++        "users": ["seo"],
 +        "contributors": []
 +      },
 +      "csp": {
@@ -517,7 +522,12 @@ Dev dependencies:
 +      "lib/site-url.ts": [
 +        {
 +          "plugin": "seo",
-+          "operation": "copy files/lib/site-url.t3-env.ts",
++          "operation": "copy files/lib/site-url.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "seo",
++          "operation": "edit",
 +          "kind": "own"
 +        }
 +      ],

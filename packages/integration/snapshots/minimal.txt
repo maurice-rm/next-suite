@@ -2,7 +2,7 @@ Files:
   .editorconfig (12 lines, base)
   .env.example (9 lines, base)
   .gitignore (13 lines, base)
-  .next-suite/lock.json (294 lines, create-next-suite)
+  .next-suite/lock.json (309 lines, create-next-suite)
   .next-suite/types.d.ts (25 lines, create-next-suite)
   README.md (25 lines, base)
   app/error.tsx (18 lines, base)
@@ -90,7 +90,7 @@ Dev dependencies:
 ===================================================================
 --- /dev/null
 +++ .next-suite/lock.json
-@@ -0,0 +1,294 @@
+@@ -0,0 +1,309 @@
 +{
 +  "generator": {
 +    "name": "create-next-suite",
@@ -162,6 +162,11 @@ Dev dependencies:
 +      "builtDependencies": {
 +        "provider": "pnpm",
 +        "users": [],
++        "contributors": []
++      },
++      "validatedEnv": {
++        "provider": "t3-env",
++        "users": ["pino", "seo"],
 +        "contributors": []
 +      },
 +      "logRedact": {
@@ -301,14 +306,24 @@ Dev dependencies:
 +      "lib/logger.ts": [
 +        {
 +          "plugin": "pino",
-+          "operation": "copy files/lib/logger.t3-env.ts",
++          "operation": "copy files/lib/logger.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "pino",
++          "operation": "edit",
 +          "kind": "own"
 +        }
 +      ],
 +      "lib/site-url.ts": [
 +        {
 +          "plugin": "seo",
-+          "operation": "copy files/lib/site-url.t3-env.ts",
++          "operation": "copy files/lib/site-url.ts",
++          "kind": "own"
++        },
++        {
++          "plugin": "seo",
++          "operation": "edit",
 +          "kind": "own"
 +        }
 +      ],

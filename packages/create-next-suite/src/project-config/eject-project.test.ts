@@ -88,6 +88,18 @@ describe('ejectProject', () => {
     expect(result.removed).toContain('next-suite/')
   })
 
+  it('notes the entry of Knip that skips next-suite/', async () => {
+    await writeProject({
+      'knip.config.ts': 'const config = { ignore: ["next-suite/**"] }\n',
+    })
+
+    const result = await ejectProject(root, { force: false })
+
+    expect(result.notes).toEqual([
+      'knip.config.ts still skips next-suite/** under ignore; remove it there',
+    ])
+  })
+
   it('leaves a tsconfig.json it cannot read as JSON to the user', async () => {
     await writeProject({
       'tsconfig.json': '{ // comments\n  "include": [".next-suite/types.d.ts"] }\n',

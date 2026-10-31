@@ -34,9 +34,9 @@ says what next-suite does; this file says how code is written here.
 - **Public exports carry complete TSDoc:** a summary; `@typeParam` for every type parameter;
   `@param name -` and `@returns` where they say more than the type; `@throws` for every error
   raised on purpose; at least one `@example` per entry point. No types inside `@param`. Public
-  means the `create-next-suite/config`, `create-next-suite/plugin` and `create-next-suite/testing`
-  subpaths; the field descriptions of the JSON schemas under `create-next-suite/schemas/` are read
-  by users too. The bins are no API.
+  means the `create-next-suite/config`, `create-next-suite/plugin`, `create-next-suite/points` and
+  `create-next-suite/testing` subpaths; the field descriptions of the JSON schemas under
+  `create-next-suite/schemas/` are read by users too. The bins are no API.
 - **Internal code** gets a doc comment only where name and signature do not say enough. An inline
   comment is reserved for a workaround (with a link), a non-obvious constraint, or a dense
   algorithm. Design history and rationale stay out of TSDoc — TSDoc ships in `dist`.
@@ -62,7 +62,7 @@ says what next-suite does; this file says how code is written here.
   | `file-system/`       | no other module                                                                                                 |
   | `ui/`                | `expected-error.ts`                                                                                             |
   | `code-edit/`         | `expected-error.ts`                                                                                             |
-  | `points/`            | no other module                                                                                                 |
+  | `points/`            | `code-edit/`, `expected-error.ts`                                                                               |
   | `project-model/`     | `code-edit/`, `file-system/`, `expected-error.ts`                                                               |
   | `plugin-definition/` | `contract/`, `code-edit/`, `project-model/`, `points/`, `expected-error.ts`                                     |
   | `assembly/`          | `plugin-definition/`, `points/`, `project-model/`, `code-edit/`, `expected-error.ts`                            |
@@ -84,8 +84,9 @@ says what next-suite does; this file says how code is written here.
   `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` for an extra
   (a plugin without a category), and changes no other file; a plugin that needs another file
   changed is missing a point, which is a change to the core of its own. Built-in plugins import
-  only the public plugin contract (`create-next-suite/plugin`), like any external plugin. The
-  categories, their order and defaults live in `src/plugin-definition/categories.ts`.
+  only the public plugin contract (`create-next-suite/plugin`) and the shared points
+  (`create-next-suite/points`), like any external plugin. The categories, their order and
+  defaults live in `src/plugin-definition/categories.ts`.
 - **Plugin files:** the files under `plugins/*/*/files/` are real files of a generated
   project. Where they import the packages the plugin installs, a `package.json` with only
   `"private": true` sits beside them, so `turbo boundaries` takes them for a project of their own;

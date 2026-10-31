@@ -1,13 +1,11 @@
 import { defineCollectorPoint } from '../plugin-definition/collector-point.ts'
-import { defineValuePoint } from '../plugin-definition/value-point.ts'
+import type { ValuePoints } from '../plugin-definition/value-point.ts'
 
-export type Dialect = 'postgresql' | 'sqlite'
+export { database, orm } from '../plugin-definition/shared-points.ts'
 
-export type OrmKind = 'drizzle' | 'prisma'
+export type Dialect = ValuePoints['database']['dialect']
 
-type Database = { dialect: Dialect }
-
-type Orm = { kind: OrmKind; dialect: Dialect; client: { name: string; from: string } }
+export type OrmKind = ValuePoints['orm']['kind']
 
 type CspDirective = 'script-src' | 'connect-src' | 'img-src'
 
@@ -17,22 +15,11 @@ export type CspSources = {
   directives: () => ReadonlyMap<CspDirective, readonly string[]>
 }
 
-declare module '../plugin-definition/value-point.ts' {
-  interface ValuePoints {
-    database: Database
-    orm: Orm
-  }
-}
-
 declare module '../plugin-definition/collector-point.ts' {
   interface CollectorPoints {
     csp: CspSources
   }
 }
-
-export const database = defineValuePoint('database')
-
-export const orm = defineValuePoint('orm')
 
 export const csp = defineCollectorPoint('csp')
 

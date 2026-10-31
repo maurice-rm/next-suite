@@ -8,6 +8,7 @@
     "check-types": "tsc",
     "test": "vitest run",
     "matrix": "node scripts/matrix.ts",
+    "combinations": "node scripts/combinations.ts",
     "use-newest-catalog": "node scripts/use-newest-catalog.ts"
   },
   "devDependencies": {

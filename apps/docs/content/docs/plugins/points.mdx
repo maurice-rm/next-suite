@@ -12,31 +12,32 @@ augmentation.
 Information flows from one provider to every user. The point module declares the type and the
 point:
 
-```ts title="orm-point.ts"
+```ts title="mailer-point.ts"
 import { defineValuePoint } from 'create-next-suite/plugin'
 
 declare module 'create-next-suite/plugin' {
   interface ValuePoints {
-    orm: { kind: 'drizzle' | 'prisma'; client: { name: string; from: string } }
+    mailer: { client: { name: string; from: string } }
   }
 }
 
-export const orm = defineValuePoint('orm')
+export const mailer = defineValuePoint('mailer')
 ```
 
 The provider states the value under `provides`; a user names the point under `uses` and reads it
 in every function, which also makes it run after the provider:
 
 ```ts
-// the ORM plugin
-provides: { orm: { kind: 'drizzle', client: { name: 'db', from: '@/db' } } },
+// the mail plugin
+provides: { mailer: { client: { name: 'mailer', from: '@/lib/mailer' } } },
 
-// a plugin that needs the client
-uses: { orm },
+// a plugin that sends mail
+uses: { mailer },
 files: {
-  '@/lib/auth.ts': {
-    source: 'files/auth.ts',
-    edit: (auth, { orm }) => auth.addImport({ names: [orm.client.name], from: orm.client.from }),
+  '@/lib/invite.ts': {
+    source: 'files/invite.ts',
+    edit: (invite, { mailer }) =>
+      invite.addImport({ names: [mailer.client.name], from: mailer.client.from }),
   },
 },
 ```
@@ -92,7 +93,68 @@ answers `false` then.
 
 ## Shared points
 
-create-next-suite defines three collector points and exports their collectors:
+A point that several plugins could provide cannot live in one of them: an ORM plugin for Drizzle
+and one for Prisma both state `orm`. create-next-suite defines these contracts in
+`create-next-suite/points`, so a plugin depends on the contract instead of another plugin:
+
+| Point | Kind | What flows | Provider |
+| --- | --- | --- | --- |
+| `database` | value | `dialect` (`postgresql` or `sqlite`) and `urlVariable`, the environment variable holding the URL, such as `DATABASE_URL` | a database plugin |
+| `orm` | value | `kind` (`drizzle` or `prisma`), the `dialect` of its database and `client`, the import of its client such as `{ name: 'db', from: '@/db' }` | an ORM plugin |
+| `validatedEnv` | value | `import`, the module of the validated variables such as `{ name: 'env', from: '@/env' }`, and `reference(name)`, the code that reads one, such as `env.LOG_LEVEL` | the plugin that validates environment variables, such as t3-env |
+| `databaseSchema` | collector | modules of tables, each under a name, in the language of the ORM: `add(name, code)`; `createDatabaseSchema` | an ORM plugin |
+| `container` | collector | `buildArg(name)` for `next build` in the image, `env(name, value)` for the app's container, `service(name, service)` for a Compose service beside it; `createContainer` | a container plugin |
+| `health` | collector | `check(name, run)`: a function the health route runs, which throws while what it checks is down; `createHealthChecks` | a health plugin |
+
+```ts
+import { definePlugin } from 'create-next-suite/plugin'
+import { database } from 'create-next-suite/points'
+
+export default definePlugin({
+  name: 'postgres',
+  title: 'PostgreSQL',
+  env: { DATABASE_URL: { scope: 'server', description: 'The URL of the PostgreSQL database.' } },
+  provides: { database: { dialect: 'postgresql', urlVariable: 'DATABASE_URL' } },
+  extend: {
+    container: (container) =>
+      container.service('db', {
+        image: 'postgres:18-alpine',
+        environment: { POSTGRES_PASSWORD: 'postgres' },
+      }),
+  },
+})
+```
+
+A contribution that contradicts an earlier one, such as another module under a name the database
+schema has already, stops the run with a `PointError` naming the plugin; the same contribution
+twice is kept once.
+
+### Reading validated variables
+
+Code reads an environment variable from `process.env`. When a plugin validates the variables,
+code should read them from its module instead, which has them parsed and with their defaults.
+`readFromValidatedEnv` does that in a file edit: the file reads `process.env` as written, and with
+a provider of `validatedEnv` it imports the validated variables and each named top-level variable
+reads its environment variable from there:
+
+```ts
+uses: { validatedEnv: optional(validatedEnv) },
+env: { LOG_LEVEL: { scope: 'server', default: 'info' } },
+files: {
+  '@/lib/logger.ts': {
+    source: 'files/lib/logger.ts', // const level = process.env.LOG_LEVEL ?? "info";
+    edit: (logger, { validatedEnv }) =>
+      readFromValidatedEnv(logger, validatedEnv, { level: 'LOG_LEVEL' }), // const level = env.LOG_LEVEL;
+  },
+},
+```
+
+The point is named `validatedEnv`, not `env`, since `env` in a context is the list of every
+environment variable.
+
+### Points of the core
+
+Three more points of the core come with `create-next-suite/plugin`, their collectors too:
 
 | Point | Provider | Collector |
 | --- | --- | --- |
@@ -102,3 +164,104 @@ create-next-suite defines three collector points and exports their collectors:
 
 The built-in plugins define further points, such as `lintStaged`, `prettierPlugins`, `knip`, `csp`,
 `logRedact`, `testSetup` and `agents`.
+
+Elements at the end of `<body>` and the code `instrumentation-client.ts` loads need no point: the
+core owns those files, and every plugin adds to them through `layout.appendToBody` and
+`instrumentation.client`.
+
+## Reacting to other plugins
+
+Some plugins change with every choice around them: an auth plugin needs the ORM's adapter, the
+name its database has there and tables in the ORM's schema language. Such a plugin depends on the
+shared points, not on the plugins behind them:
+
+```ts title="better-auth/plugin.ts (abridged)"
+import { definePlugin } from 'create-next-suite/plugin'
+import { type Dialect, databaseSchema, type OrmKind, orm } from 'create-next-suite/points'
+
+const VERSIONS = {
+  'better-auth': '1.7.14',
+  '@better-auth/drizzle-adapter': '1.7.14',
+  '@better-auth/prisma-adapter': '1.7.14',
+}
+
+/** The adapter of each ORM: its package, its function and the name it gives each dialect. */
+const ADAPTERS: Record<
+  OrmKind,
+  { from: keyof typeof VERSIONS; name: string; providers: Record<Dialect, string> }
+> = {
+  drizzle: {
+    from: '@better-auth/drizzle-adapter',
+    name: 'drizzleAdapter',
+    providers: { postgresql: 'pg', sqlite: 'sqlite' },
+  },
+  prisma: {
+    from: '@better-auth/prisma-adapter',
+    name: 'prismaAdapter',
+    providers: { postgresql: 'postgresql', sqlite: 'sqlite' },
+  },
+}
+
+/** The tables, as `auth generate` writes them for each ORM and dialect. */
+const SCHEMA_FILES: Record<OrmKind, Record<Dialect, string>> = {
+  drizzle: { postgresql: 'files/auth-schema.postgresql.ts', sqlite: 'files/auth-schema.sqlite.ts' },
+  prisma: { postgresql: 'files/auth.prisma', sqlite: 'files/auth.prisma' },
+}
+
+export default definePlugin({
+  name: 'better-auth',
+  title: 'Better Auth',
+  uses: { orm, databaseSchema },
+  dependencies: ({ orm }) => ({
+    'better-auth': VERSIONS['better-auth'],
+    [ADAPTERS[orm.kind].from]: VERSIONS[ADAPTERS[orm.kind].from],
+  }),
+  files: {
+    '@/lib/auth.ts': {
+      source: 'files/auth.ts',
+      edit: (auth, { orm }) => {
+        const adapter = ADAPTERS[orm.kind]
+        auth.addImport({ names: [adapter.name], from: adapter.from })
+        auth.addImport({ names: [orm.client.name], from: orm.client.from })
+        auth
+          .object('auth')
+          .set(
+            'database',
+            `${adapter.name}(${orm.client.name}, { provider: "${adapter.providers[orm.dialect]}" })`,
+          )
+      },
+    },
+  },
+  extend: {
+    databaseSchema: (schema, { orm, readFile }) =>
+      schema.add('auth', readFile(SCHEMA_FILES[orm.kind][orm.dialect])),
+  },
+})
+```
+
+The rules behind it:
+
+- **Branch on the values of points, never on plugin names.** `orm.kind` and `orm.dialect`, not
+  `has('prisma')`: another ORM plugin that states `kind: 'drizzle'` works unchanged.
+- **One typed table per axis.** `Record<OrmKind, …>` stops compiling when the contract gains an
+  ORM, so the plugin cannot forget it.
+- **Variant files per axis, named by the value,** such as `list-posts.${orm.kind}.ts`. What varies
+  by dialect is the schema and the driver, what varies by ORM is the code that queries; nothing
+  varies by the combination of all three.
+- **Small differences as edits of your own copy,** not as another variant file.
+- **Contribute tables instead of generating them.** The tables go to `databaseSchema`, which the
+  ORM plugin writes where its ORM reads them; a schema generator run after the install would need
+  the ORM's client before it exists.
+- **`uses` what you need.** `uses: { orm, databaseSchema }` stops the run when no ORM plugin is
+  selected or it collects no tables, instead of generating an app without them.
+
+The compiler checks the tables but not that a variant file exists for every value, nor that the
+copied files work together. Generate every combination and build it: create-next-suite tests its
+contracts with test plugins for PostgreSQL, SQLite, Drizzle, Prisma, Better Auth, a blog, Docker
+and a health route, every ORM with every database, and checks Better Auth's tables with
+`auth check schema`.
+
+A plugin from another package can contribute only to points whose types it can import: the shared
+points, and the points of the plugin contract. The points of a built-in plugin, such as `knip`,
+are declared in its `plugin.ts` and not published, so an external plugin cannot type a
+contribution to them yet.

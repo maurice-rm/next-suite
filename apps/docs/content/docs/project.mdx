@@ -161,9 +161,9 @@ The lock records it as an operation of kind `override`. An override of a path th
 generate stops the run; put a file of your own straight into the project instead. Overrides hold
 text only.
 
-An override is a normal file of the project, type-checked and linted where it lies. Knip reports it
-as unused, as nothing imports it; add `"next-suite/**"` to `ignore` in `knip.config.ts` once the
-project has overrides or project plugins.
+An override is a normal file of the project, type-checked and linted where it lies. Nothing
+imports it, so once the project has overrides or project plugins, the Knip plugin adds
+`"next-suite/**"` to `ignore` in `knip.config.ts`.
 
 ## Explain
 
@@ -193,5 +193,6 @@ already, so nothing else changes. Run your package manager's install afterwards 
 lockfile.
 
 While `next-suite/` holds plugins or overrides, eject lists them and stops; move them out first,
-or pass `--force` to delete them too. A `tsconfig.json` with comments is left to you, and so is
-the entry for `next-suite.config.ts` in `knip.config.ts`; eject says what to remove.
+or pass `--force` to delete them too. A `tsconfig.json` with comments is left to you, and so are
+the entries for `next-suite.config.ts` and `next-suite/**` in `knip.config.ts`; eject says what to
+remove.

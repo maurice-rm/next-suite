@@ -59,6 +59,11 @@ export type FinishHelpers = {
    * `src/generated`, for the tools that skip it.
    */
   generatedDirectories: readonly string[]
+  /**
+   * The directory of the project's own plugins and overrides, `next-suite`, when the project has
+   * any; nothing imports their files, so tools that report unused files skip it.
+   */
+  projectInputDirectory: string | undefined
   /** Every script of `package.json` by name, from the base project and all plugins. */
   scripts: Readonly<Record<string, string>>
   /** The module of a TypeScript file of the project, also one another plugin wrote. */

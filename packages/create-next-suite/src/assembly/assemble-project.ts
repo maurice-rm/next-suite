@@ -20,6 +20,8 @@ export type AssemblyInput = {
   answers?: Readonly<Record<string, PluginAnswers>>
   /** The settings the core applies to the base files before the plugins run. */
   baseSettings?: BaseSettings
+  /** The directory of the project's own plugins and overrides, when it has any. */
+  projectInputDirectory?: string
 }
 
 export type AssembledProject = {
@@ -52,6 +54,7 @@ export const assembleProject = ({
   categoryOrder,
   answers = {},
   baseSettings,
+  projectInputDirectory,
 }: AssemblyInput): AssembledProject => {
   const resolved = resolvePlugins({ plugins, categoryOrder })
   const running = new Set(resolved.plugins.map(({ plugin }) => plugin.name))
@@ -77,6 +80,7 @@ export const assembleProject = ({
       running,
       answers: answers[loaded.plugin.name],
       generatedDirectories,
+      projectInputDirectory,
       projectName: baseSettings?.projectName ?? BASE_PROJECT_NAME,
       packageManager,
     }),

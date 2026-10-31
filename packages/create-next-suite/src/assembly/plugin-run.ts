@@ -38,6 +38,8 @@ type RunInput = {
   answers: PluginAnswers | undefined
   /** The directories of generated code on disk, which every plugin adds to while it collects. */
   generatedDirectories: string[]
+  /** The directory of the project's own plugins and overrides, when it has any. */
+  projectInputDirectory: string | undefined
   projectName: string
   packageManager: ProjectPackageManager
 }
@@ -98,6 +100,7 @@ export const createPluginRun = (
     running,
     answers,
     generatedDirectories,
+    projectInputDirectory,
     projectName,
     packageManager,
   }: RunInput,
@@ -163,6 +166,7 @@ export const createPluginRun = (
     ...contextOf(),
     env: project.environment.variables(),
     generatedDirectories,
+    projectInputDirectory,
     scripts: project.packageJson().scripts(),
     module: (path: string): TypescriptModule => {
       record(path, `${step}: module`, kindOf(path))

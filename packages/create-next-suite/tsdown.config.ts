@@ -6,6 +6,7 @@ const config: UserConfig = defineConfig({
     'src/next-suite.ts',
     'src/config.ts',
     'src/plugin.ts',
+    'src/points.ts',
     'src/testing.ts',
   ],
   format: 'esm',
@@ -18,7 +19,7 @@ const config: UserConfig = defineConfig({
   },
   copy: { from: 'generated/schemas/*.json', to: 'dist/schemas' },
   dts: {
-    entry: ['src/config.ts', 'src/plugin.ts', 'src/testing.ts'],
+    entry: ['src/config.ts', 'src/plugin.ts', 'src/points.ts', 'src/testing.ts'],
   },
   publint: {
     level: 'error',

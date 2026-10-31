@@ -2,6 +2,7 @@ import { definePlugin } from 'create-next-suite/plugin'
 
 const VERSIONS = { '@t3-oss/env-nextjs': '0.13.11', zod: '4.6.7' }
 const ENV_FILE = '@/env.ts'
+const ENV_MODULE = '@/env'
 const ENV_OBJECT = 'env'
 /** Where t3-env reads the client variables, which Next.js inlines only when named in full. */
 const CLIENT_RUNTIME_ENV = 'experimental__runtimeEnv'
@@ -18,7 +19,13 @@ export default definePlugin({
   description: 'Validates environment variables with t3-env and Zod.',
   category: 'env-validation',
   dependencies: VERSIONS,
-  instrumentation: { register: [{ module: '@/env' }] },
+  provides: {
+    validatedEnv: {
+      import: { name: ENV_OBJECT, from: ENV_MODULE },
+      reference: (variable) => `${ENV_OBJECT}.${variable}`,
+    },
+  },
+  instrumentation: { register: [{ module: ENV_MODULE }] },
   stack: ['t3-env'],
   files: {
     [ENV_FILE]: {

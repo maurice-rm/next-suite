@@ -215,6 +215,7 @@ export const planProject = (input: PlanInput): ProjectPlan => {
   })
   project.packageJson().addDevDependency(CLI_PACKAGE, input.cliSpecifier, CORE_ORIGIN)
   project.tsconfig().addInclude(PROJECT_PATHS.registryTypes)
+  const inputs = input.configSource?.inputs ?? new Map<string, string>()
   const assembled = assembleProject({
     project,
     plugins,
@@ -227,8 +228,8 @@ export const planProject = (input: PlanInput): ProjectPlan => {
       usesReactCompiler: lockedProject.reactCompiler,
       usesCacheComponents: lockedProject.cacheComponents,
     },
+    ...(inputs.size > 0 ? { projectInputDirectory: PROJECT_PATHS.inputDirectory } : {}),
   })
-  const inputs = input.configSource?.inputs ?? new Map<string, string>()
   const generated = applyOverrides(assembled, inputs)
   const description = describeGeneration({
     generatorVersion: input.cliVersion,
