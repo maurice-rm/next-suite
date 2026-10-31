@@ -1,37 +1,19 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-import ansis from 'ansis'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { collectOutput } from '../test-support/collect-output.ts'
 import { readJson } from '../test-support/read-json.ts'
-import { stubRemote } from '../test-support/stub-remote.ts'
+import { runNextSuiteIn } from '../test-support/run-next-suite-harness.ts'
 import { writeFiles } from '../test-support/write-files.ts'
-import { runNextSuite } from './run-next-suite.ts'
-
-const PLUGIN_ENTRY = fileURLToPath(new URL('../plugin.ts', import.meta.url))
 
 let root: string
 
-const run = async (argv: string[]) => {
-  const output = collectOutput()
-  const error = collectOutput()
-  const exitCode = await runNextSuite({
-    argv,
-    cliVersion: '2.0.0',
-    cwd: root,
-    output: output.stream,
-    error: error.stream,
-    remote: stubRemote(root),
-    userConfigPath: join(root, 'config.json'),
-    pluginEntry: PLUGIN_ENTRY,
+const run = (argv: string[]) =>
+  runNextSuiteIn({ root, cwd: root }, argv, {
     runCommand: async () => ({ isSuccess: false, output: 'npm is not available here' }),
   })
-  return { exitCode, output: output.text(), error: ansis.strip(error.text()) }
-}
 
 const config = () => readJson(join(root, 'config.json'))
 

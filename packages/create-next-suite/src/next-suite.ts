@@ -9,9 +9,12 @@ import { runIfNodeSupported } from './cli/run-if-node-supported.ts'
 // than the engines range gets a message instead of a load error.
 await runIfNodeSupported(NEXT_SUITE_COMMAND, async () => {
   const { startNextSuite } = await import('./cli/start-next-suite.ts')
-  // As in create-next-suite.ts: the entry of create-next-suite/plugin sits next to this one.
+  // As in create-next-suite.ts: the entries of create-next-suite/plugin and
+  // create-next-suite/config sit next to this one, one level below the package root.
   return startNextSuite({
     cliVersion: packageJson.version,
+    packageRoot: join(import.meta.dirname, '..'),
     pluginEntry: join(import.meta.dirname, `plugin${extname(import.meta.filename)}`),
+    configEntry: join(import.meta.dirname, `config${extname(import.meta.filename)}`),
   })
 })

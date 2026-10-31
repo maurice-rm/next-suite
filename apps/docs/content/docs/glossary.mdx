@@ -54,4 +54,9 @@ Code, messages and these pages use each word below for one concept only.
 | project plugin | a plugin directory of the project under `next-suite/plugins/`, named in the project config by its path; it runs without a trust question |
 | inline plugin | a plugin defined in the project config with `definePlugin`; it runs without a trust question |
 | override | a file under `next-suite/overrides/<path>` that replaces the generated file at `<path>` completely, after every plugin ran |
+| update | `next-suite update`: taking a change of the project config into the project's files by a three-way merge between the old output, the working tree and the new output, so changes to generated files stay |
+| old output | the files the last generation wrote, generated once more from the commit that last changed the lock, with the version of create-next-suite the lock names; the base of an update's merge |
+| new output | the files the project config describes now; what an update merges into the working tree |
+| merge conflict | a place where you and the new output changed the same or neighbouring lines of a file, marked with `<<<<<<< yours` and `>>>>>>> next-suite`, or a key of a JSON file you both changed differently |
+| pending update | an update with merge conflicts: its lock waits in `.next-suite/pending-update.json` until `next-suite update --continue` records it |
 | eject | `next-suite eject`: removing next-suite from a project, which stays a plain Next.js project |

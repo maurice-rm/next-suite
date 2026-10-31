@@ -1,36 +1,15 @@
 import { existsSync } from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 
-import ansis from 'ansis'
 import { describe, expect, it } from 'vitest'
 
-import { collectOutput } from '../test-support/collect-output.ts'
 import { setUpCreateRuns } from '../test-support/run-create-harness.ts'
-import { stubRemote } from '../test-support/stub-remote.ts'
-import { runNextSuite } from './run-next-suite.ts'
-
-const PLUGIN_ENTRY = fileURLToPath(new URL('../plugin.ts', import.meta.url))
+import { runNextSuiteIn } from '../test-support/run-next-suite-harness.ts'
 
 const { run: create, pathOf } = setUpCreateRuns()
 
-const nextSuite = async (argv: string[], cwd: string) => {
-  const output = collectOutput()
-  const error = collectOutput()
-  const exitCode = await runNextSuite({
-    argv,
-    cliVersion: '2.0.0',
-    cwd,
-    output: output.stream,
-    error: error.stream,
-    remote: stubRemote(cwd),
-    userConfigPath: join(cwd, 'config.json'),
-    pluginEntry: PLUGIN_ENTRY,
-    runCommand: async () => ({ isSuccess: false, output: '' }),
-  })
-  return { exitCode, output: output.text(), error: ansis.strip(error.text()) }
-}
+const nextSuite = (argv: string[], cwd: string) => runNextSuiteIn({ root: cwd, cwd }, argv)
 
 const createProject = () => create(['my-app', '--yes', '--no-ci', '--no-git', '--no-install'])
 

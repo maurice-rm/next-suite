@@ -32,6 +32,8 @@ type RunOptions = {
   routes?: Routes
   /** Replaces the fake runner, which succeeds for every command but the git repository check. */
   runCommand?: CreateEnvironment['runCommand']
+  /** The version of create-next-suite the run pretends to be. */
+  cliVersion?: string
 }
 
 /** What a run printed, answered and ran, with colours stripped. */
@@ -54,7 +56,14 @@ const createKeyFeeder = (input: PassThrough, keys: readonly string[]) => {
 const runIn = async (
   { root, assets }: { root: string; assets: BuiltInAssets },
   argv: string[],
-  { isInteractive = false, keys = [], userAgent, routes = {}, runCommand }: RunOptions,
+  {
+    isInteractive = false,
+    keys = [],
+    userAgent,
+    routes = {},
+    runCommand,
+    cliVersion = CLI_VERSION,
+  }: RunOptions,
 ): Promise<CreateRun> => {
   const commands: string[] = []
   const input = new PassThrough()
@@ -67,8 +76,8 @@ const runIn = async (
     configEntry: CONFIG_ENTRY,
     remote: stubRemote(root, routes),
     userConfigPath: join(root, 'config.json'),
-    cliVersion: CLI_VERSION,
-    cliSpecifier: CLI_VERSION,
+    cliVersion,
+    cliSpecifier: cliVersion,
     cwd: root,
     streams: { input, output: output.stream, error: error.stream },
     isInteractive,

@@ -1,0 +1,5 @@
+---
+"create-next-suite": minor
+---
+
+`next-suite update` takes a change of `next-suite.config.ts` into a generated project and keeps your changes to its files. It generates the old output once more from the commit that last changed the lock, with the version of create-next-suite the lock names (through npm, from its cache where possible, otherwise the running version with a warning), and the new output from the config, formats both the way the project's post-steps did, and merges each file three ways: a file you did not change takes the new output, a file you changed is merged with `git merge-file`, `package.json` key by key, new files are added and files no longer generated are removed only when you did not change them. Merge conflicts get Git's markers or, for a JSON key, both values in the report; the update exits with 1 and waits for `next-suite update --continue` to write the lock. `--dry-run` shows the report without writing, and `--force` updates over uncommitted changes after saving them in a stash commit. A plugin whose content changed since the lock recorded it is named in a warning, and the install runs when the dependencies changed.

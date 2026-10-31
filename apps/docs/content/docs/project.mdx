@@ -1,6 +1,6 @@
 ---
 title: Your project after create
-description: The config, lock and registry types every project gets, and how to create it again, replace a file, explain a file or leave next-suite.
+description: The config, lock and registry types every project gets, and how to update it, create it again, replace a file, explain a file or leave next-suite.
 ---
 
 A generated project is yours. Besides the app, create-next-suite writes what describes it:
@@ -111,6 +111,118 @@ config does not select stop the run with a message.
 
 The lock records what ran; it trusts nothing. Which sources and contents you trust stays in your
 user configuration, so a project someone else wrote never runs a plugin you have not trusted.
+
+## Update
+
+Change `next-suite.config.ts`, then run `next-suite update`: a different answer, a plugin more or
+fewer, a new override or a changed project plugin reach the project's files, and your own changes
+to those files stay.
+
+```bash
+pnpm exec next-suite update
+```
+
+The update works in these steps:
+
+1. It checks the Git working tree. A change outside `next-suite.config.ts` and `next-suite/`
+   stops it: commit or stash it first. `--force` updates anyway and first saves your uncommitted
+   changes to tracked files in a stash commit, whose id it prints; `git stash apply <id>` brings
+   them back. Untracked files are not saved.
+2. It generates the **old output**, the files as the last generation wrote them, once more: from
+   the config, the project plugins and the overrides of the commit that last changed
+   `.next-suite/lock.json`, with the version of create-next-suite the lock names (see
+   [another version](#another-version-of-create-next-suite)).
+3. It generates the **new output** from the config as it is now. External plugins need your
+   [trust](./plugins/sources-and-trust#trust) as on create, and a plugin whose content hash differs
+   from the one the lock recorded is named in a warning.
+4. It formats both outputs the way the project's post-steps, such as `prettier --write .`, did
+   after create, with the formatter installed in `node_modules`, so a file you did not touch still
+   matches the lock. Whether the project ran them is read from the lock's hashes.
+5. It takes the difference between the two outputs into each file, by a three-way merge:
+
+| The file                                                   | What the update does                                                      |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| unchanged by you, as the lock's hash says                  | replaced with the new output                                              |
+| changed by you, the same in both outputs                   | left as it is                                                             |
+| changed by you and in the new output                       | merged line by line with `git merge-file`                                 |
+| `package.json` and other JSON without comments, both changed | merged key by key; arrays count as one value                              |
+| new in the new output                                      | added; where you wrote a file at its path, merged against an empty file   |
+| no longer generated, unchanged by you                      | removed                                                                   |
+| no longer generated, changed by you                        | kept, and listed under "Kept"                                             |
+| deleted by you, changed in the new output                  | stays deleted, and listed under "Kept"                                    |
+
+6. Without merge conflicts it writes the new lock and registry types and runs your package
+   manager's install when the dependencies changed. It never commits; review the result with
+   `git diff` and commit it yourself.
+
+The report lists every file under what happened to it: replaced, merged, added, removed, kept or
+in a merge conflict. `next-suite update --dry-run` shows the same report and writes nothing.
+
+`srcDir` and `importAlias` cannot change once the project is created; an update with a config
+that changes them stops.
+
+### Merge conflicts
+
+Where you and the new output changed the same or neighbouring lines, the file gets Git's markers
+and the update ends with exit code 1:
+
+```text
+$ pnpm exec next-suite update
+Merge conflicts:
+  app/layout.tsx: 1 merge conflict, between <<<<<<< yours and >>>>>>> next-suite
+next-suite: 1 file has merge conflicts; resolve them, then run `next-suite update --continue` to record the update
+```
+
+```tsx title="app/layout.tsx"
+<<<<<<< yours
+      <ThemeProvider attribute="class" defaultTheme="system" disableTransitionOnChange>
+=======
+      <ThemeProvider attribute="class" defaultTheme="dark">
+>>>>>>> next-suite
+```
+
+For a key of `package.json` you and the new output both changed, the update keeps your value,
+shows both and counts it as a merge conflict too:
+
+```text
+Merge conflicts:
+  package.json: your value is kept where next-suite changed it too
+    scripts.lint: yours "eslint --cache", next-suite "biome check"
+```
+
+Every other file is updated already. The new lock waits in `.next-suite/pending-update.json`, so
+`.next-suite/lock.json` still describes the files as they were. Edit the files until no marker is
+left, then record the update:
+
+```bash
+pnpm exec next-suite update --continue
+```
+
+`--continue` refuses while a file still holds a marker, then writes the lock and the registry
+types and runs the install the update postponed. While an update waits, `next-suite update` stops;
+to drop it instead, restore the files with `git checkout -- .` and delete
+`.next-suite/pending-update.json`.
+
+### Another version of create-next-suite
+
+The old output has to be what the last generation wrote, so the update generates it with the
+version of create-next-suite the lock names. When that is not the running version, as after you
+raised the devDependency, it runs the recorded version through npm (`npm exec
+create-next-suite@<version>`), from npm's cache when it is there, from the registry otherwise.
+
+When that version cannot run, such as offline without it in the cache, the running version
+generates the old output instead, and a warning says so. A file you did not change still takes
+the new output. In a file you changed, a change the newer version made to its own output does not
+arrive, since it is in both outputs; `git diff` after the update shows what you have.
+
+### Limits
+
+- Changes on neighbouring lines are a merge conflict, as in Git, even where they could both apply.
+- A JSON file with comments, such as a `tsconfig.json` you commented, merges line by line.
+- An external plugin whose address moved, such as a branch with new commits, generates the old
+  output with its new content; a warning names it.
+- When the new output adds a formatter, its files are compared unformatted until it is installed;
+  run your formatter after the update.
 
 ## Create the project again
 
