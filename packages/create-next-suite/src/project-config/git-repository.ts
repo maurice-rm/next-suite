@@ -36,6 +36,15 @@ const prefixOf = async (directory: string): Promise<string> => {
 }
 
 /**
+ * Fails unless a directory lies in a Git repository.
+ *
+ * @throws ProjectConfigError outside a Git repository.
+ */
+export const assertInRepository = async (directory: string): Promise<void> => {
+  await prefixOf(directory)
+}
+
+/**
  * Every changed, staged or untracked file below a project directory, by its path relative to it.
  *
  * @throws ProjectConfigError outside a Git repository.
@@ -59,11 +68,35 @@ export const findUncommittedPaths = async (directory: string): Promise<string[]>
   return paths
 }
 
+/** The exit code of `git rev-parse --verify --quiet` for a name that resolves to nothing. */
+const NOT_FOUND_STATUS = 1
+
+/** Whether the repository has a commit yet; right after `git init` it has none. */
+const hasCommits = async (directory: string): Promise<boolean> => {
+  try {
+    await git(directory, ['rev-parse', '--verify', '--quiet', 'HEAD'])
+    return true
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === NOT_FOUND_STATUS
+    ) {
+      return false
+    }
+    throw error
+  }
+}
+
 /** The last commit that changed a path of the project, or nothing when no commit has it. */
 export const lastCommitOf = async (
   directory: string,
   path: string,
 ): Promise<string | undefined> => {
+  if (!(await hasCommits(directory))) {
+    return undefined
+  }
   const commit = (await git(directory, ['log', '-1', '--format=%H', '--', path])).trim()
   return commit === '' ? undefined : commit
 }

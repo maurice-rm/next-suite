@@ -161,6 +161,20 @@ describe('planFileUpdates', () => {
     )
   })
 
+  it('keeps the line endings of a file you checked out with CRLF', async () => {
+    await writeFiles(project, { 'app/layout.tsx': LAYOUT_MINE.replaceAll('\n', '\r\n') })
+
+    const updates = await plan({ 'app/layout.tsx': LAYOUT_OLD }, { 'app/layout.tsx': LAYOUT_NEW })
+
+    expect(updates.report.merged).toEqual(['app/layout.tsx'])
+    expect(updates.changes[0]?.content).toBe(
+      LAYOUT_MINE.replace('    {children}\n', '    {children}\n    <Analytics />\n').replaceAll(
+        '\n',
+        '\r\n',
+      ),
+    )
+  })
+
   it('keeps a path that is no regular file in the working tree, such as a link', async () => {
     await writeFiles(project, { 'elsewhere.ts': 'elsewhere\n' })
     await symlink(join(project, 'elsewhere.ts'), join(project, 'linked.ts'))

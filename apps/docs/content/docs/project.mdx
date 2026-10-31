@@ -254,6 +254,8 @@ arrive, since it is in both outputs; `git diff` after the update shows what you 
 
 - Changes on neighbouring lines are a merge conflict, as in Git, even where they could both apply.
 - A JSON file with comments, such as a `tsconfig.json` you commented, merges line by line.
+- A JSON file merged key by key is written the way create-next-suite writes JSON, with two spaces;
+  run your formatter after the update if yours differs.
 - An external plugin whose address moved, such as a branch with new commits, generates the old
   output with its new content; a warning names it.
 - When the new output adds a formatter, its files are compared unformatted until it is installed;

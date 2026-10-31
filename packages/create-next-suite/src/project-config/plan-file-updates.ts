@@ -105,7 +105,7 @@ const mergeFile = async (
     theirs: sides.theirs,
   })
   return {
-    content: merged.content,
+    content: sides.ours.includes(CRLF) ? merged.content.replaceAll(LF, CRLF) : merged.content,
     conflict: merged.conflicts === 0 ? undefined : { path, kind: 'text', count: merged.conflicts },
   }
 }

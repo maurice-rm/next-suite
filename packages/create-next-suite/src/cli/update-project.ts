@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { readTextIfPresent } from '../file-system/read-text-if-present.ts'
 import { applyFileChanges } from '../project-config/apply-file-changes.ts'
 import {
+  assertInRepository,
   findUncommittedPaths,
   lastCommitOf,
   readCommittedFiles,
@@ -237,6 +238,7 @@ export const updateProject = async (
   environment: UpdateEnvironment,
   { root, options }: { root: string; options: UpdateOptions },
 ): Promise<UpdateOutcome> => {
+  await assertInRepository(root)
   if ((await readPendingUpdate(root)) !== undefined) {
     throw new ProjectConfigError(
       `an update waits for its merge conflicts to be resolved; resolve them and run \`next-suite update --continue\`, or discard it with \`git checkout -- .\` and by deleting ${PROJECT_PATHS.pendingUpdate}`,
@@ -288,7 +290,6 @@ export const updateProject = async (
     return { report, warnings, notes, state: 'dry-run' }
   }
   const install = await installOf(root, { changes, plan: next.plan })
-  await applyFileChanges(root, changes)
   const generation = generationOf(next.plan, aligned.next)
   if (report.mergeConflicts.length > 0) {
     await writePendingUpdate(root, {
@@ -298,8 +299,15 @@ export const updateProject = async (
       ),
       install,
     })
+    try {
+      await applyFileChanges(root, changes)
+    } catch (error) {
+      await removePendingUpdate(root)
+      throw error
+    }
     return { report, warnings, notes, state: 'pending' }
   }
+  await applyFileChanges(root, changes)
   await writeGeneration(root, generation)
   return {
     report,

@@ -254,6 +254,20 @@ describe('next-suite update', () => {
     )
   })
 
+  it('asks for a commit in a repository without one, and for Git in a dry run too', async () => {
+    await create([PROJECT, ...QUIET])
+    const outside = await update(['--dry-run'])
+    initRepository(pathOf(PROJECT))
+
+    const uncommitted = await update(['--dry-run'])
+
+    expect(outside.exitCode).toBe(1)
+    expect(outside.error).toContain('next-suite update needs Git')
+    expect(uncommitted.exitCode).toBe(1)
+    expect(uncommitted.error).toContain('commit .next-suite/lock.json first')
+    expect(uncommitted.error).not.toContain('unexpected error')
+  })
+
   it('needs the project in Git with its lock committed', async () => {
     await create([PROJECT, ...QUIET])
 
