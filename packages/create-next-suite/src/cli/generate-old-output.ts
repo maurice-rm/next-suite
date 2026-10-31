@@ -1,19 +1,25 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import semver from 'semver'
 
+import { ExpectedError } from '../expected-error.ts'
+import { isMissingFileError } from '../file-system/error-code.ts'
 import { findUnsafePathProblem } from '../file-system/find-unsafe-path-problem.ts'
 import { readCommittedFiles } from '../project-config/git-repository.ts'
 import { type LockFile, parseLockFile } from '../project-config/lock-file.ts'
 import { ProjectConfigError } from '../project-config/project-config-error.ts'
 import { CLI_PACKAGE, PROJECT_PATHS } from '../project-config/project-paths.ts'
+import { createWorkDirectory } from './create-work-directory.ts'
 import { generatedFilesOf } from './generated-files.ts'
 import { type ConfigPlan, type ConfigPlanEnvironment, planFromConfig } from './plan-from-config.ts'
 import type { PublishedGeneratorRunner } from './run-published-generator.ts'
 
 const SNAPSHOT_DIRECTORY = 'project'
+/** The first version of create-next-suite that writes a lock and takes `--config`. */
+const FIRST_VERSION_WITH_LOCK = '2.0.0'
+/** Ends npm's search for a project above the work directory, and with it the config it reads. */
+const STOP_PACKAGE = 'package.json'
 const OUTPUT_DIRECTORY = 'output'
 /** How many characters of a failed run's output a warning quotes. */
 const MAX_REASON_LENGTH = 300
@@ -88,10 +94,12 @@ const runRecordedVersion = async (
   }: { version: string; configPath: string; workDirectory: string },
 ): Promise<{ files: Map<string, string> } | { problem: string }> => {
   if (semver.valid(version) !== version) {
-    return {
-      problem: `the lock names the version "${version}", which is no exact version`,
-    }
+    return { problem: `the lock names the version "${version}", which is no exact version` }
   }
+  if (semver.lt(version, FIRST_VERSION_WITH_LOCK)) {
+    return { problem: `it is older than ${FIRST_VERSION_WITH_LOCK}, the first version with a lock` }
+  }
+  await writeFile(join(workDirectory, STOP_PACKAGE), '{ "private": true }\n')
   const result = await environment.runPublishedGenerator({
     version,
     configPath,
@@ -101,7 +109,14 @@ const runRecordedVersion = async (
   if (!result.isSuccess) {
     return { problem: reasonOf(result.output) }
   }
-  return { files: await readOutput(join(workDirectory, OUTPUT_DIRECTORY)) }
+  try {
+    return { files: await readOutput(join(workDirectory, OUTPUT_DIRECTORY)) }
+  } catch (error) {
+    if (error instanceof ExpectedError || (error instanceof Error && isMissingFileError(error))) {
+      return { problem: `its output cannot be read: ${error.message}` }
+    }
+    throw error
+  }
 }
 
 const fallbackWarning = (version: string, running: string, problem: string): string =>
@@ -119,7 +134,7 @@ const fallbackWarning = (version: string, running: string, problem: string): str
  */
 export const generateOldOutput = async (generation: OldGeneration): Promise<OldOutput> => {
   const { environment, projectDirectory, lock } = generation
-  const workDirectory = await mkdtemp(join(tmpdir(), 'next-suite-old-'))
+  const workDirectory = await createWorkDirectory(environment.remote.cacheDir, 'old')
   try {
     const configPath = await writeSnapshot(generation, join(workDirectory, SNAPSHOT_DIRECTORY))
     const version = lock.generator.version

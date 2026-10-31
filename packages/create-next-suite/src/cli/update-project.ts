@@ -1,4 +1,3 @@
-import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 
@@ -21,6 +20,7 @@ import { hasConflictMarkers } from '../project-config/merge-text.ts'
 import {
   isInstallCommand,
   type PendingUpdate,
+  pendingUpdatePathOf,
   readPendingUpdate,
   removePendingUpdate,
   writePendingUpdate,
@@ -93,7 +93,7 @@ const checkUncommitted = async (root: string, { force }: UpdateOptions): Promise
   return saved === undefined
     ? []
     : [
-        `your uncommitted changes to tracked files are saved in ${saved}; \`git stash apply ${saved}\` brings them back`,
+        `your uncommitted changes to tracked files are in the stash as ${saved} (\`git stash list\`); \`git stash apply ${saved}\` brings them back`,
       ]
 }
 
@@ -216,19 +216,20 @@ const generationOf = (
   }
 }
 
-const writeGeneration = async (root: string, generation: Readonly<Record<string, string>>) => {
-  for (const [path, content] of Object.entries(generation)) {
-    await writeFile(join(root, path), content)
-  }
-}
+/** Writes the lock and the registry types, never through a link. */
+const writeGeneration = (root: string, generation: Readonly<Record<string, string>>) =>
+  applyFileChanges(
+    root,
+    Object.entries(generation).map(([path, content]) => ({ path, content })),
+  )
 
 /**
  * Updates a project to its `next-suite.config.ts`. The old output is generated once more from the
  * commit that last changed the lock, the new one from the config; both are formatted the way the
  * project formatted its files, and each file of the working tree takes the difference by a
  * three-way merge. Without merge conflicts the lock and the registry types are written and the
- * dependencies installed when they changed; with merge conflicts both wait in
- * `.next-suite/pending-update.json` for `update --continue`. A dry run writes nothing.
+ * dependencies installed when they changed; with merge conflicts both wait in the Git directory
+ * for `update --continue`. A dry run writes nothing.
  *
  * @throws ProjectConfigError outside Git, over uncommitted changes without `force`, while an
  * update is pending, without a committed lock, or for a config that changes `srcDir` or
@@ -241,7 +242,7 @@ export const updateProject = async (
   await assertInRepository(root)
   if ((await readPendingUpdate(root)) !== undefined) {
     throw new ProjectConfigError(
-      `an update waits for its merge conflicts to be resolved; resolve them and run \`next-suite update --continue\`, or discard it with \`git checkout -- .\` and by deleting ${PROJECT_PATHS.pendingUpdate}`,
+      `an update waits for its merge conflicts to be resolved; resolve them and run \`next-suite update --continue\`, or drop it by restoring the files with \`git checkout -- .\` and deleting ${await pendingUpdatePathOf(root)}`,
     )
   }
   const notes = options.dryRun ? [] : await checkUncommitted(root, options)
@@ -273,6 +274,7 @@ export const updateProject = async (
     projectDirectory: root,
     packageManager: next.plan.projectPackageManager,
     runCommand: environment.runCommand,
+    cacheDir: environment.remote.cacheDir,
   })
   const warnings = [
     ...old.warnings,

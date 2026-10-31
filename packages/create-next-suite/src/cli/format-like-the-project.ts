@@ -21,6 +21,8 @@ type Outputs = {
   projectDirectory: string
   packageManager: string
   runCommand: CommandRunner
+  /** The plugin cache, beside which the outputs are formatted. */
+  cacheDir: string
 }
 
 const countMatches = (
@@ -43,6 +45,7 @@ export const formatLikeTheProject = async (outputs: Outputs): Promise<AlignedOut
     projectDirectory: outputs.projectDirectory,
     packageManager: outputs.packageManager,
     runCommand: outputs.runCommand,
+    cacheDir: outputs.cacheDir,
   }
   const raw = {
     old: new Map(outputs.old),

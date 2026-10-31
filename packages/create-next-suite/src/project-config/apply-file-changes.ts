@@ -1,4 +1,5 @@
-import { lstat, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { lstat, mkdir, open, realpath, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { isMissingFileError } from '../file-system/error-code.ts'
@@ -6,6 +7,19 @@ import { findUnsafePathProblem } from '../file-system/find-unsafe-path-problem.t
 import { isInsideOrSame } from '../file-system/is-inside.ts'
 import type { FileChange } from './plan-file-updates.ts'
 import { ProjectConfigError } from './project-config-error.ts'
+
+/** Opens a file to write it whole, failing where the file itself is a link; Windows has no such flag. */
+const WRITE_FLAGS =
+  constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0)
+
+const writeWithoutFollowing = async (file: string, content: string): Promise<void> => {
+  const handle = await open(file, WRITE_FLAGS)
+  try {
+    await handle.writeFile(content)
+  } finally {
+    await handle.close()
+  }
+}
 
 const isLink = async (path: string): Promise<boolean> => {
   try {
@@ -72,6 +86,6 @@ export const applyFileChanges = async (
     }
     await mkdir(dirname(file), { recursive: true })
     await assertInsideProject(realProject, { path, directory: dirname(file) })
-    await writeFile(file, content)
+    await writeWithoutFollowing(file, content)
   }
 }

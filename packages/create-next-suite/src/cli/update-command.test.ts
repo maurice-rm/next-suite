@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs'
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
 import { hashFileContent, parseLockFile, renderLockFile } from '../project-config/lock-file.ts'
+import { pendingUpdatePathOf } from '../project-config/pending-update.ts'
 import { PROJECT_PATHS } from '../project-config/project-paths.ts'
 import { commitAll, git, initRepository } from '../test-support/git.ts'
 import { setUpCreateRuns } from '../test-support/run-create-harness.ts'
@@ -122,8 +123,9 @@ describe('next-suite update', () => {
     )
     expect(forced.exitCode).toBe(0)
     expect(forced.output).toMatch(
-      /Note: your uncommitted changes to tracked files are saved in [0-9a-f]{40}/,
+      /Note: your uncommitted changes to tracked files are in the stash as [0-9a-f]{40}/,
     )
+    expect(git(pathOf(PROJECT), ['stash', 'list'])).toContain('next-suite update --force')
   })
 
   it('shows what it would do in a dry run and writes nothing', async () => {
@@ -159,7 +161,7 @@ describe('next-suite update', () => {
       '<<<<<<< yours\n  cacheComponents: true, // mine\n',
     )
     expect(await read(PROJECT_PATHS.lock)).toBe(lockBefore)
-    expect(existsSync(pathOf(`${PROJECT}/${PROJECT_PATHS.pendingUpdate}`))).toBe(true)
+    expect(existsSync(await pendingUpdatePathOf(pathOf(PROJECT)))).toBe(true)
 
     const again = await update()
     const unresolved = await update(['--continue'])
@@ -187,7 +189,7 @@ describe('next-suite update', () => {
     expect(
       parseLockFile(await read(PROJECT_PATHS.lock), PROJECT_PATHS.lock).project.cacheComponents,
     ).toBe(false)
-    expect(existsSync(pathOf(`${PROJECT}/${PROJECT_PATHS.pendingUpdate}`))).toBe(false)
+    expect(existsSync(await pendingUpdatePathOf(pathOf(PROJECT)))).toBe(false)
   })
 
   it('reports a key of package.json both sides changed with both values and keeps yours', async () => {
@@ -240,6 +242,20 @@ describe('next-suite update', () => {
     expect(result).toMatchObject({ exitCode: 0, error: '' })
     expect(await read('app/not-found.tsx')).toBe('export default function NotFound() {}\n')
     expect(await read('lib/greeting.ts')).toBe('export const tone = "formal"\n')
+  })
+
+  it('writes no file of the generation through a link', async () => {
+    await createProject()
+    await writeFile(pathOf('outside.txt'), 'outside\n')
+    await rm(pathOf(`${PROJECT}/${PROJECT_PATHS.registryTypes}`))
+    await symlink(pathOf('outside.txt'), pathOf(`${PROJECT}/${PROJECT_PATHS.registryTypes}`))
+    commitAll(pathOf(PROJECT), 'chore: link the registry types')
+
+    const result = await update()
+
+    expect(result.exitCode).toBe(1)
+    expect(result.error).toContain('.next-suite/types.d.ts is a link')
+    expect(await readFile(pathOf('outside.txt'), 'utf8')).toBe('outside\n')
   })
 
   it('refuses a config that changes srcDir', async () => {
@@ -345,16 +361,20 @@ describe('next-suite update', () => {
 })
 
 describe('next-suite update with a project of another version', () => {
-  const OldVersion = '1.0.0'
-  const OldLine = '// written by create-next-suite 1.0.0\n'
+  const OldVersion = '2.0.0'
+  const RunningVersion = '2.1.0'
+  const OldLine = '// written by create-next-suite 2.0.0\n'
 
-  /** Creates a project the way the pretended version 1.0.0 did: with a line in app/error.tsx. */
-  const createAsOldVersion = async (directory: string, configPath?: string) => {
+  /** Creates a project the way the pretended version 2.0.0 did: with a line in app/error.tsx. */
+  const createAsOldVersion = async (
+    directory: string,
+    { configPath, version = OldVersion }: { configPath?: string; version?: string } = {},
+  ) => {
     const created = await create(
       configPath === undefined
         ? [directory, ...QUIET]
         : [directory, '--config', configPath, '--yes', '--no-git', '--no-install'],
-      { cliVersion: OldVersion },
+      { cliVersion: version },
     )
     expect(created.error).toBe('')
     const errorPage = join(directory, 'app/error.tsx')
@@ -384,9 +404,12 @@ describe('next-suite update with a project of another version', () => {
     const requests: string[] = []
 
     const result = await update([], {
+      cliVersion: RunningVersion,
       runPublishedGenerator: async ({ version, configPath, workDirectory, targetName }) => {
         requests.push(version)
-        await createAsOldVersion('old-output', configPath)
+        expect(workDirectory.startsWith(pathOf('work'))).toBe(true)
+        expect(existsSync(join(workDirectory, 'package.json'))).toBe(true)
+        await createAsOldVersion('old-output', { configPath })
         await cp(pathOf('old-output'), join(workDirectory, targetName), { recursive: true })
         return { isSuccess: true, output: '' }
       },
@@ -404,12 +427,13 @@ describe('next-suite update with a project of another version', () => {
     await setUp()
 
     const result = await update([], {
+      cliVersion: RunningVersion,
       runPublishedGenerator: async () => ({ isSuccess: false, output: 'npm ERR! network offline' }),
     })
 
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain(
-      'Warning: could not run create-next-suite@1.0.0, which generated the project (npm ERR! network offline); the old output comes from 2.0.0 instead',
+      'Warning: could not run create-next-suite@2.0.0, which generated the project (npm ERR! network offline); the old output comes from 2.1.0 instead',
     )
     expect(result.output).toContain(
       'Warning: the old output, generated once more, differs from the lock in app/error.tsx',
@@ -417,5 +441,24 @@ describe('next-suite update with a project of another version', () => {
     const errorPage = await read('app/error.tsx')
     expect(errorPage).toContain(OldLine)
     expect(errorPage).toContain('Try once more')
+  })
+
+  it('runs no version older than the first with a lock', async () => {
+    await createAsOldVersion(PROJECT, { version: '1.4.0' })
+    initRepository(pathOf(PROJECT))
+    commitAll(pathOf(PROJECT), 'chore: initial commit')
+    const requests: string[] = []
+
+    const result = await update([], {
+      runPublishedGenerator: async ({ version }) => {
+        requests.push(version)
+        return { isSuccess: true, output: '' }
+      },
+    })
+
+    expect(requests).toEqual([])
+    expect(result.output).toContain(
+      'Warning: could not run create-next-suite@1.4.0, which generated the project (it is older than 2.0.0, the first version with a lock)',
+    )
   })
 })

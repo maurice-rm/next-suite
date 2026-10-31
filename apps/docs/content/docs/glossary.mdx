@@ -58,7 +58,7 @@ Code, messages and these pages use each word below for one concept only.
 | old output | the files the last generation wrote, generated once more from the commit that last changed the lock, with the version of create-next-suite the lock names; the base of an update's merge |
 | new output | the files the project config describes now; what an update merges into the working tree |
 | merge conflict | a place where you and the new output changed the same or neighbouring lines of a file, marked with `<<<<<<< yours` and `>>>>>>> next-suite`, or a key of a JSON file you both changed differently |
-| pending update | an update with merge conflicts: its lock waits in `.next-suite/pending-update.json` until `next-suite update --continue` records it |
+| pending update | an update with merge conflicts: its lock waits in the Git directory until `next-suite update --continue` records it |
 | add | `next-suite add <plugin>`: adding a plugin to the project config, with answers to its options, then running the update |
 | disable | `next-suite disable <plugin>`: adding a plugin to `disable` in the project config and dropping its answers, then running the update; the plugin no longer runs although `plugins` may name it |
 | eject | `next-suite eject`: removing next-suite from a project, which stays a plain Next.js project |

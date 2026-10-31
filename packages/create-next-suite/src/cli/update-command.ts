@@ -27,8 +27,8 @@ export const addUpdateCommand = (
   program
     .command('update')
     .description('update the project to next-suite.config.ts and keep your changes to its files')
-    .option('--dry-run', 'show what the update would do, without writing')
-    .option('--force', 'update over uncommitted changes, saved in a stash commit first')
+    .option('--dry-run', 'show what the update would do, without writing into the project')
+    .option('--force', 'update over uncommitted changes, saved in the stash first')
     .option('--continue', 'record an update once you resolved its merge conflicts')
     .action(async ({ dryRun, force, continue: shouldContinue }: UpdateFlags) => {
       if (shouldContinue === true) {

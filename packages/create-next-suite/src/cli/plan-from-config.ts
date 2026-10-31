@@ -1,4 +1,4 @@
-import { relative, resolve } from 'node:path'
+import { isAbsolute, relative, resolve } from 'node:path'
 
 import { isInsideOrSame } from '../file-system/is-inside.ts'
 import { parsePluginAddress } from '../loader/plugin-address.ts'
@@ -49,15 +49,19 @@ export type ConfigPlan = {
 }
 
 /**
- * The address a config entry is fetched from. A local directory outside the config's directory,
- * such as `../shared`, is taken relative to the project, so a config copied elsewhere, as for the
+ * The address a config entry is fetched from. A local directory given relative to the config and
+ * lying outside its directory, such as `../shared`, is taken relative to the project, so a config copied elsewhere, as for the
  * old output of an update, still finds it.
  */
 const addressIn = (
   { entry, address }: ConfigAddress,
   { configDirectory, projectDirectory }: { configDirectory: string; projectDirectory: string },
 ): ConfigAddress => {
-  if (parsePluginAddress(entry)?.kind !== 'local' || isInsideOrSame(configDirectory, address)) {
+  if (
+    parsePluginAddress(entry)?.kind !== 'local' ||
+    isAbsolute(entry) ||
+    isInsideOrSame(configDirectory, address)
+  ) {
     return { entry, address }
   }
   return {

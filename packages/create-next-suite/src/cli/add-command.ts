@@ -117,7 +117,7 @@ export const addAddCommand = (
     .description('add a plugin to next-suite.config.ts and update the project')
     .argument('<plugin>', 'a built-in plugin by its name, or a plugin by its path or address')
     .argument('[options...]', 'answers to the plugin’s options, such as --level debug')
-    .option('--force', 'update over uncommitted changes, saved in a stash commit first')
+    .option('--force', 'update over uncommitted changes, saved in the stash first')
     .allowUnknownOption()
     .action(async (argument: string, tokens: string[], { force }: { force?: boolean }) =>
       add(environment, report, { argument, tokens, force: force === true }),

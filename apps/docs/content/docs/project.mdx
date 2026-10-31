@@ -128,8 +128,8 @@ The update works in these steps:
 
 1. It checks the Git working tree. A change outside `next-suite.config.ts` and `next-suite/`
    stops it: commit or stash it first. `--force` updates anyway and first saves your uncommitted
-   changes to tracked files in a stash commit, whose id it prints; `git stash apply <id>` brings
-   them back. Untracked files are not saved.
+   changes to tracked files in the stash, as `next-suite update --force` in `git stash list`, and
+   prints its id; `git stash apply <id>` brings them back. Untracked files are not saved.
 2. It generates the **old output**, the files as the last generation wrote them, once more: from
    the config, the project plugins and the overrides of the commit that last changed
    `.next-suite/lock.json`, with the version of create-next-suite the lock names (see
@@ -158,7 +158,9 @@ The update works in these steps:
    `git diff` and commit it yourself.
 
 The report lists every file under what happened to it: replaced, merged, added, removed, kept or
-in a merge conflict. `next-suite update --dry-run` shows the same report and writes nothing.
+in a merge conflict. `next-suite update --dry-run` shows the same report and writes nothing into
+the project. It still runs what an update runs to get there: the config and its plugins, the
+project's formatter and, for another version of create-next-suite, npm.
 
 `srcDir` and `importAlias` cannot change once the project is created; an update with a config
 that changes them stops.
@@ -222,7 +224,8 @@ Merge conflicts:
     scripts.lint: yours "eslint --cache", next-suite "biome check"
 ```
 
-Every other file is updated already. The new lock waits in `.next-suite/pending-update.json`, so
+Every other file is updated already. The new lock waits in Git's own directory, as
+`.git/next-suite-pending-update.json`, where no clone or commit can bring one along, so
 `.next-suite/lock.json` still describes the files as they were. Edit the files until no marker is
 left, then record the update:
 
@@ -231,9 +234,9 @@ pnpm exec next-suite update --continue
 ```
 
 `--continue` refuses while a file still holds a marker, then writes the lock and the registry
-types and runs the install the update postponed. While an update waits, `next-suite update` stops;
-to drop it instead, restore the files with `git checkout -- .` and delete
-`.next-suite/pending-update.json`.
+types and runs the install the update postponed. While an update waits, `next-suite update` stops
+and names the file; to drop the update instead, restore the files with `git checkout -- .` and
+delete that file.
 
 ### Another version of create-next-suite
 

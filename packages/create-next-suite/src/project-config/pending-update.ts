@@ -1,5 +1,5 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
 
 import * as z from 'zod'
 
@@ -7,6 +7,7 @@ import { isMissingFileError } from '../file-system/error-code.ts'
 import { findUnsafePathProblem } from '../file-system/find-unsafe-path-problem.ts'
 import { parseJsonWith } from '../file-system/read-json-file.ts'
 import { formatJson } from '../project-model/format-json.ts'
+import { gitPathOf } from './git-repository.ts'
 import { ProjectConfigError } from './project-config-error.ts'
 import { PROJECT_PATHS } from './project-paths.ts'
 
@@ -16,6 +17,10 @@ const GENERATION_FILES: readonly string[] = [PROJECT_PATHS.lock, PROJECT_PATHS.r
 const PACKAGE_MANAGERS = ['npm', 'pnpm', 'yarn', 'bun'] as const
 /** An argument of an install, such as `install` or `--no-immutable`; nothing a shell would read. */
 const INSTALL_ARGUMENT = /^-{0,2}[\w][\w.=-]*$/
+/** The command every package manager installs with; `exec`, `dlx` or `run` would run anything. */
+const INSTALL_COMMAND = 'install'
+/** Where a project's pending update waits inside the Git directory, out of reach of a clone. */
+const PENDING_UPDATE_NAME = 'next-suite-pending-update'
 
 /** Whether a package manager is one an update may run the install with. */
 export const isInstallCommand = (command: string): command is (typeof PACKAGE_MANAGERS)[number] =>
@@ -36,7 +41,11 @@ const pendingUpdateSchema = z.strictObject({
   install: z
     .strictObject({
       command: z.enum(PACKAGE_MANAGERS),
-      args: z.array(z.string().regex(INSTALL_ARGUMENT)),
+      args: z
+        .array(z.string().regex(INSTALL_ARGUMENT))
+        .refine((args) => args[0] === INSTALL_COMMAND, {
+          message: `starts with ${INSTALL_COMMAND}`,
+        }),
     })
     .nullable(),
 })
@@ -47,15 +56,21 @@ const pendingUpdateSchema = z.strictObject({
  */
 export type PendingUpdate = z.output<typeof pendingUpdateSchema>
 
-const pathIn = (projectDirectory: string): string =>
-  join(projectDirectory, PROJECT_PATHS.pendingUpdate)
+/**
+ * Where the pending update of a project waits: in the Git directory, which a clone never brings
+ * along, one file for each project of the repository.
+ *
+ * @throws ProjectConfigError outside a Git repository.
+ */
+export const pendingUpdatePathOf = (projectDirectory: string): Promise<string> =>
+  gitPathOf(projectDirectory, PENDING_UPDATE_NAME)
 
 /** Records an update that waits for its merge conflicts to be resolved. */
 export const writePendingUpdate = async (
   projectDirectory: string,
   pending: PendingUpdate,
 ): Promise<void> => {
-  const path = pathIn(projectDirectory)
+  const path = await pendingUpdatePathOf(projectDirectory)
   await mkdir(dirname(path), { recursive: true })
   await writeFile(path, formatJson({ ...pending, generation: { ...pending.generation } }))
 }
@@ -68,7 +83,7 @@ export const writePendingUpdate = async (
 export const readPendingUpdate = async (
   projectDirectory: string,
 ): Promise<PendingUpdate | undefined> => {
-  const path = pathIn(projectDirectory)
+  const path = await pendingUpdatePathOf(projectDirectory)
   let text: string
   try {
     text = await readFile(path, 'utf8')
@@ -87,5 +102,5 @@ export const readPendingUpdate = async (
 
 /** Removes the record of a pending update, if there is one. */
 export const removePendingUpdate = async (projectDirectory: string): Promise<void> => {
-  await rm(pathIn(projectDirectory), { force: true })
+  await rm(await pendingUpdatePathOf(projectDirectory), { force: true })
 }

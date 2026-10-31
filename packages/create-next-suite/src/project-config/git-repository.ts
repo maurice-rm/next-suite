@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process'
+import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 
+import { findUnsafePathProblem } from '../file-system/find-unsafe-path-problem.ts'
 import { ProjectConfigError } from './project-config-error.ts'
 
 /** The part of a `git status --porcelain` entry before the path: two status letters and a space. */
@@ -9,6 +11,8 @@ const STATUS_WIDTH = 3
 const FILE_MODES: ReadonlySet<string> = new Set(['100644', '100755'])
 /** The largest output a git command may print, far above the files of a project's inputs. */
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
+/** How the stash names the changes an update over uncommitted changes saved. */
+const STASH_MESSAGE = 'next-suite update --force'
 const NUL = '\0'
 const TAB = '\t'
 
@@ -33,6 +37,18 @@ const prefixOf = async (directory: string): Promise<string> => {
       { cause: error },
     )
   }
+}
+
+/**
+ * The path of a file of next-suite's own in the Git directory of a project, one per project of
+ * the repository, such as `.git/next-suite-pending-update-apps%2Fweb%2F.json`.
+ *
+ * @throws ProjectConfigError outside a Git repository.
+ */
+export const gitPathOf = async (directory: string, name: string): Promise<string> => {
+  const prefix = await prefixOf(directory)
+  const file = prefix === '' ? `${name}.json` : `${name}-${encodeURIComponent(prefix)}.json`
+  return resolve(directory, (await git(directory, ['rev-parse', '--git-path', file])).trim())
 }
 
 /**
@@ -105,7 +121,8 @@ export const lastCommitOf = async (
  * The files of a commit below paths of the project, by their path relative to it; a path the
  * commit does not have adds nothing.
  *
- * @throws ProjectConfigError for an entry that is no regular file, such as a link.
+ * @throws ProjectConfigError for an entry that is no regular file, such as a link, or whose path
+ * could leave the directory it is written to.
  */
 export const readCommittedFiles = async (
   directory: string,
@@ -119,17 +136,25 @@ export const readCommittedFiles = async (
     if (!FILE_MODES.has(mode)) {
       throw new ProjectConfigError(`${path} in commit ${commit} is no regular file`)
     }
+    const problem = findUnsafePathProblem(path)
+    if (problem !== undefined) {
+      throw new ProjectConfigError(`${path} in commit ${commit} ${problem}`)
+    }
     files.set(path, await git(directory, ['cat-file', 'blob', object]))
   }
   return files
 }
 
 /**
- * Records the uncommitted changes to tracked files in a commit object that no branch points to,
- * leaving the working tree as it is, and answers it; nothing when there is nothing to record.
+ * Records the uncommitted changes to tracked files in the stash, leaving the working tree as it
+ * is, and answers the stash commit; nothing when there is nothing to record.
  * `git stash apply <commit>` brings the changes back.
  */
 export const saveUncommittedChanges = async (directory: string): Promise<string | undefined> => {
   const commit = (await git(directory, ['stash', 'create'])).trim()
-  return commit === '' ? undefined : commit
+  if (commit === '') {
+    return undefined
+  }
+  await git(directory, ['stash', 'store', '--message', STASH_MESSAGE, commit])
+  return commit
 }

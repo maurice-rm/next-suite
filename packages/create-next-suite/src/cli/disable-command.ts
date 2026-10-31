@@ -54,7 +54,7 @@ export const addDisableCommand = (
   program
     .command('disable <plugin>')
     .description('disable a plugin in next-suite.config.ts and update the project')
-    .option('--force', 'update over uncommitted changes, saved in a stash commit first')
+    .option('--force', 'update over uncommitted changes, saved in the stash first')
     .action(async (name: string, { force }: { force?: boolean }) =>
       disable(environment, report, { name, force: force === true }),
     )
