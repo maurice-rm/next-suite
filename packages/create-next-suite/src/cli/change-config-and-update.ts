@@ -5,7 +5,8 @@ import { ExpectedError } from '../expected-error.ts'
 import { ProjectConfigError } from '../project-config/project-config-error.ts'
 import { PROJECT_PATHS } from '../project-config/project-paths.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
-import { runUpdate, UpdateMergeConflictError } from './update-command.ts'
+import { runUpdate } from './run-update.ts'
+import { UpdateMergeConflictError } from './update-merge-conflict-error.ts'
 
 /** A change of the project config and how the update after it runs. */
 type ConfigChange = {
