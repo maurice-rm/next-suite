@@ -1,37 +1,8 @@
 import { definePlugin } from 'create-next-suite/plugin'
+import { createCspSources } from 'create-next-suite/points'
 
 const HEADERS_FILE = 'security-headers.ts'
 const DIRECTIVES_OBJECT = 'directives'
-
-/** The sources of the Content Security Policy by directive, as other plugins allow them. */
-type CspSources = {
-  /** Allows sources for a directive, such as `https://va.vercel-scripts.com` for `script-src`. */
-  allow: (directive: string, ...sources: string[]) => void
-  /** Each directive with its sources, in the order they were first allowed. */
-  directives: () => ReadonlyMap<string, readonly string[]>
-}
-
-declare module 'create-next-suite/plugin' {
-  interface CollectorPoints {
-    /** The sources of the Content Security Policy; the static-csp plugin provides it. */
-    csp: CspSources
-  }
-}
-
-const createCspSources = (): CspSources => {
-  const sources = new Map<string, Set<string>>()
-  return {
-    allow: (directive, ...allowed) => {
-      const present = sources.get(directive) ?? new Set()
-      for (const source of allowed) {
-        present.add(source)
-      }
-      sources.set(directive, present)
-    },
-    directives: () =>
-      new Map([...sources].map(([directive, allowed]) => [directive, [...allowed]])),
-  }
-}
 
 /** The sources as a list of code, one per line, the way the file writes its own. */
 const sourceList = (sources: readonly string[]): string =>

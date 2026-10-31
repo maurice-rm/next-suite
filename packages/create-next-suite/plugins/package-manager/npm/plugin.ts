@@ -1,4 +1,5 @@
-import { createBuiltDependencies, definePlugin } from 'create-next-suite/plugin'
+import { definePlugin } from 'create-next-suite/plugin'
+import { createBuiltDependencies } from 'create-next-suite/points'
 
 const VERSIONS = { npm: '12.2.1' }
 

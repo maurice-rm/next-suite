@@ -230,7 +230,7 @@
                       "**/project-config",
                       "**/project-config/**"
                     ],
-                    "message": "create-next-suite: points/ holds the shared points and imports from code-edit/ and expected-error.ts only"
+                    "message": "create-next-suite: points/ holds the points create-next-suite defines and imports from code-edit/ and expected-error.ts only"
                   }
                 ]
               }

@@ -21,7 +21,7 @@ const PLUGIN_NAMES = [
   'ValuePoints',
   'CollectorPoints',
 ]
-/** The shared points a plugin uses, provides and contributes to without naming another plugin. */
+/** The points a plugin uses, provides and contributes to without naming another plugin. */
 const POINTS_NAMES = [
   'database',
   'orm',
@@ -29,6 +29,26 @@ const POINTS_NAMES = [
   'databaseSchema',
   'container',
   'health',
+  'builtDependencies',
+  'lintIgnores',
+  'ciChecks',
+  'createBuiltDependencies',
+  'createLintIgnores',
+  'createCiChecks',
+  'lintStaged',
+  'prettierPlugins',
+  'knip',
+  'csp',
+  'logRedact',
+  'testSetup',
+  'agents',
+  'createLintStagedCommands',
+  'createPrettierPlugins',
+  'createKnipOptions',
+  'createCspSources',
+  'createLogRedact',
+  'createTestSetup',
+  'createAgentSections',
   'readFromValidatedEnv',
   'Database',
   'Orm',
@@ -36,6 +56,16 @@ const POINTS_NAMES = [
   'DatabaseSchema',
   'Container',
   'HealthChecks',
+  'BuiltDependencies',
+  'LintIgnores',
+  'CiChecks',
+  'LintStagedCommands',
+  'PrettierPlugins',
+  'KnipOptions',
+  'CspSources',
+  'LogRedact',
+  'TestSetup',
+  'AgentSections',
 ]
 /** What a project's next-suite.config.ts writes against. */
 const CONFIG_NAMES = ['defineSuiteConfig', 'definePlugin', 'PluginRegistry', 'SuiteConfig']
@@ -66,7 +96,7 @@ describe('the published types', () => {
     )
   })
 
-  it('export the shared points, their values and collectors', async () => {
+  it('export the points, their values and collectors', async () => {
     expect(exportedNames(await readDeclarations('points.d.mts'))).toEqual(
       expect.arrayContaining(POINTS_NAMES),
     )

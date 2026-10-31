@@ -10,7 +10,10 @@
     },
     "packages/integration": {
       "entry": ["scripts/*.ts", "fixtures/plugins/*/plugin.ts"],
-      "ignore": ["fixtures/plugins/*/files/**"]
+      "ignore": ["fixtures/plugins/*/files/**"],
+      "vitest": {
+        "entry": ["src/**/*.test.ts", "src/**/*.test-d.ts"]
+      }
     }
   }
 }

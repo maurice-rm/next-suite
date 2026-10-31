@@ -1,11 +1,7 @@
 import { describe, expectTypeOf, it } from 'vitest'
 
 import {
-  type BuiltDependencies,
   type CollectorPoints,
-  createBuiltDependencies,
-  createCiChecks,
-  createLintIgnores,
   defineCollectorPoint,
   definePlugin,
   defineValuePoint,
@@ -79,11 +75,5 @@ describe('create-next-suite/plugin', () => {
   it('answers a precondition with true or the reason', () => {
     expectTypeOf<Precondition>().parameter(0).toEqualTypeOf<PreconditionContext>()
     expectTypeOf<Precondition>().returns.toEqualTypeOf<true | string>()
-  })
-
-  it('creates the collectors of the shared points', () => {
-    expectTypeOf(createBuiltDependencies).returns.toEqualTypeOf<BuiltDependencies>()
-    expectTypeOf(createCiChecks).returns.toEqualTypeOf<CollectorPoints['ciChecks']>()
-    expectTypeOf(createLintIgnores).returns.toEqualTypeOf<CollectorPoints['lintIgnores']>()
   })
 })

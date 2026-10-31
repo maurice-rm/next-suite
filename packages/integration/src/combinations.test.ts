@@ -8,10 +8,19 @@ import { argumentsOf, COMBINATIONS, type Combination, testPluginPath } from './c
 import { PROJECT_NAME } from './project-name.ts'
 import { runCli } from './run-cli.ts'
 
+const FILE_SEPARATOR = '\n====='
+
 let cwd: string
 
 const dryRun = (args: readonly string[]) =>
   runCli('create-next-suite', [PROJECT_NAME, '--dry-run', '--diff', ...args], { cwd })
+
+/** The diff of one file in the output of `--dry-run --diff`, up to the next file's separator. */
+const fileDiff = (stdout: string, path: string): string => {
+  const start = stdout.indexOf(`+++ ${path}\n`)
+  const end = stdout.indexOf(FILE_SEPARATOR, start)
+  return start === -1 ? '' : stdout.slice(start, end === -1 ? undefined : end)
+}
 
 const combination = (name: string): Combination => {
   const found = COMBINATIONS.find((candidate) => candidate.name === name)
@@ -67,6 +76,23 @@ describe('the test plugins', () => {
 
     expect(stdout).toContain('+    image: "postgres:18-alpine"\n')
     expect(stdout).toContain('+  ["database", checkDatabase],\n')
+  })
+
+  it('give Knip the client of Better Auth as an entry, under the source directory too', async () => {
+    const atRoot = await dryRun(argumentsOf(combination('prisma-sqlite')))
+    const inSource = await dryRun(argumentsOf(combination('drizzle-sqlite')))
+
+    expect(atRoot.stdout).toContain('  lib/auth-client.ts (')
+    expect(atRoot.stdout).toContain('+    "lib/auth-client.ts",\n')
+    expect(inSource.stdout).toContain('+    "src/lib/auth-client.ts",\n')
+  })
+
+  it('tell coding agents in AGENTS.md how to run the container', async () => {
+    const { stdout } = await dryRun(argumentsOf(combination('container-health')))
+
+    expect(fileDiff(stdout, 'AGENTS.md')).toContain(
+      '+## Docker\n+\n+`docker compose up --build` builds the image and starts the app with its services.\n',
+    )
   })
 
   it('refuse Better Auth without an ORM, and two ORMs', async () => {

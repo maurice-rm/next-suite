@@ -1,4 +1,5 @@
-import { createBuiltDependencies, definePlugin } from 'create-next-suite/plugin'
+import { definePlugin } from 'create-next-suite/plugin'
+import { createBuiltDependencies } from 'create-next-suite/points'
 
 /** Yarn 4 is published on npm as @yarnpkg/cli-dist; the package `yarn` is Yarn 1. */
 const VERSIONS = { '@yarnpkg/cli-dist': '4.18.1' }

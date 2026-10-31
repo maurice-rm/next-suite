@@ -1,4 +1,5 @@
-import { createLintIgnores, definePlugin } from 'create-next-suite/plugin'
+import { definePlugin } from 'create-next-suite/plugin'
+import { createLintIgnores } from 'create-next-suite/points'
 
 const VERSIONS = { '@biomejs/biome': '2.6.3' }
 const CONFIG_FILE = 'biome.json'

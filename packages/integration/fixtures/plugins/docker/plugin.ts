@@ -7,6 +7,8 @@ const APP_SERVICE = 'app'
 const INDENT = '  '
 /** The Compose key that starts the app after its services. */
 const DEPENDS_ON = 'depends_on'
+const RUN_INSTRUCTIONS =
+  '`docker compose up --build` builds the image and starts the app with its services.'
 
 type Yaml = string | readonly string[] | { readonly [key: string]: Yaml | undefined }
 
@@ -68,8 +70,9 @@ export default definePlugin({
   description: 'Builds the app into a container image and runs it with Docker Compose.',
   nextConfig: { options: { output: JSON.stringify('standalone') } },
   files: { '.dockerignore': 'files/dockerignore' },
-  readme: {
-    Docker: '`docker compose up --build` builds the image and starts the app with its services.',
+  readme: { Docker: RUN_INSTRUCTIONS },
+  extend: {
+    agents: (agents) => agents.addSection('Docker', RUN_INSTRUCTIONS),
   },
   collects: {
     container: {

@@ -4,10 +4,8 @@
  * project, each field a value or a function of the plugin's context. Points connect plugins
  * without naming each other: a value point carries one value from its provider to every user, a
  * collector point gathers what other plugins contribute until its provider finishes it into
- * files. This entry also holds the collectors of the points of the core: the built dependencies
- * a package manager plugin provides, the lint ignores a linter plugin provides and the CI checks a
- * CI plugin provides; the points several plugins may provide, such as `orm`, come with
- * `create-next-suite/points`.
+ * files. The points create-next-suite defines, such as `orm` or `ciChecks`, and their collectors
+ * come with `create-next-suite/points`.
  *
  * @example
  * ```ts
@@ -65,6 +63,3 @@ export {
   type ValuePoint,
   type ValuePoints,
 } from './plugin-definition/value-point.ts'
-export { type BuiltDependencies, createBuiltDependencies } from './points/built-dependencies.ts'
-export { type CiChecks, createCiChecks } from './points/ci-checks.ts'
-export { createLintIgnores, type LintIgnores } from './points/lint-ignores.ts'

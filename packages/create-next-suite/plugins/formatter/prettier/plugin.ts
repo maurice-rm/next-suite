@@ -1,33 +1,9 @@
 import { definePlugin } from 'create-next-suite/plugin'
+import { createPrettierPlugins } from 'create-next-suite/points'
 
 const VERSIONS = { prettier: '3.9.10' }
 const CONFIG_FILE = 'prettier.config.mjs'
 const CONFIG_OBJECT = 'config'
-
-/** The Prettier plugins the config loads, as other plugins contribute them. */
-type PrettierPlugins = {
-  /** Loads a Prettier plugin, such as `prettier-plugin-tailwindcss`. */
-  add: (name: string) => void
-  /** The plugins in the order they were first added. */
-  names: () => readonly string[]
-}
-
-declare module 'create-next-suite/plugin' {
-  interface CollectorPoints {
-    /** The Prettier plugins the config loads; the prettier plugin provides it. */
-    prettierPlugins: PrettierPlugins
-  }
-}
-
-const createPrettierPlugins = (): PrettierPlugins => {
-  const names = new Set<string>()
-  return {
-    add: (name) => {
-      names.add(name)
-    },
-    names: () => [...names],
-  }
-}
 
 export default definePlugin({
   name: 'prettier',
