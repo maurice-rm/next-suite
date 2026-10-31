@@ -1,6 +1,6 @@
 /**
  * The paths the logger hides from its output, as the users of the point `logRedact` contribute
- * them; the logging plugin provides it and writes them into its logger.
+ * them; the pino plugin provides it and writes them into its logger.
  */
 export type LogRedact = {
   /** Hides the values at these paths in every log line, such as `req.body.password`. */
@@ -10,8 +10,8 @@ export type LogRedact = {
 }
 
 /**
- * Creates the collector of the point `logRedact`, for the logging plugin that provides it. A path
- * given twice is kept once.
+ * Creates the collector of the point `logRedact`, for the plugin that provides it, such as pino. A
+ * path given twice is kept once.
  *
  * @returns An empty collector.
  *

@@ -1,6 +1,6 @@
 /**
- * The sections of the instructions for coding agents, as the users of the point `agents`
- * contribute them; the agents plugin provides it and writes them into `AGENTS.md`.
+ * The sections of the instructions for coding agents, as the users of the point `agents` contribute
+ * them; the agents-md plugin provides it and writes them into `AGENTS.md`.
  */
 export type AgentSections = {
   /** Adds a section `## <title>` with instructions for coding agents, in Markdown. */
@@ -10,8 +10,8 @@ export type AgentSections = {
 }
 
 /**
- * Creates the collector of the point `agents`, for the agents plugin that provides it. Every
- * section added is kept, in the order it was added.
+ * Creates the collector of the point `agents`, for the plugin that provides it, such as agents-md.
+ * Every section added is kept, in the order it was added.
  *
  * @returns An empty collector.
  *

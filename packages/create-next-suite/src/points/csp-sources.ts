@@ -1,6 +1,6 @@
 /**
  * The sources of the Content Security Policy by directive, as the users of the point `csp` allow
- * them; the security headers plugin provides it and writes them into the policy.
+ * them; the static-csp plugin provides it and writes them into the policy.
  */
 export type CspSources = {
   /** Allows sources for a directive, such as `https://va.vercel-scripts.com` for `script-src`. */
@@ -10,7 +10,7 @@ export type CspSources = {
 }
 
 /**
- * Creates the collector of the point `csp`, for the security headers plugin that provides it. A
+ * Creates the collector of the point `csp`, for the plugin that provides it, such as static-csp. A
  * source allowed twice for a directive is kept once.
  *
  * @returns An empty collector.

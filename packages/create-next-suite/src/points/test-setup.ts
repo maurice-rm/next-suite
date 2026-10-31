@@ -1,6 +1,6 @@
 /**
  * The setup files the test runner loads before the tests, as the users of the point `testSetup`
- * contribute them; the unit-tests plugin provides it and writes them into its config.
+ * contribute them; the vitest plugin provides it and writes them into its config.
  */
 export type TestSetup = {
   /** Loads setup files before the tests, such as `vitest.setup.ts`. */
@@ -10,8 +10,8 @@ export type TestSetup = {
 }
 
 /**
- * Creates the collector of the point `testSetup`, for the unit-tests plugin that provides it. A
- * setup file added twice is loaded once.
+ * Creates the collector of the point `testSetup`, for the plugin that provides it, such as vitest.
+ * A setup file added twice is loaded once.
  *
  * @returns An empty collector.
  *

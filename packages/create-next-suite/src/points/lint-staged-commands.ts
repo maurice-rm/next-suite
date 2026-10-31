@@ -1,6 +1,6 @@
 /**
  * The commands lint-staged runs on the staged files, by glob, as the users of the point
- * `lintStaged` contribute them, such as the linter and the formatter; the git-hooks plugin
+ * `lintStaged` contribute them, such as the linter and the formatter; the lint-staged plugin
  * provides it and writes them into its config.
  */
 export type LintStagedCommands = {
@@ -11,8 +11,8 @@ export type LintStagedCommands = {
 }
 
 /**
- * Creates the collector of the point `lintStaged`, for the git-hooks plugin that provides it. A
- * command given twice for a glob runs once.
+ * Creates the collector of the point `lintStaged`, for the plugin that provides it, such as
+ * lint-staged. A command given twice for a glob runs once.
  *
  * @returns An empty collector.
  *

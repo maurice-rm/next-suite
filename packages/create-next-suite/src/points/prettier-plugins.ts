@@ -10,8 +10,8 @@ export type PrettierPlugins = {
 }
 
 /**
- * Creates the collector of the point `prettierPlugins`, for the formatter plugin that provides it.
- * A Prettier plugin added twice is loaded once.
+ * Creates the collector of the point `prettierPlugins`, for the plugin that provides it, such as
+ * prettier. A Prettier plugin added twice is loaded once.
  *
  * @returns An empty collector.
  *

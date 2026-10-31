@@ -1,6 +1,6 @@
 /**
- * What Knip treats differently, as the users of the point `knip` contribute it; the unused-code
- * plugin provides it and writes it into the Knip config.
+ * What Knip treats differently, as the users of the point `knip` contribute it; the knip plugin
+ * provides it and writes it into the Knip config.
  */
 export type KnipOptions = {
   /** Adds entry files, such as `drizzle.config.ts`. */
@@ -14,7 +14,7 @@ export type KnipOptions = {
 }
 
 /**
- * Creates the collector of the point `knip`, for the unused-code plugin that provides it. A value
+ * Creates the collector of the point `knip`, for the plugin that provides it, such as knip. A value
  * given twice for an option is kept once.
  *
  * @returns An empty collector.
