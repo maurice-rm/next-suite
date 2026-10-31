@@ -12,7 +12,7 @@ import type { PublishedGeneratorRunner } from './run-published-generator.ts'
 export type NextSuiteEnvironment = {
   argv: readonly string[]
   cliVersion: string
-  /** What an updated project's devDependency on create-next-suite names: the running version. */
+  /** What an updated project's devDependency on create-next-suite names when it names none. */
   cliSpecifier: string
   cwd: string
   input: Readable

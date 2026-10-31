@@ -242,6 +242,9 @@ version of create-next-suite the lock names. When that is not the running versio
 raised the devDependency, it runs the recorded version through npm (`npm exec
 create-next-suite@<version>`), from npm's cache when it is there, from the registry otherwise.
 
+The update leaves what `package.json` names for `create-next-suite` as it is; raise the
+devDependency with your package manager.
+
 When that version cannot run, such as offline without it in the cache, the running version
 generates the old output instead, and a warning says so. A file you did not change still takes
 the new output. In a file you changed, a change the newer version made to its own output does not

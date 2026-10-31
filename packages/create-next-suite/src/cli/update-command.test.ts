@@ -82,6 +82,24 @@ describe('next-suite update', () => {
     expect(lock.files['lib/logger.ts']).toBe(hashFileContent(await read('lib/logger.ts')))
   })
 
+  it('keeps what the devDependency on create-next-suite names', async () => {
+    const created = await create([PROJECT, ...QUIET, '--no-logging'], {
+      cliSpecifier: 'file:../create-next-suite.tgz',
+    })
+    expect(created.error).toBe('')
+    initRepository(pathOf(PROJECT))
+    commitAll(pathOf(PROJECT), 'chore: initial commit')
+    await replaceIn('next-suite.config.ts', '    "t3-env",\n', '    "t3-env",\n    "pino",\n')
+
+    const result = await update()
+
+    expect(result).toMatchObject({ exitCode: 0, error: '' })
+    expect(result.output).not.toContain('Warning')
+    const packageJson = JSON.parse(await read('package.json'))
+    expect(packageJson.devDependencies['create-next-suite']).toBe('file:../create-next-suite.tgz')
+    expect(packageJson.dependencies.pino).toBeDefined()
+  })
+
   it('reports nothing to update for an unchanged config and changes no file', async () => {
     await createProject()
 

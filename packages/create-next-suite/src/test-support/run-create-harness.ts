@@ -34,6 +34,8 @@ type RunOptions = {
   runCommand?: CreateEnvironment['runCommand']
   /** The version of create-next-suite the run pretends to be. */
   cliVersion?: string
+  /** What the project's devDependency on create-next-suite names; the version by default. */
+  cliSpecifier?: string
 }
 
 /** What a run printed, answered and ran, with colours stripped. */
@@ -63,6 +65,7 @@ const runIn = async (
     routes = {},
     runCommand,
     cliVersion = CLI_VERSION,
+    cliSpecifier = cliVersion,
   }: RunOptions,
 ): Promise<CreateRun> => {
   const commands: string[] = []
@@ -77,7 +80,7 @@ const runIn = async (
     remote: stubRemote(root, routes),
     userConfigPath: join(root, 'config.json'),
     cliVersion,
-    cliSpecifier: cliVersion,
+    cliSpecifier,
     cwd: root,
     streams: { input, output: output.stream, error: error.stream },
     isInteractive,

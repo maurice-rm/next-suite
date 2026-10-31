@@ -30,7 +30,7 @@ import {
   type UpdateReport,
 } from '../project-config/plan-file-updates.ts'
 import { ProjectConfigError } from '../project-config/project-config-error.ts'
-import { PROJECT_PATHS } from '../project-config/project-paths.ts'
+import { CLI_PACKAGE, PROJECT_PATHS } from '../project-config/project-paths.ts'
 import { PROJECT_FILES } from '../project-model/project.ts'
 import type { BuiltInAssets } from './built-in-assets.ts'
 import {
@@ -152,6 +152,22 @@ const dependenciesOf = (packageJson: string | undefined) => {
   return { dependencies, devDependencies }
 }
 
+/**
+ * What the project's devDependency on create-next-suite names, such as a range or a tarball, so
+ * both outputs keep it; the running version where the project names none. The project raises it
+ * with its package manager, never through an update.
+ */
+const cliSpecifierOf = async (root: string, running: string): Promise<string> => {
+  const { devDependencies } = parsePackageJson(
+    await readTextIfPresent(join(root, PROJECT_FILES.packageJson)),
+  )
+  const specifier =
+    typeof devDependencies === 'object' && devDependencies !== null
+      ? Object.entries(devDependencies).find(([name]) => name === CLI_PACKAGE)?.[1]
+      : undefined
+  return typeof specifier === 'string' ? specifier : running
+}
+
 const installOf = async (
   root: string,
   { changes, plan }: { changes: readonly FileChange[]; plan: ProjectPlan },
@@ -229,7 +245,8 @@ export const updateProject = async (
   const notes = options.dryRun ? [] : await checkUncommitted(root, options)
   const { lock, commit } = await readCommittedLock(root)
   const assets = await environment.loadAssets()
-  const planEnvironment = { ...environment, assets }
+  const cliSpecifier = await cliSpecifierOf(root, environment.cliSpecifier)
+  const planEnvironment = { ...environment, assets, cliSpecifier }
   const old = await generateOldOutput({
     environment: planEnvironment,
     projectDirectory: root,
