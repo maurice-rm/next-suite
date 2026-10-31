@@ -61,7 +61,8 @@ const renderAnswers = (answers: SuiteConfigSource['answers']): string[] => {
 /**
  * The `next-suite.config.ts` a new project starts with: every setting, every plugin and every
  * answer, written out so the config alone creates the same project again. From then on the file
- * belongs to the project; create-next-suite only reads it.
+ * belongs to the project; create-next-suite reads it, and only `next-suite add` and `disable`
+ * edit it.
  */
 export const renderSuiteConfig = ({ project, plugins, answers }: SuiteConfigSource): string =>
   [

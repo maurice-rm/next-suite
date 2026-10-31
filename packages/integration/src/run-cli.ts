@@ -22,13 +22,16 @@ const isExecError = (error: unknown): error is Error & CliResult & { code: numbe
 export const binPathOf = (bin: BinName): string =>
   fileURLToPath(new URL(packageJson.bin[bin], PACKAGE_JSON_URL))
 
-/** Runs a bin of the built create-next-suite package the way npm links it, with colours off. */
+/**
+ * Runs a bin of the built create-next-suite package the way npm links it, with colours off and
+ * `env` on top of this process's environment.
+ */
 export const runCli = async (
   bin: BinName,
   args: string[],
-  { cwd }: { cwd?: string } = {},
+  { cwd, env: extra = {} }: { cwd?: string; env?: Readonly<Record<string, string>> } = {},
 ): Promise<CliResult> => {
-  const env = { ...process.env, NO_COLOR: '1' }
+  const env = { ...process.env, NO_COLOR: '1', ...extra }
   try {
     const { stdout, stderr } = await execFileAsync(binPathOf(bin), args, { env, cwd })
     return { stdout, stderr, exitCode: 0 }

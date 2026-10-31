@@ -1193,8 +1193,6 @@
                       "**/assembly/**",
                       "**/points",
                       "**/points/**",
-                      "**/code-edit",
-                      "**/code-edit/**",
                       "**/create-next-suite.ts",
                       "**/next-suite.ts",
                       "**/config.ts",
@@ -1202,7 +1200,7 @@
                       "**/testing.ts",
                       "**/points.ts"
                     ],
-                    "message": "create-next-suite: project-config/ imports from contract/, file-system/, plugin-definition/, answers/, project-model/, loader/ and the error classes only"
+                    "message": "create-next-suite: project-config/ imports from contract/, file-system/, plugin-definition/, answers/, project-model/, code-edit/, loader/ and the error classes only"
                   }
                 ]
               }

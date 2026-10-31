@@ -1,15 +1,14 @@
 import { runCommand } from '../post-steps/run-command.ts'
 import { loadBuiltInAssets } from './built-in-assets.ts'
 import { fetchLatestVersion } from './fetch-latest-version.ts'
-import { processRemoteEnvironment, processUserConfigPath } from './process-environment.ts'
+import {
+  processCliSpecifier,
+  processRemoteEnvironment,
+  processUserConfigPath,
+} from './process-environment.ts'
 import { runCreate } from './run-create.ts'
 
 const DEFAULT_COLUMNS = 80
-/**
- * Overrides what a new project's devDependency on create-next-suite names, such as the tarball of
- * a build that is not published yet; the matrix of generated projects installs it this way.
- */
-const CLI_SPECIFIER_VARIABLE = 'NEXT_SUITE_CLI_SPECIFIER'
 
 /**
  * Runs create-next-suite in this process, with its terminal and environment, and the built-in
@@ -36,7 +35,7 @@ export const startCreate = ({
     remote: processRemoteEnvironment(),
     userConfigPath: processUserConfigPath(),
     cliVersion,
-    cliSpecifier: process.env[CLI_SPECIFIER_VARIABLE] || cliVersion,
+    cliSpecifier: processCliSpecifier(cliVersion),
     cwd: process.cwd(),
     streams: { input: process.stdin, output: process.stdout, error: process.stderr },
     isInteractive: process.stdin.isTTY === true && process.stdout.isTTY === true,

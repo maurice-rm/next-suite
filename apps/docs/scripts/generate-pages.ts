@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import packageJson from 'create-next-suite/package.json' with { type: 'json' }
 import type { Plugin } from 'create-next-suite/plugin'
 
-/** Writes the docs pages that come from create-next-suite itself: its options and its CLI help. */
+/** Writes the docs pages that come from create-next-suite itself: its options and the help of its CLIs. */
 
 /** The fields of a category of create-next-suite these pages show. */
 type Category = {
@@ -21,6 +21,9 @@ const PACKAGE_ROOT = fileURLToPath(
   new URL('.', import.meta.resolve('create-next-suite/package.json')),
 )
 const CLI_PATH = join(PACKAGE_ROOT, packageJson.bin['create-next-suite'])
+const NEXT_SUITE_PATH = join(PACKAGE_ROOT, packageJson.bin['next-suite'])
+/** The commands of next-suite in a project whose help the CLI page shows in full. */
+const PROJECT_COMMANDS = ['update', 'add', 'disable']
 const CATEGORIES_PATH = join(PACKAGE_ROOT, 'src', 'plugin-definition', 'categories.ts')
 const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins')
 const PLUGIN_FILE = 'plugin.ts'
@@ -111,17 +114,34 @@ const sectionPage = (section: Section, plugins: Plugin[]): string =>
     [section.categories.map((category) => categorySection(category, plugins)).join('\n\n')],
   )
 
-const cliPage = (): string => {
-  const help = execFileSync(process.execPath, [CLI_PATH, '--help'], {
+const helpOf = (bin: string, args: string[]): string =>
+  execFileSync(process.execPath, [bin, ...args, '--help'], {
     encoding: 'utf8',
     env: { ...process.env, NO_COLOR: '1' },
-  })
-  return pageOf({ title: 'CLI', description: 'The command line of create-next-suite.' }, [
+  }).trimEnd()
+
+const cliPage = (): string =>
+  pageOf({ title: 'CLI', description: 'The command line of create-next-suite and next-suite.' }, [
+    '## create-next-suite',
+    '',
     '```text',
-    help.trimEnd(),
+    helpOf(CLI_PATH, []),
     '```',
+    '',
+    '## next-suite',
+    '',
+    '```text',
+    helpOf(NEXT_SUITE_PATH, []),
+    '```',
+    ...PROJECT_COMMANDS.flatMap((command) => [
+      '',
+      `### next-suite ${command}`,
+      '',
+      '```text',
+      helpOf(NEXT_SUITE_PATH, [command]),
+      '```',
+    ]),
   ])
-}
 
 const sections = sectionsOf(await loadCategories())
 const plugins = await loadPlugins()

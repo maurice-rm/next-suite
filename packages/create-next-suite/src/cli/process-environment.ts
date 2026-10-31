@@ -36,6 +36,12 @@ const githubToken = (cacheDir: string): string | undefined => {
   }
 }
 
+/**
+ * Overrides what a project's devDependency on create-next-suite names, such as the tarball of a
+ * build that is not published yet; the matrix of generated projects installs it this way.
+ */
+const CLI_SPECIFIER_VARIABLE = 'NEXT_SUITE_CLI_SPECIFIER'
+
 const cacheDirOf = (): string =>
   join(process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache'), 'next-suite', 'plugins')
 
@@ -60,3 +66,7 @@ export const processRemoteEnvironment = (): RemoteEnvironment => {
 }
 
 export const processUserConfigPath = (): string => userConfigPath(process.env, homedir())
+
+/** What a project's devDependency on create-next-suite names: the running version by default. */
+export const processCliSpecifier = (cliVersion: string): string =>
+  process.env[CLI_SPECIFIER_VARIABLE] || cliVersion

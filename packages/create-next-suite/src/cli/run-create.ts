@@ -2,36 +2,25 @@ import { resolve } from 'node:path'
 import type { Writable } from 'node:stream'
 
 import { CommanderError } from 'commander'
-import { type Answers, isSelected } from '../answers/answers.ts'
+import type { Answers } from '../answers/answers.ts'
 import type { TargetAction } from '../answers/target-action.ts'
 import { InputError } from '../input-error.ts'
-import { assertUniqueNames } from '../loader/assert-unique-names.ts'
-import { type FetchedPlugin, fetchExternalPlugin } from '../loader/fetch-external-plugin.ts'
-import { type LoadedExternalPlugin, loadExternalPlugin } from '../loader/load-external-plugin.ts'
+import type { FetchedPlugin } from '../loader/fetch-external-plugin.ts'
+import type { LoadedExternalPlugin } from '../loader/load-external-plugin.ts'
 import type { LoadedPluginModule } from '../loader/load-plugin-module.ts'
 import type { RemoteEnvironment } from '../loader/remote/remote-source.ts'
-import {
-  detectPackageManager,
-  findUsablePackageManager,
-} from '../package-manager/detect-package-manager.ts'
-import { preferPackageManager } from '../package-manager/prefer-package-manager.ts'
-import { CATEGORIES } from '../plugin-definition/categories.ts'
 import type { Plugin } from '../plugin-definition/plugin-definition.ts'
 import type { CommandRunner } from '../post-steps/run-command.ts'
 import { runPostSteps } from '../post-steps/run-post-steps.ts'
 import { type LoadedSuiteConfig, loadSuiteConfig } from '../project-config/load-suite-config.ts'
-import { readProjectInputs } from '../project-config/read-project-inputs.ts'
 import { rehashGeneratedFiles } from '../project-config/rehash-generated-files.ts'
-import { BASE_SETTINGS } from '../questions/base-settings.ts'
-import { buildQuestions, type Question } from '../questions/build-questions.ts'
+import type { Question } from '../questions/build-questions.ts'
 import { collectAnswers } from '../questions/collect-answers.ts'
-import { assertCompatible, findIncompatibilities } from '../questions/find-incompatibilities.ts'
 import { createFlags } from '../questions/flags.ts'
 import { findProjectDirectoryProblem, projectNameOf } from '../questions/project-directory.ts'
-import { GIT_SETTING, INSTALL_SETTING, RUN_SETTINGS } from '../questions/run-settings.ts'
+import { GIT_SETTING, INSTALL_SETTING } from '../questions/run-settings.ts'
 import { PromptCancelledError } from '../ui/prompt-cancelled-error.ts'
 import type { Streams } from '../ui/prompts.ts'
-import { readUserConfig } from '../user-config/user-config.ts'
 import { findEmptyingProblem } from '../write/empty-target.ts'
 import { findTargetProblem, inspectTarget } from '../write/inspect-target.ts'
 import { writeProject } from '../write/write-project.ts'
@@ -50,12 +39,14 @@ import {
 import { CREATE_COMMAND } from './command-name.ts'
 import { type ConfigAddress, configAddresses } from './config-addresses.ts'
 import { configEntryOf } from './config-entry-of.ts'
-import { confirmTrust } from './confirm-trust.ts'
 import { describeError } from './describe-error.ts'
 import { describePlan, diffPlan } from './describe-plan.ts'
 import { EXIT_CANCELLED, EXIT_FAILURE, EXIT_SUCCESS } from './exit-code.ts'
+import { fetchExternalPlugins } from './fetch-external-plugins.ts'
 import { listNextSteps } from './list-next-steps.ts'
-import { type ConfigSource, type ExternalRunPlugin, planProject } from './plan-project.ts'
+import { loadSelectedExternal } from './load-selected-external.ts'
+import { type ExternalRunPlugin, planProject } from './plan-project.ts'
+import { prepareQuestions } from './prepare-questions.ts'
 import {
   openFrame,
   type Presenter,
@@ -65,6 +56,7 @@ import {
   presentFailure,
 } from './presenter.ts'
 import type { ProjectPlan } from './project-plan.ts'
+import { readConfigSource } from './read-config-source.ts'
 import { createStepReporter } from './step-reporter.ts'
 
 /**
@@ -128,21 +120,6 @@ type Project = {
   projectName: string
   action: TargetAction
   answers: Answers
-}
-
-/**
- * The questions this run can ask: those of the built-in plugins, the base settings and the
- * settings of the run. The package manager that started the run becomes the default.
- */
-const prepareQuestions = (plugins: readonly Plugin[], userAgent: string | undefined) => {
-  const detectedPackageManager = findUsablePackageManager(plugins, detectPackageManager(userAgent))
-  const questions = buildQuestions({
-    categories: preferPackageManager(CATEGORIES, detectedPackageManager),
-    plugins,
-    settings: BASE_SETTINGS,
-    runSettings: RUN_SETTINGS,
-  })
-  return { questions, detectedPackageManager }
 }
 
 /**
@@ -215,54 +192,6 @@ const askQuestions = ({
   })
 }
 
-/**
- * Runs the selected external plugins once the user trusts them, and checks their preconditions
- * against the answers.
- */
-const loadSelectedExternal = async (
-  { environment, external, invocation, presenter, assets, inlinePlugins }: Run,
-  answers: Answers,
-): Promise<LoadedExternalPlugin[]> => {
-  const selected = external.filter((plugin) => isSelected(answers, plugin.summary.metadata.name))
-  await confirmTrust({
-    plugins: selected,
-    flagPatterns: invocation.flags.trust ?? [],
-    userConfigPath: environment.userConfigPath,
-    streams: presenter.isFramed ? environment.streams : undefined,
-  })
-  const loaded: LoadedExternalPlugin[] = []
-  for (const plugin of selected) {
-    loaded.push(
-      await loadExternalPlugin(plugin, {
-        pluginEntry: environment.pluginEntry,
-        cacheDir: environment.remote.cacheDir,
-        runCommand: environment.runCommand,
-      }),
-    )
-  }
-  assertCompatible(
-    findIncompatibilities(
-      [...assets.plugins, ...inlinePlugins, ...loaded.map(({ module }) => module)].map(
-        ({ plugin }) => plugin,
-      ),
-      answers,
-    ),
-  )
-  return loaded
-}
-
-/** The config the project is created from, with its inputs read from beside it. */
-const configSourceOf = async (
-  suiteConfig: LoadedSuiteConfig | undefined,
-): Promise<ConfigSource | undefined> =>
-  suiteConfig === undefined
-    ? undefined
-    : {
-        text: suiteConfig.text,
-        inputs: await readProjectInputs(suiteConfig.directory),
-        disable: suiteConfig.config.disable ?? [],
-      }
-
 /** Assembles the project in memory. */
 const planRun = async (
   run: Run,
@@ -287,7 +216,7 @@ const planRun = async (
     answers,
     cliVersion: environment.cliVersion,
     cliSpecifier: environment.cliSpecifier,
-    configSource: await configSourceOf(suiteConfig),
+    configSource: suiteConfig === undefined ? undefined : await readConfigSource(suiteConfig),
   })
 }
 
@@ -346,42 +275,21 @@ const create = async (run: Run): Promise<void> => {
     action,
     answers,
   }
-  const plan = await planRun(run, project, await loadSelectedExternal(run, answers))
+  const external = await loadSelectedExternal({
+    external: run.external,
+    answers,
+    known: [...run.assets.plugins, ...run.inlinePlugins],
+    flagPatterns: invocation.flags.trust ?? [],
+    streams: presenter.isFramed ? environment.streams : undefined,
+    environment,
+  })
+  const plan = await planRun(run, project, external)
   if (invocation.flags.dryRun) {
     const report = describePlan(plan)
     presentDryRun(presenter, invocation.flags.diff ? `${report}\n\n${diffPlan(plan)}` : report)
     return
   }
   await writeAndFinish(run, project, plan)
-}
-
-/**
- * Fetches the external plugins at the addresses the command line or the config names and reads
- * their metadata, without running any of their code; every plugin name stays unique, among them,
- * the built-in plugins and those the config defines in place.
- */
-const fetchExternalPlugins = async (
-  environment: CreateEnvironment,
-  { addresses, known }: { addresses: readonly string[]; known: readonly LoadedPluginModule[] },
-): Promise<FetchedPlugin[]> => {
-  const external: FetchedPlugin[] = []
-  if (addresses.length > 0) {
-    const { registries } = await readUserConfig(environment.userConfigPath)
-    for (const address of addresses) {
-      external.push(
-        await fetchExternalPlugin(address, {
-          cwd: environment.cwd,
-          remote: environment.remote,
-          registries,
-        }),
-      )
-    }
-  }
-  assertUniqueNames([
-    ...known.map(({ plugin, directory }) => ({ name: plugin.name, location: directory })),
-    ...external.map(({ summary, address }) => ({ name: summary.metadata.name, location: address })),
-  ])
-  return external
 }
 
 /** The answers given before any question: from the config with `--config`, else from the input. */
