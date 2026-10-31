@@ -27,3 +27,12 @@ export const container = defineCollectorPoint('container')
 
 /** The checks the health route runs, collected by a health plugin. */
 export const health = defineCollectorPoint('health')
+
+/** The dependencies whose install scripts may run, collected by the package manager plugin. */
+export const builtDependencies = defineCollectorPoint('builtDependencies')
+
+/** The globs the linter skips, collected by the linter plugin. */
+export const lintIgnores = defineCollectorPoint('lintIgnores')
+
+/** The scripts CI runs, collected by the CI plugin. */
+export const ciChecks = defineCollectorPoint('ciChecks')

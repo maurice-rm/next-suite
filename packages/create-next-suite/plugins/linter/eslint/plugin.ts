@@ -1,4 +1,5 @@
-import { createLintIgnores, definePlugin } from 'create-next-suite/plugin'
+import { definePlugin } from 'create-next-suite/plugin'
+import { createLintIgnores } from 'create-next-suite/points'
 
 const VERSIONS = { eslint: '9.39.5', 'eslint-config-next': '16.4.3' }
 const CONFIG_FILE = 'eslint.config.mjs'

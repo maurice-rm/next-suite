@@ -1,4 +1,5 @@
-import { createCiChecks, definePlugin } from 'create-next-suite/plugin'
+import { definePlugin } from 'create-next-suite/plugin'
+import { createCiChecks } from 'create-next-suite/points'
 
 const WORKFLOW_FILE = '.github/workflows/ci.yml'
 const WORKFLOW_SOURCE = 'files/ci.yml'

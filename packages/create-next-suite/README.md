@@ -108,6 +108,7 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | ----------------------------------------- | -------------------------------------------------------------------------------- |
 | `create-next-suite/config`                | `defineSuiteConfig` and `definePlugin` for a project's `next-suite.config.ts`    |
 | `create-next-suite/plugin`                | `definePlugin`, the points and the types of a plugin                             |
+| `create-next-suite/points`                | the points create-next-suite defines, their types and collectors                 |
 | `create-next-suite/testing`               | `createTestProject`, which generates a project and runs its scripts              |
 | `create-next-suite/schemas/registry.json` | the JSON schema of `registry.json`                                               |
 

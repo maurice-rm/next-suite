@@ -2,10 +2,17 @@ import { describe, expectTypeOf, it } from 'vitest'
 
 import { type CollectorPoints, definePlugin, optional, type ValuePoints } from './plugin.ts'
 import {
+  type BuiltDependencies,
+  builtDependencies,
+  type CiChecks,
   type Container,
+  ciChecks,
+  createBuiltDependencies,
+  createCiChecks,
   createContainer,
   createDatabaseSchema,
   createHealthChecks,
+  createLintIgnores,
   type Database,
   type DatabaseSchema,
   type Dialect,
@@ -13,6 +20,8 @@ import {
   databaseSchema,
   type HealthChecks,
   health,
+  type LintIgnores,
+  lintIgnores,
   type Orm,
   type OrmKind,
   orm,
@@ -39,6 +48,24 @@ describe('create-next-suite/points', () => {
     expectTypeOf(createDatabaseSchema).returns.toEqualTypeOf<DatabaseSchema>()
     expectTypeOf(createContainer).returns.toEqualTypeOf<Container>()
     expectTypeOf(createHealthChecks).returns.toEqualTypeOf<HealthChecks>()
+  })
+
+  it('registers the points of the core and creates their collectors', () => {
+    expectTypeOf<CollectorPoints['builtDependencies']>().toEqualTypeOf<BuiltDependencies>()
+    expectTypeOf<CollectorPoints['lintIgnores']>().toEqualTypeOf<LintIgnores>()
+    expectTypeOf<CollectorPoints['ciChecks']>().toEqualTypeOf<CiChecks>()
+    expectTypeOf(createBuiltDependencies).returns.toEqualTypeOf<BuiltDependencies>()
+    expectTypeOf(createLintIgnores).returns.toEqualTypeOf<LintIgnores>()
+    expectTypeOf(createCiChecks).returns.toEqualTypeOf<CiChecks>()
+    definePlugin({
+      ...NAMES,
+      uses: { builtDependencies, lintIgnores: optional(lintIgnores), ciChecks: optional(ciChecks) },
+      extend: {
+        builtDependencies: (built) => built.allow('esbuild'),
+        lintIgnores: (ignores) => ignores.ignore('drizzle/**'),
+        ciChecks: (checks) => checks.run('lint'),
+      },
+    })
   })
 
   it('checks what a provider states', () => {
