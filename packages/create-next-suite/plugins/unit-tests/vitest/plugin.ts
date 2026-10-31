@@ -1,4 +1,5 @@
 import { definePlugin } from 'create-next-suite/plugin'
+import { createTestSetup } from 'create-next-suite/points'
 
 const VERSIONS = {
   vitest: '5.0.5',
@@ -13,33 +14,6 @@ const CONFIG_FILE = 'vitest.config.mts'
 const PAGE_TEST = '__tests__/page.test.tsx'
 /** The heading of the base project's start page, which the test of the page looks for. */
 const BASE_HEADING = '"next-suite-app"'
-
-/** The setup files Vitest loads before the tests, as other plugins contribute them. */
-type TestSetup = {
-  /** Loads setup files before the tests, such as `vitest.setup.ts`. */
-  add: (...paths: string[]) => void
-  /** The setup files in the order they were first added. */
-  paths: () => readonly string[]
-}
-
-declare module 'create-next-suite/plugin' {
-  interface CollectorPoints {
-    /** The setup files Vitest loads before the tests; the vitest plugin provides it. */
-    testSetup: TestSetup
-  }
-}
-
-const createTestSetup = (): TestSetup => {
-  const paths = new Set<string>()
-  return {
-    add: (...added) => {
-      for (const path of added) {
-        paths.add(path)
-      }
-    },
-    paths: () => [...paths],
-  }
-}
 
 export default definePlugin({
   name: 'vitest',

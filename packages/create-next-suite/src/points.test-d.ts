@@ -2,17 +2,28 @@ import { describe, expectTypeOf, it } from 'vitest'
 
 import { type CollectorPoints, definePlugin, optional, type ValuePoints } from './plugin.ts'
 import {
+  type AgentSections,
+  agents,
   type BuiltDependencies,
   builtDependencies,
   type CiChecks,
   type Container,
+  type CspSources,
   ciChecks,
+  createAgentSections,
   createBuiltDependencies,
   createCiChecks,
   createContainer,
+  createCspSources,
   createDatabaseSchema,
   createHealthChecks,
+  createKnipOptions,
   createLintIgnores,
+  createLintStagedCommands,
+  createLogRedact,
+  createPrettierPlugins,
+  createTestSetup,
+  csp,
   type Database,
   type DatabaseSchema,
   type Dialect,
@@ -20,12 +31,22 @@ import {
   databaseSchema,
   type HealthChecks,
   health,
+  type KnipOptions,
+  knip,
   type LintIgnores,
+  type LintStagedCommands,
+  type LogRedact,
   lintIgnores,
+  lintStaged,
+  logRedact,
   type Orm,
   type OrmKind,
   orm,
+  type PrettierPlugins,
+  prettierPlugins,
   readFromValidatedEnv,
+  type TestSetup,
+  testSetup,
   type ValidatedEnv,
   validatedEnv,
 } from './points.ts'
@@ -64,6 +85,56 @@ describe('create-next-suite/points', () => {
         builtDependencies: (built) => built.allow('esbuild'),
         lintIgnores: (ignores) => ignores.ignore('drizzle/**'),
         ciChecks: (checks) => checks.run('lint'),
+      },
+    })
+  })
+
+  it('registers the points of the built-in plugins and creates their collectors', () => {
+    expectTypeOf<CollectorPoints['lintStaged']>().toEqualTypeOf<LintStagedCommands>()
+    expectTypeOf<CollectorPoints['prettierPlugins']>().toEqualTypeOf<PrettierPlugins>()
+    expectTypeOf<CollectorPoints['knip']>().toEqualTypeOf<KnipOptions>()
+    expectTypeOf<CollectorPoints['csp']>().toEqualTypeOf<CspSources>()
+    expectTypeOf<CollectorPoints['logRedact']>().toEqualTypeOf<LogRedact>()
+    expectTypeOf<CollectorPoints['testSetup']>().toEqualTypeOf<TestSetup>()
+    expectTypeOf<CollectorPoints['agents']>().toEqualTypeOf<AgentSections>()
+    expectTypeOf(createLintStagedCommands).returns.toEqualTypeOf<LintStagedCommands>()
+    expectTypeOf(createPrettierPlugins).returns.toEqualTypeOf<PrettierPlugins>()
+    expectTypeOf(createKnipOptions).returns.toEqualTypeOf<KnipOptions>()
+    expectTypeOf(createCspSources).returns.toEqualTypeOf<CspSources>()
+    expectTypeOf(createLogRedact).returns.toEqualTypeOf<LogRedact>()
+    expectTypeOf(createTestSetup).returns.toEqualTypeOf<TestSetup>()
+    expectTypeOf(createAgentSections).returns.toEqualTypeOf<AgentSections>()
+  })
+
+  it('lets any plugin contribute to the points of the built-in plugins', () => {
+    definePlugin({
+      ...NAMES,
+      uses: {
+        csp: optional(csp),
+        knip: optional(knip),
+        logRedact: optional(logRedact),
+        lintStaged: optional(lintStaged),
+        prettierPlugins: optional(prettierPlugins),
+        testSetup: optional(testSetup),
+        agents: optional(agents),
+      },
+      extend: {
+        csp: (sources) => sources.allow('connect-src', 'https://api.acme.dev'),
+        knip: (options) => options.entry('lib/acme-client.ts'),
+        logRedact: (redact) => redact.redact('req.body.token'),
+        lintStaged: (commands) => commands.run('*.md', 'markdownlint --fix'),
+        prettierPlugins: (plugins) => plugins.add('prettier-plugin-acme'),
+        testSetup: (setup) => setup.add('acme.setup.ts'),
+        agents: (sections) => sections.addSection('Acme', 'Call the API through `lib/acme`.'),
+      },
+    })
+    definePlugin({
+      ...NAMES,
+      extend: {
+        // @ts-expect-error -- a directive takes its sources as strings
+        csp: (sources) => sources.allow('connect-src', ['https://api.acme.dev']),
+        // @ts-expect-error -- Knip has no option `entries`
+        knip: (options) => options.entries('lib/acme-client.ts'),
       },
     })
   })

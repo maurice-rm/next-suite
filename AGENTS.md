@@ -84,9 +84,11 @@ says what next-suite does; this file says how code is written here.
   `packages/create-next-suite/plugins/<category>/`, or under `plugins/extras/` for an extra
   (a plugin without a category), and changes no other file; a plugin that needs another file
   changed is missing a point, which is a change to the core of its own. Built-in plugins import
-  only the public plugin contract (`create-next-suite/plugin`) and the shared points
-  (`create-next-suite/points`), like any external plugin. The categories, their order and
-  defaults live in `src/plugin-definition/categories.ts`.
+  only the public plugin contract (`create-next-suite/plugin`) and the points
+  (`create-next-suite/points`), like any external plugin. Every point create-next-suite defines,
+  a built-in plugin's own included, lives in `src/points/` and is exported from
+  `create-next-suite/points`, so external plugins contribute to it typed. The categories, their
+  order and defaults live in `src/plugin-definition/categories.ts`.
 - **Plugin files:** the files under `plugins/*/*/files/` are real files of a generated
   project. Where they import the packages the plugin installs, a `package.json` with only
   `"private": true` sits beside them, so `turbo boundaries` takes them for a project of their own;

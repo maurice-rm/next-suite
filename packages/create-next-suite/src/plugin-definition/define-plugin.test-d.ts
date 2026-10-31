@@ -1,15 +1,9 @@
 import { describe, expectTypeOf, it } from 'vitest'
 
 import type { TypescriptModule } from '../code-edit/typescript-module.ts'
+import type { CspSources } from '../points/csp-sources.ts'
 import type { Database } from '../points/database.ts'
-import {
-  type CspSources,
-  csp,
-  type Dialect,
-  database,
-  type OrmKind,
-  orm,
-} from '../test-support/fixture-points.ts'
+import { csp, type Dialect, database, type OrmKind, orm } from '../test-support/fixture-points.ts'
 import { definePlugin } from './define-plugin.ts'
 import { optional } from './optional.ts'
 
@@ -174,8 +168,8 @@ describe('a plugin definition rejects', () => {
       extend: {
         csp: (sources) => {
           expectTypeOf(sources).toEqualTypeOf<CspSources>()
-          // @ts-expect-error script-source is no CSP directive
-          sources.allow('script-source', 'https://example.com')
+          // @ts-expect-error a source is a string
+          sources.allow('script-src', 443)
         },
       },
     })

@@ -1,36 +1,9 @@
 import { definePlugin } from 'create-next-suite/plugin'
+import { createLintStagedCommands } from 'create-next-suite/points'
 
 const VERSIONS = { husky: '9.1.7', 'lint-staged': '17.6.0' }
 const CONFIG_FILE = 'lint-staged.config.mjs'
 const CONFIG_OBJECT = 'config'
-
-/**
- * The commands lint-staged runs on the staged files, by glob, as the linter and formatter plugins
- * contribute them.
- */
-type LintStagedCommands = {
-  /** Runs `command` on the staged files `glob` matches, such as `eslint --fix` on `*.ts`. */
-  run: (glob: string, command: string) => void
-  /** Each glob with its commands, in the order they were first given. */
-  commands: () => ReadonlyMap<string, readonly string[]>
-}
-
-declare module 'create-next-suite/plugin' {
-  interface CollectorPoints {
-    /** The commands lint-staged runs on the staged files; the lint-staged plugin provides it. */
-    lintStaged: LintStagedCommands
-  }
-}
-
-const createLintStagedCommands = (): LintStagedCommands => {
-  const commands = new Map<string, Set<string>>()
-  return {
-    run: (glob, command) => {
-      commands.set(glob, (commands.get(glob) ?? new Set()).add(command))
-    },
-    commands: () => new Map([...commands].map(([glob, globCommands]) => [glob, [...globCommands]])),
-  }
-}
 
 /** The commands of a glob as one line of code, the way the config has always written them. */
 const commandList = (commands: readonly string[]): string =>

@@ -48,15 +48,11 @@ A required point without a provider fails the run.
 
 Information flows from the users to one provider. The provider creates a collector under
 `collects` and finishes it into files once every contribution is in; other plugins contribute
-under `extend`:
+under `extend`. A point module defines a collector point like a value point, with
+`defineCollectorPoint` and an entry in `CollectorPoints`. The point `logRedact`, which the pino
+plugin provides, comes with `create-next-suite/points`, its collector `createLogRedact` too:
 
 ```ts
-declare module 'create-next-suite/plugin' {
-  interface CollectorPoints {
-    logRedact: { redact: (...paths: string[]) => void; paths: () => readonly string[] }
-  }
-}
-
 // the logger plugin
 collects: {
   logRedact: {
@@ -91,7 +87,13 @@ scripts: ({ csp }) => (csp === undefined ? {} : { 'csp:check': 'node check-csp.t
 its points reach the replacement, as long as it provides the same points. `has('static-csp')`
 answers `false` then.
 
-## Shared points
+## Points of create-next-suite
+
+create-next-suite defines three kinds of points in `create-next-suite/points`, each with its type
+and, for a collector point, the function that creates its collector: shared points, points of the
+core and points of the built-in plugins. A plugin imports them like any other plugin's points.
+
+### Shared points
 
 A point that several plugins could provide cannot live in one of them: an ORM plugin for Drizzle
 and one for Prisma both state `orm`. create-next-suite defines these contracts in
@@ -129,7 +131,7 @@ A contribution that contradicts an earlier one, such as another module under a n
 schema has already, stops the run with a `PointError` naming the plugin; the same contribution
 twice is kept once.
 
-### Reading validated variables
+#### Reading validated variables
 
 Code reads an environment variable from `process.env`. When a plugin validates the variables,
 code should read them from its module instead, which has them parsed and with their defaults.
@@ -154,16 +156,47 @@ environment variable.
 
 ### Points of the core
 
-Three more points of the core come with `create-next-suite/points`, their collectors too:
+The selected plugin of a category provides these for what the core needs of every project:
 
-| Point | Provider | Collector |
-| --- | --- | --- |
-| `builtDependencies` | the package manager plugin: the dependencies whose install scripts may run | `createBuiltDependencies` |
-| `lintIgnores` | the linter plugin: the globs it skips | `createLintIgnores` |
-| `ciChecks` | the CI plugin: the scripts CI runs | `createCiChecks` |
+| Point | Kind | What flows | Provider | Collector |
+| --- | --- | --- | --- | --- |
+| `builtDependencies` | collector | `allow(name)`, a dependency whose install script may run, such as a native driver's; `deny(name)`, one known to need none | the package manager plugin | `createBuiltDependencies` |
+| `lintIgnores` | collector | `ignore(...globs)`, files the linter skips, such as `drizzle/**` | the linter plugin | `createLintIgnores` |
+| `ciChecks` | collector | `run(script)`, a script of `package.json` CI runs on every change, such as `lint` | the CI plugin | `createCiChecks` |
 
-The built-in plugins define further points, such as `lintStaged`, `prettierPlugins`, `knip`, `csp`,
-`logRedact`, `testSetup` and `agents`.
+### Points of the built-in plugins
+
+A built-in plugin that lets other plugins add to its tool provides a point for it. They come with
+`create-next-suite/points` as well, so a plugin from another package contributes to them typed,
+exactly like a built-in plugin:
+
+| Point | Kind | What flows | Provider | Collector |
+| --- | --- | --- | --- | --- |
+| `lintStaged` | collector | `run(glob, command)`, a command lint-staged runs on the staged files the glob matches, such as `eslint --fix` on `*.ts` | lint-staged | `createLintStagedCommands` |
+| `prettierPlugins` | collector | `add(name)`, a Prettier plugin the config loads, such as `prettier-plugin-tailwindcss` | prettier | `createPrettierPlugins` |
+| `knip` | collector | `entry(...patterns)`, entry files; `ignore(...patterns)`, files Knip skips; `ignoreDependencies(...names)`, dependencies it does not report | knip | `createKnipOptions` |
+| `csp` | collector | `allow(directive, ...sources)`, sources of the Content Security Policy, such as `https://va.vercel-scripts.com` for `script-src` | static-csp | `createCspSources` |
+| `logRedact` | collector | `redact(...paths)`, values the logger hides in every log line, such as `req.body.password` | pino | `createLogRedact` |
+| `testSetup` | collector | `add(...paths)`, setup files Vitest loads before the tests | vitest | `createTestSetup` |
+| `agents` | collector | `addSection(title, text)`, a section of `AGENTS.md` with instructions for coding agents, in Markdown | agents-md | `createAgentSections` |
+
+A contribution reaches the tool only when its plugin is selected, and is dropped otherwise:
+
+```ts title="better-auth/plugin.ts (abridged)"
+import { definePlugin } from 'create-next-suite/plugin'
+
+export default definePlugin({
+  name: 'better-auth',
+  title: 'Better Auth',
+  files: { '@/lib/auth-client.ts': 'files/auth-client.ts' },
+  // nothing imports the client yet, so Knip takes it for an entry instead of an unused file
+  extend: { knip: (knip, { diskPath }) => knip.entry(diskPath('@/lib/auth-client.ts')) },
+})
+```
+
+A plugin that replaces a built-in plugin, such as its own Content Security Policy with
+`replaces: 'static-csp'`, collects the same point with the collector from
+`create-next-suite/points` or one of its own of the same type.
 
 Elements at the end of `<body>` and the code `instrumentation-client.ts` loads need no point: the
 core owns those files, and every plugin adds to them through `layout.appendToBody` and
@@ -260,8 +293,3 @@ copied files work together. Generate every combination and build it: create-next
 contracts with test plugins for PostgreSQL, SQLite, Drizzle, Prisma, Better Auth, a blog, Docker
 and a health route, every ORM with every database, and checks Better Auth's tables with
 `auth check schema`.
-
-A plugin from another package can contribute only to points whose types it can import: the shared
-points, and the points of the plugin contract. The points of a built-in plugin, such as `knip`,
-are declared in its `plugin.ts` and not published, so an external plugin cannot type a
-contribution to them yet.

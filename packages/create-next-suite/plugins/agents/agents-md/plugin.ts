@@ -1,32 +1,8 @@
 import { definePlugin } from 'create-next-suite/plugin'
+import { createAgentSections } from 'create-next-suite/points'
 
 const AGENTS_FILE = 'AGENTS.md'
 const TITLE_PREFIX = '# '
-
-/** The sections of AGENTS.md, as other plugins contribute them. */
-type AgentSections = {
-  /** Adds a section `## <title>` with instructions for coding agents, in Markdown. */
-  addSection: (title: string, text: string) => void
-  /** The sections in the order they were added. */
-  sections: () => readonly { title: string; text: string }[]
-}
-
-declare module 'create-next-suite/plugin' {
-  interface CollectorPoints {
-    /** The sections of AGENTS.md, the instructions for coding agents; the agents-md plugin provides it. */
-    agents: AgentSections
-  }
-}
-
-const createAgentSections = (): AgentSections => {
-  const sections: { title: string; text: string }[] = []
-  return {
-    addSection: (title, text) => {
-      sections.push({ title, text })
-    },
-    sections: () => [...sections],
-  }
-}
 
 /** The text with its first line, the title, naming the project. */
 const withTitle = (text: string, projectName: string): string =>
