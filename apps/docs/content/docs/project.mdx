@@ -52,7 +52,8 @@ export default defineSuiteConfig({
 | `answers` | the answer to each option, by plugin; an option without one takes its default                       |
 
 create-next-suite writes every plugin and every answer out, so the config alone describes the
-project. It writes the config once and only reads it afterwards.
+project. It writes the config once; afterwards only you change it, by hand or with
+[`next-suite add` and `next-suite disable`](#add-and-disable-plugins).
 
 ### Checked in your editor
 
@@ -116,7 +117,8 @@ user configuration, so a project someone else wrote never runs a plugin you have
 
 Change `next-suite.config.ts`, then run `next-suite update`: a different answer, a plugin more or
 fewer, a new override or a changed project plugin reach the project's files, and your own changes
-to those files stay.
+to those files stay. [`add` and `disable`](#add-and-disable-plugins) change the config and update
+in one step.
 
 ```bash
 pnpm exec next-suite update
@@ -160,6 +162,36 @@ in a merge conflict. `next-suite update --dry-run` shows the same report and wri
 
 `srcDir` and `importAlias` cannot change once the project is created; an update with a config
 that changes them stops.
+
+### Add and disable plugins
+
+`next-suite add` and `next-suite disable` change the config for you and run the update:
+
+```bash
+pnpm exec next-suite add pino
+pnpm exec next-suite add github:acme/plugins/mail#v1 --provider smtp
+pnpm exec next-suite add ../shared/plugins/audit
+pnpm exec next-suite disable seo
+```
+
+`add <plugin>` takes a built-in plugin by its name, or any other plugin by its path or
+[address](./plugins/sources-and-trust). It appends the plugin to `plugins`, takes it out of
+`disable`, and writes the answers to its options, given as `--<option> <value>` (a list
+comma-separated, a yes/no option as `--<option>` or `--no-<option>`), under `answers`; an option
+without one takes its default. A path is written relative to the project. An external plugin is
+fetched and read without running it, and the update asks for your trust before it runs.
+
+`disable <plugin>` adds the plugin to `disable` and drops its answers. The plugin's files go the
+way the update table says: removed where you did not change them, kept where you did.
+
+Both edit the config through its syntax tree, so your formatting and comments stay, and new code
+takes the file's quotes. When the update fails before it changed a file, such as for a plugin of a
+category that takes one plugin while another is selected, or an untrusted source without a
+terminal to ask in, the config is restored as it was. With merge conflicts the change stays, and
+`next-suite update --continue` records it. `--force` passes through to the update.
+
+To stop using a plugin for good, `disable` it, or delete its entry from `plugins` by hand: today
+both have the same effect.
 
 ### Merge conflicts
 

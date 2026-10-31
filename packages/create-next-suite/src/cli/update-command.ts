@@ -27,7 +27,7 @@ const closingOf = (outcome: UpdateOutcome): string => {
 }
 
 /** An update that left merge conflicts; the run fails once its report is out. */
-class UpdateMergeConflictError extends ExpectedError {
+export class UpdateMergeConflictError extends ExpectedError {
   override name = 'UpdateMergeConflictError'
 }
 
@@ -45,7 +45,7 @@ const updateEnvironmentOf = (environment: NextSuiteEnvironment) => ({
  *
  * @throws UpdateMergeConflictError when files have merge conflicts.
  */
-const runUpdate = async (
+export const runUpdate = async (
   environment: NextSuiteEnvironment,
   report: Report,
   options: UpdateOptions,

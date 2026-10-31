@@ -47,7 +47,7 @@ Code, messages and these pages use each word below for one concept only.
 | trust pattern | a source with `*` for anything, such as `github:acme/*`, whose plugins may run code; kept in the user configuration or given with `--trust` for one run |
 | snapshot | the copy of a plugin's files in the cache, named by their content hash, that create-next-suite reads, trusts and runs |
 | content hash | the hash of a plugin's files; the user configuration keeps those trusted for each source, and a plugin with a content hash not trusted yet is asked about again |
-| project config | `next-suite.config.ts` in a generated project: its settings, plugins, disabled plugins and answers; written once, then only read, and enough to create the project again with `--config` |
+| project config | `next-suite.config.ts` in a generated project: its settings, plugins, disabled plugins and answers; written once, then changed by you or by `next-suite add` and `disable`, and enough to create the project again with `--config` |
 | lock | `.next-suite/lock.json` in a generated project: the generator, every plugin with its source and version or content hash, every answer, a hash of every generated file and the provenance; written on every generation |
 | registry types | `.next-suite/types.d.ts` in a generated project: every plugin its project config can name, with the types of their answers, added to `PluginRegistry` of `create-next-suite/config` |
 | provenance | which plugin did what to each generated file, in order, with the kind of each operation: `own`, `extend`, `direct` or `override`; the lock records it and `next-suite explain` shows it |
@@ -59,4 +59,6 @@ Code, messages and these pages use each word below for one concept only.
 | new output | the files the project config describes now; what an update merges into the working tree |
 | merge conflict | a place where you and the new output changed the same or neighbouring lines of a file, marked with `<<<<<<< yours` and `>>>>>>> next-suite`, or a key of a JSON file you both changed differently |
 | pending update | an update with merge conflicts: its lock waits in `.next-suite/pending-update.json` until `next-suite update --continue` records it |
+| add | `next-suite add <plugin>`: adding a plugin to the project config, with answers to its options, then running the update |
+| disable | `next-suite disable <plugin>`: adding a plugin to `disable` in the project config and dropping its answers, then running the update; the plugin no longer runs although `plugins` may name it |
 | eject | `next-suite eject`: removing next-suite from a project, which stays a plain Next.js project |

@@ -1,5 +1,5 @@
-import { readFile, stat } from 'node:fs/promises'
-import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { stat } from 'node:fs/promises'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 
 import type { Command } from 'commander'
 
@@ -8,20 +8,10 @@ import { readTextIfPresent } from '../file-system/read-text-if-present.ts'
 import { InputError } from '../input-error.ts'
 import { explainFile } from '../project-config/explain-file.ts'
 import { findProjectRoot } from '../project-config/find-project-root.ts'
-import { parseLockFile } from '../project-config/lock-file.ts'
-import { ProjectConfigError } from '../project-config/project-config-error.ts'
-import { PROJECT_PATHS } from '../project-config/project-paths.ts'
+import { readLockFile } from '../project-config/read-lock-file.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
 
 const PARENT = '..'
-
-const readLock = async (root: string) => {
-  const path = join(root, PROJECT_PATHS.lock)
-  const text = await readFile(path, 'utf8').catch((error: unknown) => {
-    throw new ProjectConfigError(`cannot read ${path}`, { cause: error })
-  })
-  return parseLockFile(text, path)
-}
 
 const isDirectory = async (path: string): Promise<boolean> => {
   try {
@@ -51,7 +41,7 @@ const explain = async ({ cwd }: NextSuiteEnvironment, file: string): Promise<str
   if (await isDirectory(absolute)) {
     throw new InputError(`${file} is a directory; explain takes a file`)
   }
-  const lock = await readLock(root)
+  const lock = await readLockFile(root)
   return explainFile({ lock, path, content: await readTextIfPresent(absolute) }).join('\n')
 }
 

@@ -23,7 +23,7 @@ const PACKAGE_ROOT = fileURLToPath(
 const CLI_PATH = join(PACKAGE_ROOT, packageJson.bin['create-next-suite'])
 const NEXT_SUITE_PATH = join(PACKAGE_ROOT, packageJson.bin['next-suite'])
 /** The commands of next-suite in a project whose help the CLI page shows in full. */
-const PROJECT_COMMANDS = ['update']
+const PROJECT_COMMANDS = ['update', 'add', 'disable']
 const CATEGORIES_PATH = join(PACKAGE_ROOT, 'src', 'plugin-definition', 'categories.ts')
 const PLUGINS_PATH = join(PACKAGE_ROOT, 'plugins')
 const PLUGIN_FILE = 'plugin.ts'
