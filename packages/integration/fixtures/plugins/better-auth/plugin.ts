@@ -8,6 +8,8 @@ const VERSIONS = {
   auth: '1.7.14',
 }
 const AUTH_FILE = '@/lib/auth.ts'
+/** The client components sign in with; nothing imports it yet, so it is an entry of Knip. */
+const AUTH_CLIENT_FILE = '@/lib/auth-client.ts'
 const AUTH_OBJECT = 'auth'
 const LOCAL_URL = 'http://localhost:3000'
 
@@ -89,10 +91,12 @@ export default definePlugin({
         )
       },
     },
+    [AUTH_CLIENT_FILE]: 'files/auth-client.ts',
     '@/app/api/auth/[...all]/route.ts': 'files/route.ts',
   },
   extend: {
     databaseSchema: (schema, { orm, readFile }) =>
       schema.add('auth', readFile(SCHEMA_FILES[orm.kind][orm.dialect])),
+    knip: (knip, { diskPath }) => knip.entry(diskPath(AUTH_CLIENT_FILE)),
   },
 })
