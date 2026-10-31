@@ -16,8 +16,8 @@ type ConfigChange = {
   /** What the change did, reported before the update. */
   summary: string
   force: boolean
-  /** Patterns from `--trust`, trusted for this run only, or nothing for a command without it. */
-  flagPatterns: readonly string[] | undefined
+  /** Patterns from `--trust`, trusted for this run only. */
+  flagPatterns: readonly string[]
 }
 
 /**

@@ -192,10 +192,7 @@ takes the file's quotes. When the update fails before it changed a file, such as
 category that takes one plugin while another is selected, or an untrusted source without a
 terminal to ask in, the config is restored as it was. With merge conflicts the change stays, and
 `next-suite update --continue` records it. `--force` passes through to the update, and so does
-`--trust <pattern>` for `add`, which trusts matching sources for this run only, as on create.
-`disable` takes no `--trust`: without a terminal, a plugin from an untrusted source needs a pattern
-in your user configuration, and a plugin whose content changed is confirmed by running `disable` in
-a terminal.
+`--trust <pattern>`, which trusts matching sources for this run only, as on create.
 
 To stop using a plugin for good, `disable` it, or delete its entry from `plugins` by hand: today
 both have the same effect.

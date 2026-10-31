@@ -10,8 +10,8 @@ import { readUserConfig } from '../user-config/user-config.ts'
 type TrustCheck = {
   /** The external plugins the run selects; their code runs once this check passes. */
   plugins: readonly FetchedPlugin[]
-  /** Patterns from `--trust`, trusted for this run only, or nothing for a command without it. */
-  flagPatterns: readonly string[] | undefined
+  /** Patterns from `--trust`, trusted for this run only. */
+  flagPatterns: readonly string[]
   userConfigPath: string
   /** The terminal to ask in, or nothing when the run cannot ask. */
   streams: Streams | undefined
@@ -37,9 +37,6 @@ type TrustQuestion = {
   alwaysLabel: string
   remedy: string
 }
-
-/** What the remedy of a plugin depends on besides its verdict. */
-type RemedyContext = { source: string; userConfigPath: string; hasTrustFlag: boolean }
 
 const shortHash = (hash: string): string => hash.slice(0, SHORT_HASH_LENGTH)
 
@@ -83,42 +80,25 @@ const askForTrust = async (
   return reply
 }
 
-/** What a run that cannot ask is told to do instead, by whether its command takes `--trust`. */
-const remedyFor = (
-  verdict: Exclude<TrustVerdict, { kind: 'trusted' }>,
-  { source, userConfigPath, hasTrustFlag }: RemedyContext,
-): string => {
-  if (verdict.kind === 'changed') {
-    return hasTrustFlag
-      ? `check the change, then pass --trust "${source}" to run it`
-      : 'check the change, then run the command in a terminal to trust the new content'
-  }
-  const configRemedy = `add the pattern to "trust" in ${userConfigPath}`
-  return hasTrustFlag
-    ? `pass --trust "${source}" or ${configRemedy}`
-    : `run the command in a terminal to be asked, or ${configRemedy}`
-}
-
 const questionFor = (
   plugin: FetchedPlugin,
   verdict: Exclude<TrustVerdict, { kind: 'trusted' }>,
-  context: Omit<RemedyContext, 'source'>,
+  userConfigPath: string,
 ): TrustQuestion => {
   const source = sourceOf(plugin.address)
-  const remedy = remedyFor(verdict, { ...context, source })
   if (verdict.kind === 'changed') {
     return {
       plugin,
       problem: `changed since you trusted its content ${shortHash(verdict.trustedHash)}`,
       alwaysLabel: 'Trust the new content',
-      remedy,
+      remedy: `check the change, then pass --trust "${source}" to run it`,
     }
   }
   return {
     plugin,
     problem: 'comes from an untrusted source',
     alwaysLabel: `Always trust ${source}`,
-    remedy,
+    remedy: `pass --trust "${source}" or add the pattern to "trust" in ${userConfigPath}`,
   }
 }
 
@@ -145,21 +125,14 @@ export const confirmTrust = async ({
 }: TrustCheck): Promise<void> => {
   const { trust, trustedContent } = await readUserConfig(userConfigPath)
   for (const plugin of plugins) {
-    const verdict = judgeTrust(plugin, {
-      patterns: trust,
-      flagPatterns: flagPatterns ?? [],
-      trustedContent,
-    })
+    const verdict = judgeTrust(plugin, { patterns: trust, flagPatterns, trustedContent })
     if (verdict.kind === 'trusted') {
       if (verdict.recordsContent) {
         await recordTrustedContent(userConfigPath, contentOf(plugin))
       }
       continue
     }
-    const question = questionFor(plugin, verdict, {
-      userConfigPath,
-      hasTrustFlag: flagPatterns !== undefined,
-    })
+    const question = questionFor(plugin, verdict, userConfigPath)
     if (streams === undefined) {
       throw new TrustError(
         `${plugin.summary.metadata.name} from ${plugin.address} ${question.problem}; ${question.remedy}`,

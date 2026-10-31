@@ -105,7 +105,7 @@ const runRecordedVersion = async (
     configPath,
     workDirectory,
     targetName: OUTPUT_DIRECTORY,
-    trustPatterns: environment.flagPatterns ?? [],
+    trustPatterns: environment.flagPatterns,
   })
   if (!result.isSuccess) {
     return { problem: reasonOf(result.output) }

@@ -57,7 +57,7 @@ trust before its code runs, in a dry run too:
   cancel. The question names the plugin, its address, the commit or version it resolved to, its
   content hash, the plugin it replaces and the points it provides;
 - without one, pass `--trust "github:acme/*"` for the run, to `create-next-suite`,
-  `next-suite update` or `next-suite add`;
+  `next-suite update`, `next-suite add` or `next-suite disable`;
 - or keep trusted patterns with `next-suite trust add "github:acme/*"`.
 
 Patterns match the address without its ref or version, and `*` stands for anything.

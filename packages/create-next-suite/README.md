@@ -101,7 +101,7 @@ npx -p create-next-suite next-suite plugin validate ./my-plugin
 | `plugin validate <directory>`                    | checks a plugin and runs its `plugin.ts` on its own       |
 | `update [--dry-run] [--force] [--continue] [--trust <pattern>]` | updates the project to its config, keeping your changes |
 | `add <plugin> [--<option> <value>…] [--trust <pattern>]` | adds a plugin to the project's config and updates |
-| `disable <plugin>`                               | disables a plugin in the project's config and updates     |
+| `disable <plugin> [--trust <pattern>]`           | disables a plugin in the project's config and updates     |
 | `explain <file>`                                 | shows who wrote a file of the project and what each did   |
 | `eject [--force]`                                | removes next-suite from the project                       |
 

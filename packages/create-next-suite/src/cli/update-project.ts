@@ -58,12 +58,12 @@ export type UpdateEnvironment = Omit<ConfigPlanEnvironment, 'assets' | 'flagPatt
 
 /**
  * How an update runs: over uncommitted changes, whether it writes anything, and the patterns of
- * `--trust`, or nothing for a command without it.
+ * `--trust`, trusted for this run only.
  */
 export type UpdateOptions = {
   force: boolean
   dryRun: boolean
-  flagPatterns: readonly string[] | undefined
+  flagPatterns: readonly string[]
 }
 
 /** What an update did, or would do in a dry run, and what to know about it. */

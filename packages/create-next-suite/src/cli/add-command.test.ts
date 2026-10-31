@@ -145,16 +145,19 @@ describe('next-suite disable', () => {
     expect(result.error).toContain('the project does not run pino')
   })
 
-  it('names a remedy without --trust for a plugin from an untrusted source', async () => {
+  it('runs a plugin from an untrusted source only with --trust, without storing it', async () => {
     const routes = await helloRoutes()
     await createProject(['--plugin', HELLO_ADDRESS, '--hello', '--trust', 'github:acme/*'], routes)
 
-    const result = await nextSuite(['disable', 'seo'], routes)
+    const refused = await nextSuite(['disable', 'seo'], routes)
+    const trusted = await nextSuite(['disable', 'seo', '--trust', 'github:acme/*'], routes)
 
-    expect(result.exitCode).toBe(1)
-    expect(result.error).toContain(
-      `hello from ${HELLO_ADDRESS} comes from an untrusted source; run the command in a terminal to be asked, or add the pattern to "trust" in ${pathOf('config.json')}`,
+    expect(refused.exitCode).toBe(1)
+    expect(refused.error).toContain(
+      `hello from ${HELLO_ADDRESS} comes from an untrusted source; pass --trust "${HELLO_ADDRESS}"`,
     )
-    expect(result.error).not.toContain('--trust')
+    expect(trusted).toMatchObject({ exitCode: 0, error: '' })
+    expect(existsSync(pathOf(`${PROJECT}/app/robots.ts`))).toBe(false)
+    expect(existsSync(pathOf('config.json'))).toBe(false)
   })
 })

@@ -33,8 +33,8 @@ export type ConfigPlanEnvironment = {
   cliSpecifier: string
   /** The terminal to ask about trust in, or nothing when the run cannot ask. */
   streams: Streams | undefined
-  /** Patterns from `--trust`, trusted for this run only, or nothing for a command without it. */
-  flagPatterns: readonly string[] | undefined
+  /** Patterns from `--trust`, trusted for this run only. */
+  flagPatterns: readonly string[]
 }
 
 /** An external plugin a plan ran, by the entry its config names it with. */
