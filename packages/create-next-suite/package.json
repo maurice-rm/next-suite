@@ -1,6 +1,6 @@
 {
   "name": "create-next-suite",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Scaffold a Next.js app from plugins: pick a package manager, linter, styling, database, auth and more, or bring your own.",
   "keywords": [
     "next",
