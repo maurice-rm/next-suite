@@ -7,6 +7,7 @@ import type { TargetAction } from '../answers/target-action.ts'
 import { answersFromFlags, type QuestionFlag } from '../questions/flags.ts'
 import { readAnswerFile } from '../questions/read-answer-file.ts'
 import { CREATE_COMMAND } from './command-name.ts'
+import { createTrustOption } from './create-trust-option.ts'
 
 type CoreFlags = {
   yes?: boolean
@@ -56,10 +57,7 @@ const CORE_OPTIONS = [
     '--plugin <address>',
     'add a plugin from a directory, npm, GitHub, GitLab, Git or a URL; repeatable',
   ).argParser((address: string, previous: string[] = []) => [...previous, address]),
-  new Option(
-    '--trust <pattern>',
-    'run the code of plugins from matching sources, such as "github:acme/*", for this run; repeatable',
-  ).argParser((pattern: string, previous: string[] = []) => [...previous, pattern]),
+  createTrustOption(),
 ]
 const COMMANDER_OPTIONS = ['help', 'version']
 

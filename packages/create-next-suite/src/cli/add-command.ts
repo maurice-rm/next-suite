@@ -11,9 +11,12 @@ import { loadSuiteConfig } from '../project-config/load-suite-config.ts'
 import { PROJECT_PATHS } from '../project-config/project-paths.ts'
 import { changeConfigAndUpdate } from './change-config-and-update.ts'
 import { configEntryOf } from './config-entry-of.ts'
+import { createTrustOption } from './create-trust-option.ts'
 import { fetchExternalPlugins } from './fetch-external-plugins.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
 import { parseOptionAnswers } from './parse-option-answers.ts'
+
+type AddFlags = { force?: boolean; trust?: string[] }
 
 /** A plugin to add: the entry the config names it by, its name and its options. */
 type ResolvedPlugin = {
@@ -81,7 +84,7 @@ const assertNotSelected = async (
 const add = async (
   environment: NextSuiteEnvironment,
   report: Report,
-  { argument, tokens, force }: { argument: string; tokens: readonly string[]; force: boolean },
+  { argument, tokens, flags }: { argument: string; tokens: readonly string[]; flags: AddFlags },
 ): Promise<void> => {
   const root = findProjectRoot(environment.cwd)
   const plugin = await resolvePlugin(environment, { root, argument })
@@ -103,7 +106,8 @@ const add = async (
         answers,
       }),
     summary: `Added ${plugin.entry} to ${PROJECT_PATHS.config}.`,
-    force,
+    force: flags.force === true,
+    flagPatterns: flags.trust ?? [],
   })
 }
 
@@ -118,8 +122,9 @@ export const addAddCommand = (
     .argument('<plugin>', 'a built-in plugin by its name, or a plugin by its path or address')
     .argument('[options...]', 'answers to the plugin’s options, such as --level debug')
     .option('--force', 'update over uncommitted changes, saved in the stash first')
+    .addOption(createTrustOption())
     .allowUnknownOption()
-    .action(async (argument: string, tokens: string[], { force }: { force?: boolean }) =>
-      add(environment, report, { argument, tokens, force: force === true }),
+    .action(async (argument: string, tokens: string[], flags: AddFlags) =>
+      add(environment, report, { argument, tokens, flags }),
     )
 }

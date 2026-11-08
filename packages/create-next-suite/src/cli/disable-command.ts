@@ -9,7 +9,10 @@ import { loadSuiteConfig } from '../project-config/load-suite-config.ts'
 import { PROJECT_PATHS } from '../project-config/project-paths.ts'
 import { readLockFile } from '../project-config/read-lock-file.ts'
 import { changeConfigAndUpdate } from './change-config-and-update.ts'
+import { createTrustOption } from './create-trust-option.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
+
+type DisableFlags = { force?: boolean; trust?: string[] }
 
 /**
  * Fails for a plugin the project does not run, as its lock records, or one the config disables
@@ -34,7 +37,7 @@ const assertSelected = async (
 const disable = async (
   environment: NextSuiteEnvironment,
   report: Report,
-  { name, force }: { name: string; force: boolean },
+  { name, flags }: { name: string; flags: DisableFlags },
 ): Promise<void> => {
   const root = findProjectRoot(environment.cwd)
   await assertSelected(environment, { root, name })
@@ -42,7 +45,8 @@ const disable = async (
     root,
     edit: (text) => disablePluginInConfig(text, name),
     summary: `Disabled ${name} in ${PROJECT_PATHS.config}.`,
-    force,
+    force: flags.force === true,
+    flagPatterns: flags.trust ?? [],
   })
 }
 
@@ -55,7 +59,8 @@ export const addDisableCommand = (
     .command('disable <plugin>')
     .description('disable a plugin in next-suite.config.ts and update the project')
     .option('--force', 'update over uncommitted changes, saved in the stash first')
-    .action(async (name: string, { force }: { force?: boolean }) =>
-      disable(environment, report, { name, force: force === true }),
+    .addOption(createTrustOption())
+    .action(async (name: string, flags: DisableFlags) =>
+      disable(environment, report, { name, flags }),
     )
 }

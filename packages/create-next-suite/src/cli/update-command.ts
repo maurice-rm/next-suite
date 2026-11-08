@@ -2,11 +2,12 @@ import type { Command } from 'commander'
 
 import { findProjectRoot } from '../project-config/find-project-root.ts'
 import { PROJECT_PATHS } from '../project-config/project-paths.ts'
+import { createTrustOption } from './create-trust-option.ts'
 import type { NextSuiteEnvironment, Report } from './next-suite-environment.ts'
 import { runUpdate } from './run-update.ts'
 import { continueUpdate } from './update-project.ts'
 
-type UpdateFlags = { dryRun?: boolean; force?: boolean; continue?: boolean }
+type UpdateFlags = { dryRun?: boolean; force?: boolean; continue?: boolean; trust?: string[] }
 
 const runContinue = async (environment: NextSuiteEnvironment, report: Report): Promise<void> => {
   const root = findProjectRoot(environment.cwd)
@@ -30,7 +31,8 @@ export const addUpdateCommand = (
     .option('--dry-run', 'show what the update would do, without writing into the project')
     .option('--force', 'update over uncommitted changes, saved in the stash first')
     .option('--continue', 'record an update once you resolved its merge conflicts')
-    .action(async ({ dryRun, force, continue: shouldContinue }: UpdateFlags) => {
+    .addOption(createTrustOption())
+    .action(async ({ dryRun, force, continue: shouldContinue, trust }: UpdateFlags) => {
       if (shouldContinue === true) {
         await runContinue(environment, report)
         return
@@ -38,6 +40,7 @@ export const addUpdateCommand = (
       await runUpdate(environment, report, {
         dryRun: dryRun === true,
         force: force === true,
+        flagPatterns: trust ?? [],
       })
     })
 }

@@ -10,9 +10,10 @@ import { PROJECT_PATHS } from '../project-config/project-paths.ts'
 import { commitAll, git, initRepository } from '../test-support/git.ts'
 import { setUpCreateRuns } from '../test-support/run-create-harness.ts'
 import { runNextSuiteIn } from '../test-support/run-next-suite-harness.ts'
+import { stubRemote } from '../test-support/stub-remote.ts'
 import type { NextSuiteEnvironment } from './next-suite-environment.ts'
 
-const { run: create, pathOf, write } = setUpCreateRuns()
+const { run: create, pathOf, write, githubRoutes } = setUpCreateRuns()
 
 const PROJECT = 'my-app'
 const QUIET = ['--yes', '--no-ci', '--no-git', '--no-install']
@@ -139,6 +140,39 @@ describe('next-suite update', () => {
     expect(result.output).toContain('Removed:\n  app/robots.ts\n')
     expect(result.output).toContain('Dry run, nothing was written.')
     expect(status()).toBe(before)
+  })
+
+  it('runs a plugin from an untrusted source only with --trust, without storing it', async () => {
+    const address = 'github:acme/plugins/hello'
+    const routes = await githubRoutes('hello', {
+      'plugin.ts': [
+        "import { definePlugin } from 'create-next-suite/plugin'",
+        '',
+        "export default definePlugin({ name: 'hello', title: 'Hello', files: { 'hello.txt': 'files/hello.txt' } })",
+        '',
+      ].join('\n'),
+      'files/hello.txt': 'hi\n',
+    })
+    const created = await create(
+      [PROJECT, ...QUIET, '--plugin', address, '--hello', '--trust', 'github:acme/*'],
+      { routes },
+    )
+    expect(created.error).toBe('')
+    initRepository(pathOf(PROJECT))
+    commitAll(pathOf(PROJECT), 'chore: initial commit')
+    await replaceIn('next-suite.config.ts', 'disable: []', 'disable: ["seo"]')
+    const remote = stubRemote(pathOf('.'), routes)
+
+    const refused = await update([], { remote })
+    const trusted = await update(['--trust', 'github:acme/*'], { remote })
+
+    expect(refused.exitCode).toBe(1)
+    expect(refused.error).toContain(
+      `hello from ${address} comes from an untrusted source; pass --trust "${address}"`,
+    )
+    expect(trusted).toMatchObject({ exitCode: 0, error: '' })
+    expect(trusted.output).toContain('Removed:\n  app/robots.ts\n')
+    expect(existsSync(pathOf('config.json'))).toBe(false)
   })
 
   it('marks a merge conflict, waits for --continue and records the update once it is resolved', async () => {
@@ -403,10 +437,17 @@ describe('next-suite update with a project of another version', () => {
     await setUp()
     const requests: string[] = []
 
-    const result = await update([], {
+    const result = await update(['--trust', 'github:acme/*'], {
       cliVersion: RunningVersion,
-      runPublishedGenerator: async ({ version, configPath, workDirectory, targetName }) => {
+      runPublishedGenerator: async ({
+        version,
+        configPath,
+        workDirectory,
+        targetName,
+        trustPatterns,
+      }) => {
         requests.push(version)
+        expect(trustPatterns).toEqual(['github:acme/*'])
         expect(workDirectory.startsWith(pathOf('work'))).toBe(true)
         expect(existsSync(join(workDirectory, 'package.json'))).toBe(true)
         await createAsOldVersion('old-output', { configPath })
