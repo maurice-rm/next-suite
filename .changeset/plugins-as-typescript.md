@@ -1,5 +1,0 @@
----
-"create-next-suite": minor
----
-
-Plugins are written in TypeScript: a plugin is a `plugin.ts` that exports `definePlugin({…})` and the real files it adds, and every project is assembled from them. A plugin adds to the files the core owns through typed fields (`dependencies`, `env`, `layout`, `nextConfig`, `readme` and more), edits TypeScript by code operations, and works with other plugins through points: a value point carries one value from its provider to every user, a collector point gathers contributions until its provider finishes them. A plugin may state a precondition: one only a default selected is left out when it fails, one the user chose stops the run with the plugin's reason, as lint-staged does without a linter or a formatter. `create-next-suite/plugin` exports `definePlugin`, `defineValuePoint`, `defineCollectorPoint`, `optional`, the collectors of the shared points and the types of a plugin; the manifest types, `plugin.json`, Handlebars templates, logic modules, `catalog.json`, `categories.json` and their JSON schemas are gone.
